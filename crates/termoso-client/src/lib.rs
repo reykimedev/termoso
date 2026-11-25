@@ -4,13 +4,16 @@
 //! ([`hosts::HostForm`], [`keychain::GenerateForm`], …) and Rust maps them to
 //! the sync entities, resolves group inheritance and keeps secrets from
 //! leaking into list DTOs. Nothing in this crate touches the network or a
-//! window system.
+//! window system, except the opt-in [`oidc`] pre-connect hook (feature
+//! `oidc-cert`), which runs an OpenID login in the browser.
 
 #![forbid(unsafe_code)]
 
 pub mod error;
 pub mod hosts;
 pub mod keychain;
+#[cfg(feature = "oidc-cert")]
+pub mod oidc;
 pub mod snippets;
 pub mod trust;
 

@@ -9026,7 +9026,9 @@ dependencies = [
  "serde_json",
  "tempfile",
  "termoso-core",
+ "termoso-oidc-cert",
  "termoso-proto",
+ "tokio",
  "url",
  "uuid",
  "zeroize",
@@ -9195,6 +9197,26 @@ dependencies = [
  "uniffi",
  "uuid",
  "xz2",
+ "zeroize",
+]
+
+[[package]]
+name = "termoso-oidc-cert"
+version = "0.12.1"
+dependencies = [
+ "base64 0.23.1",
+ "getrandom 0.4.3",
+ "p256 0.14.0",
+ "rand 0.10.3",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "sha3 0.11.0",
+ "ssh-key",
+ "thiserror 2.0.21",
+ "tokio",
+ "url",
  "zeroize",
 ]
 

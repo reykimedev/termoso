@@ -1633,6 +1633,13 @@ async fn ssh_connect<R: Runtime>(
                     certificate,
                 });
             } else {
+                // OpenID keys present a fresh opkssh certificate first; the
+                // plain key (and its own certificate) stays as the fallback.
+                if let Some(m) =
+                    oidc_certificate(&state, key, passphrase.as_ref().map(|p| p.as_str())).await
+                {
+                    auth.push(m);
+                }
                 auth.push(AuthMethod::Key {
                     private_key: Zeroizing::new(key.data.private_key.clone()),
                     passphrase: passphrase.clone(),
@@ -2077,6 +2084,56 @@ async fn gateway_dial<R: Runtime>(
         gateway_id,
         vault_id: r.host.vault_id,
         host_id: r.host.id,
+    })
+}
+
+/// Opens the OpenID provider's login page in the system browser.
+struct SystemBrowser;
+
+impl termoso_client::oidc::OpenBrowser for SystemBrowser {
+    fn open(&self, url: &str) -> std::result::Result<(), String> {
+        tauri_plugin_opener::open_url(url, None::<&str>).map_err(|e| e.to_string())
+    }
+}
+
+/// Pre-connect hook for keys with OpenID sign-in (opkssh certificates):
+/// the cached certificate, or a browser login for a fresh one. A failed
+/// login is logged and the connection goes on with the other methods.
+async fn oidc_certificate(
+    state: &AppState,
+    key: &termoso_core::model::Entity<termoso_core::model::SshKey>,
+    passphrase: Option<&str>,
+) -> Option<AuthMethod> {
+    use termoso_client::oidc::{self, PreConnect};
+    let prepared = state
+        .store()
+        .ok()
+        .and_then(|st| oidc::prepare(&st, key.id).ok())?;
+    let certificate = match prepared {
+        PreConnect::NotOidc => return None,
+        PreConnect::Cached(c) => c,
+        PreConnect::Login(settings) => {
+            // The store is not held while the browser login runs.
+            match oidc::login(&settings, &key.data.private_key, passphrase, &SystemBrowser).await {
+                Ok(fresh) => {
+                    if let Ok(st) = state.store()
+                        && let Err(e) = oidc::remember(&st, key.id, &settings, &fresh)
+                    {
+                        tracing::warn!(error = %e, "could not cache the OpenID certificate");
+                    }
+                    fresh.certificate
+                }
+                Err(e) => {
+                    tracing::warn!(error = %e, "OpenID sign-in failed; trying the other methods");
+                    return None;
+                }
+            }
+        }
+    };
+    Some(AuthMethod::Key {
+        private_key: Zeroizing::new(key.data.private_key.clone()),
+        passphrase: passphrase.map(|p| Zeroizing::new(p.to_owned())),
+        certificate: Some(certificate),
     })
 }
 

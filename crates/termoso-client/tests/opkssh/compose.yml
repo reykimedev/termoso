@@ -1,0 +1,27 @@
+# End-to-end fixture for the OpenPubkey (opkssh) certificate support:
+#   docker compose -f crates/termoso-client/tests/opkssh/compose.yml up -d --build --wait
+#   TERMOSO_OPKSSH_E2E=1 cargo test -p termoso-client --test opkssh_e2e
+# Host networking keeps the issuer URL (http://localhost:9998/) identical
+# for the test process and for `opkssh verify` inside the SSH host.
+services:
+  op:
+    build:
+      context: .
+      dockerfile: op.Dockerfile
+    network_mode: host
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/9998"]
+      interval: 1s
+      retries: 60
+  sshd:
+    build:
+      context: .
+      dockerfile: sshd.Dockerfile
+    network_mode: host
+    depends_on:
+      op:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/2222"]
+      interval: 1s
+      retries: 60

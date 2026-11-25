@@ -954,6 +954,16 @@ export interface KeyCard {
   dirty: boolean;
 }
 
+/** Per-key OpenID sign-in (opkssh certificates); kept on this device only. */
+export interface OidcKeySettings {
+  issuer: string;
+  client_id: string;
+  client_secret?: string | null;
+  scopes?: string[];
+  principals?: string[];
+  reuse_secs?: number | null;
+}
+
 export interface SkFlags {
   resident: boolean;
   userPresence: boolean;

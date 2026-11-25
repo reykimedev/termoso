@@ -75,6 +75,7 @@ import type {
   IssuedCertificate,
   IssuedCertificateList,
   KeyCard,
+  OidcKeySettings,
   KeyPreview,
   KnownHostCard,
   Listing,
@@ -462,6 +463,10 @@ export const keySetCertificate = (id: Uuid, certificate: string | null) =>
   invoke<KeyCard>("key_set_certificate", { id, certificate });
 export const keySetCertificateFile = (id: Uuid, path: string) =>
   invoke<KeyCard>("key_set_certificate_file", { id, path });
+export const keyOidcSettings = (id: Uuid) =>
+  invoke<OidcKeySettings | null>("key_oidc_settings", { id });
+export const keySetOidcSettings = (id: Uuid, settings: OidcKeySettings | null) =>
+  invoke<null>("key_set_oidc_settings", { id, settings });
 export const keyCopyToVault = (id: Uuid, vaultId: Uuid, moveKey: boolean) =>
   invoke<KeyCard>("key_copy_to_vault", { id, vaultId, moveKey });
 export const keyRename = (id: Uuid, label: string) => invoke<KeyCard>("key_rename", { id, label });

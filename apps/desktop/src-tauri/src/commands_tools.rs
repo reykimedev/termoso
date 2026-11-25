@@ -251,6 +251,25 @@ pub async fn key_set_certificate_file(
     keychain::set_certificate(&*state.store()?, id, Some(text))
 }
 
+/// OpenID sign-in settings of a key (opkssh certificates), if switched on.
+#[tauri::command]
+pub async fn key_oidc_settings(
+    state: State<'_, AppState>,
+    id: Uuid,
+) -> Result<Option<termoso_client::oidc::OidcKeySettings>> {
+    termoso_client::oidc::settings(&*state.store()?, id)
+}
+
+/// Switch OpenID sign-in on (`Some`) or off (`None`) for a P-256 key.
+#[tauri::command]
+pub async fn key_set_oidc_settings(
+    state: State<'_, AppState>,
+    id: Uuid,
+    settings: Option<termoso_client::oidc::OidcKeySettings>,
+) -> Result<()> {
+    termoso_client::oidc::set_settings(&*state.store()?, id, settings)
+}
+
 /// Copy or move a key (with its certificate) into another vault.
 #[tauri::command]
 pub async fn key_copy_to_vault(

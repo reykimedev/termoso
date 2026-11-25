@@ -267,6 +267,8 @@ pub fn run() {
             commands_tools::key_certificate,
             commands_tools::key_set_certificate,
             commands_tools::key_set_certificate_file,
+            commands_tools::key_oidc_settings,
+            commands_tools::key_set_oidc_settings,
             commands_tools::key_copy_to_vault,
             commands_tools::key_rename,
             commands_tools::key_change_passphrase,
