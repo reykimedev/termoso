@@ -222,6 +222,21 @@ jobs:
             echo "No Apple certificate: ad-hoc signature (users run xattr -cr once)"
           fi
 
+      # Forks and outside pull requests get no secrets, and Tauri refuses to
+      # build updater artifacts without the key. Like the unsigned Android APKs,
+      # such runs still build every bundle, just without the updater .sig files.
+      # A tag never takes this path, so a release without the key still fails.
+      - name: Updater signing key (skip updater artifacts when absent)
+        if: github.ref_type != 'tag'
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo 'TAURI_CONFIG={"bundle":{"createUpdaterArtifacts":false}}' >> "$GITHUB_ENV"
+            echo "No updater key: building bundles without updater signatures"
+          fi
+
       - name: Build, sign and (on tags) publish
         uses: tauri-apps/tauri-action@v1
         env:
