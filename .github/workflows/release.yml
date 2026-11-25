@@ -227,13 +227,17 @@ jobs:
       # such runs still build every bundle, just without the updater .sig files.
       # A tag never takes this path, so a release without the key still fails.
       - name: Updater signing key (skip updater artifacts when absent)
+        id: updater
         if: github.ref_type != 'tag'
         shell: bash
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
         run: |
           if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
-            echo 'TAURI_CONFIG={"bundle":{"createUpdaterArtifacts":false}}' >> "$GITHUB_ENV"
+            # A file rather than inline JSON: tauri-action splits args and would eat the quotes.
+            cfg="$RUNNER_TEMP/no-updater-artifacts.json"
+            echo '{"bundle":{"createUpdaterArtifacts":false}}' > "$cfg"
+            echo "args=--config $cfg" >> "$GITHUB_OUTPUT"
             echo "No updater key: building bundles without updater signatures"
           fi
 
@@ -245,7 +249,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: apps/desktop
-          args: --bundles ${{ matrix.bundles }} ${{ matrix.target && format('--target {0}', matrix.target) || '' }}
+          args: --bundles ${{ matrix.bundles }} ${{ matrix.target && format('--target {0}', matrix.target) || '' }} ${{ steps.updater.outputs.args }}
           # Only publish from a tag; a manual run just produces artifacts below.
           releaseId: ${{ github.ref_type == 'tag' && needs.version.outputs.release_id || '' }}
           tagName: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
