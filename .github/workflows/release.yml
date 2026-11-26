@@ -44,9 +44,11 @@ on:
       - apps/ios/build-core.sh
       - apps/ios/altstore/**
 
+# Tags and manual runs keep one group per ref and are never cancelled. Pull request runs only
+# build unsigned bundles as artifacts, so a newer push to the PR cancels the older run.
 concurrency:
-  group: release-${{ github.ref }}
-  cancel-in-progress: false
+  group: ${{ github.event_name == 'pull_request' && format('release-pr-{0}', github.event.pull_request.number) || format('release-{0}', github.ref) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   CARGO_TERM_COLOR: always
