@@ -1,7 +1,9 @@
 # Devel pipeline: every push to main runs in stages, each needing the one before, so a failed
 # lint or test never builds or publishes anything:
 #
-#   ci (lint, then tests: ci.yml)  →  build (Android, Linux, Windows, macOS; images)  →  sign + publish
+#   ci (lint, then tests: ci.yml)  →  build (Android, Linux, Windows; images)  →  sign + publish
+#
+# macOS is off for now (Mike, 2026-11-26): `desktop-macos` and `publish-macos` are `if: false`.
 #
 # Each commit gets its own prerelease `devel-<build>` with the Labterm Debug APK, the Labterm Dev
 # desktop bundles, their updater signatures, SHA256SUMS.txt and provenance attestations. The
@@ -153,9 +155,11 @@ jobs:
 
   # Its own job, not a matrix leg: macOS runners here are often slow to start, and a job waits for
   # every leg of a matrix it needs. The release goes out without it; macOS joins when it is done.
+  # Off for now: a macOS runner that never starts fails the run after 24 hours.
   desktop-macos:
     name: macos Apple Silicon (app, dmg)
     needs: plan
+    if: false
     runs-on: macos-latest
     timeout-minutes: 60
     steps:
@@ -173,6 +177,15 @@ jobs:
     permissions:
       contents: read
       packages: write
+
+  web-images:
+    name: labterm web images
+    needs: ci
+    uses: ./.github/workflows/web-images.yml
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
 
   # Signs the desktop updater artifacts (the only job holding the dev updater key), creates the
   # devel release and moves both feeds to it.
@@ -255,8 +268,9 @@ jobs:
             echo "Devel build $BUILD from commit \`$COMMIT\` on main."
             echo
             echo "- Android: \`labterm-debug.apk\` (Labterm Debug)"
-            echo "- Desktop: Labterm Dev $VERSION for Linux and Windows; macOS is added when its build finishes"
+            echo "- Desktop: Labterm Dev $VERSION for Linux and Windows (macOS is paused for now)"
             echo "- Server images: \`ghcr.io/${REPO%%/*}/labterm-{server,bridge,backup}:main\` when this commit changed them"
+            echo "- Labterm Web images: \`ghcr.io/${REPO%%/*}/labterm-{web,relay}:dev\` when this commit changed them"
             echo
             echo "For testing, not for production. Installed Labterm Debug and Labterm Dev builds update"
             echo "themselves to the newest devel release. Verify a download with \`sha256sum -c SHA256SUMS.txt\`"
@@ -310,6 +324,7 @@ jobs:
   publish-macos:
     name: sign + publish (macOS)
     needs: [plan, desktop-macos, publish]
+    if: false
     runs-on: ubuntu-latest
     environment: desktop-dev
     permissions:

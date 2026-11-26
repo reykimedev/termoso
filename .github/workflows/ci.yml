@@ -1,11 +1,9 @@
 name: CI
 
 on:
-  # Pushes to main run this workflow as the first stage of devel.yml, which builds and publishes
-  # only after it passes.
+  # Pushes to main run this workflow as the first stage of devel.yml, and `v*` tags as the first
+  # stage of release.yml; both build and publish only after it passes.
   workflow_call:
-  push:
-    tags: ["v*"]
   pull_request:
     # ready_for_review starts the heavy jobs that were skipped while the PR was a draft.
     types: [opened, synchronize, reopened, ready_for_review]
@@ -22,33 +20,46 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+permissions:
+  contents: read
+
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: -D warnings
 
 jobs:
-  # Decides which heavy jobs run. Jobs are skipped with `if:` rather than a workflow-level `paths`
+  # Decides which jobs run. Jobs are skipped with `if:` rather than a workflow-level `paths`
   # filter, because a skipped job satisfies a required check and a workflow that never started
-  # leaves it pending.
-  # - Pull requests: none on drafts; otherwise only those whose paths changed. Shared Rust code
-  #   and this workflow count for all of them, except macos and ios, which run only for their own
-  #   app (and ios for labterm-mobile); the nightly run covers shared code on those two.
-  # - Pushes to main: none, every change already passed them on its PR. Images are built and
-  #   published by server-images.yml, the android build by the debug channel.
-  # - Nightly: everything but docker, unless main has had no commit for a day.
-  # - Tags and manual runs: everything.
+  # leaves it pending. `check` (fmt + clippy) always runs except on a quiet night.
+  # - Pull requests: each job only when its paths changed. Shared Rust code and this workflow
+  #   count for every Rust job. The heavy jobs (android, netbird, fuzz, image builds) also wait
+  #   until the PR is ready for review.
+  # - Pushes to main (devel.yml): the light jobs; the heavy ones already ran on the PR, and the
+  #   images and the android build are built by devel.yml itself.
+  # - Releases (release.yml, on tags and by hand): everything except android, which release.yml
+  #   builds itself.
+  # - Nightly: the heavy jobs, unless main has had no commit for a day; then nothing at all.
+  # - Manual runs of this workflow: everything.
+  # macOS and iOS are off for now (Mike, 2026-11-26); their jobs stay below with `if: false`.
   changes:
     name: changes
     runs-on: ubuntu-latest
     outputs:
-      macos: ${{ steps.filter.outputs.macos }}
-      ios: ${{ steps.filter.outputs.ios }}
+      run: ${{ steps.filter.outputs.run }}
+      rust: ${{ steps.filter.outputs.rust }}
+      opkssh: ${{ steps.filter.outputs.opkssh }}
+      web: ${{ steps.filter.outputs.web }}
+      desktop: ${{ steps.filter.outputs.desktop }}
+      labterm_web: ${{ steps.filter.outputs.labterm_web }}
+      kubernetes: ${{ steps.filter.outputs.kubernetes }}
+      supply_chain: ${{ steps.filter.outputs.supply_chain }}
+      web_images: ${{ steps.filter.outputs.web_images }}
       android: ${{ steps.filter.outputs.android }}
       netbird: ${{ steps.filter.outputs.netbird }}
       fuzz: ${{ steps.filter.outputs.fuzz }}
       docker: ${{ steps.filter.outputs.docker }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # The commit and its first parent: the PR base, or main before the merge.
           fetch-depth: 2
@@ -57,47 +68,64 @@ jobs:
           EVENT: ${{ github.event_name }}
           REF: ${{ github.ref }}
           DRAFT: ${{ github.event.pull_request.draft }}
+          # In a called workflow this is the caller's name.
+          WORKFLOW: ${{ github.workflow }}
         run: |
-          jobs="macos ios android netbird fuzz docker"
-          set_all() { for j in $jobs; do echo "$j=$1" >> "$GITHUB_OUTPUT"; done; }
+          light="rust opkssh web desktop labterm_web kubernetes supply_chain"
+          heavy="web_images android netbird fuzz docker"
+          set_to() { v=$1; shift; for j in "$@"; do echo "$j=$v" >> "$GITHUB_OUTPUT"; done; }
           shared='^(crates/|Cargo\.(toml|lock)$|rust-toolchain|\.cargo/|\.github/workflows/ci\.yml$|\.github/actions/)'
-          docker_paths='^(apps/desktop/src-tauri/|web/|deploy/Dockerfile|\.dockerignore$)'
-          changed() { git diff --name-only HEAD^1 HEAD; }
+          ci='^\.github/workflows/ci\.yml$'
           has() { grep -qE "$1" <<<"$files" && echo true || echo false; }
+          if [ "$WORKFLOW" = "Desktop release" ]; then
+            set_to true run $light netbird fuzz; set_to false web_images android docker; exit 0
+          fi
           case "$EVENT" in
             pull_request)
-              if [ "$DRAFT" = true ]; then echo "Draft PR: heavy jobs skipped until it is ready for review."; set_all false; exit 0; fi
-              files=$(changed); printf 'Changed files:\n%s\n' "$files"
+              set_to true run
+              files=$(git diff --name-only HEAD^1 HEAD); printf 'Changed files:\n%s\n' "$files"
               {
-                echo "macos=$(has '^apps/desktop/|^\.github/workflows/ci\.yml$')"
-                echo "ios=$(has '^apps/ios/|^crates/labterm-mobile/|^\.github/workflows/ci\.yml$')"
+                echo "rust=$(has "$shared|^apps/desktop/src-tauri/")"
+                echo "opkssh=$(has "$shared")"
+                echo "web=$(has "$shared|^web/")"
+                echo "desktop=$(has "$ci|^apps/desktop/|^crates/labterm-core/assets/")"
+                echo "labterm_web=$(has "$shared|^apps/web/|^apps/desktop/")"
+                echo "kubernetes=$(has "$ci|^deploy/web/")"
+                echo "supply_chain=$(has "$ci|(^|/)Cargo\.(toml|lock)$|^deny\.toml$")"
+              } | tee -a "$GITHUB_OUTPUT"
+              if [ "$DRAFT" = true ]; then
+                echo "Draft PR: heavy jobs skipped until it is ready for review."; set_to false $heavy; exit 0
+              fi
+              {
+                echo "web_images=$(has "$shared|^apps/web/|^apps/desktop/|^deploy/web/")"
                 echo "android=$(has "$shared|^apps/android/")"
                 echo "netbird=$(has "$shared")"
                 echo "fuzz=$(has "$shared|^fuzz/")"
-                echo "docker=$(has "$shared|$docker_paths")"
+                echo "docker=$(has "$shared|^apps/desktop/src-tauri/|^web/|^deploy/Dockerfile|^\.dockerignore$")"
               } | tee -a "$GITHUB_OUTPUT" ;;
             push)
-              if [ "$REF" != refs/heads/main ]; then set_all true; exit 0; fi
-              set_all false ;;
+              set_to true run $light; set_to false $heavy ;;
             schedule)
               if [ $(( $(date +%s) - $(git log -1 --format=%ct HEAD) )) -gt 90000 ]; then
-                echo "No commit on main for a day: nightly platform jobs skipped."; set_all false
+                echo "No commit on main for a day: nightly run skipped."
+                set_to false run $light $heavy
               else
-                # Images are built and published by server-images.yml.
-                for j in macos ios android netbird fuzz; do echo "$j=true" >> "$GITHUB_OUTPUT"; done
-                echo "docker=false" >> "$GITHUB_OUTPUT"
+                # Images are built and published by devel.yml.
+                set_to false $light web_images docker; set_to true run android netbird fuzz
               fi ;;
-            *) set_all true ;;
+            *) set_to true run $light $heavy ;;
           esac
 
   # Lint stage. Every build and test job below needs it, so a lint failure never starts a build.
   # fmt runs first and fails within a minute; clippy follows.
   check:
     name: fmt + clippy
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
         with:
           components: rustfmt, clippy
       - run: cargo fmt --all -- --check
@@ -106,14 +134,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libgtk-3-dev \
             libayatana-appindicator3-dev librsvg2-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libudev-dev
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - run: cargo clippy --workspace --all-targets --locked
 
   test:
     name: tests (postgres + redis + rustfs + mailpit)
-    needs: check
+    needs: [changes, check]
+    if: needs.changes.outputs.rust == 'true'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -133,7 +162,7 @@ jobs:
           --health-cmd "redis-cli ping"
           --health-interval 5s --health-timeout 3s --health-retries 20
       mailpit:
-        image: axllent/mailpit:latest
+        image: axllent/mailpit:v1.33.1
         ports: ["1025:1025", "8025:8025"]
         options: >-
           --health-cmd "/mailpit readyz"
@@ -150,7 +179,7 @@ jobs:
       LABTERM_TEST_PG_DUMP: /usr/lib/postgresql/18/bin/pg_dump
       LABTERM_TEST_PG_RESTORE: /usr/lib/postgresql/18/bin/pg_restore
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Free runner disk (cargo test --workspace fills the 14 GB root volume)
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup \
@@ -181,8 +210,8 @@ jobs:
             curl -fsS http://127.0.0.1:9000/health && break
             sleep 1
           done
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - run: cargo test --workspace --locked
@@ -191,22 +220,23 @@ jobs:
 
   opkssh:
     name: opkssh certificates (e2e against opkssh verify + wasm32)
-    needs: check
+    needs: [changes, check]
+    if: needs.changes.outputs.opkssh == 'true'
     runs-on: ubuntu-latest
     env:
       LABTERM_OPKSSH_E2E: "1"
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Test OpenID provider + OpenSSH host with opkssh
         run: docker compose -f crates/labterm-client/tests/opkssh/compose.yml up -d --build --wait
       - name: System libraries (USB HID for the fido2 feature)
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends libudev-dev
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
         with:
           targets: wasm32-unknown-unknown
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - run: cargo test --locked -p labterm-oidc-cert
@@ -218,24 +248,25 @@ jobs:
 
   web:
     name: web cabinet (wasm + typecheck + lint + build)
-    needs: check
+    needs: [changes, check]
+    if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
         with:
           targets: wasm32-unknown-unknown
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
           key: wasm
-      - uses: taiki-e/install-action@v2
+      - uses: taiki-e/install-action@073e1fd0bc889c9aee68dbaaa927cde1b5653a83 # v2.90.11
         with:
           tool: wasm-pack@0.15.0
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
@@ -247,22 +278,18 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run build
-      - uses: actions/upload-artifact@v7
-        with:
-          name: web-dist
-          path: web/dist
-          retention-days: 7
 
   desktop:
     name: desktop webview (typecheck + lint + build)
-    needs: check
+    needs: [changes, check]
+    if: needs.changes.outputs.desktop == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: apps/desktop
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
@@ -278,11 +305,12 @@ jobs:
   # The relay's tests run in `test`, its clippy in `check`.
   labterm-web:
     name: labterm web (wasm32 clippy + build)
-    needs: check
+    needs: [changes, check]
+    if: needs.changes.outputs.labterm_web == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
         with:
           targets: wasm32-unknown-unknown
           components: clippy
@@ -305,6 +333,8 @@ jobs:
 
   labterm-web-kubernetes:
     name: labterm web (kubernetes manifests)
+    needs: changes
+    if: needs.changes.outputs.kubernetes == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -317,18 +347,21 @@ jobs:
           -strict -summary -schema-location default -schema-location "$CRDS"
           /tmp/labterm-web.yaml
 
-  # Pull requests build both images; pushes to main publish them in web-images.yml.
+  # Pull requests build both images; devel.yml publishes them from main (web-images.yml). Like
+  # `docker`, the matrix always runs on a PR and only its steps skip, so required checks report.
   labterm-web-images:
     name: labterm web image (${{ matrix.target }})
     if: github.event_name == 'pull_request'
-    needs: check
+    needs: [changes, check]
     runs-on: ubuntu-latest
     strategy:
       matrix:
         target: [relay, web]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - run: docker build -f deploy/web/Dockerfile --target ${{ matrix.target }} -t labterm-${{ matrix.target }}:ci .
+        if: needs.changes.outputs.web_images == 'true'
+      - if: needs.changes.outputs.web_images == 'true'
+        run: docker build -f deploy/web/Dockerfile --target ${{ matrix.target }} -t labterm-${{ matrix.target }}:ci .
 
   # Everything else runs on Linux, so this is what catches a broken
   # `cfg(target_os = "macos")` branch or a bundle setting the macOS bundler
@@ -339,18 +372,20 @@ jobs:
   macos:
     name: macos (clippy + core tests + tauri build --debug + runtime smoke)
     needs: [changes, check]
-    if: needs.changes.outputs.macos == 'true'
+    # Off for now (Mike, 2026-11-26): macOS runners rarely start. To turn it back on, add a
+    # `macos` output to `changes` (apps/desktop/ and this workflow; true nightly) and use it here.
+    if: false
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
         with:
           components: clippy
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
           key: macos
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
@@ -360,7 +395,7 @@ jobs:
       - run: cargo clippy -p labterm-core -p labterm-desktop --all-targets --locked
       - run: cargo test -p labterm-core --locked
       # The embedded VPN client goes into Contents/Frameworks (tauri.macos.conf.json).
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version-file: crates/labterm-netbird/go/go.mod
           cache-dependency-path: crates/labterm-netbird/go/go.sum
@@ -380,7 +415,7 @@ jobs:
           test -f "$app/Contents/Frameworks/liblabterm_netbird.dylib" || { echo "::error::no VPN client in the bundle"; exit 1; }
       - name: Runtime smoke
         run: apps/desktop/smoke/macos.sh target/debug/bundle/macos/Labterm.app "$RUNNER_TEMP/smoke"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: macos-smoke
@@ -397,14 +432,15 @@ jobs:
   ios:
     name: ios (rust sim core + uniffi swift + xcodebuild + XCTest/XCUITest)
     needs: [changes, check]
-    if: needs.changes.outputs.ios == 'true'
+    # Off for now, like macos. Its paths were apps/ios/, crates/labterm-mobile/ and this workflow.
+    if: false
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
         with:
           targets: aarch64-apple-ios-sim
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
           key: ios
@@ -466,7 +502,7 @@ jobs:
                           os.replace(src, dst)
           EOF
           (cd "$RUNNER_TEMP" && zip -qr Labterm.xcresult.zip Labterm.xcresult) || true
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: ios-simulator
@@ -484,31 +520,31 @@ jobs:
     if: needs.changes.outputs.android == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
         with:
           targets: aarch64-linux-android
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
           # Shared with the debug channel's publish job (same RUSTFLAGS, same target).
           shared-key: android
-      - uses: taiki-e/cache-cargo-install-action@v3
+      - uses: taiki-e/cache-cargo-install-action@9ee83daaa7b96a6fab930949ecf1122bba04a389 # v3.0.8
         with:
           tool: cargo-ndk@4.1.2
-      - uses: actions/setup-java@v6
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
           distribution: temurin
           java-version: 17
-      - uses: android-actions/setup-android@v4
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
         with:
           packages: platform-tools platforms;android-36 build-tools;36.0.0 ndk;27.2.12479018
       # The embedded NetBird client (crates/labterm-netbird/go) is a Go library in the APK.
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version-file: crates/labterm-netbird/go/go.mod
           cache-dependency-path: crates/labterm-netbird/go/go.sum
-      - uses: gradle/actions/setup-gradle@v6
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
       # Rust for one ABI is enough to compile, lint and generate the bindings.
@@ -516,7 +552,7 @@ jobs:
         working-directory: apps/android
         env:
           ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.2.12479018
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: labterm-android-debug
           path: apps/android/app/build/outputs/apk/debug/*.apk
@@ -530,40 +566,35 @@ jobs:
     if: needs.changes.outputs.netbird == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
           key: netbird
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version-file: crates/labterm-netbird/go/go.mod
           cache-dependency-path: crates/labterm-netbird/go/go.sum
       - run: cd crates/labterm-netbird/go && go vet ./...
       - run: crates/labterm-netbird/tests/e2e.sh
 
-  # Supply chain: RustSec advisories, license allow-list, banned crates and
-  # registry sources for the whole workspace (deny.toml), plus the npm
-  # advisory database for both JS trees. Gradle is covered by the dependency
-  # graph submitted from dependency-graph.yml (Dependabot alerts).
+  # Supply chain: license allow-list, banned crates and registry sources for the whole workspace
+  # (deny.toml), when a manifest or the lockfile changes. These depend only on the commit.
+  # Advisories (RustSec, npm) change without a commit, so they run daily in advisories.yml and
+  # never block a PR or a devel build.
   supply-chain:
-    name: supply chain (cargo deny + npm audit)
+    name: supply chain (cargo deny bans + licenses + sources)
+    needs: changes
+    if: needs.changes.outputs.supply_chain == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: taiki-e/install-action@v2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+      - uses: taiki-e/install-action@073e1fd0bc889c9aee68dbaaa927cde1b5653a83 # v2.90.11
         with:
           tool: cargo-deny@0.20.2
-      - run: cargo deny --locked check advisories bans licenses sources
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-      - run: npm audit --audit-level=moderate
-        working-directory: web
-      - run: npm audit --audit-level=moderate
-        working-directory: apps/desktop
+      - run: cargo deny --locked check bans licenses sources
 
   # Untrusted-input parsers (SAML, WebDAV, terminal, key import, deep links)
   # must keep compiling against the crates they cover; a short run of each
@@ -580,18 +611,18 @@ jobs:
       # build triple; pin the target so the targets link against the host glibc std.
       FUZZ_TARGET: x86_64-unknown-linux-gnu
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libudev-dev
       # Pinned: the 2026-11-01 nightly fails on zvariant_utils (E0391 async-drop cycle);
       # move the date forward once rustc is fixed.
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # master
         with:
           toolchain: ${{ env.FUZZ_TOOLCHAIN }}
           components: rust-src
-      - uses: taiki-e/install-action@v2
+      - uses: taiki-e/install-action@073e1fd0bc889c9aee68dbaaa927cde1b5653a83 # v2.90.11
         with:
           tool: cargo-fuzz@0.13.2
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
           workspaces: fuzz
@@ -605,7 +636,7 @@ jobs:
           for t in $(cargo +${{ env.FUZZ_TOOLCHAIN }} fuzz list); do
             cargo +${{ env.FUZZ_TOOLCHAIN }} fuzz run --target "$FUZZ_TARGET" "$t" -- -max_total_time=20 -max_len=16384 -timeout=10 -rss_limit_mb=2048
           done
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
         with:
           name: fuzz-artifacts
@@ -615,10 +646,12 @@ jobs:
   # Build check for the server images on pull requests. Pushes to main and tags build and publish
   # them in server-images.yml. A skipped matrix job reports under its unexpanded name, which would
   # leave per-image required checks pending, so on a PR the matrix always runs and only its steps
-  # skip when no image input changed.
+  # skip when no image input changed. PRs build amd64 only; arm64 is built on main (devel.yml),
+  # and its legs stay here, empty, so their check names keep reporting.
   docker:
     name: docker image (${{ matrix.image }}, ${{ matrix.arch }})
-    if: github.event_name == 'pull_request'
+    # test and web may be skipped when their paths did not change; the matrix must still run.
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.check.result == 'success' && !contains(needs.*.result, 'failure') }}
     runs-on: ${{ matrix.runner }}
     needs: [changes, check, test, web]
     permissions:
@@ -634,12 +667,12 @@ jobs:
           - arch: arm64
             runner: ubuntu-24.04-arm
     steps:
-      - uses: actions/checkout@v7
-        if: needs.changes.outputs.docker == 'true'
-      - uses: docker/setup-buildx-action@v4
-        if: needs.changes.outputs.docker == 'true'
-      - if: needs.changes.outputs.docker == 'true'
-        uses: docker/build-push-action@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: needs.changes.outputs.docker == 'true' && matrix.arch == 'amd64'
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        if: needs.changes.outputs.docker == 'true' && matrix.arch == 'amd64'
+      - if: needs.changes.outputs.docker == 'true' && matrix.arch == 'amd64'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: deploy/Dockerfile${{ matrix.image != 'server' && format('.{0}', matrix.image) || '' }}

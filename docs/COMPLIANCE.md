@@ -61,7 +61,7 @@ Android, iOS or web cabinet.
 | Control | Implementation |
 | --- | --- |
 | Source control | All changes through pull requests on GitHub; CI (`ci.yml`) runs format, clippy, tests against PostgreSQL/Redis/S3, web type-check, Android build. |
-| Dependency hygiene | `cargo deny` (advisories, licences, sources, bans) and `npm audit` gate every change; Dependabot covers Cargo, npm and the Gradle graph. |
+| Dependency hygiene | `cargo deny` (licences, sources, bans) gates every change; advisories (`cargo deny`, `npm audit`) are checked daily and on every lockfile change; Dependabot covers Cargo, npm and the Gradle graph. |
 | Reproducible identity of releases | Tags build on GitHub-hosted runners; every asset gets a GitHub build-provenance attestation (`gh attestation verify`); `SHA256SUMS.txt` is signed keylessly with cosign; desktop updates are signed with the Tauri updater key. |
 | SBOM | SPDX and CycloneDX SBOMs of the release source tree are published with every release. |
 | Vulnerability handling | `SECURITY.md`: private reporting, 3/10-day response targets, 90-day disclosure window. |

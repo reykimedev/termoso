@@ -1,19 +1,12 @@
-# Builds and pushes Labterm Web's labterm-web and labterm-relay images on every push to main that
-# touches them: tags dev and sha-<7>, amd64 for now, signed keyless with cosign, with SBOM and
-# provenance. Release tags can later promote these digests without rebuilding.
+# Builds and pushes Labterm Web's labterm-web and labterm-relay images for every push to main that
+# changes their inputs, as a stage of devel.yml after lint and tests passed (or by hand): tags dev
+# and sha-<7>, amd64 for now, signed keyless with cosign, with SBOM and provenance. Release tags
+# can later promote these digests without rebuilding. Pull requests only build them, in ci.yml.
 name: Labterm Web images
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - apps/web/**
-      - apps/desktop/**
-      - crates/**
-      - deploy/web/**
-      - Cargo.toml
-      - Cargo.lock
-      - .github/workflows/web-images.yml
+  workflow_call:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -23,7 +16,36 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  changes:
+    name: changes
+    runs-on: ubuntu-latest
+    outputs:
+      build: ${{ steps.filter.outputs.build }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+      - id: filter
+        env:
+          REF: ${{ github.ref }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          # Manual runs, and a push that is not a single step from the previous main build.
+          if [ "$REF" != refs/heads/main ] || [ "$(git rev-parse HEAD^1 2>/dev/null)" != "$BEFORE" ]; then
+            echo "build=true" | tee -a "$GITHUB_OUTPUT"; exit 0
+          fi
+          files=$(git diff --name-only HEAD^1 HEAD)
+          printf 'Changed files:\n%s\n' "$files"
+          # What deploy/web/Dockerfile copies, plus this workflow.
+          if grep -qE '^(apps/web/|apps/desktop/|crates/|Cargo\.(toml|lock)$|deploy/web/|\.github/workflows/web-images\.yml$)' <<<"$files"; then
+            echo "build=true" | tee -a "$GITHUB_OUTPUT"
+          else
+            echo "build=false" | tee -a "$GITHUB_OUTPUT"
+          fi
+
   build:
+    needs: changes
+    if: needs.changes.outputs.build == 'true'
     strategy:
       fail-fast: true
       matrix:
@@ -93,10 +115,10 @@ jobs:
           SHA: ${{ github.sha }}
         run: |
           short="sha-${SHA:0:7}"
-          # sha-* tags never move; GHCR can't lock them, so refuse to overwrite one.
+          # sha-* tags never move; GHCR can't lock them, so a re-run leaves an existing one alone.
           if docker buildx imagetools inspect "$IMAGE:$short" >/dev/null 2>&1; then
-            echo "$IMAGE:$short already exists" >&2
-            exit 1
+            echo "::notice::$IMAGE:$short already exists; left as is"
+            exit 0
           fi
           refs=()
           for f in digests/*; do refs+=("$IMAGE@sha256:$(basename "$f")"); done

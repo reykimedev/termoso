@@ -1,4 +1,6 @@
 version: 2
+# Every update run and every PR it opens use Actions runners, so only Cargo and npm (security
+# fixes land there most often) are weekly; the rest is monthly.
 updates:
   - package-ecosystem: cargo
     directory: /
@@ -63,7 +65,7 @@ updates:
 
   - package-ecosystem: gradle
     directory: /apps/android
-    schedule: { interval: weekly, day: monday }
+    schedule: { interval: monthly }
     open-pull-requests-limit: 5
     groups:
       android-minor-patch:
@@ -76,16 +78,16 @@ updates:
     labels: [area:deps, area:android]
 
   - package-ecosystem: github-actions
-    directory: /
-    schedule: { interval: weekly, day: monday }
+    directories: [/, /.github/actions/*]
+    schedule: { interval: monthly }
     groups:
       actions:
         patterns: ["*"]
     labels: [area:deps, area:ci]
 
   - package-ecosystem: docker
-    directory: /deploy
-    schedule: { interval: weekly, day: monday }
+    directories: [/deploy, /deploy/web]
+    schedule: { interval: monthly }
     ignore:
       # Web build stage tracks the Node LTS line; odd majors are not LTS.
       # Bump manually together with ci.yml / release.yml node-version.
@@ -98,7 +100,7 @@ updates:
   # moved to pion/transport v4, PR #58). They move with the NetBird version.
   - package-ecosystem: gomod
     directory: /crates/labterm-netbird/go
-    schedule: { interval: weekly, day: monday }
+    schedule: { interval: monthly }
     open-pull-requests-limit: 5
     ignore:
       - dependency-name: "github.com/pion/*"
