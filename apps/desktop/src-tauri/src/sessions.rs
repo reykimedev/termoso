@@ -2030,7 +2030,7 @@ fn remember_on_identity(
     let Ok(store) = state.store() else {
         return;
     };
-    let result = (|| -> termoso_core::error::Result<()> {
+    let result = (|| -> labterm_core::error::Result<()> {
         if let Some(ident) = resolved.rememberable_identity() {
             // Re-read: the resolved copy may carry a username that falls
             // through from a tag, which must not be written into this one.

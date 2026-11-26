@@ -1024,8 +1024,8 @@ pub struct OverlayItem {
     pub pinned_address: Option<String>,
 }
 
-impl From<termoso_client::overlays::OverlayCard> for OverlayItem {
-    fn from(o: termoso_client::overlays::OverlayCard) -> Self {
+impl From<labterm_client::overlays::OverlayCard> for OverlayItem {
+    fn from(o: labterm_client::overlays::OverlayCard) -> Self {
         let s = |u: Option<uuid::Uuid>| u.map(|u| u.to_string());
         Self {
             id: o.id.to_string(),

@@ -218,7 +218,7 @@ impl Store {
         if !is_known_kind(kind) {
             return Err(CoreError::Invalid(format!("unknown entity kind {kind}")));
         }
-        if termoso_proto::entities::is_personal_only_kind(kind)
+        if labterm_proto::entities::is_personal_only_kind(kind)
             && self.vault(vault_id)?.kind == super::LocalVaultKind::Team
         {
             return Err(CoreError::Invalid(format!(

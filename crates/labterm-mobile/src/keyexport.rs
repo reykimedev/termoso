@@ -143,7 +143,7 @@ async fn run(
     vault_id: Option<Uuid>,
 ) -> Result<KeyExportResult> {
     let public = keychain::public_key(store, key_id)?;
-    let resolved = store.resolve_host_in(host_id, vault_id)?;
+    let resolved = store.resolve_host_to_connect(host_id, vault_id)?;
     if resolved.protocol() != "ssh" {
         return Err(MobileError::invalid(
             "keys can only be exported to SSH hosts",
@@ -186,7 +186,7 @@ async fn run_opkssh(
 ) -> Result<KeyExportResult> {
     let (oidc_settings, policy, identity) =
         crate::oidc::host_setup_inputs(store, key_id, setup.identity).await?;
-    let resolved = store.resolve_host_in(host_id, vault_id)?;
+    let resolved = store.resolve_host_to_connect(host_id, vault_id)?;
     if resolved.protocol() != "ssh" {
         return Err(MobileError::invalid(
             "opkssh can only be set up on SSH hosts",

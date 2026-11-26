@@ -1,14 +1,14 @@
 //! Personal overlays as the UI sees them: "use my own credentials for this
 //! team host, group, tag or vault". The rules live in
-//! `termoso_core::store::overlays`; this module adds the save-time checks
+//! `labterm_core::store::overlays`; this module adds the save-time checks
 //! and the cards the editors and the Personal links list show.
 
-use serde::{Deserialize, Serialize};
-use termoso_core::model::{Entity, Group, Host, HostOverlay, Identity, SshKey, Tag};
-use termoso_core::store::{LocalVaultKind, Store};
-use termoso_proto::entities::{
+use labterm_core::model::{Entity, Group, Host, HostOverlay, Identity, SshKey, Tag};
+use labterm_core::store::{LocalVaultKind, Store};
+use labterm_proto::entities::{
     OVERLAY_SCOPE_GROUP, OVERLAY_SCOPE_HOST, OVERLAY_SCOPE_TAG, OVERLAY_SCOPE_VAULT,
 };
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::error::{ClientError, Result};
@@ -65,7 +65,7 @@ fn vault_kind(store: &Store, id: Uuid) -> Option<LocalVaultKind> {
     store.vault(id).ok().map(|v| v.kind)
 }
 
-fn label<T: termoso_core::model::Payload>(
+fn label<T: labterm_core::model::Payload>(
     store: &Store,
     id: Option<Uuid>,
     vault: Uuid,
@@ -301,9 +301,9 @@ pub fn delete(store: &Store, id: Uuid) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use termoso_core::model::SshConfig;
-    use termoso_core::termoso_crypto::keys::SymmetricKey;
-    use termoso_core::termoso_proto::vault::VaultRole;
+    use labterm_core::labterm_crypto::keys::SymmetricKey;
+    use labterm_core::labterm_proto::vault::VaultRole;
+    use labterm_core::model::SshConfig;
 
     use super::*;
 

@@ -1010,7 +1010,7 @@ impl LabtermApp {
 
     /// Every link from the member's vaults to team hosts, groups and tags.
     pub fn overlays(&self) -> Result<Vec<OverlayItem>> {
-        Ok(termoso_client::overlays::list(&self.store)?
+        Ok(labterm_client::overlays::list(&self.store)?
             .into_iter()
             .map(OverlayItem::from)
             .collect())
@@ -1024,7 +1024,7 @@ impl LabtermApp {
         scope: String,
         target_id: Option<String>,
     ) -> Result<Option<OverlayItem>> {
-        Ok(termoso_client::overlays::for_target(
+        Ok(labterm_client::overlays::for_target(
             &self.store,
             parse_id(&target_vault_id)?,
             &scope,
@@ -1034,7 +1034,7 @@ impl LabtermApp {
     }
 
     pub fn save_overlay(&self, draft: OverlayDraft) -> Result<OverlayItem> {
-        let form = termoso_client::overlays::OverlayForm {
+        let form = labterm_client::overlays::OverlayForm {
             id: parse_opt_id(&draft.id)?,
             vault_id: parse_id(&draft.vault_id)?,
             target_vault_id: parse_id(&draft.target_vault_id)?,
@@ -1045,16 +1045,16 @@ impl LabtermApp {
             agent_forwarding: draft.agent_forwarding,
             forward_x11: draft.forward_x11,
         };
-        Ok(termoso_client::overlays::save(&self.store, &form)?.into())
+        Ok(labterm_client::overlays::save(&self.store, &form)?.into())
     }
 
     /// Use a paused host link again after the team changed the address.
     pub fn confirm_overlay(&self, id: String) -> Result<OverlayItem> {
-        Ok(termoso_client::overlays::confirm(&self.store, parse_id(&id)?)?.into())
+        Ok(labterm_client::overlays::confirm(&self.store, parse_id(&id)?)?.into())
     }
 
     pub fn delete_overlay(&self, id: String) -> Result<()> {
-        Ok(termoso_client::overlays::delete(
+        Ok(labterm_client::overlays::delete(
             &self.store,
             parse_id(&id)?,
         )?)

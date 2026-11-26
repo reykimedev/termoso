@@ -611,8 +611,8 @@ pub async fn identity_save(state: State<'_, AppState>, form: IdentityForm) -> Re
 #[tauri::command]
 pub async fn overlays_list(
     state: State<'_, AppState>,
-) -> Result<Vec<termoso_client::overlays::OverlayCard>> {
-    termoso_client::overlays::list(&*state.store()?)
+) -> Result<Vec<labterm_client::overlays::OverlayCard>> {
+    labterm_client::overlays::list(&*state.store()?)
 }
 
 /// The overlay for one team host, group, tag or vault (`targetId` empty).
@@ -622,16 +622,16 @@ pub async fn overlay_for_target(
     target_vault_id: Uuid,
     scope: String,
     target_id: Option<Uuid>,
-) -> Result<Option<termoso_client::overlays::OverlayCard>> {
-    termoso_client::overlays::for_target(&*state.store()?, target_vault_id, &scope, target_id)
+) -> Result<Option<labterm_client::overlays::OverlayCard>> {
+    labterm_client::overlays::for_target(&*state.store()?, target_vault_id, &scope, target_id)
 }
 
 #[tauri::command]
 pub async fn overlay_save(
     state: State<'_, AppState>,
-    form: termoso_client::overlays::OverlayForm,
-) -> Result<termoso_client::overlays::OverlayCard> {
-    termoso_client::overlays::save(&*state.store()?, &form)
+    form: labterm_client::overlays::OverlayForm,
+) -> Result<labterm_client::overlays::OverlayCard> {
+    labterm_client::overlays::save(&*state.store()?, &form)
 }
 
 /// Use a paused host overlay again after the team changed the address.
@@ -639,13 +639,13 @@ pub async fn overlay_save(
 pub async fn overlay_confirm(
     state: State<'_, AppState>,
     id: Uuid,
-) -> Result<termoso_client::overlays::OverlayCard> {
-    termoso_client::overlays::confirm(&*state.store()?, id)
+) -> Result<labterm_client::overlays::OverlayCard> {
+    labterm_client::overlays::confirm(&*state.store()?, id)
 }
 
 #[tauri::command]
 pub async fn overlay_delete(state: State<'_, AppState>, id: Uuid) -> Result<()> {
-    termoso_client::overlays::delete(&*state.store()?, id)
+    labterm_client::overlays::delete(&*state.store()?, id)
 }
 
 #[tauri::command]

@@ -166,7 +166,7 @@ impl QuietRun {
                         return result;
                     }
                     let work = async {
-                        let resolved = store.resolve_host_in(host_id, Some(vault_id))?;
+                        let resolved = store.resolve_host_to_connect(host_id, Some(vault_id))?;
                         if resolved.protocol() != "ssh" {
                             return Err(MobileError::invalid(format!(
                                 "{} hosts cannot run commands quietly",

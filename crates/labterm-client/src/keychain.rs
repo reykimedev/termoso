@@ -828,7 +828,7 @@ pub fn oidc_provider_in_reach(
     if p.vault_id == vault_id {
         return Ok(Some(p));
     }
-    use termoso_core::store::LocalVaultKind;
+    use labterm_core::store::LocalVaultKind;
     let kind = |v: Uuid| store.vault(v).map(|v| v.kind).ok();
     let own = matches!(
         kind(vault_id),
@@ -2121,9 +2121,9 @@ mod tests {
 
 #[cfg(test)]
 mod provider_reach_tests {
-    use termoso_core::store::LocalVaultKind;
-    use termoso_core::termoso_crypto::keys::SymmetricKey;
-    use termoso_core::termoso_proto::vault::VaultRole;
+    use labterm_core::labterm_crypto::keys::SymmetricKey;
+    use labterm_core::labterm_proto::vault::VaultRole;
+    use labterm_core::store::LocalVaultKind;
 
     use super::*;
 

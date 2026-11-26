@@ -1,4 +1,4 @@
-package com.termoso.android.ui.hosts
+package dev.labdex.labterm.ui.hosts
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,15 +25,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.termoso.android.R
-import com.termoso.android.data.userMessage
-import com.termoso.android.ui.components.SectionCard
-import com.termoso.android.ui.shell.ShellViewModel
-import com.termoso.core.IdentityItem
-import com.termoso.core.KeyItem
-import com.termoso.core.OverlayDraft
-import com.termoso.core.OverlayItem
-import com.termoso.core.VaultKind
+import dev.labdex.labterm.R
+import dev.labdex.labterm.data.userMessage
+import dev.labdex.labterm.ui.components.SectionCard
+import dev.labdex.labterm.ui.shell.ShellViewModel
+import dev.labdex.labterm.core.IdentityItem
+import dev.labdex.labterm.core.KeyItem
+import dev.labdex.labterm.core.OverlayDraft
+import dev.labdex.labterm.core.OverlayItem
+import dev.labdex.labterm.core.VaultKind
 import kotlinx.coroutines.launch
 
 /** [OverlayDraft.scope] values, as the store spells them. */

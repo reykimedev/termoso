@@ -17,7 +17,7 @@
 //!   pauses when the team changes them;
 //! - agent and X11 forwarding come from the overlay, never from the team.
 
-use termoso_proto::entities::{
+use labterm_proto::entities::{
     OVERLAY_SCOPE_GROUP, OVERLAY_SCOPE_HOST, OVERLAY_SCOPE_TAG, OVERLAY_SCOPE_VAULT,
 };
 use uuid::Uuid;
@@ -293,8 +293,8 @@ impl Store {
 
 #[cfg(test)]
 mod tests {
-    use termoso_crypto::keys::SymmetricKey;
-    use termoso_proto::vault::VaultRole;
+    use labterm_crypto::keys::SymmetricKey;
+    use labterm_proto::vault::VaultRole;
     use uuid::Uuid;
 
     use super::*;
@@ -560,7 +560,7 @@ mod tests {
         // And ignored if one arrives through sync anyway.
         let other_team = vault(&f.s, LocalVaultKind::Team);
         let id = Uuid::new_v4();
-        f.s.apply_remote(&termoso_proto::entities::SyncEntity {
+        f.s.apply_remote(&labterm_proto::entities::SyncEntity {
             secret_rotated_at: None,
             id,
             kind: "host_overlay".into(),
@@ -647,7 +647,7 @@ mod tests {
                 f.personal,
                 &SshKey {
                     label: "openid".into(),
-                    key_type: termoso_proto::entities::OPKSSH_KEY_TYPE.into(),
+                    key_type: labterm_proto::entities::OPKSSH_KEY_TYPE.into(),
                     ..Default::default()
                 },
             )
