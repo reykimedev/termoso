@@ -197,7 +197,7 @@ export function MultiplayerPopover({
         <Participants share={share} paneId={paneId} />
       ) : reason === "signin" ? (
         <Hint
-          text={tr("Sign in to a Termoso account to share this terminal session.")}
+          text={tr("Sign in to a Labterm account to share this terminal session.")}
           action={tr("Sign in")}
           onAction={() => {
             onClose();

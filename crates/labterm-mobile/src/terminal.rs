@@ -43,8 +43,8 @@ pub struct TerminalPalette {
 }
 
 impl TerminalPalette {
-    /// Termoso Dark.
-    pub fn termoso_dark() -> Self {
+    /// Labterm Dark.
+    pub fn labterm_dark() -> Self {
         Self {
             foreground: 0xF1F3F8,
             background: 0x141826,
@@ -264,7 +264,7 @@ impl EventListener for Proxy {
 }
 
 fn default_color(index: usize) -> Rgb {
-    let p = TerminalPalette::termoso_dark();
+    let p = TerminalPalette::labterm_dark();
     let c = if index < 256 {
         p.indexed(index as u8)
     } else if index == NamedColor::Background as usize {
@@ -770,7 +770,7 @@ mod tests {
 
     #[test]
     fn search_and_dump() {
-        let (mut e, _rx) = Emulator::new(20, 3, 100, TerminalPalette::termoso_dark());
+        let (mut e, _rx) = Emulator::new(20, 3, 100, TerminalPalette::labterm_dark());
         e.feed(b"alpha Beta\r\ngamma\r\nbeta again\r\nlast\r\n");
         let hits = e.search("beta", 10);
         assert_eq!(hits.len(), 2);
@@ -787,7 +787,7 @@ mod tests {
     }
 
     fn emu() -> (Emulator, mpsc::UnboundedReceiver<TermSignal>) {
-        Emulator::new(20, 5, 100, TerminalPalette::termoso_dark())
+        Emulator::new(20, 5, 100, TerminalPalette::labterm_dark())
     }
 
     #[test]
@@ -864,10 +864,10 @@ mod tests {
         e.feed(b"\x1b[1;31mR\x1b[0m\x1b[7mI\x1b[0m\x1b[38;2;1;2;3mT");
         let s = e.snapshot();
         assert_eq!(s.flags[0] & flag::BOLD, flag::BOLD);
-        assert_eq!(s.fg[0], TerminalPalette::termoso_dark().ansi[1]);
+        assert_eq!(s.fg[0], TerminalPalette::labterm_dark().ansi[1]);
         // Inverse swaps fg/bg.
-        assert_eq!(s.fg[1], TerminalPalette::termoso_dark().background);
-        assert_eq!(s.bg[1], TerminalPalette::termoso_dark().foreground);
+        assert_eq!(s.fg[1], TerminalPalette::labterm_dark().background);
+        assert_eq!(s.bg[1], TerminalPalette::labterm_dark().foreground);
         assert_eq!(s.fg[2], 0x010203);
     }
 
@@ -976,7 +976,7 @@ mod tests {
         assert_eq!(s.bg[3] >> 24, 2);
         assert_eq!(
             s.bg[0] & 0x00FF_FFFF,
-            TerminalPalette::termoso_dark().background
+            TerminalPalette::labterm_dark().background
         );
         let f = s.pack();
         let word = |i: usize| u32::from_le_bytes(f.cells[i * 4..i * 4 + 4].try_into().unwrap());
@@ -993,8 +993,8 @@ mod tests {
         let word = |i: usize| u32::from_le_bytes(f.cells[i * 4..i * 4 + 4].try_into().unwrap());
         assert_eq!(word(0), 'R' as u32);
         assert_eq!(word(1) >> 24, flag::BOLD as u32);
-        assert_eq!(word(1) & 0xFF_FFFF, TerminalPalette::termoso_dark().ansi[1]);
-        assert_eq!(word(2), TerminalPalette::termoso_dark().background);
+        assert_eq!(word(1) & 0xFF_FFFF, TerminalPalette::labterm_dark().ansi[1]);
+        assert_eq!(word(2), TerminalPalette::labterm_dark().background);
         assert_eq!(word(3), 'x' as u32);
         assert_eq!(word(4) >> 24, 0);
         assert_eq!((f.cursor_col, f.cursor_row), (2, 0));
@@ -1002,7 +1002,7 @@ mod tests {
 
     #[test]
     fn indexed_palette_cube_and_greys() {
-        let p = TerminalPalette::termoso_dark();
+        let p = TerminalPalette::labterm_dark();
         assert_eq!(p.indexed(16), 0x000000);
         assert_eq!(p.indexed(231), 0xFFFFFF);
         assert_eq!(p.indexed(232), 0x080808);

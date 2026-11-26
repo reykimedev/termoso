@@ -1492,7 +1492,7 @@ fn item_action(conflict: Conflict, earlier: &RunProgress, dest: &str) -> ItemAct
 // and uploaded from there; the staged copy is removed once the transfer ends.
 
 fn drop_root() -> PathBuf {
-    std::env::temp_dir().join("termoso-drop")
+    std::env::temp_dir().join("labterm-drop")
 }
 
 #[cfg(unix)]
@@ -1843,7 +1843,7 @@ mod tests {
     #[test]
     fn local_entries_classify_symlink_targets() {
         use std::os::unix::fs::symlink;
-        let dir = std::env::temp_dir().join(format!("termoso-links-{}", Uuid::new_v4()));
+        let dir = std::env::temp_dir().join(format!("labterm-links-{}", Uuid::new_v4()));
         std::fs::create_dir_all(dir.join("sub")).unwrap();
         std::fs::write(dir.join("f.txt"), b"x").unwrap();
         symlink(dir.join("sub"), dir.join("to-dir")).unwrap();

@@ -6,12 +6,12 @@ const FLOW = "Q2hlY2tfdGhpc19mbG93X2lkXzMyYnl0ZXNfXw";
 describe("parseSsoLink", () => {
   it("accepts the callback the server redirects to", () => {
     expect(parseSsoLink(`termoso://sso?flow=${FLOW}`)).toBe(FLOW);
-    expect(parseSsoLink(`  TERMOSO://SSO/?flow=${FLOW}\n`)).toBe(FLOW);
+    expect(parseSsoLink(`  LABTERM://SSO/?flow=${FLOW}\n`)).toBe(FLOW);
   });
 
   it("rejects other schemes, hosts and paths", () => {
     expect(parseSsoLink(`https://example.com/sso?flow=${FLOW}`)).toBeNull();
-    expect(parseSsoLink(`termoso://host/${FLOW}`)).toBeNull();
+    expect(parseSsoLink(`labterm://host/${FLOW}`)).toBeNull();
     expect(parseSsoLink(`termoso://sso/callback?flow=${FLOW}`)).toBeNull();
     expect(parseSsoLink(`termoso://sso.evil?flow=${FLOW}`)).toBeNull();
     expect(parseSsoLink(`termoso://sso@evil?flow=${FLOW}`)).toBeNull();
@@ -44,7 +44,7 @@ describe("isSsoLink", () => {
     expect(isSsoLink("termoso://sso?flow=x")).toBe(true);
     expect(isSsoLink("termoso://sso#x")).toBe(true);
     expect(isSsoLink("termoso://ssoo")).toBe(false);
-    expect(isSsoLink("termoso://host/x")).toBe(false);
+    expect(isSsoLink("labterm://host/x")).toBe(false);
     expect(isSsoLink("ssh://sso")).toBe(false);
   });
 });

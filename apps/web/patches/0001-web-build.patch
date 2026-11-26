@@ -225,7 +225,7 @@ index a24b6bc..94f00ed 100644
  export const MAC_TRAFFIC_LIGHTS_WIDTH = 78;
 +
 +/** The browser build (Hatch): no Tauri, SSH in wasm through the relay. */
-+export const IS_WEB: boolean = import.meta.env.VITE_TERMOSO_WEB === "1";
++export const IS_WEB: boolean = import.meta.env.VITE_LABTERM_WEB === "1";
 diff --git a/apps/desktop/src/prompts/PromptHost.tsx b/apps/desktop/src/prompts/PromptHost.tsx
 index e93d4f3..ceb552f 100644
 --- a/apps/desktop/src/prompts/PromptHost.tsx

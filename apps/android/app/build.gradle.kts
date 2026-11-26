@@ -3,7 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
-val rustAbis: List<String> = (findProperty("termoso.abis") as String)
+val rustAbis: List<String> = (findProperty("labterm.abis") as String)
     .split(',')
     .map { it.trim() }
     .filter { it.isNotEmpty() }
@@ -23,21 +23,21 @@ fun versionCodeOf(v: String): Int {
 
 // Release signing comes from the environment only (CI secrets or a developer shell);
 // nothing is read from the tree, so a checkout never contains key material.
-val releaseKeystore: File? = System.getenv("TERMOSO_ANDROID_KEYSTORE")?.let(::File)?.takeIf { it.isFile }
+val releaseKeystore: File? = System.getenv("LABTERM_ANDROID_KEYSTORE")?.let(::File)?.takeIf { it.isFile }
 
 // Debug channel (fork CI): a fixed debug key lets each new build install over the last one,
 // and the build number tells the in-app updater which build is newer. Unset = stock debug.
-val debugKeystore: File? = System.getenv("TERMOSO_ANDROID_DEBUG_KEYSTORE")?.let(::File)?.takeIf { it.isFile }
-val debugBuildNumber: Int = System.getenv("TERMOSO_DEBUG_BUILD")?.toIntOrNull() ?: 0
+val debugKeystore: File? = System.getenv("LABTERM_ANDROID_DEBUG_KEYSTORE")?.let(::File)?.takeIf { it.isFile }
+val debugBuildNumber: Int = System.getenv("LABTERM_DEBUG_BUILD")?.toIntOrNull() ?: 0
 // latest.json of the debug channel; empty turns the in-app updater off.
-val debugUpdateUrl: String = (findProperty("termoso.debugUpdateUrl") as String?).orEmpty()
+val debugUpdateUrl: String = (findProperty("labterm.debugUpdateUrl") as String?).orEmpty()
 
-// `-Ptermoso.splits=true` produces one APK per ABI plus a universal one (release workflow).
-val abiSplits: Boolean = (findProperty("termoso.splits") as String?)?.toBoolean() ?: false
+// `-Plabterm.splits=true` produces one APK per ABI plus a universal one (release workflow).
+val abiSplits: Boolean = (findProperty("labterm.splits") as String?)?.toBoolean() ?: false
 
 // Host whose https://<host>/invite/… and /join/… links open in the app (Android App Links).
 // Must match the server publishing this build's signing certificate in /.well-known/assetlinks.json.
-val appLinkHost: String = findProperty("termoso.appLinkHost") as String
+val appLinkHost: String = findProperty("labterm.appLinkHost") as String
 
 android {
     namespace = "dev.labdex.labterm"
@@ -62,9 +62,9 @@ android {
         if (releaseKeystore != null) {
             create("release") {
                 storeFile = releaseKeystore
-                storePassword = System.getenv("TERMOSO_ANDROID_KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("TERMOSO_ANDROID_KEY_ALIAS") ?: "termoso"
-                keyPassword = System.getenv("TERMOSO_ANDROID_KEY_PASSWORD") ?: System.getenv("TERMOSO_ANDROID_KEYSTORE_PASSWORD")
+                storePassword = System.getenv("LABTERM_ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("LABTERM_ANDROID_KEY_ALIAS") ?: "termoso"
+                keyPassword = System.getenv("LABTERM_ANDROID_KEY_PASSWORD") ?: System.getenv("LABTERM_ANDROID_KEYSTORE_PASSWORD")
                 enableV2Signing = true
                 enableV3Signing = true
             }
@@ -72,9 +72,9 @@ android {
         if (debugKeystore != null) {
             create("debugChannel") {
                 storeFile = debugKeystore
-                storePassword = System.getenv("TERMOSO_ANDROID_DEBUG_KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("TERMOSO_ANDROID_DEBUG_KEY_ALIAS") ?: "termoso-debug"
-                keyPassword = System.getenv("TERMOSO_ANDROID_DEBUG_KEYSTORE_PASSWORD")
+                storePassword = System.getenv("LABTERM_ANDROID_DEBUG_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("LABTERM_ANDROID_DEBUG_KEY_ALIAS") ?: "termoso-debug"
+                keyPassword = System.getenv("LABTERM_ANDROID_DEBUG_KEYSTORE_PASSWORD")
             }
         }
     }
@@ -84,7 +84,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // Without TERMOSO_ANDROID_KEYSTORE the APK is left unsigned (app-release-unsigned.apk)
+            // Without LABTERM_ANDROID_KEYSTORE the APK is left unsigned (app-release-unsigned.apk)
             // rather than silently signed with the debug key.
             signingConfig = signingConfigs.findByName("release")
         }

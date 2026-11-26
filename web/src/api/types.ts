@@ -39,7 +39,7 @@ export interface SsoProvider {
 export interface ServerInfo {
   /** Ceiling for per-team audit retention (days). */
   audit_retention_days_max: number;
-  /** Teams may configure their own IdP (`TERMOSO_TEAM_IDP`). */
+  /** Teams may configure their own IdP (`LABTERM_TEAM_IDP`). */
   team_idp?: boolean;
   /** Corporate mode: password sign-in and e-mail sign-up are refused. */
   sso_only?: boolean;
@@ -66,9 +66,9 @@ export interface ServerInfo {
   landing: boolean;
   /** This origin serves only the landing; the cabinet lives at `web_url`. */
   landing_only: boolean;
-  /** Documentation is served (`TERMOSO_DOCS`); absent on older servers. */
+  /** Documentation is served (`LABTERM_DOCS`); absent on older servers. */
   docs?: boolean;
-  /** Dedicated docs origin (`TERMOSO_DOCS_URL`), empty when docs live at `/docs` here. */
+  /** Dedicated docs origin (`LABTERM_DOCS_URL`), empty when docs live at `/docs` here. */
   docs_url?: string;
 }
 
@@ -879,7 +879,7 @@ export interface CreateBridgeResponse {
   token: string;
 }
 
-/** `termoso-bridge.json` mounted into the bridge container. */
+/** `labterm-bridge.json` mounted into the bridge container. */
 export interface BridgeCredentials {
   version: 1;
   server: string;

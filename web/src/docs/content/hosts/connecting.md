@@ -25,20 +25,20 @@ The same field filters the host list as you type, and <kbd>Ctrl</kbd>+<kbd>J</kb
 The desktop binary doubles as a launcher, so a host can be opened from a shell, a script or another tool:
 
 ```
-termoso ssh deploy@10.0.1.12          # ad hoc, or the saved host with that address and user
-termoso ssh -l root -p 2200 edge      # OpenSSH-style flags
-termoso ssh "prod web"                # a saved host by label
-termoso telnet switch.lab:23
-termoso sftp prod-web                 # SFTP browser on a saved host
-termoso open termoso://host/<id>      # a host link copied from the app
-termoso local                         # local terminal
-termoso new                           # new host dialog
-termoso --version
+labterm ssh deploy@10.0.1.12          # ad hoc, or the saved host with that address and user
+labterm ssh -l root -p 2200 edge      # OpenSSH-style flags
+labterm ssh "prod web"                # a saved host by label
+labterm telnet switch.lab:23
+labterm sftp prod-web                 # SFTP browser on a saved host
+labterm open labterm://host/<id>      # a host link copied from the app
+labterm local                         # local terminal
+labterm new                           # new host dialog
+labterm --version
 ```
 
-Labels are matched case-insensitively, then addresses; with no match the connection is ad hoc, like quick connect. If Termoso is already running, the command goes to that window instead of starting a second one; otherwise the app starts and opens it. Files on the command line (keys, colour schemes, `ssh_config`) and `ssh://` / `telnet://` / `termoso://` links keep working as before.
+Labels are matched case-insensitively, then addresses; with no match the connection is ad hoc, like quick connect. If Labterm is already running, the command goes to that window instead of starting a second one; otherwise the app starts and opens it. Files on the command line (keys, colour schemes, `ssh_config`) and `ssh://` / `telnet://` / `labterm://` links keep working as before.
 
-Where the binary is: `termoso` on the `PATH` from the deb/rpm packages; `/Applications/Termoso.app/Contents/MacOS/Termoso` on macOS (add an alias); `%LOCALAPPDATA%\Programs\Termoso\Termoso.exe` from the Windows installer (add that folder to `PATH` to type `termoso` in a shell; `--help` and `--version` print to the console you ran it from).
+Where the binary is: `labterm` on the `PATH` from the deb/rpm packages; `/Applications/Labterm.app/Contents/MacOS/Labterm` on macOS (add an alias); `%LOCALAPPDATA%\Programs\Labterm\Labterm.exe` from the Windows installer (add that folder to `PATH` to type `labterm` in a shell; `--help` and `--version` print to the console you ran it from).
 
 ## Saved hosts
 
@@ -89,11 +89,11 @@ A server that was legitimately reinstalled is handled by removing its old entry 
 
 ## Jump hosts and proxies
 
-A **jump host** is any other saved host; Termoso opens an SSH connection to it and tunnels the real connection through, exactly like `ssh -J`. The jump host's own credentials and known-host entry are used, and a jump host can itself have a jump host — three hops through two bastions is a normal setup. Agent forwarding to the jump host is not required.
+A **jump host** is any other saved host; Labterm opens an SSH connection to it and tunnels the real connection through, exactly like `ssh -J`. The jump host's own credentials and known-host entry are used, and a jump host can itself have a jump host — three hops through two bastions is a normal setup. Agent forwarding to the jump host is not required.
 
 A **proxy** (HTTP `CONNECT`, SOCKS4, SOCKS5) sits in front of the TCP connection instead, for networks where only a proxy is allowed out. Jump host and proxy can be combined: the proxy carries the connection to the bastion.
 
-A **ProxyCommand** (desktop only) replaces the dial altogether: Termoso starts the program you give and speaks SSH over its stdin and stdout, exactly like OpenSSH does. That is how Cloudflare Access (`cloudflared access ssh -T %h`), Tailscale, AWS SSM or a plain `ssh -W %h:%p bastion` plug in. `%h`, `%p` and `%r` expand to the host, port and user; the command runs through `sh -c` (Windows: `cmd /C`, without a console window). Because a host can be shared through a team vault and a ProxyCommand runs an arbitrary program, the command is stored on this device only, in the app settings, and is never synced or exported: set it on each machine in the host editor under **Proxy**. When set, it takes precedence over a proxy; a gateway still wins over both, and Mosh cannot use it.
+A **ProxyCommand** (desktop only) replaces the dial altogether: Labterm starts the program you give and speaks SSH over its stdin and stdout, exactly like OpenSSH does. That is how Cloudflare Access (`cloudflared access ssh -T %h`), Tailscale, AWS SSM or a plain `ssh -W %h:%p bastion` plug in. `%h`, `%p` and `%r` expand to the host, port and user; the command runs through `sh -c` (Windows: `cmd /C`, without a console window). Because a host can be shared through a team vault and a ProxyCommand runs an arbitrary program, the command is stored on this device only, in the app settings, and is never synced or exported: set it on each machine in the host editor under **Proxy**. When set, it takes precedence over a proxy; a gateway still wins over both, and Mosh cannot use it.
 
 ## Post-quantum key exchange
 
@@ -115,7 +115,7 @@ The host list, the details editor and quick connect are the same on the phone, a
 
 ## Wake-on-LAN
 
-A host that sleeps can carry its MAC address (`aa:bb:cc:dd:ee:ff`). **Wake** sends the magic packet (6 × `FF` + 16 × MAC, UDP ports 9 and 7) to the broadcast address — optionally a specific one, for a router that forwards directed broadcasts — from the machine running Termoso. Like every Wake-on-LAN, it works on the same network segment: wake first, connect a few seconds later.
+A host that sleeps can carry its MAC address (`aa:bb:cc:dd:ee:ff`). **Wake** sends the magic packet (6 × `FF` + 16 × MAC, UDP ports 9 and 7) to the broadcast address — optionally a specific one, for a router that forwards directed broadcasts — from the machine running Labterm. Like every Wake-on-LAN, it works on the same network segment: wake first, connect a few seconds later.
 
 ## Export to `ssh_config` and Ansible
 

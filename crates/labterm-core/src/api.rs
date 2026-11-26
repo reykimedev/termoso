@@ -1,4 +1,4 @@
-//! Typed HTTP client for the Termoso server (`/api/v1`).
+//! Typed HTTP client for the Labterm server (`/api/v1`).
 //!
 //! Thin and deliberately dumb: every method maps 1:1 onto a route and speaks
 //! the `labterm_proto` types. Cryptography, key handling and persistence live
@@ -1590,8 +1590,8 @@ mod tests {
     #[test]
     fn normalizes_server_urls() {
         assert_eq!(
-            normalize_server_url("termoso.example").unwrap().as_str(),
-            "https://termoso.example/"
+            normalize_server_url("labterm.example").unwrap().as_str(),
+            "https://labterm.example/"
         );
         assert_eq!(
             normalize_server_url("http://localhost:8080/api/v1/")

@@ -8,8 +8,8 @@ members = [
     "crates/labterm-mobile",
     "crates/labterm-mobile/uniffi-bindgen",
     "crates/labterm-awslc-rsa",
-    "crates/termoso-server",
-    "crates/termoso-bridge",
+    "crates/labterm-server",
+    "crates/labterm-bridge",
     "crates/labterm-oidc-cert",
     "crates/labterm-netbird",
     "crates/labterm-wasm",
@@ -35,7 +35,7 @@ labterm-crypto = { path = "crates/labterm-crypto" }
 labterm-proto = { path = "crates/labterm-proto" }
 labterm-core = { path = "crates/labterm-core", default-features = false }
 labterm-client = { path = "crates/labterm-client", default-features = false }
-termoso-bridge = { path = "crates/termoso-bridge" }
+labterm-bridge = { path = "crates/labterm-bridge" }
 labterm-awslc-rsa = { path = "crates/labterm-awslc-rsa" }
 labterm-oidc-cert = { path = "crates/labterm-oidc-cert", default-features = false }
 labterm-netbird = { path = "crates/labterm-netbird" }

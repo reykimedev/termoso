@@ -442,7 +442,7 @@ mod tests {
 
     #[test]
     fn scans_sessions_tree() {
-        let root = std::env::temp_dir().join(format!("termoso-scrt-{}", uuid::Uuid::new_v4()));
+        let root = std::env::temp_dir().join(format!("labterm-scrt-{}", uuid::Uuid::new_v4()));
         let sessions = root.join("Config").join("Sessions").join("Prod");
         std::fs::create_dir_all(&sessions).unwrap();
         std::fs::write(

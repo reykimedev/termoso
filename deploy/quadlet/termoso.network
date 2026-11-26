@@ -1,7 +1,0 @@
-# Private network shared by the Termoso units; containers resolve each other
-# by name (termoso-postgres, termoso-redis, termoso-rustfs, termoso-api).
-[Unit]
-Description=Termoso network
-
-[Network]
-NetworkName=termoso

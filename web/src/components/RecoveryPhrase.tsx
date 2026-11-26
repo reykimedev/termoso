@@ -22,7 +22,7 @@ export function RecoveryPhraseGrid({ phrase, email }: Props) {
 
   const download = () => {
     const body = [
-      "Termoso recovery key",
+      "Labterm recovery key",
       email ? `Account: ${email}` : null,
       "",
       "Keep this file offline. Anyone with these 24 words can reset your password and read your data.",
@@ -36,7 +36,7 @@ export function RecoveryPhraseGrid({ phrase, email }: Props) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "termoso-recovery-key.txt";
+    a.download = "labterm-recovery-key.txt";
     a.click();
     URL.revokeObjectURL(url);
   };

@@ -96,15 +96,15 @@ fn cache() -> &'static Mutex<HashMap<Uuid, Cached>> {
     CACHE.get_or_init(Mutex::default)
 }
 
-/// Endpoints for the provider client. `TERMOSO_CLOUD_ENDPOINTS` (JSON
+/// Endpoints for the provider client. `LABTERM_CLOUD_ENDPOINTS` (JSON
 /// [`Endpoints`]) lets tests and sovereign-cloud users point at other
 /// hosts; production uses the public APIs.
 pub fn endpoints() -> Endpoints {
-    match std::env::var("TERMOSO_CLOUD_ENDPOINTS") {
+    match std::env::var("LABTERM_CLOUD_ENDPOINTS") {
         Ok(raw) if !raw.trim().is_empty() => match serde_json::from_str(&raw) {
             Ok(e) => e,
             Err(err) => {
-                tracing::warn!("TERMOSO_CLOUD_ENDPOINTS ignored: {err}");
+                tracing::warn!("LABTERM_CLOUD_ENDPOINTS ignored: {err}");
                 Endpoints::default()
             }
         },

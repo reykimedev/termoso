@@ -48,20 +48,20 @@ const t = (
   ansi,
 });
 
-export const TERMOSO_DARK = "termoso-dark";
-export const TERMOSO_LIGHT = "termoso-light";
+export const LABTERM_DARK = "termoso-dark";
+export const LABTERM_LIGHT = "termoso-light";
 /** Follow the app colour scheme with the Labterm pair. */
 export const AUTO_THEME = "auto";
 
 // labdex's status colours, so a colour means the same in the terminal as in labdex. The ids
-// stay "termoso-*" so saved settings keep working.
+// stay "labterm-*" so saved settings keep working.
 // prettier-ignore
-const labtermDark = t(TERMOSO_DARK, "Labterm Dark", appDark.lowest, appDark.text, lantern.main, "#F59A2340", [
+const labtermDark = t(LABTERM_DARK, "Labterm Dark", appDark.lowest, appDark.text, lantern.main, "#F59A2340", [
   "#1E1E1C", "#F2555A", "#3ECF8E", "#F5C84C", "#5AA9FF", "#E879F9", "#4FD1C5", "#C9C9C4",
   "#5F5F5C", "#FF7B7F", "#6EE0AB", "#FFDB7A", "#8CC5FF", "#F0A6FB", "#84E7DD", "#F2F2EF",
 ]);
 // prettier-ignore
-const labtermLight = t(TERMOSO_LIGHT, "Labterm Light", appLight.high, appLight.text, lantern.dark, "#E8870E40", [
+const labtermLight = t(LABTERM_LIGHT, "Labterm Light", appLight.high, appLight.text, lantern.dark, "#E8870E40", [
   "#1A1A19", "#C2410C", "#15803D", "#A16207", "#2563EB", "#A21CAF", "#0F766E", "#8F8F8A",
   "#5F5F5C", "#DC5A1F", "#1F9D50", "#CA8A04", "#3B82F6", "#C026D3", "#14958A", "#D3D3CF",
 ]);

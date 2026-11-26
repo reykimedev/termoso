@@ -644,7 +644,7 @@ function createRuntime(paneId: Uuid): Runtime {
   );
 
   const container = document.createElement("div");
-  container.className = "termoso-xterm";
+  container.className = "labterm-xterm";
 
   const disposables: IDisposable[] = [];
   disposables.push(

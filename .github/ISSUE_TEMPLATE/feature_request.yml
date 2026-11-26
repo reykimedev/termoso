@@ -1,11 +1,11 @@
 name: Feature request
-description: Something Termoso should do and does not.
+description: Something Labterm should do and does not.
 labels: [enhancement]
 body:
   - type: markdown
     attributes:
       value: |
-        Termoso stays free of telemetry and tiers, and vault data stays unreadable to the server.
+        Labterm stays free of telemetry and tiers, and vault data stays unreadable to the server.
         Requests that need the server to see plaintext, or a paid flag, will be declined — say so if your idea needs a different design to fit.
   - type: dropdown
     id: component

@@ -145,7 +145,7 @@ function hostTagIds(host: Ent<Host>): Uuid[] {
 /**
  * SSH config ids a host inherits, lowest precedence first: its tags (lower priority first), then
  * its group chain root → leaf; the host's own config goes on top. Among tags the higher priority
- * wins, then the label (A before Z, ignoring case), then the id. Same as termoso-core's
+ * wins, then the label (A before Z, ignoring case), then the id. Same as labterm-core's
  * `Store::defaults_layers`.
  */
 function defaultsLayers(vaultId: Uuid, groupId: Uuid | null, tagIds: Uuid[]) {

@@ -1,5 +1,0 @@
-[Unit]
-Description=Termoso postgres data
-
-[Volume]
-VolumeName=termoso-postgres

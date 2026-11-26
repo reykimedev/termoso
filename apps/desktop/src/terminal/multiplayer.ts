@@ -71,7 +71,7 @@ function forget(paneId: Uuid) {
 export const isMultiplayerDisabled = (e: unknown) =>
   isDesktopError(e) && e.kind === "multiplayer_disabled";
 
-/** Not signed in to any Termoso account — sharing needs the relay. */
+/** Not signed in to any Labterm account — sharing needs the relay. */
 export const isNotSignedIn = (e: unknown) =>
   isDesktopError(e) && e.kind === "invalid" && /not signed in/i.test(e.message);
 

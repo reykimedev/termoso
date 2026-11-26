@@ -16,7 +16,7 @@ use crate::{Error, Result};
 
 /// The redirect URIs opkssh registers by default (`http://localhost:{3000,
 /// 10001,11110}/login-callback`). Reusing them lets one provider client
-/// serve both opkssh and Termoso.
+/// serve both opkssh and Labterm.
 pub const OPKSSH_REDIRECT_PORTS: [u16; 3] = [3000, 10001, 11110];
 /// Path of the opkssh redirect URIs.
 pub const OPKSSH_REDIRECT_PATH: &str = "/login-callback";

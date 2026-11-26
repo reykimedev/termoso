@@ -1,8 +1,8 @@
 # Moving vaults
 
-Labterm Web reads and writes Labterm's encrypted `.termoso` backup, so a backup made in Labterm Web restores
+Labterm Web reads and writes Labterm's encrypted `.labterm` backup, so a backup made in Labterm Web restores
 in the Labterm apps and the other way round. That is also how vaults move between accounts, for
-example from Termoso Cloud to your own Termoso server.
+example from Termoso Cloud to your own Labterm server.
 
 ## From one account or server to another
 

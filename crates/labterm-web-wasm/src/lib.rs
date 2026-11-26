@@ -1,6 +1,6 @@
 //! SSH in the browser: russh over a WebSocket to the Hatch relay.
 //!
-//! The relay only carries SSH ciphertext. The host key is checked against the user's Termoso
+//! The relay only carries SSH ciphertext. The host key is checked against the user's Labterm
 //! known hosts before any credential is sent, and an unknown or changed key stops the connection:
 //! there is no way to accept a key here (docs/decisions/0005-no-trust-on-first-use.md).
 

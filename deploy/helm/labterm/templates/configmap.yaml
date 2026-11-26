@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "labterm.fullname" . }}-config
+  labels:
+    {{- include "labterm.labels" . | nindent 4 }}
+data:
+  LABTERM_BIND: "0.0.0.0:8080"
+  LABTERM_S3__BUCKET: {{ .Values.s3.bucket | quote }}
+  LABTERM_S3__REGION: {{ .Values.s3.region | quote }}
+  {{- if .Values.bundled.rustfs.enabled }}
+  LABTERM_S3__ENDPOINT: {{ printf "http://%s-rustfs:9000" (include "labterm.fullname" .) | quote }}
+  {{- else if .Values.s3.endpoint }}
+  LABTERM_S3__ENDPOINT: {{ .Values.s3.endpoint | quote }}
+  {{- end }}
+  {{- if .Values.metrics.enabled }}
+  LABTERM_METRICS__ENABLED: "true"
+  LABTERM_METRICS__BIND: {{ printf "0.0.0.0:%d" (int .Values.metrics.port) | quote }}
+  {{- end }}
+  {{- range $k, $v := .Values.config }}
+  {{ $k }}: {{ $v | quote }}
+  {{- end }}

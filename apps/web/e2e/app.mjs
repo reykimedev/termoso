@@ -1,5 +1,5 @@
 // End-to-end run of the built app against real services, in headless Chromium:
-//   1. browser A: lock password, new Termoso account, a host with its password; connecting is
+//   1. browser A: lock password, new Labterm account, a host with its password; connecting is
 //      refused while the host key is unknown; pin the key by hand; a shell runs a command.
 //   2. browser B: same account, approved with the emailed code; the host, password and pin
 //      arrive by sync; a shell runs a command; reload, lock screen, unlock.
@@ -21,7 +21,7 @@ const SSH_USER = env("HATCH_E2E_SSH_USER", "hatchtest");
 const SSH_PASSWORD = env("HATCH_E2E_SSH_PASSWORD", "hatch-test-pw");
 const HOST_KEY = env("HATCH_E2E_HOST_KEY_FILE", "/tmp/hatch-e2e/sshd/host_ed25519.pub");
 const MAIL_LOG = env("HATCH_E2E_MAIL_LOG", "/tmp/hatch-e2e/mail.log");
-const PSQL = env("HATCH_E2E_PSQL", "psql -h 127.0.0.1 -U termoso termoso");
+const PSQL = env("HATCH_E2E_PSQL", "psql -h 127.0.0.1 -U labterm labterm");
 const OUT = env("HATCH_E2E_OUT", "/tmp/hatch-e2e/shots");
 mkdirSync(OUT, { recursive: true });
 
@@ -310,7 +310,7 @@ try {
     b.waitForEvent("download"),
     ex.getByRole("button", { name: "Save backup…" }).click(),
   ]);
-  const backupFile = `${OUT}/e2e-${run}.termoso`;
+  const backupFile = `${OUT}/e2e-${run}.labterm`;
   await dl.saveAs(backupFile);
   const bytes = readFileSync(backupFile);
   check(

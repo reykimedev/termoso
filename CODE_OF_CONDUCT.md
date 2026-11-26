@@ -1,6 +1,6 @@
 # Code of conduct
 
-Termoso is built by people who want a tool that respects its users. The same
+Labterm is built by people who want a tool that respects its users. The same
 respect applies to each other.
 
 ## Expected

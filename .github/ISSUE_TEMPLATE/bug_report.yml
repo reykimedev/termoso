@@ -30,7 +30,7 @@ body:
     attributes:
       label: Version
       description: App version from Settings → About, server version from `/api/v1/server/info` or the image tag, or a commit hash.
-      placeholder: "0.2.0 / ghcr.io/termoso/termoso-server:0.2.0 / abc1234"
+      placeholder: "0.2.0 / ghcr.io/reykimedev/labterm-server:0.2.0 / abc1234"
     validations:
       required: true
   - type: input
@@ -69,7 +69,7 @@ body:
     attributes:
       label: Logs
       description: |
-        Desktop: run from a terminal with `TERMOSO_LOG=debug`. Android: `adb logcat -s termoso`. Server: `docker compose logs api` / `journalctl -u termoso-api`. Redact before pasting.
+        Desktop: run from a terminal with `LABTERM_LOG=debug`. Android: `adb logcat -s labterm`. Server: `docker compose logs api` / `journalctl -u labterm-api`. Redact before pasting.
       render: text
   - type: checkboxes
     id: checks

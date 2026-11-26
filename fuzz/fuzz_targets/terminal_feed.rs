@@ -20,7 +20,7 @@ fuzz_target!(|input: Input| {
         u16::from(input.cols).max(2),
         u16::from(input.rows).max(1),
         200,
-        TerminalPalette::termoso_dark(),
+        TerminalPalette::labterm_dark(),
     );
     let mark = em.input_mark();
     for chunk in &input.chunks {

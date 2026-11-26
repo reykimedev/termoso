@@ -129,7 +129,7 @@ export interface Settings {
   postQuantumKex: boolean;
   /** Offer keys from the system SSH agent (SSH_AUTH_SOCK / Pageant) when authenticating. */
   useSshAgent: boolean;
-  /** Run Termoso's own SSH agent serving vault keys to local ssh/git. */
+  /** Run Labterm's own SSH agent serving vault keys to local ssh/git. */
   serveSshAgent: boolean;
   /** Confirm every signature the agent makes. */
   agentConfirm: boolean;
@@ -493,7 +493,7 @@ export interface HostForm {
   shellIntegration: boolean | null;
   hostChainId: Uuid | null;
   proxyId: Uuid | null;
-  /** Gateway (API bridge in `termoso-bridge gateway` mode) to tunnel through; null = direct. */
+  /** Gateway (API bridge in `labterm-bridge gateway` mode) to tunnel through; null = direct. */
   gatewayId: Uuid | null;
   /** MAC address for Wake-on-LAN; null = unknown. */
   macAddress: string | null;
@@ -2215,7 +2215,7 @@ export type OpenTarget =
       protocol?: "ssh" | "telnet" | null;
     }
   | { kind: "local" }
-  /** Someone else's terminal, from a `termoso://join/…` multiplayer link. */
+  /** Someone else's terminal, from a `labterm://join/…` multiplayer link. */
   | { kind: "live"; link: string };
 
 // ───────────────────────────── multiplayer ─────────────────────────────
@@ -2927,7 +2927,7 @@ export interface AgentSkippedKey {
   reason: string;
 }
 
-/** `agent_server_status`: Termoso's own agent serving vault keys. */
+/** `agent_server_status`: Labterm's own agent serving vault keys. */
 export interface AgentServerStatus {
   running: boolean;
   /** Socket path (Unix) or pipe name (Windows). */

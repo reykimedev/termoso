@@ -9,7 +9,7 @@ import { appQuit } from "@/ipc/commands";
 import type { Settings } from "@/ipc/types";
 import { onLanguageChange, tr } from "@/i18n";
 
-const TRAY_ID = "termoso";
+const TRAY_ID = "labterm";
 
 let wanted = false;
 let tray: TrayIcon | null = null;

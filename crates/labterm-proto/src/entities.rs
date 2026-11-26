@@ -273,7 +273,7 @@ pub mod payload {
             /// Proxy.
             #[serde(default, skip_serializing_if = "Option::is_none")]
             pub proxy_id: Option<Uuid>,
-            /// Reach the host through this gateway (an API bridge running `termoso-bridge gateway`)
+            /// Reach the host through this gateway (an API bridge running `labterm-bridge gateway`)
             /// instead of dialling it directly; the bridge id.
             #[serde(default, skip_serializing_if = "Option::is_none")]
             pub gateway_id: Option<Uuid>,

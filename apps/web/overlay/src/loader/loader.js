@@ -145,7 +145,7 @@
         status: c.keyId ? "verified" : "unsigned",
         version: m.version,
         commit: m.commit,
-        termoso: m.termoso,
+        labterm: m.labterm,
         keyId: c.keyId,
         manifestHash: c.hash,
         files: Object.keys(m.files)

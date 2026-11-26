@@ -72,15 +72,15 @@ The **Connections** tab shows every live thing in the app: terminal sessions as 
 
 ## Notification shade
 
-While anything is connected, Termoso runs as a foreground service and shows a notification per connection: the host name, `user@host:port`, the OS icon, and a **Close** button (tunnels get **Stop**). Tapping a card opens exactly that session, file browser or forwarding screen. With several connections they collapse into one group with a summary — _2 terminals · 1 tunnel_ — and **Close all**.
+While anything is connected, Labterm runs as a foreground service and shows a notification per connection: the host name, `user@host:port`, the OS icon, and a **Close** button (tunnels get **Stop**). Tapping a card opens exactly that session, file browser or forwarding screen. With several connections they collapse into one group with a summary — _2 terminals · 1 tunnel_ — and **Close all**.
 
 ![Sessions in the notification shade](/docs/img/android-shade.png)
 
-The notification is silent and cannot be swiped away while a session is open; it disappears when the last connection closes. If a vendor's battery optimiser still kills background sessions, exclude Termoso from optimisation — see [Troubleshooting](/docs/reference/troubleshooting#android-specifics).
+The notification is silent and cannot be swiped away while a session is open; it disappears when the last connection closes. If a vendor's battery optimiser still kills background sessions, exclude Labterm from optimisation — see [Troubleshooting](/docs/reference/troubleshooting#android-specifics).
 
 ## Sharing text into the terminal
 
-Share text from any app to Termoso and it is offered for pasting into the active session, with a preview first so nothing runs by accident. Shared images and files are uploaded to the host instead — see [Pasting images and files](/docs/terminal/compose-and-ai#pasting-images-and-files).
+Share text from any app to Labterm and it is offered for pasting into the active session, with a preview first so nothing runs by accident. Shared images and files are uploaded to the host instead — see [Pasting images and files](/docs/terminal/compose-and-ai#pasting-images-and-files).
 
 ## Hardware keyboards
 

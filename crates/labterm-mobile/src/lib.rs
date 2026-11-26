@@ -1,4 +1,4 @@
-//! Termoso mobile façade: the API the Android app talks to, exported through
+//! Labterm mobile façade: the API the Android app talks to, exported through
 //! UniFFI. The Rust side owns storage, encryption, SSH and terminal
 //! emulation; Kotlin owns the Keystore-wrapped master key, the UI and the
 //! foreground service.
@@ -75,4 +75,4 @@ pub use team::*;
 pub use terminal::{
     CELL_BYTES, CursorStyle, Emulator, GridFrame, GridSnapshot, TerminalPalette, flag,
 };
-pub use themes::{TERMOSO_DARK, TERMOSO_LIGHT, TerminalTheme, terminal_theme, terminal_themes};
+pub use themes::{LABTERM_DARK, LABTERM_LIGHT, TerminalTheme, terminal_theme, terminal_themes};

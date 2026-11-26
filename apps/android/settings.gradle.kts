@@ -20,5 +20,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "termoso"
+rootProject.name = "labterm"
 include(":core", ":app")

@@ -1,6 +1,6 @@
 //! Quick actions outside the window: files handed to the app by the OS, the
 //! macOS application menu and the Windows Jump List. Linux desktop actions live in
-//! `templates/termoso.desktop`; all of them end up as `termoso://new|local|sftp`
+//! `templates/labterm.desktop`; all of them end up as `labterm://new|local|sftp`
 //! links or a `files-opened` event the web view routes.
 
 use std::path::PathBuf;
@@ -24,7 +24,7 @@ impl LaunchFiles {
     }
 }
 
-/// Links the first launch's command line asked for (`termoso ssh …`), handed
+/// Links the first launch's command line asked for (`labterm ssh …`), handed
 /// to the web view when it asks, like [`LaunchFiles`].
 #[derive(Default)]
 pub struct LaunchLinks(Mutex<Vec<String>>);
@@ -39,7 +39,7 @@ impl LaunchLinks {
     }
 }
 
-/// A second instance started as `termoso ssh …`: the link goes to the running window.
+/// A second instance started as `labterm ssh …`: the link goes to the running window.
 pub fn forward_links<R: Runtime>(app: &AppHandle<R>, args: &[String]) {
     for link in crate::cli::links_from_args(args.iter().skip(1).cloned()) {
         let _ = app.emit("quick-action", link);
@@ -102,13 +102,13 @@ pub fn install_app_menu<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
     app.set_menu(menu)?;
     app.on_menu_event(|app, event| {
         if let Some(action) = event.id().as_ref().strip_prefix("quick:") {
-            let _ = app.emit("quick-action", format!("termoso://{action}"));
+            let _ = app.emit("quick-action", format!("labterm://{action}"));
         }
     });
     Ok(())
 }
 
-/// Taskbar Jump List tasks; each relaunches the exe with a `termoso://` link,
+/// Taskbar Jump List tasks; each relaunches the exe with a `labterm://` link,
 /// which the single-instance / deep-link plugins hand to the running window.
 #[cfg(windows)]
 pub fn install_jump_list() {
@@ -137,9 +137,9 @@ pub fn install_jump_list() {
     };
     let exe = HSTRING::from(exe.as_os_str());
     let tasks: [(&str, &str); 3] = [
-        ("New connection", "termoso://new"),
-        ("Local terminal", "termoso://local"),
-        ("SFTP", "termoso://sftp"),
+        ("New connection", "labterm://new"),
+        ("Local terminal", "labterm://local"),
+        ("SFTP", "labterm://sftp"),
     ];
     let result: windows::core::Result<()> = (|| unsafe {
         let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);

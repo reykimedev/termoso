@@ -275,7 +275,7 @@ fun AccountScreen(
                     s == null -> ListRow(title = stringResource(R.string.checking_the_server))
                     !s.available -> ListRow(
                         title = stringResource(R.string.not_offered_by_this_server),
-                        subtitle = stringResource(R.string.the_operator_can_point_termoso_ai_at_a),
+                        subtitle = stringResource(R.string.the_operator_can_point_labterm_ai_at_a),
                     )
                     else -> {
                         SwitchRow(

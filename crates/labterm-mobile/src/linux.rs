@@ -512,7 +512,7 @@ async fn cached_or_download(
 
     listener.on_progress(LinuxStage::Downloading, 0, bytes);
     let client = reqwest::Client::builder()
-        .user_agent(concat!("termoso/", env!("CARGO_PKG_VERSION")))
+        .user_agent(concat!("labterm/", env!("CARGO_PKG_VERSION")))
         .build()
         .map_err(|e| MobileError::invalid(e.to_string()))?;
     let resp = client
@@ -737,7 +737,7 @@ fn configure(rootfs: &Path, dns: &[String]) -> Result<()> {
     // Ubuntu base ships no /etc/hostname; proot fakes uname, a name keeps tools quiet.
     let hostname = etc.join("hostname");
     if !hostname.exists() {
-        fs::write(&hostname, "termoso\n")?;
+        fs::write(&hostname, "labterm\n")?;
     }
     Ok(())
 }

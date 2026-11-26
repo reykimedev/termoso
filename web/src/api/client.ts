@@ -30,7 +30,7 @@ const CODE_MESSAGES: Record<string, string> = {
   network: msg("Cannot reach the server. Check your connection."),
   sso_required: msg("This account must sign in through single sign-on (SSO)."),
   client_update_required: msg(
-    "This client is older than the server allows. Please update Termoso.",
+    "This client is older than the server allows. Please update Labterm.",
   ),
   ip_not_allowed: msg("Sign-in from this network is not allowed by your team's IP allow-list."),
   device_pending_approval: msg(

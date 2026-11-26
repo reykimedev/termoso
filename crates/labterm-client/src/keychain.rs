@@ -1408,9 +1408,9 @@ mod tests {
         assert!(run("ssh-ed25519").is_err());
 
         // Hostile input never reaches the shell as code.
-        let evil = "ssh-ed25519 AAAA$(touch /tmp/pwned_termoso)`id` x";
+        let evil = "ssh-ed25519 AAAA$(touch /tmp/pwned_labterm)`id` x";
         assert_eq!(run(evil).unwrap(), ExportOutcome::Added);
-        assert!(!std::path::Path::new("/tmp/pwned_termoso").exists());
+        assert!(!std::path::Path::new("/tmp/pwned_labterm").exists());
         assert!(std::fs::read_to_string(&ak).unwrap().contains(evil));
     }
 

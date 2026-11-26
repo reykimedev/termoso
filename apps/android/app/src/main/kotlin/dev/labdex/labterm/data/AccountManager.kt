@@ -136,7 +136,7 @@ class AccountManager(
     }
 
     /**
-     * OPAQUE login with the Termoso password. With [sso] the identity was just
+     * OPAQUE login with the Labterm password. With [sso] the identity was just
      * verified by a provider ([ssoStart] … [ssoPoll]): Rust attaches the one-time
      * SSO session it kept and the server skips the email-based device approval.
      */

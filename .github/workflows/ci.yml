@@ -42,12 +42,12 @@ jobs:
       postgres:
         image: postgres:18-alpine
         env:
-          POSTGRES_USER: termoso
-          POSTGRES_PASSWORD: termoso
-          POSTGRES_DB: termoso
+          POSTGRES_USER: labterm
+          POSTGRES_PASSWORD: labterm
+          POSTGRES_DB: labterm
         ports: ["5432:5432"]
         options: >-
-          --health-cmd "pg_isready -U termoso -d termoso"
+          --health-cmd "pg_isready -U labterm -d labterm"
           --health-interval 5s --health-timeout 3s --health-retries 20
       redis:
         image: redis:8-alpine
@@ -62,16 +62,16 @@ jobs:
           --health-cmd "/mailpit readyz"
           --health-interval 5s --health-timeout 3s --health-retries 20
     env:
-      TERMOSO_TEST_DATABASE_URL: postgres://termoso:termoso@localhost:5432/termoso
-      TERMOSO_TEST_REDIS_URL: redis://127.0.0.1:6379
-      TERMOSO_TEST_S3_ENDPOINT: http://127.0.0.1:9000
-      TERMOSO_TEST_SMTP_ADDR: 127.0.0.1:1025
-      TERMOSO_TEST_MAILPIT_URL: http://127.0.0.1:8025
-      TERMOSO_TEST_REQUIRE_SERVICES: "1"
-      TERMOSO_TEST_REQUIRE_MOSH: "1"
+      LABTERM_TEST_DATABASE_URL: postgres://labterm:labterm@localhost:5432/labterm
+      LABTERM_TEST_REDIS_URL: redis://127.0.0.1:6379
+      LABTERM_TEST_S3_ENDPOINT: http://127.0.0.1:9000
+      LABTERM_TEST_SMTP_ADDR: 127.0.0.1:1025
+      LABTERM_TEST_MAILPIT_URL: http://127.0.0.1:8025
+      LABTERM_TEST_REQUIRE_SERVICES: "1"
+      LABTERM_TEST_REQUIRE_MOSH: "1"
       # backup/restore round trip needs pg_dump of the server's major version.
-      TERMOSO_TEST_PG_DUMP: /usr/lib/postgresql/18/bin/pg_dump
-      TERMOSO_TEST_PG_RESTORE: /usr/lib/postgresql/18/bin/pg_restore
+      LABTERM_TEST_PG_DUMP: /usr/lib/postgresql/18/bin/pg_dump
+      LABTERM_TEST_PG_RESTORE: /usr/lib/postgresql/18/bin/pg_restore
     steps:
       - uses: actions/checkout@v7
       - name: Free runner disk (cargo test --workspace fills the 14 GB root volume)
@@ -114,7 +114,7 @@ jobs:
     name: opkssh certificates (e2e against opkssh verify + wasm32)
     runs-on: ubuntu-latest
     env:
-      TERMOSO_OPKSSH_E2E: "1"
+      LABTERM_OPKSSH_E2E: "1"
     steps:
       - uses: actions/checkout@v7
       - name: Test OpenID provider + OpenSSH host with opkssh
@@ -404,13 +404,13 @@ jobs:
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
       # Rust for one ABI is enough to compile, lint and generate the bindings.
-      - run: ./gradlew --no-daemon -Ptermoso.abis=arm64-v8a :app:assembleDebug :app:lint
+      - run: ./gradlew --no-daemon -Plabterm.abis=arm64-v8a :app:assembleDebug :app:lint
         working-directory: apps/android
         env:
           ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.2.12479018
       - uses: actions/upload-artifact@v7
         with:
-          name: termoso-android-debug
+          name: labterm-android-debug
           path: apps/android/app/build/outputs/apk/debug/*.apk
           retention-days: 7
 
@@ -529,7 +529,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - id: image
-        run: echo "name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/termoso-${{ matrix.image }}" >> "$GITHUB_OUTPUT"
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/labterm-${{ matrix.image }}" >> "$GITHUB_OUTPUT"
       - id: build
         uses: docker/build-push-action@v7
         with:
@@ -583,7 +583,7 @@ jobs:
       - id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/${{ github.repository_owner }}/termoso-${{ matrix.image }}
+          images: ghcr.io/${{ github.repository_owner }}/labterm-${{ matrix.image }}
           tags: |
             type=ref,event=branch
             type=semver,pattern={{version}}
@@ -592,7 +592,7 @@ jobs:
       - name: Create the multi-arch manifest
         working-directory: /tmp/digests
         run: |
-          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/termoso-${{ matrix.image }}"
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/labterm-${{ matrix.image }}"
           ls
           [ "$(ls | wc -l)" -eq 2 ] || { echo "::error::expected 2 digests (amd64 + arm64)"; exit 1; }
           docker buildx imagetools create \
@@ -600,7 +600,7 @@ jobs:
             $(printf "$image@sha256:%s " *)
       - name: Verify the manifest
         run: |
-          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/termoso-${{ matrix.image }}:${{ steps.meta.outputs.version }}"
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/labterm-${{ matrix.image }}:${{ steps.meta.outputs.version }}"
           docker buildx imagetools inspect "$image"
           for p in linux/amd64 linux/arm64; do
             docker buildx imagetools inspect "$image" --format '{{json .Manifest}}' \

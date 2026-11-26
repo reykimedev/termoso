@@ -64,7 +64,7 @@ fun WelcomeScreen(onCreateAccount: () -> Unit, onSignIn: () -> Unit, onContinueO
             }
             Spacer(Modifier.height(36.dp))
             Text(
-                stringResource(R.string.welcome_to_termoso),
+                stringResource(R.string.welcome_to_labterm),
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = DarkLayers.text,
@@ -91,7 +91,7 @@ fun WelcomeScreen(onCreateAccount: () -> Unit, onSignIn: () -> Unit, onContinueO
             ) { Text(stringResource(R.string.sign_in), color = DarkLayers.text) }
             Spacer(Modifier.height(12.dp))
             Text(
-                stringResource(R.string.termoso_cloud_is_completely_free_for_everyone_no),
+                stringResource(R.string.labterm_cloud_is_completely_free_for_everyone_no),
                 style = MaterialTheme.typography.bodySmall,
                 color = DarkLayers.secondary,
                 textAlign = TextAlign.Center,

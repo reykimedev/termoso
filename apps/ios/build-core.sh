@@ -57,7 +57,7 @@ done
 lib_name=liblabterm_mobile.a
 first_lib="$root/target/${targets[0]}/$profile/$lib_name"
 
-work="$(mktemp -d "${TMPDIR:-/tmp}/termoso-ios.XXXXXX")"
+work="$(mktemp -d "${TMPDIR:-/tmp}/labterm-ios.XXXXXX")"
 trap 'rm -rf "$work"' EXIT
 
 echo "==> uniffi-bindgen (swift)"

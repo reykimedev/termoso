@@ -34,7 +34,7 @@ use crate::error::{CoreError, Result};
 use crate::terminal::{SharedTerminal, TermEvent, TermEvents, TermSize, TerminalSession};
 
 /// URL scheme of invitation links.
-pub const SCHEME: &str = "termoso";
+pub const SCHEME: &str = "labterm";
 const PING_EVERY: Duration = Duration::from_secs(25);
 /// Output kept for late joiners.
 const REPLAY_BYTES: usize = 128 * 1024;
@@ -42,7 +42,7 @@ const REPLAY_BYTES: usize = 128 * 1024;
 const QUEUE: usize = 1024;
 
 /// `https://<server>/join/<session>#<secret>`, or the app-scheme form
-/// `termoso://join/<session>?s=<server>#<secret>`.
+/// `labterm://join/<session>?s=<server>#<secret>`.
 ///
 /// The secret travels in the fragment so it is never part of anything a
 /// server sees; the server URL is only a hint for a clear mismatch error.
@@ -140,7 +140,7 @@ impl LiveLink {
         }
     }
 
-    /// The `termoso://join/…` form, for OS deep links into an installed client.
+    /// The `labterm://join/…` form, for OS deep links into an installed client.
     pub fn to_app_url(&self) -> String {
         let mut s = format!("{SCHEME}://join/{}", self.session_id);
         if let Some(server) = &self.server {
@@ -1003,7 +1003,7 @@ mod tests {
         );
 
         let app = link.to_app_url();
-        assert!(app.starts_with("termoso://join/"));
+        assert!(app.starts_with("labterm://join/"));
         assert!(LiveLink::looks_like(&app));
         let parsed = LiveLink::parse(&app).unwrap();
         assert_eq!(parsed.session_id, link.session_id);
@@ -1018,11 +1018,11 @@ mod tests {
         let id = Uuid::new_v4();
         let secret = LiveSecret::generate().to_b64();
         let parsed =
-            LiveLink::parse(&format!("https://x.test:8443/termoso/join/{id}/#{secret}")).unwrap();
+            LiveLink::parse(&format!("https://x.test:8443/labterm/join/{id}/#{secret}")).unwrap();
         assert_eq!(parsed.session_id, id);
         assert_eq!(
             parsed.server.as_ref().map(Url::as_str),
-            Some("https://x.test:8443/termoso/")
+            Some("https://x.test:8443/labterm/")
         );
         let parsed = LiveLink::parse(&format!(
             "https://web.test/join/{id}?s=https%3A%2F%2Fapi.test%2F#{secret}"
@@ -1037,15 +1037,15 @@ mod tests {
             server: None,
             secret: LiveSecret::generate(),
         };
-        assert!(no_server.to_url().starts_with("termoso://join/"));
+        assert!(no_server.to_url().starts_with("labterm://join/"));
     }
 
     #[test]
     fn link_rejects_garbage() {
         let secret = LiveSecret::generate().to_b64();
-        assert!(LiveLink::parse("termoso://host/abc").is_err());
-        assert!(LiveLink::parse(&format!("termoso://join/{}", Uuid::new_v4())).is_err());
-        assert!(LiveLink::parse(&format!("termoso://join/{}#short", Uuid::new_v4())).is_err());
+        assert!(LiveLink::parse("labterm://host/abc").is_err());
+        assert!(LiveLink::parse(&format!("labterm://join/{}", Uuid::new_v4())).is_err());
+        assert!(LiveLink::parse(&format!("labterm://join/{}#short", Uuid::new_v4())).is_err());
         assert!(
             LiveLink::parse(&format!(
                 "https://x.test/invite/{}#{secret}",

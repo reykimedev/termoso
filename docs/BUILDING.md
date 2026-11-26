@@ -1,4 +1,4 @@
-# Building Termoso from source
+# Building Labterm from source
 
 This is the from-scratch guide: a clean machine, a `git clone`, and at the end
 the same artifacts the release workflow publishes — the server and bridge
@@ -34,7 +34,7 @@ For *developing* (hot reload, running tests) see the shorter
 
 ```bash
 git clone https://github.com/termoso/termoso.git
-cd termoso
+cd labterm
 git checkout v0.3.0          # a release tag; omit to build `main`
 ```
 
@@ -93,11 +93,11 @@ host toolchain other than Docker/Podman is needed, and the build context is the
 repository root.
 
 ```bash
-# API server + web cabinet in one image (what ghcr.io/termoso/termoso-server is)
-docker build -f deploy/Dockerfile -t termoso-server:local .
+# API server + web cabinet in one image (what ghcr.io/reykimedev/labterm-server is)
+docker build -f deploy/Dockerfile -t labterm-server:local .
 
-# API Bridge (what ghcr.io/termoso/termoso-bridge is)
-docker build -f deploy/Dockerfile.bridge -t termoso-bridge:local .
+# API Bridge (what ghcr.io/reykimedev/labterm-bridge is)
+docker build -f deploy/Dockerfile.bridge -t labterm-bridge:local .
 ```
 
 With Podman replace `docker build` by `podman build` (BuildKit cache mounts are
@@ -110,15 +110,15 @@ without a master key, which proves the binary runs; the second command lists
 the bundled cabinet (the image has no shell, so inspect it from outside):
 
 ```bash
-docker run --rm termoso-server:local
-# Error: TERMOSO_MASTER_KEY is required (generate with `openssl rand -base64 32`)
-docker create --name termoso-inspect termoso-server:local >/dev/null
-docker export termoso-inspect | tar -t | grep -E '^app/web/index.html|bin/termoso-server'
-docker rm termoso-inspect
+docker run --rm labterm-server:local
+# Error: LABTERM_MASTER_KEY is required (generate with `openssl rand -base64 32`)
+docker create --name labterm-inspect labterm-server:local >/dev/null
+docker export labterm-inspect | tar -t | grep -E '^app/web/index.html|bin/labterm-server'
+docker rm labterm-inspect
 ```
 
 To run it for real, point the Compose file at your tag instead of the GHCR
-image (`image: termoso-server:local` in `deploy/docker-compose.yml`) and follow
+image (`image: labterm-server:local` in `deploy/docker-compose.yml`) and follow
 [SELF_HOSTING.md](SELF_HOSTING.md). The published images are multi-architecture
 (amd64 + arm64): CI builds each architecture natively on a runner of that
 architecture and joins the digests with `docker buildx imagetools create`. On a
@@ -131,8 +131,8 @@ checksums for both.
 If you would rather not use containers:
 
 ```bash
-cargo build --release --locked -p termoso-server -p termoso-bridge
-ls target/release/termoso-server target/release/termoso-bridge
+cargo build --release --locked -p labterm-server -p labterm-bridge
+ls target/release/labterm-server target/release/labterm-bridge
 ```
 
 `--locked` makes cargo fail instead of silently updating `Cargo.lock`. The
@@ -141,15 +141,15 @@ binaries link glibc dynamically and the server additionally needs OpenSSL 3
 use `rustls`. They run on any glibc-based Linux of the same or newer version
 than the build host — which is why the container images build on Debian 12.
 
-The server serves the cabinet from `TERMOSO_WEB_DIR`; build the cabinet
+The server serves the cabinet from `LABTERM_WEB_DIR`; build the cabinet
 ([next section](#web-cabinet)) and run:
 
 ```bash
-export TERMOSO_MASTER_KEY=$(openssl rand -base64 32)   # keep it — it wraps server-side secrets
-export TERMOSO_DATABASE_URL=postgres://termoso:termoso@localhost:5432/termoso
-export TERMOSO_REDIS_URL=redis://127.0.0.1:6379
-export TERMOSO_WEB_DIR=web/dist
-target/release/termoso-server
+export LABTERM_MASTER_KEY=$(openssl rand -base64 32)   # keep it — it wraps server-side secrets
+export LABTERM_DATABASE_URL=postgres://labterm:labterm@localhost:5432/labterm
+export LABTERM_REDIS_URL=redis://127.0.0.1:6379
+export LABTERM_WEB_DIR=web/dist
+target/release/labterm-server
 ```
 
 Database migrations run automatically at start. The complete variable list is
@@ -170,7 +170,7 @@ npm run build       # → web/dist
 ```
 
 `web/dist` is what the server image ships under `/app/web`. Serve it from
-`termoso-server` (`TERMOSO_WEB_DIR=/path/to/web/dist`) rather than from a
+`labterm-server` (`LABTERM_WEB_DIR=/path/to/web/dist`) rather than from a
 separate static host: the SPA expects the API on the same origin under
 `/api/v1`, and the server adds the security headers and the landing/cabinet
 routing described in [SELF_HOSTING.md](SELF_HOSTING.md#landing-page-on-off-or-on-its-own-domain).
@@ -208,13 +208,13 @@ pair once, embed *your* public key and sign with *your* private key:
 ```bash
 cd apps/desktop
 npm ci
-npm run tauri signer generate -- -w ~/.termoso-signing/termoso.key   # asks for a password
-export TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.termoso-signing/termoso.key)"
+npm run tauri signer generate -- -w ~/.labterm-signing/labterm.key   # asks for a password
+export TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.labterm-signing/labterm.key)"
 export TAURI_SIGNING_PRIVATE_KEY_PASSWORD='…the password…'
 cat > /tmp/updater.json <<EOF
 { "plugins": { "updater": {
-    "pubkey": "$(cat ~/.termoso-signing/termoso.key.pub)",
-    "endpoints": ["https://updates.example.com/termoso/latest.json"] } } }
+    "pubkey": "$(cat ~/.labterm-signing/labterm.key.pub)",
+    "endpoints": ["https://updates.example.com/labterm/latest.json"] } } }
 EOF
 npm run tauri build -- --config /tmp/updater.json --bundles deb,rpm,appimage
 ```
@@ -268,7 +268,7 @@ Build:
 ```bash
 cd apps/desktop
 npm ci
-src-tauri/appimage/prepare.sh      # once: Termoso's linuxdeploy appimage plugin into ~/.cache/tauri
+src-tauri/appimage/prepare.sh      # once: Labterm's linuxdeploy appimage plugin into ~/.cache/tauri
 npm run tauri build -- --config src-tauri/tauri.no-updater.conf.json --bundles deb,rpm,appimage
 src-tauri/appimage/verify.sh ../../target/release/bundle/appimage/*.AppImage
 ```
@@ -277,9 +277,9 @@ Output (`target/` is the workspace target directory, two levels up):
 
 ```text
 target/release/labterm-desktop                                  # the binary itself
-target/release/bundle/deb/Termoso_0.3.0_amd64.deb
-target/release/bundle/rpm/Termoso-0.3.0-1.x86_64.rpm
-target/release/bundle/appimage/Termoso_0.3.0_amd64.AppImage
+target/release/bundle/deb/Labterm_0.3.0_amd64.deb
+target/release/bundle/rpm/Labterm-0.3.0-1.x86_64.rpm
+target/release/bundle/appimage/Labterm_0.3.0_amd64.AppImage
 ```
 
 The AppImage carries GTK and WebKitGTK from the build host; the `.deb`/`.rpm`
@@ -324,8 +324,8 @@ Output:
 
 ```text
 target\release\labterm-desktop.exe
-target\release\bundle\msi\Termoso_0.3.0_x64_en-US.msi
-target\release\bundle\nsis\Termoso_0.3.0_x64-setup.exe
+target\release\bundle\msi\Labterm_0.3.0_x64_en-US.msi
+target\release\bundle\nsis\Labterm_0.3.0_x64-setup.exe
 ```
 
 WiX (for `.msi`) and NSIS (for `-setup.exe`) are downloaded by the bundler on
@@ -357,16 +357,16 @@ npm run tauri build -- --config src-tauri/tauri.no-updater.conf.json --bundles a
 Output (per `--target`):
 
 ```text
-target/aarch64-apple-darwin/release/bundle/macos/Termoso.app
-target/aarch64-apple-darwin/release/bundle/dmg/Termoso_0.3.0_aarch64.dmg
-target/x86_64-apple-darwin/release/bundle/dmg/Termoso_0.3.0_x64.dmg
+target/aarch64-apple-darwin/release/bundle/macos/Labterm.app
+target/aarch64-apple-darwin/release/bundle/dmg/Labterm_0.3.0_aarch64.dmg
+target/x86_64-apple-darwin/release/bundle/dmg/Labterm_0.3.0_x64.dmg
 ```
 
 `apps/desktop/src-tauri/tauri.macos.conf.json` is merged automatically on
 macOS and sets `signingIdentity: "-"` — an **ad-hoc** signature, so the app
 runs on Apple Silicon (which refuses unsigned code) without an Apple developer
 account. A copy downloaded through a browser is quarantined by Gatekeeper; the
-person installing it runs `xattr -cr /Applications/Termoso.app` once (or
+person installing it runs `xattr -cr /Applications/Labterm.app` once (or
 right-click → *Open*). To sign with a Developer ID and notarize instead, export
 `APPLE_SIGNING_IDENTITY`, `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`
 and, for notarization, `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID` before
@@ -409,7 +409,7 @@ from `ANDROID_NDK_HOME` if set, otherwise the newest one under
 The embedded NetBird client ([NETBIRD.md](NETBIRD.md)) is a Go library built
 with the same NDK, so Android builds also need **Go** at the version in
 `crates/labterm-netbird/go/go.mod` (`go` on `PATH`; with `GOTOOLCHAIN=auto`,
-the default, an older Go fetches it). `-Ptermoso.netbird=false` builds without
+the default, an older Go fetches it). `-Plabterm.netbird=false` builds without
 it.
 
 ### Debug build
@@ -421,7 +421,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
 The debug APK is signed with the standard Android debug key and contains the
-ABIs from `gradle.properties` → `termoso.abis` (default `arm64-v8a,x86_64`:
+ABIs from `gradle.properties` → `labterm.abis` (default `arm64-v8a,x86_64`:
 devices plus the x86_64 emulator).
 
 ### Release build
@@ -431,7 +431,7 @@ reads the keystore from the environment only — nothing in the tree — so
 create one once:
 
 ```bash
-keytool -genkeypair -keystore ~/termoso-release.jks -alias termoso \
+keytool -genkeypair -keystore ~/labterm-release.jks -alias labterm \
   -keyalg RSA -keysize 4096 -validity 10950
 ```
 
@@ -440,11 +440,11 @@ does:
 
 ```bash
 cd apps/android
-export TERMOSO_ANDROID_KEYSTORE=~/termoso-release.jks
-export TERMOSO_ANDROID_KEYSTORE_PASSWORD='…'
-export TERMOSO_ANDROID_KEY_ALIAS=termoso                       # default
-# export TERMOSO_ANDROID_KEY_PASSWORD='…'                     # defaults to the store password
-./gradlew -Ptermoso.abis=arm64-v8a,armeabi-v7a,x86_64 -Ptermoso.splits=true :app:assembleRelease
+export LABTERM_ANDROID_KEYSTORE=~/labterm-release.jks
+export LABTERM_ANDROID_KEYSTORE_PASSWORD='…'
+export LABTERM_ANDROID_KEY_ALIAS=labterm                       # default
+# export LABTERM_ANDROID_KEY_PASSWORD='…'                     # defaults to the store password
+./gradlew -Plabterm.abis=arm64-v8a,armeabi-v7a,x86_64 -Plabterm.splits=true :app:assembleRelease
 ls app/build/outputs/apk/release/
 ```
 
@@ -455,15 +455,15 @@ app-x86_64-release.apk        # emulators, Chromebooks
 app-universal-release.apk     # all three ABIs in one file
 ```
 
-Without `-Ptermoso.splits=true` you get a single `app-release.apk` with the
-ABIs of `termoso.abis`. Without `TERMOSO_ANDROID_KEYSTORE` Gradle still builds
+Without `-Plabterm.splits=true` you get a single `app-release.apk` with the
+ABIs of `labterm.abis`. Without `LABTERM_ANDROID_KEYSTORE` Gradle still builds
 but leaves the files as `*-release-unsigned.apk`; sign those afterwards with
 `apksigner` if you prefer to keep signing out of the build:
 
 ```bash
-"$ANDROID_HOME/build-tools/36.0.0/apksigner" sign --ks ~/termoso-release.jks --ks-key-alias termoso \
-  --out termoso-arm64-v8a.apk app/build/outputs/apk/release/app-arm64-v8a-release-unsigned.apk
-"$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs termoso-arm64-v8a.apk
+"$ANDROID_HOME/build-tools/36.0.0/apksigner" sign --ks ~/labterm-release.jks --ks-key-alias labterm \
+  --out labterm-arm64-v8a.apk app/build/outputs/apk/release/app-arm64-v8a-release-unsigned.apk
+"$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs labterm-arm64-v8a.apk
 ```
 
 Two things follow from the signing key:
@@ -473,13 +473,13 @@ Two things follow from the signing key:
   yours (or back) without uninstalling. The version code is derived from the
   workspace version (`MAJOR*10000 + MINOR*100 + PATCH`), so your builds of
   newer tags do install over your builds of older ones.
-* **App Links.** `gradle.properties` → `termoso.appLinkHost` names the server
+* **App Links.** `gradle.properties` → `labterm.appLinkHost` names the server
   whose `https://<host>/invite/…` and `/join/…` links open directly in the
   app. For a self-hosted server set it to your host
-  (`-Ptermoso.appLinkHost=app.example.com`) and publish your certificate's
-  SHA-256 through the server's `TERMOSO_ANDROID_APP_LINKS` — details in
+  (`-Plabterm.appLinkHost=app.example.com`) and publish your certificate's
+  SHA-256 through the server's `LABTERM_ANDROID_APP_LINKS` — details in
   [RELEASING.md](RELEASING.md#secrets). Without it the links still work
-  through the web landing page's *Open in Termoso* button.
+  through the web landing page's *Open in Labterm* button.
 
 The unit tests and lint run with `./gradlew :app:testDebugUnitTest :app:lintDebug`.
 
@@ -494,18 +494,18 @@ App Store build, the release ships an **unsigned** `.ipa` for sideloading
 ```bash
 cd apps/ios
 ./build-core.sh --release --device --no-sim   # Rust → LabtermCoreFFI.xcframework + LabtermCore.swift
-xcodegen generate                              # → Termoso.xcodeproj (git-ignored)
-xcodebuild archive -project Termoso.xcodeproj -scheme Termoso -configuration Release \
-  -destination 'generic/platform=iOS' -archivePath build/Termoso.xcarchive \
+xcodegen generate                              # → Labterm.xcodeproj (git-ignored)
+xcodebuild archive -project Labterm.xcodeproj -scheme Labterm -configuration Release \
+  -destination 'generic/platform=iOS' -archivePath build/Labterm.xcarchive \
   CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=
 mkdir -p build/ipa/Payload
-cp -R build/Termoso.xcarchive/Products/Applications/Termoso.app build/ipa/Payload/
-(cd build/ipa && zip -qry ../Termoso.ipa Payload)
-ls -l build/Termoso.ipa
+cp -R build/Labterm.xcarchive/Products/Applications/Labterm.app build/ipa/Payload/
+(cd build/ipa && zip -qry ../Labterm.ipa Payload)
+ls -l build/Labterm.ipa
 ```
 
 For the simulator use `./build-core.sh` (debug, simulator slice) and
-`xcodebuild -scheme Termoso -destination 'platform=iOS Simulator,name=iPhone 16'`
+`xcodebuild -scheme Labterm -destination 'platform=iOS Simulator,name=iPhone 16'`
 or just open the generated project in Xcode. With an Apple developer account
 you can instead let Xcode sign and install the app on your own device as
 usual; nothing in the project prevents that.
@@ -517,7 +517,7 @@ usual; nothing in the project prevents that.
   them on localhost), then run your image on the host network:
 
   ```bash
-  docker run --rm --network host -e TERMOSO_MASTER_KEY=$(openssl rand -base64 32) termoso-server:local
+  docker run --rm --network host -e LABTERM_MASTER_KEY=$(openssl rand -base64 32) labterm-server:local
   curl -s localhost:8080/healthz          # ok
   ```
 
@@ -563,5 +563,5 @@ usual; nothing in the project prevents that.
 | Gradle: `cargo ndk` not found | `cargo install cargo-ndk` and make sure `~/.cargo/bin` is on the `PATH` Gradle sees. |
 | `error: linking with cc failed` for an Android target | The Rust target is not installed: `rustup target add <triple>`. |
 | Release APK `INSTALL_FAILED_UPDATE_INCOMPATIBLE` | Different signing key than the installed copy; uninstall first. |
-| macOS: "Termoso is damaged and can't be opened" | Ad-hoc signature + Gatekeeper quarantine; `xattr -cr /Applications/Termoso.app`. |
+| macOS: "Labterm is damaged and can't be opened" | Ad-hoc signature + Gatekeeper quarantine; `xattr -cr /Applications/Labterm.app`. |
 | `cargo build --locked` fails with "lock file needs to be updated" | You changed a dependency without updating `Cargo.lock`; run without `--locked` once and commit the lock file. |

@@ -122,7 +122,7 @@ fun Fido2GenerateScreen(shell: ShellViewModel, onClose: () -> Unit, onSaved: (St
             )
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (s.resident) {
-                    FormField(s.user, { v -> vm.update { it.copy(user = v) } }, stringResource(R.string.user_name_on_the_key), placeholder = "termoso")
+                    FormField(s.user, { v -> vm.update { it.copy(user = v) } }, stringResource(R.string.user_name_on_the_key), placeholder = "labterm")
                 }
                 FormField(s.application, { v -> vm.update { it.copy(application = v) } }, stringResource(R.string.application), placeholder = "ssh:")
                 SecretField(

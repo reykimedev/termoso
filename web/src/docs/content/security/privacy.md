@@ -1,6 +1,6 @@
 ---
 title: Privacy and telemetry
-description: Termoso collects nothing. Here is exactly which network connections the apps make.
+description: Labterm collects nothing. Here is exactly which network connections the apps make.
 ---
 
 **No analytics, no crash reporting, no usage statistics, no advertising identifiers.** Not opt-out — absent. The source is public, so this is something you can check rather than trust.
@@ -28,4 +28,4 @@ The hosted server at `app.termoso.dev` runs the same open-source server as every
 
 ### The one third party: a captcha
 
-We would rather have none, but a public sign-up form with no bot check is abused within days, and e-mail verification alone does not stop that. So the free cloud asks Cloudflare Turnstile for a token in exactly three moments: creating an account, recovering one, and signing in after several failed attempts from the same address. While the widget is on screen, Cloudflare sees what any website visit shows it — your IP address and browser characteristics — and nothing about your account, hosts or vault; we never see those signals either. The widget never loads inside a signed-in app or during normal use. Self-hosted servers have it off unless the operator adds keys, and nothing else in Termoso depends on it.
+We would rather have none, but a public sign-up form with no bot check is abused within days, and e-mail verification alone does not stop that. So the free cloud asks Cloudflare Turnstile for a token in exactly three moments: creating an account, recovering one, and signing in after several failed attempts from the same address. While the widget is on screen, Cloudflare sees what any website visit shows it — your IP address and browser characteristics — and nothing about your account, hosts or vault; we never see those signals either. The widget never loads inside a signed-in app or during normal use. Self-hosted servers have it off unless the operator adds keys, and nothing else in Labterm depends on it.

@@ -19,7 +19,7 @@ export function ResetBrowser() {
   return (
     <>
       <Typography variant="caption" color="text.secondary" sx={{ textAlign: "center" }}>
-        {tr("Forgot it? Reset this browser and sign in to your Termoso account again.")}{" "}
+        {tr("Forgot it? Reset this browser and sign in to your Labterm account again.")}{" "}
         <Link component="button" type="button" variant="caption" onClick={() => setOpen(true)}>
           {tr("Reset this browser")}
         </Link>
@@ -29,7 +29,7 @@ export function ResetBrowser() {
         <DialogContent>
           <DialogContentText>
             {tr(
-              "Labterm Web forgets this browser's copy of your vault. Everything synced to your Termoso account comes back when you sign in again; entries kept only in this browser are lost.",
+              "Labterm Web forgets this browser's copy of your vault. Everything synced to your Labterm account comes back when you sign in again; entries kept only in this browser are lost.",
             )}
           </DialogContentText>
         </DialogContent>

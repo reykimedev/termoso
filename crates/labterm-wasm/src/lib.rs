@@ -1,6 +1,6 @@
 //! Browser bindings for `labterm-crypto`.
 //!
-//! Everything a Termoso web client needs to stay zero-knowledge runs here, in
+//! Everything a Labterm web client needs to stay zero-knowledge runs here, in
 //! Rust compiled to WebAssembly: OPAQUE, key derivation, key wrapping, sealed
 //! boxes and entity encryption. JavaScript only moves opaque base64 strings
 //! between this module and the HTTP API; it never implements crypto itself.

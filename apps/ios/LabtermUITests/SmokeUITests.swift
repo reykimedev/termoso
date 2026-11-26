@@ -85,7 +85,7 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(cont.waitForExistence(timeout: 5))
         XCTAssertFalse(cont.isEnabled, "Continue must stay disabled for an empty address")
         url.tap()
-        url.typeText("termoso.example.com")
+        url.typeText("labterm.example.com")
         XCTAssertTrue(cont.isEnabled, "bare host name should normalise to https://")
         snap("07-self-hosted")
         cont.tap()
@@ -129,8 +129,8 @@ final class SmokeUITests: XCTestCase {
         for attempt in 0 ..< 3 where !echoed {
             canvas.tap()
             Thread.sleep(forTimeInterval: 1)
-            canvas.typeText("echo termoso-$((40+\(attempt + 2)))\n")
-            echoed = canvasMatching("value CONTAINS 'termoso-\(42 + attempt)'").waitForExistence(timeout: 10)
+            canvas.typeText("echo labterm-$((40+\(attempt + 2)))\n")
+            echoed = canvasMatching("value CONTAINS 'labterm-\(42 + attempt)'").waitForExistence(timeout: 10)
         }
         XCTAssertTrue(echoed, "shell output did not reach the grid: \(canvas.value ?? "nil")")
         snap("12-terminal-echo")

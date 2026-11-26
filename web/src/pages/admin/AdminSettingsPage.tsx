@@ -332,7 +332,7 @@ function SettingsForm({
           description={
             <>
               {tr(
-                "Only single sign-on (server-wide providers or the home team's IdP). Password sign-in and e-mail sign-up return sso_required. Bootstrap administrators from TERMOSO_ADMIN_EMAILS keep password sign-in so the server cannot lock you out. Requires at least one provider.",
+                "Only single sign-on (server-wide providers or the home team's IdP). Password sign-in and e-mail sign-up return sso_required. Bootstrap administrators from LABTERM_ADMIN_EMAILS keep password sign-in so the server cannot lock you out. Requires at least one provider.",
               )}
               {defaultHint("sso_only", (v) => onOff(v ?? false))}
             </>
@@ -497,7 +497,7 @@ function SettingsForm({
               helperText={
                 <>
                   {tr(
-                    "Server-wide default for team audit logs; a team policy may set its own value up to the cap from TERMOSO_AUDIT_RETENTION_DAYS_MAX. Older entries are deleted by a nightly job. 0 = keep forever.",
+                    "Server-wide default for team audit logs; a team policy may set its own value up to the cap from LABTERM_AUDIT_RETENTION_DAYS_MAX. Older entries are deleted by a nightly job. 0 = keep forever.",
                   )}{" "}
                   {s.audit_retention_days === 0 ? tr("Kept forever") : null}
                   {limits && <> {tr("0–{v1} days", { v1: limits.audit_retention_days_max })}</>}
@@ -566,7 +566,7 @@ function TestEmailSection() {
   return (
     <Section
       title={tr("Outgoing email")}
-      description={tr("SMTP is configured through TERMOSO_SMTP_* environment variables.")}
+      description={tr("SMTP is configured through LABTERM_SMTP_* environment variables.")}
     >
       {!enabled ? (
         <Alert severity="info">
@@ -769,34 +769,34 @@ function EnvironmentSections({ cfg }: { cfg: AdminConfig }) {
           value={`${formatDateTime(sv.started_at)} · ${tr("up {v1}", { v1: formatUptime(sv.uptime_secs) })}`}
           copy={false}
         />
-        <KV label={tr("Server name")} env="TERMOSO_SERVER_NAME" value={sv.name} />
-        <KV label={tr("API URL")} env="TERMOSO_PUBLIC_URL" value={sv.public_url} />
-        <KV label={tr("Cabinet URL")} env="TERMOSO_WEB_URL" value={sv.web_url} />
-        <KV label={tr("Listen address")} env="TERMOSO_BIND" value={sv.bind} />
+        <KV label={tr("Server name")} env="LABTERM_SERVER_NAME" value={sv.name} />
+        <KV label={tr("API URL")} env="LABTERM_PUBLIC_URL" value={sv.public_url} />
+        <KV label={tr("Cabinet URL")} env="LABTERM_WEB_URL" value={sv.web_url} />
+        <KV label={tr("Listen address")} env="LABTERM_BIND" value={sv.bind} />
         <KV
           label={tr("Trust X-Forwarded-For")}
-          env="TERMOSO_TRUST_PROXY"
+          env="LABTERM_TRUST_PROXY"
           value={<Flag on={sv.trust_proxy} />}
         />
         <KV
           label={tr("Extra CORS origins")}
-          env="TERMOSO_CORS_ORIGINS"
+          env="LABTERM_CORS_ORIGINS"
           value={list(sv.cors_origins)}
         />
         <KV
           label={tr("Log")}
-          env="TERMOSO_LOG / TERMOSO_LOG_FORMAT"
+          env="LABTERM_LOG / LABTERM_LOG_FORMAT"
           value={`${sv.log} · ${sv.log_format}`}
         />
         <KV
           label={tr("Metrics (Prometheus)")}
-          env="TERMOSO_METRICS__ENABLED / __BIND"
+          env="LABTERM_METRICS__ENABLED / __BIND"
           value={sv.metrics_bind ?? tr("off")}
           copy={sv.metrics_bind !== null}
         />
         <KV
           label={tr("Data region")}
-          env="TERMOSO_DATA_REGION"
+          env="LABTERM_DATA_REGION"
           value={sv.data_region ?? tr("not set")}
         />
 
@@ -805,7 +805,7 @@ function EnvironmentSections({ cfg }: { cfg: AdminConfig }) {
         </Typography>
         <KV
           label={tr("Minimum client version")}
-          env="TERMOSO_MIN_CLIENT_VERSION"
+          env="LABTERM_MIN_CLIENT_VERSION"
           value={
             <>
               <Typography variant="body2" component="span" sx={{ fontFamily: "monospace" }}>
@@ -822,76 +822,76 @@ function EnvironmentSections({ cfg }: { cfg: AdminConfig }) {
         />
         <KV
           label={tr("Bootstrap administrators")}
-          env="TERMOSO_ADMIN_EMAILS"
+          env="LABTERM_ADMIN_EMAILS"
           value={list(sv.admin_emails)}
         />
         <KV
           label={tr("Owner")}
-          env="TERMOSO_OWNER_EMAIL"
+          env="LABTERM_OWNER_EMAIL"
           value={sv.owner_email ?? tr("first registered account")}
           copy={sv.owner_email !== null}
         />
         <KV
           label={tr("Start-over delay")}
-          env="TERMOSO_START_OVER_DELAY_SECS"
+          env="LABTERM_START_OVER_DELAY_SECS"
           value={tr("{v1} s", { v1: sv.start_over_delay_secs })}
           copy={false}
         />
         <KV
           label={tr("Team deletion grace")}
-          env="TERMOSO_TEAM_DELETION_GRACE_DAYS"
+          env="LABTERM_TEAM_DELETION_GRACE_DAYS"
           value={trn(sv.team_deletion_grace_days, "{count} day", "{count} days")}
           copy={false}
         />
         <KV
           label={tr("Cap on team audit retention")}
-          env="TERMOSO_AUDIT_RETENTION_DAYS_MAX"
+          env="LABTERM_AUDIT_RETENTION_DAYS_MAX"
           value={trn(sv.team_audit_retention_days_max, "{count} day", "{count} days")}
           copy={false}
         />
         <KV
           label={tr("Audit events to process log")}
-          env="TERMOSO_AUDIT_SINK"
+          env="LABTERM_AUDIT_SINK"
           value={<Flag on={sv.audit_sink} />}
         />
         <KV
           label={tr("Webhooks to private addresses")}
-          env="TERMOSO_WEBHOOKS_ALLOW_PRIVATE"
+          env="LABTERM_WEBHOOKS_ALLOW_PRIVATE"
           value={<Flag on={sv.webhooks_allow_private} />}
         />
         <KV
           label={tr("Custom CA for syslog-TLS")}
-          env="TERMOSO_WEBHOOKS_SYSLOG_CA"
+          env="LABTERM_WEBHOOKS_SYSLOG_CA"
           value={<Flag on={sv.webhooks_syslog_ca} />}
         />
 
         <Typography variant="overline" color="text.secondary" sx={{ display: "block", mt: 2 }}>
           {tr("Features")}
         </Typography>
-        <KV label={tr("API bridges")} env="TERMOSO_BRIDGES" value={<Flag on={sv.bridges} />} />
+        <KV label={tr("API bridges")} env="LABTERM_BRIDGES" value={<Flag on={sv.bridges} />} />
         <KV
           label={tr("Team IdP (per-team SSO)")}
-          env="TERMOSO_SSO__TEAM_IDP"
+          env="LABTERM_SSO__TEAM_IDP"
           value={<Flag on={sv.team_idp} />}
         />
         <KV
           label={tr("Turnstile on sign-up")}
-          env="TERMOSO_TURNSTILE__*"
+          env="LABTERM_TURNSTILE__*"
           value={<Flag on={sv.turnstile} />}
         />
-        <KV label={tr("Swagger UI")} env="TERMOSO_SWAGGER_UI" value={<Flag on={sv.swagger_ui} />} />
-        <KV label={tr("Landing page")} env="TERMOSO_LANDING" value={<Flag on={sv.landing} />} />
-        <KV label={tr("Docs")} env="TERMOSO_DOCS" value={<Flag on={sv.docs} />} />
+        <KV label={tr("Swagger UI")} env="LABTERM_SWAGGER_UI" value={<Flag on={sv.swagger_ui} />} />
+        <KV label={tr("Landing page")} env="LABTERM_LANDING" value={<Flag on={sv.landing} />} />
+        <KV label={tr("Docs")} env="LABTERM_DOCS" value={<Flag on={sv.docs} />} />
       </Section>
 
       <Section title={tr("Backing services")}>
         <Typography variant="overline" color="text.secondary">
           PostgreSQL
         </Typography>
-        <KV label={tr("Endpoint")} env="TERMOSO_DATABASE_URL" value={cfg.database.endpoint} />
+        <KV label={tr("Endpoint")} env="LABTERM_DATABASE_URL" value={cfg.database.endpoint} />
         <KV
           label={tr("Pool")}
-          env="TERMOSO_DATABASE_MAX_CONNECTIONS"
+          env="LABTERM_DATABASE_MAX_CONNECTIONS"
           value={cfg.database.detail ?? "—"}
           copy={false}
         />
@@ -904,10 +904,10 @@ function EnvironmentSections({ cfg }: { cfg: AdminConfig }) {
         <Typography variant="overline" color="text.secondary" sx={{ display: "block", mt: 2 }}>
           Redis
         </Typography>
-        <KV label={tr("Endpoint")} env="TERMOSO_REDIS_URL" value={cfg.redis.endpoint} />
+        <KV label={tr("Endpoint")} env="LABTERM_REDIS_URL" value={cfg.redis.endpoint} />
         <KV
           label={tr("Key prefix")}
-          env="TERMOSO_REDIS_PREFIX"
+          env="LABTERM_REDIS_PREFIX"
           value={cfg.redis.detail ?? "—"}
           copy={false}
         />
@@ -922,30 +922,30 @@ function EnvironmentSections({ cfg }: { cfg: AdminConfig }) {
         </Typography>
         {cfg.storage ? (
           <>
-            <KV label={tr("Bucket")} env="TERMOSO_S3__BUCKET" value={cfg.storage.bucket} />
+            <KV label={tr("Bucket")} env="LABTERM_S3__BUCKET" value={cfg.storage.bucket} />
             <KV
               label={tr("Region")}
-              env="TERMOSO_S3__REGION"
+              env="LABTERM_S3__REGION"
               value={cfg.storage.region ?? tr("not set")}
             />
             <KV
               label={tr("Endpoint")}
-              env="TERMOSO_S3__ENDPOINT"
+              env="LABTERM_S3__ENDPOINT"
               value={cfg.storage.endpoint ?? tr("AWS default")}
             />
             <KV
               label={tr("Public endpoint (presigned URLs)")}
-              env="TERMOSO_S3__PUBLIC_ENDPOINT"
+              env="LABTERM_S3__PUBLIC_ENDPOINT"
               value={cfg.storage.public_endpoint ?? tr("same as endpoint")}
             />
             <KV
               label={tr("Path-style addressing")}
-              env="TERMOSO_S3__FORCE_PATH_STYLE"
+              env="LABTERM_S3__FORCE_PATH_STYLE"
               value={<Flag on={cfg.storage.force_path_style} />}
             />
             <KV
               label={tr("Presigned URL lifetime")}
-              env="TERMOSO_S3__PRESIGN_SECS"
+              env="LABTERM_S3__PRESIGN_SECS"
               value={tr("{v1} s", { v1: cfg.storage.presign_secs })}
               copy={false}
             />
@@ -968,19 +968,19 @@ function EnvironmentSections({ cfg }: { cfg: AdminConfig }) {
           <>
             <KV
               label={tr("Host")}
-              env="TERMOSO_SMTP__HOST / __PORT"
+              env="LABTERM_SMTP__HOST / __PORT"
               value={`${cfg.smtp.host}:${cfg.smtp.port}`}
             />
             <KV
               label={tr("Security")}
-              env="TERMOSO_SMTP__SECURITY"
+              env="LABTERM_SMTP__SECURITY"
               value={cfg.smtp.security}
               copy={false}
             />
-            <KV label={tr("From")} env="TERMOSO_SMTP__FROM" value={cfg.smtp.from} />
+            <KV label={tr("From")} env="LABTERM_SMTP__FROM" value={cfg.smtp.from} />
             <KV
               label={tr("Authentication")}
-              env="TERMOSO_SMTP__USERNAME"
+              env="LABTERM_SMTP__USERNAME"
               value={<Flag on={cfg.smtp.auth} />}
             />
           </>
@@ -997,7 +997,7 @@ function EnvironmentSections({ cfg }: { cfg: AdminConfig }) {
         </Typography>
         {cfg.sso.length === 0 ? (
           <Typography variant="body2" color="text.secondary">
-            {tr("None. Configure TERMOSO_SSO__<id>__* or let teams bring their own IdP.")}
+            {tr("None. Configure LABTERM_SSO__<id>__* or let teams bring their own IdP.")}
           </Typography>
         ) : (
           cfg.sso.map((p) => (
@@ -1014,7 +1014,7 @@ function EnvironmentSections({ cfg }: { cfg: AdminConfig }) {
                   />
                 </>
               }
-              env={`TERMOSO_SSO__${p.id.toUpperCase()}__*`}
+              env={`LABTERM_SSO__${p.id.toUpperCase()}__*`}
               value={
                 (p.issuer ?? "—") +
                 (p.allowed_domains.length ? ` · ${p.allowed_domains.join(", ")}` : "")
@@ -1030,17 +1030,17 @@ function EnvironmentSections({ cfg }: { cfg: AdminConfig }) {
           <>
             <KV
               label={tr("Relying party")}
-              env="TERMOSO_WEBAUTHN__RP_ID"
+              env="LABTERM_WEBAUTHN__RP_ID"
               value={cfg.webauthn.rp_id}
             />
             <KV
               label={tr("Display name")}
-              env="TERMOSO_WEBAUTHN__RP_NAME"
+              env="LABTERM_WEBAUTHN__RP_NAME"
               value={cfg.webauthn.rp_name}
             />
             <KV
               label={tr("Origins")}
-              env="TERMOSO_WEBAUTHN__ORIGINS"
+              env="LABTERM_WEBAUTHN__ORIGINS"
               value={list(cfg.webauthn.origins)}
             />
           </>
@@ -1058,13 +1058,13 @@ function EnvironmentSections({ cfg }: { cfg: AdminConfig }) {
           <>
             <KV
               label={tr("Provider / model")}
-              env="TERMOSO_AI__PROVIDER / __MODEL"
+              env="LABTERM_AI__PROVIDER / __MODEL"
               value={`${cfg.ai.provider} · ${cfg.ai.model}`}
             />
-            <KV label={tr("Endpoint")} env="TERMOSO_AI__URL" value={cfg.ai.endpoint} />
+            <KV label={tr("Endpoint")} env="LABTERM_AI__URL" value={cfg.ai.endpoint} />
             <KV
               label={tr("Limits")}
-              env="TERMOSO_AI__DAILY_QUOTA / __MAX_PROMPT_CHARS / __TIMEOUT_SECS"
+              env="LABTERM_AI__DAILY_QUOTA / __MAX_PROMPT_CHARS / __TIMEOUT_SECS"
               value={tr("{v1} requests/day · {v2} chars · {v3} s", {
                 v1: cfg.ai.daily_quota,
                 v2: cfg.ai.max_prompt_chars,
@@ -1074,7 +1074,7 @@ function EnvironmentSections({ cfg }: { cfg: AdminConfig }) {
             />
             <KV
               label={tr("Confidential (provider keeps no prompts)")}
-              env="TERMOSO_AI__CONFIDENTIAL"
+              env="LABTERM_AI__CONFIDENTIAL"
               value={<Flag on={cfg.ai.confidential} />}
             />
           </>

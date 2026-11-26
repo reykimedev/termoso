@@ -258,13 +258,13 @@ impl GenerateOptions {
         Ok(application)
     }
 
-    /// User name recorded with the credential (`termoso` when unset).
+    /// User name recorded with the credential (`labterm` when unset).
     pub fn user_name(&self) -> &str {
         self.user
             .as_deref()
             .map(str::trim)
             .filter(|u| !u.is_empty())
-            .unwrap_or("termoso")
+            .unwrap_or("labterm")
     }
 
     /// User id: OpenSSH uses an all-zero 32-byte id for non-resident keys
@@ -836,7 +836,7 @@ mod tests {
     fn generate_options_defaults() {
         let opts: GenerateOptions = serde_json::from_str("{}").unwrap();
         assert_eq!(opts.application().unwrap(), "ssh:");
-        assert_eq!(opts.user_name(), "termoso");
+        assert_eq!(opts.user_name(), "labterm");
         assert_eq!(opts.user_id(), vec![0u8; 32]);
         assert_eq!(opts.flags(), FLAG_USER_PRESENCE);
         assert!(opts.pin().is_none());

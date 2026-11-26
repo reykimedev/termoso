@@ -6,13 +6,13 @@ import java.net.URISyntaxException
 /** What an incoming `ACTION_VIEW` link asks the app to do. */
 enum class LinkKind { Invite, Join, Host, Action, Other }
 
-/** Launcher / shortcut quick actions: `termoso://new`, `termoso://local`, `termoso://sftp`. */
+/** Launcher / shortcut quick actions: `labterm://new`, `labterm://local`, `labterm://sftp`. */
 enum class QuickAction { NewConnection, LocalTerminal, Sftp }
 
-/** The quick action a `termoso://` link asks for, or null. */
+/** The quick action a `labterm://` link asks for, or null. */
 fun quickAction(link: String): QuickAction? {
     val uri = runCatching { URI(link.trim()) }.getOrNull() ?: return null
-    if (uri.scheme?.lowercase() != "termoso" || !uri.rawPath.isNullOrEmpty() && uri.rawPath != "/") return null
+    if (uri.scheme?.lowercase() != "labterm" || !uri.rawPath.isNullOrEmpty() && uri.rawPath != "/") return null
     return when (uri.host?.lowercase()) {
         "new" -> QuickAction.NewConnection
         "local" -> QuickAction.LocalTerminal
@@ -21,22 +21,22 @@ fun quickAction(link: String): QuickAction? {
     }
 }
 
-/** Host id from a `termoso://host/<id>` link, or null. */
+/** Host id from a `labterm://host/<id>` link, or null. */
 fun hostLinkId(link: String): String? {
     val uri = runCatching { URI(link.trim()) }.getOrNull() ?: return null
-    if (uri.scheme?.lowercase() != "termoso" || uri.host?.lowercase() != "host") return null
+    if (uri.scheme?.lowercase() != "labterm" || uri.host?.lowercase() != "host") return null
     return uri.rawPath.orEmpty().split('/').filter { it.isNotEmpty() }.singleOrNull()
 }
 
 /**
  * Classifies deep links the manifest routes to [MainActivity]:
  *
- * - `termoso://invite/<token>` and `https://<server>/invite/<token>` (team invitations);
- * - `termoso://join/<session>?s=<server>#<secret>` and `https://<server>/join/<session>#<secret>`
+ * - `labterm://invite/<token>` and `https://<server>/invite/<token>` (team invitations);
+ * - `labterm://join/<session>?s=<server>#<secret>` and `https://<server>/join/<session>#<secret>`
  *   (live terminal sharing).
  *
  * The https forms are the links people actually share; Android hands them to the app directly
- * once App Links are verified for the host, otherwise the web landing page offers the `termoso://`
+ * once App Links are verified for the host, otherwise the web landing page offers the `labterm://`
  * form. Only the shape is checked here — tokens, sessions and the join secret (carried in the
  * fragment, which never reaches any server) are validated in Rust / by the server, so a truncated
  * link gets a real error instead of being dropped silently.
@@ -49,7 +49,7 @@ fun classifyLink(link: String): LinkKind {
     }
     val segments = uri.rawPath.orEmpty().split('/').filter { it.isNotEmpty() }
     return when (uri.scheme?.lowercase()) {
-        "termoso" -> when {
+        "labterm" -> when {
             segments.isEmpty() && quickAction(link) != null -> LinkKind.Action
             segments.size != 1 -> LinkKind.Other
             uri.host == "invite" -> LinkKind.Invite
@@ -83,7 +83,7 @@ fun parseSsoLink(link: String): String? {
     } catch (_: URISyntaxException) {
         return null
     }
-    if (uri.scheme?.lowercase() != "termoso" || uri.host?.lowercase() != "sso") return null
+    if (uri.scheme?.lowercase() != "labterm" || uri.host?.lowercase() != "sso") return null
     if (uri.rawPath.orEmpty().trimEnd('/').isNotEmpty() || uri.rawFragment != null) return null
     if (uri.rawUserInfo != null || uri.port != -1) return null
     val query = uri.rawQuery ?: return null

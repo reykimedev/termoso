@@ -40,7 +40,7 @@ class ProviderException(message: String, val locked: Boolean = false) : FileNotF
  * only when that needs no one present (see [AppContainer.unlockSilently]), an
  * in-use app lock counts as locked, and any connection that stops to ask
  * something — password, passphrase, an unknown host key or certificate — is
- * cancelled with a message telling the user to connect from Termoso once
+ * cancelled with a message telling the user to connect from Labterm once
  * instead.
  */
 class SftpAccess(private val container: AppContainer) {
@@ -169,12 +169,12 @@ class SftpAccess(private val container: AppContainer) {
                             scheduleReaper(vault)
                             return conn
                         }
-                        fail(vault, conn, str(R.string.files_offline_open_termoso))
+                        fail(vault, conn, str(R.string.files_offline_open_labterm))
                     }
                     fail(vault, conn, s.message)
                 }
                 is SessionState.Closed -> {
-                    if (conn.servesOffline()) fail(vault, conn, str(R.string.files_offline_open_termoso))
+                    if (conn.servesOffline()) fail(vault, conn, str(R.string.files_offline_open_labterm))
                     fail(vault, conn, s.reason ?: str(R.string.connection_closed))
                 }
                 is SessionState.Connecting -> fail(vault, conn, str(R.string.files_connection_timed_out))
@@ -227,7 +227,7 @@ class SftpAccess(private val container: AppContainer) {
         data class Asked(val request: PromptRequest, val pending: PendingPrompt) : Outcome
     }
 
-    private fun locked() = ProviderException(str(R.string.files_unlock_termoso_first), locked = true)
+    private fun locked() = ProviderException(str(R.string.files_unlock_labterm_first), locked = true)
 
     private fun notFound() = ProviderException(str(R.string.files_host_no_longer_exists))
 

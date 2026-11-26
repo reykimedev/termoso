@@ -18,7 +18,7 @@ function seoManifest(): Plugin {
       return statSync(p).isDirectory() ? walk(p) : p.endsWith(".md") ? [p] : [];
     });
   return {
-    name: "termoso-seo-manifest",
+    name: "labterm-seo-manifest",
     apply: "build",
     generateBundle() {
       const pages: Record<string, { title: string; description: string }> = {
@@ -37,7 +37,7 @@ function seoManifest(): Plugin {
         const slug = relative(root, file).replace(/\.md$/, "").split("\\").join("/");
         const route = slug === "index" ? "/docs" : `/docs/${slug}`;
         pages[route] = {
-          title: slug === "index" ? "Termoso docs" : `${meta.title} · Termoso docs`,
+          title: slug === "index" ? "Labterm docs" : `${meta.title} · Labterm docs`,
           description: meta.description ?? "",
         };
       }

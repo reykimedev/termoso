@@ -17,7 +17,7 @@ use crate::sshcert::CertOptions;
 use crate::{Error, Result};
 
 const DONE_PAGE: &str = "<!doctype html><meta charset=utf-8><title>Signed in</title>\
-<p>Signed in. You can close this tab and return to Termoso.</p>";
+<p>Signed in. You can close this tab and return to Labterm.</p>";
 
 /// A listener on the first free port of a list.
 pub struct Loopback {

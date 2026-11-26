@@ -103,7 +103,7 @@ export function UpdateStatus() {
       return (
         <Alert severity="info">
           <Typography variant="body2">
-            {tr("Termoso {version} is available (you have {current}).", {
+            {tr("Labterm {version} is available (you have {current}).", {
               version: phase.info.version,
               current: phase.info.currentVersion,
             })}
@@ -136,7 +136,7 @@ export function UpdateStatus() {
     case "installed":
       return (
         <Alert severity="success">
-          {tr("Termoso {version} is installed and will run after a restart.", {
+          {tr("Labterm {version} is installed and will run after a restart.", {
             version: phase.version,
           })}
         </Alert>

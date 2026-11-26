@@ -1,5 +1,5 @@
-// The desktop's Tauri commands, served in the browser. Termoso's frontend calls `invoke(...)` as
-// on the desktop; mockIPC routes each call to the web backend (vault in IndexedDB, Termoso account
+// The desktop's Tauri commands, served in the browser. Labterm's frontend calls `invoke(...)` as
+// on the desktop; mockIPC routes each call to the web backend (vault in IndexedDB, Labterm account
 // over REST, SSH in labterm-web-wasm through the relay). Commands the browser cannot do (local files,
 // port forwarding, serial, agent, updates) answer empty or with a clear "not in the browser".
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
@@ -22,7 +22,7 @@ import * as st from "./backend/state";
 import * as sftp from "./backend/sftp";
 import * as term from "./backend/terminal";
 import * as copy from "./backend/vaultcopy";
-import { TERMOSO_VERSION } from "./build";
+import { LABTERM_VERSION } from "./build";
 import { integrity } from "./integrity";
 import { tr } from "@/i18n";
 
@@ -116,7 +116,7 @@ const commands: Record<string, Handler> = {
   "plugin:dialog|open": (a) => files.open(a.options),
   "plugin:dialog|save": (a) => files.save(a.options),
   app_info: () => ({
-    version: TERMOSO_VERSION,
+    version: LABTERM_VERSION,
     profileDir: "",
     deviceId: db.deviceId(),
     masterKeySource: "password",
@@ -175,7 +175,7 @@ const commands: Record<string, Handler> = {
   account_status: () => account.accountStatus(),
   account_server_info: (a) =>
     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- an empty form field means the default
-    call(normalizeServer(String(a.serverUrl || config().termosoServer)), "GET", "server/info"),
+    call(normalizeServer(String(a.serverUrl || config().labtermServer)), "GET", "server/info"),
   account_login: (a) => account.login(a.form),
   account_mfa: (a) => account.mfa(a.credential),
   account_mfa_email_send: () => account.mfaEmailSend(),
@@ -194,7 +194,7 @@ const commands: Record<string, Handler> = {
   },
   account_register: (a) => account.register(a.form),
   account_sso_discover: () => null,
-  account_sso_start: notInBrowser("Single sign-on to Termoso"),
+  account_sso_start: notInBrowser("Single sign-on to Labterm"),
   teams_list: () => [],
   acl_me: () => null,
   user_avatar: () => null,
@@ -288,7 +288,7 @@ const commands: Record<string, Handler> = {
     return null;
   },
 
-  // encrypted .termoso backups: also how vaults move between accounts and servers
+  // encrypted .labterm backups: also how vaults move between accounts and servers
   backup_export: (a) => backup.exportTo(a.vaultIds ?? [], String(a.password ?? ""), String(a.path)),
   backup_inspect: (a) => backup.inspect(String(a.path), String(a.password ?? "")),
   backup_discard: (a) => backup.discard(a.previewId),
@@ -360,7 +360,7 @@ const commands: Record<string, Handler> = {
   pf_start: notInBrowser("Port forwarding"),
 };
 
-/** Writes the user made: queue them for the next push to the Termoso server. */
+/** Writes the user made: queue them for the next push to the Labterm server. */
 const WRITE =
   /(_save|_delete|_duplicate|_move|_generate|_import|_rename|_set_|_remember_|_forget|_pin$|_unpin$|_to_vault$|^backup_restore$|^key_create_opkssh$|^tag_|^tags_merge)/;
 

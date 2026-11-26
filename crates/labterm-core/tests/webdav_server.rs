@@ -35,7 +35,7 @@ use tokio_util::sync::CancellationToken;
 
 const USER: &str = "alice";
 const PASS: &str = "s3cret pass";
-const REALM: &str = "termoso-tests";
+const REALM: &str = "labterm-tests";
 const NONCE: &str = "dcd98b7102dd2f0e8b11d0f600bfb0c093";
 
 const CERT_DER: &[u8] = include_bytes!("fixtures/webdav-test.crt.der");

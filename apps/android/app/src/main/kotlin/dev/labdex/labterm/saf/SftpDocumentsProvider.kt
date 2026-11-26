@@ -57,7 +57,7 @@ class SftpDocumentsProvider : DocumentsProvider() {
     private val homes = ConcurrentHashMap<String, String>()
     private val pending = PendingWrites()
     private var ioThreadStarted = false
-    private val ioThread by lazy { HandlerThread("termoso-saf").apply { start(); ioThreadStarted = true } }
+    private val ioThread by lazy { HandlerThread("labterm-saf").apply { start(); ioThreadStarted = true } }
     private val ioHandler by lazy { Handler(ioThread.looper) }
 
     override fun onCreate(): Boolean = context?.applicationContext is LabtermApplication
@@ -182,7 +182,7 @@ class SftpDocumentsProvider : DocumentsProvider() {
         val ctx = context ?: return cursor
         cursor.setNotificationUri(ctx.contentResolver, DocumentsContract.buildChildDocumentsUri(FilesIntegration.AUTHORITY, parentDocumentId))
         if (parentDocumentId == RootIds.LOCKED_DOCUMENT) {
-            return cursor.withError(str(R.string.files_unlock_termoso_first))
+            return cursor.withError(str(R.string.files_unlock_labterm_first))
         }
         val parent = DocumentId.parseOrThrow(parentDocumentId)
         return try {

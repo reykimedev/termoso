@@ -54,7 +54,7 @@ pub fn parse_into(text: &str, path: &Path, preview: &mut ImportPreview) {
     build(&parsed, preview);
     if parsed.matches > 0 {
         preview.warnings.push(format!(
-            "{} Match block(s) ignored — Termoso matches hosts by alias only",
+            "{} Match block(s) ignored — Labterm matches hosts by alias only",
             parsed.matches
         ));
     }

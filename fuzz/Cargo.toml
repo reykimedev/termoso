@@ -1,5 +1,5 @@
 [package]
-name = "termoso-fuzz"
+name = "labterm-fuzz"
 version = "0.0.0"
 publish = false
 edition = "2024"
@@ -17,7 +17,7 @@ rsa = "0.9"
 url = "2"
 labterm-core = { path = "../crates/labterm-core" }
 labterm-mobile = { path = "../crates/labterm-mobile" }
-termoso-server = { path = "../crates/termoso-server", features = ["saml-test-support"] }
+labterm-server = { path = "../crates/labterm-server", features = ["saml-test-support"] }
 
 [[bin]]
 name = "saml_response"

@@ -3539,6 +3539,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "labterm-fuzz"
+version = "0.0.0"
+dependencies = [
+ "arbitrary",
+ "base64 0.23.1",
+ "labterm-core",
+ "labterm-mobile",
+ "labterm-server",
+ "libfuzzer-sys",
+ "roxmltree",
+ "rsa 0.9.10",
+ "time",
+ "url",
+]
+
+[[package]]
 name = "labterm-mobile"
 version = "0.12.1"
 dependencies = [
@@ -3551,6 +3567,7 @@ dependencies = [
  "labterm-client",
  "labterm-core",
  "labterm-crypto",
+ "labterm-netbird",
  "labterm-proto",
  "lzma-sys",
  "reqwest",
@@ -3570,6 +3587,21 @@ dependencies = [
  "uniffi",
  "uuid",
  "xz2",
+ "zeroize",
+]
+
+[[package]]
+name = "labterm-netbird"
+version = "0.12.1"
+dependencies = [
+ "labterm-core",
+ "labterm-proto",
+ "libc",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "uuid",
  "zeroize",
 ]
 
@@ -3602,6 +3634,70 @@ dependencies = [
  "time",
  "utoipa",
  "uuid",
+]
+
+[[package]]
+name = "labterm-server"
+version = "0.12.1"
+dependencies = [
+ "aes 0.8.4",
+ "aes-gcm 0.10.3",
+ "anyhow",
+ "argon2 0.5.3",
+ "async-trait",
+ "aws-lc-rs",
+ "aws-sdk-s3",
+ "axum",
+ "base64 0.23.1",
+ "blake3",
+ "bytes",
+ "cbc 0.1.2",
+ "figment",
+ "flate2",
+ "futures",
+ "hex",
+ "http 1.5.0",
+ "image",
+ "labterm-awslc-rsa",
+ "labterm-crypto",
+ "labterm-proto",
+ "lettre",
+ "metrics",
+ "metrics-exporter-prometheus",
+ "oauth2",
+ "openidconnect",
+ "rand 0.10.3",
+ "rand_core 0.6.4",
+ "redis",
+ "reqwest",
+ "roxmltree",
+ "rsa 0.9.10",
+ "rustls-native-certs",
+ "rustls-pki-types",
+ "serde",
+ "serde_json",
+ "sha1 0.10.7",
+ "sha2 0.10.9",
+ "sqlx",
+ "ssh-key",
+ "subtle",
+ "thiserror 2.0.21",
+ "time",
+ "tokio",
+ "tokio-rustls",
+ "totp-rs",
+ "tower",
+ "tower-http 0.7.1",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "utoipa",
+ "utoipa-swagger-ui",
+ "uuid",
+ "webauthn-rs",
+ "webp",
+ "x509-parser",
+ "zeroize",
 ]
 
 [[package]]
@@ -6537,86 +6633,6 @@ dependencies = [
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",
-]
-
-[[package]]
-name = "termoso-fuzz"
-version = "0.0.0"
-dependencies = [
- "arbitrary",
- "base64 0.23.1",
- "labterm-core",
- "labterm-mobile",
- "libfuzzer-sys",
- "roxmltree",
- "rsa 0.9.10",
- "termoso-server",
- "time",
- "url",
-]
-
-[[package]]
-name = "termoso-server"
-version = "0.12.1"
-dependencies = [
- "aes 0.8.4",
- "aes-gcm 0.10.3",
- "anyhow",
- "argon2 0.5.3",
- "async-trait",
- "aws-lc-rs",
- "aws-sdk-s3",
- "axum",
- "base64 0.23.1",
- "blake3",
- "bytes",
- "cbc 0.1.2",
- "figment",
- "flate2",
- "futures",
- "hex",
- "http 1.5.0",
- "image",
- "labterm-awslc-rsa",
- "labterm-crypto",
- "labterm-proto",
- "lettre",
- "metrics",
- "metrics-exporter-prometheus",
- "oauth2",
- "openidconnect",
- "rand 0.10.3",
- "rand_core 0.6.4",
- "redis",
- "reqwest",
- "roxmltree",
- "rsa 0.9.10",
- "rustls-native-certs",
- "rustls-pki-types",
- "serde",
- "serde_json",
- "sha1 0.10.7",
- "sha2 0.10.9",
- "sqlx",
- "ssh-key",
- "subtle",
- "thiserror 2.0.21",
- "time",
- "tokio",
- "tokio-rustls",
- "totp-rs",
- "tower",
- "tower-http 0.7.1",
- "tracing",
- "tracing-subscriber",
- "url",
- "utoipa",
- "utoipa-swagger-ui",
- "uuid",
- "webauthn-rs",
- "webp",
- "x509-parser",
- "zeroize",
 ]
 
 [[package]]

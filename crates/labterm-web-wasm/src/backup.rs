@@ -1,5 +1,5 @@
-//! Termoso's `.termoso` backup file, so a backup made in Hatch restores in the Termoso apps and the
-//! other way round (format of `apps/desktop/src-tauri/src/backup.rs` in Termoso):
+//! Labterm's `.labterm` backup file, so a backup made in Hatch restores in the Labterm apps and the
+//! other way round (format of `apps/desktop/src-tauri/src/backup.rs` in Labterm):
 //!
 //! ```text
 //! magic "TERMOSO-BACKUP\n" · u32 LE header length · header JSON · AEAD envelope
@@ -71,7 +71,7 @@ fn derive(password: &str, header: &Header) -> Result<SymmetricKey, BackupError> 
         .decode(&header.salt)
         .map_err(|_| invalid("backup header is corrupted"))?;
     // A browser tab has far less memory than the desktop's 4 GiB cap; 1 GiB is still 16 times
-    // what Termoso writes, and keeps a hostile file from taking the tab down.
+    // what Labterm writes, and keeps a hostile file from taking the tab down.
     if header.m_cost > 1024 * 1024 || header.t_cost > 64 || header.p_cost > 16 {
         return Err(invalid("backup asks for unreasonable KDF cost"));
     }
@@ -111,7 +111,7 @@ pub fn seal(plaintext: &[u8], password: &str) -> Result<Vec<u8>, BackupError> {
 }
 
 pub fn open(bytes: &[u8], password: &str) -> Result<Vec<u8>, BackupError> {
-    let corrupted = || invalid("not a Termoso backup file");
+    let corrupted = || invalid("not a Labterm backup file");
     let rest = bytes.strip_prefix(MAGIC).ok_or_else(corrupted)?;
     let (len, rest) = rest.split_at_checked(4).ok_or_else(corrupted)?;
     let len = u32::from_le_bytes([len[0], len[1], len[2], len[3]]) as usize;
@@ -130,13 +130,13 @@ pub fn open(bytes: &[u8], password: &str) -> Result<Vec<u8>, BackupError> {
     aead::decrypt(&key, &aad(header_json), envelope).map_err(|_| BackupError::Auth)
 }
 
-/// The payload JSON (UTF-8 bytes) sealed under `password` as a `.termoso` file.
+/// The payload JSON (UTF-8 bytes) sealed under `password` as a `.labterm` file.
 #[wasm_bindgen(js_name = backupSeal)]
 pub fn backup_seal(plaintext: &[u8], password: &str) -> Result<Vec<u8>, JsValue> {
     seal(plaintext, password).map_err(BackupError::js)
 }
 
-/// The payload JSON (UTF-8 bytes) of a `.termoso` file.
+/// The payload JSON (UTF-8 bytes) of a `.labterm` file.
 #[wasm_bindgen(js_name = backupOpen)]
 pub fn backup_open(bytes: &[u8], password: &str) -> Result<Vec<u8>, JsValue> {
     open(bytes, password).map_err(BackupError::js)

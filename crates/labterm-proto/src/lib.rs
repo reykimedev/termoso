@@ -1,4 +1,4 @@
-//! Wire types shared by the Termoso server and all clients.
+//! Wire types shared by the Labterm server and all clients.
 //!
 //! Every type here is plain `serde` data. Fields that hold user secrets are
 //! *always* ciphertext envelopes produced by `labterm-crypto` (base64 strings);

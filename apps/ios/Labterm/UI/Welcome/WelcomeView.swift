@@ -27,7 +27,7 @@ struct WelcomeView: View {
                     }
                     choice(
                         title: "Self-hosted server",
-                        subtitle: "Your own Termoso instance — same app, your infrastructure.",
+                        subtitle: "Your own Labterm instance — same app, your infrastructure.",
                         systemImage: "server.rack",
                         identifier: "welcome.selfHosted"
                     ) {
@@ -70,7 +70,7 @@ struct WelcomeView: View {
                                    startPoint: .topLeading, endPoint: .bottomTrailing),
                     in: RoundedRectangle(cornerRadius: 26, style: .continuous)
                 )
-            Text("Termoso")
+            Text("Labterm")
                 .font(.system(size: 34, weight: .bold))
                 .foregroundStyle(.white)
             Text("SSH client that reports to you — not on you.")
@@ -148,7 +148,7 @@ private struct SelfHostedSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("https://termoso.example.com", text: $url)
+                    TextField("https://labterm.example.com", text: $url)
                         .keyboardType(.URL)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()

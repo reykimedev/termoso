@@ -78,7 +78,7 @@ fn generate(t: SshIdKeyType, handle: &str) -> Result<Option<DeviceKey>> {
     let Some(alg) = algorithm_of(t) else {
         return Ok(None);
     };
-    let comment = format!("{handle}@termoso");
+    let comment = format!("{handle}@labterm");
     let material = keys::generate(alg, &comment, None)?;
     Ok(Some(DeviceKey {
         key_type: t,
@@ -191,7 +191,7 @@ mod tests {
         assert_eq!(first.len(), 3);
         for k in &first {
             assert_eq!(k.public_key.split(' ').next(), Some(k.key_type.wire_name()));
-            assert!(k.public_key.ends_with("alice@termoso"));
+            assert!(k.public_key.ends_with("alice@labterm"));
             assert!(
                 k.private_key
                     .starts_with("-----BEGIN OPENSSH PRIVATE KEY-----")

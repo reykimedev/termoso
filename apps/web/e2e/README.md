@@ -1,6 +1,6 @@
 # End-to-end test
 
-`app.mjs` drives the built app in headless Chromium against real services: a Termoso server, the
+`app.mjs` drives the built app in headless Chromium against real services: a Labterm server, the
 relay, a stand-in identity provider and an SSH server. It creates an account, adds a host, checks
 that an unknown host key is refused, pins the key, opens a shell, then signs in from a second
 browser with the emailed device code and connects with what synced. It also copies a host to
@@ -13,7 +13,7 @@ It needs, on one machine:
 
 | Service | How | Notes |
 | --- | --- | --- |
-| Termoso server | `termoso-server` from this repository on `127.0.0.1:8080` | `TERMOSO_CORS_ORIGINS=http://localhost:5173`, SMTP to the sink below |
+| Labterm server | `labterm-server` from this repository on `127.0.0.1:8080` | `LABTERM_CORS_ORIGINS=http://localhost:5173`, SMTP to the sink below |
 | Mail sink | `node apps/web/e2e/smtp-sink.mjs 1025 /tmp/hatch-e2e/mail.log` | The test reads the device code from it |
 | Identity provider | `node apps/web/e2e/dev-oidc.mjs 9400` | Signs in anyone; test machines only |
 | Relay | `labterm-relay` on `127.0.0.1:8090` | Issuer `http://localhost:9400/`, audience `labterm-web`, origin `http://localhost:5173`, allowlist with the SSH server |
@@ -25,7 +25,7 @@ It needs, on one machine:
   "relayUrl": "http://127.0.0.1:8090",
   "oidcIssuer": "http://localhost:9400/",
   "oidcClientId": "labterm-web",
-  "termosoServer": "http://127.0.0.1:8080"
+  "labtermServer": "http://127.0.0.1:8080"
 }
 ```
 

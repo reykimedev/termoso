@@ -146,8 +146,8 @@ export function looksLikeTarget(s: string) {
   return /[@:.]/.test(s) || /^\d+$/.test(s) || s === "localhost";
 }
 
-/** Deep link that other Termoso clients can open (`termoso://host/<id>`). */
-export const hostLink = (h: Pick<HostCard, "id">) => `termoso://host/${h.id}`;
+/** Deep link that other Labterm clients can open (`labterm://host/<id>`). */
+export const hostLink = (h: Pick<HostCard, "id">) => `labterm://host/${h.id}`;
 
 /**
  * RFC-style `ssh://user@host:port` for the SSH section, or `telnet://host:port`
@@ -166,16 +166,16 @@ export function protocolLink(h: HostCard, protocol: HostProtocol = h.protocol): 
 }
 
 /** Everything a link can ask the app to open. */
-/** `termoso://new`, `termoso://local`, `termoso://sftp` — launcher / Jump List / Dock quick actions. */
+/** `labterm://new`, `labterm://local`, `labterm://sftp` — launcher / Jump List / Dock quick actions. */
 export type QuickAction = "new" | "local" | "sftp";
 
 export type LinkTarget =
   | { kind: "host"; hostId: Uuid }
-  /** `termoso://sftp?host=<label or address>` opens the SFTP browser on that saved host. */
+  /** `labterm://sftp?host=<label or address>` opens the SFTP browser on that saved host. */
   | { kind: "action"; action: QuickAction; host?: string }
   /**
-   * `termoso://connect?host=…&user=…&port=…&protocol=ssh|telnet` — what the
-   * command line (`termoso ssh deploy@edge`) asks for: a saved host by label or
+   * `labterm://connect?host=…&user=…&port=…&protocol=ssh|telnet` — what the
+   * command line (`labterm ssh deploy@edge`) asks for: a saved host by label or
    * address if there is one, otherwise an ad hoc connection.
    */
   | {
@@ -186,23 +186,23 @@ export type LinkTarget =
       protocol: HostProtocol | null;
     }
   | { kind: "quick"; target: QuickTarget }
-  /** Multiplayer invitation (`https://<server>/join/<session>#<secret>` or `termoso://join/…`). */
+  /** Multiplayer invitation (`https://<server>/join/<session>#<secret>` or `labterm://join/…`). */
   | { kind: "live"; link: string }
   | { kind: "unsupported"; url: string };
 
 /** Is this a multiplayer invitation link? */
 export const isLiveLink = (s: string) =>
-  /^(?:termoso:\/\/join\/|https?:\/\/[^\s?#]+\/join\/)[0-9a-f-]{36}(?:[/?][^#]*)?#[A-Za-z0-9_-]{40,}$/i.test(
+  /^(?:labterm:\/\/join\/|https?:\/\/[^\s?#]+\/join\/)[0-9a-f-]{36}(?:[/?][^#]*)?#[A-Za-z0-9_-]{40,}$/i.test(
     s.trim(),
   );
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** Resolve an incoming `termoso://`, `ssh://` or `telnet://` URL. */
+/** Resolve an incoming `labterm://`, `ssh://` or `telnet://` URL. */
 export function parseLink(url: string): LinkTarget {
   const s = url.trim();
   if (isLiveLink(s)) return { kind: "live", link: s };
-  const a = /^termoso:\/\/(new|local|sftp)\/?(?:\?([^#]*))?(?:#.*)?$/i.exec(s);
+  const a = /^labterm:\/\/(new|local|sftp)\/?(?:\?([^#]*))?(?:#.*)?$/i.exec(s);
   if (a?.[1]) {
     const action = a[1].toLowerCase() as QuickAction;
     const host = new URLSearchParams(a[2] ?? "").get("host")?.trim();
@@ -210,7 +210,7 @@ export function parseLink(url: string): LinkTarget {
       ? { kind: "action", action, host }
       : { kind: "action", action };
   }
-  const c = /^termoso:\/\/connect\/?(?:\?([^#]*))?(?:#.*)?$/i.exec(s);
+  const c = /^labterm:\/\/connect\/?(?:\?([^#]*))?(?:#.*)?$/i.exec(s);
   if (c) {
     const q = new URLSearchParams(c[1] ?? "");
     const host = q.get("host")?.trim() ?? "";
@@ -232,7 +232,7 @@ export function parseLink(url: string): LinkTarget {
       protocol,
     };
   }
-  const m = /^termoso:\/\/host\/([^/?#]+)\/?(?:[?#].*)?$/i.exec(s);
+  const m = /^labterm:\/\/host\/([^/?#]+)\/?(?:[?#].*)?$/i.exec(s);
   if (m?.[1]) {
     const id = decodeURIComponent(m[1]);
     return UUID.test(id) ? { kind: "host", hostId: id } : { kind: "unsupported", url: s };

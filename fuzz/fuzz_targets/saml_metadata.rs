@@ -2,7 +2,7 @@
 //! IdP metadata is operator-supplied but fetched over the network at startup.
 
 use libfuzzer_sys::fuzz_target;
-use termoso_server::saml::metadata::parse_idp;
+use labterm_server::saml::metadata::parse_idp;
 
 fuzz_target!(|data: &[u8]| {
     if let Ok(s) = std::str::from_utf8(data) {

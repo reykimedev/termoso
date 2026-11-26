@@ -2,7 +2,7 @@
 
 Amends [0005](0005-no-trust-on-first-use.md).
 
-**Context:** 0005 lets a host key in only through Termoso's synced known hosts. Termoso's host
+**Context:** 0005 lets a host key in only through Labterm's synced known hosts. Labterm's host
 editor also lets the user paste a server key (from `ssh-keyscan` or the server's console) before
 the first connection.
 

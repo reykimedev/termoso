@@ -1,9 +1,9 @@
-//! Boots the real Termoso server (fresh database, Redis, optional S3 storage and
+//! Boots the real Labterm server (fresh database, Redis, optional S3 storage and
 //! Mailpit) on an ephemeral port so the client core can be exercised against
 //! it end to end. Mirrors the server crate's own harness minus SSO.
 //!
 //! Skipped (`None`) when PostgreSQL is unreachable, unless
-//! `TERMOSO_TEST_REQUIRE_SERVICES` is set.
+//! `LABTERM_TEST_REQUIRE_SERVICES` is set.
 
 #![allow(dead_code)]
 
@@ -18,13 +18,13 @@ use labterm_core::api::ApiClient;
 use labterm_core::store::Store;
 use labterm_crypto::keys::SymmetricKey;
 use labterm_proto::auth::{DeviceInfo, Platform};
+use labterm_server::Inner;
+use labterm_server::config::{Config, S3Config, SmtpConfig, SmtpSecurity};
 use sqlx::Connection;
 use sqlx::postgres::PgConnection;
-use termoso_server::Inner;
-use termoso_server::config::{Config, S3Config, SmtpConfig, SmtpSecurity};
 use uuid::Uuid;
 
-const DEFAULT_PG: &str = "postgres://termoso:termoso@localhost:5432/termoso";
+const DEFAULT_PG: &str = "postgres://labterm:labterm@localhost:5432/labterm";
 const DEFAULT_REDIS: &str = "redis://127.0.0.1:6379";
 const DEFAULT_S3: &str = "http://127.0.0.1:9000";
 const DEFAULT_MAILPIT_SMTP: &str = "127.0.0.1:1025";
@@ -39,7 +39,7 @@ pub struct TestServer {
 static SERVER: OnceLock<Option<TestServer>> = OnceLock::new();
 
 fn require_services() -> bool {
-    std::env::var("TERMOSO_TEST_REQUIRE_SERVICES").is_ok()
+    std::env::var("LABTERM_TEST_REQUIRE_SERVICES").is_ok()
 }
 
 async fn tcp_reachable(host_port: &str) -> bool {
@@ -72,7 +72,7 @@ async fn optional(name: &str, probe: &str) -> bool {
 }
 
 async fn s3_config() -> Option<S3Config> {
-    let endpoint = std::env::var("TERMOSO_TEST_S3_ENDPOINT").unwrap_or_else(|_| DEFAULT_S3.into());
+    let endpoint = std::env::var("LABTERM_TEST_S3_ENDPOINT").unwrap_or_else(|_| DEFAULT_S3.into());
     if !optional("S3 storage", &host_port(&endpoint)).await {
         return None;
     }
@@ -81,9 +81,9 @@ async fn s3_config() -> Option<S3Config> {
         region: None,
         endpoint: Some(endpoint),
         public_endpoint: None,
-        access_key: std::env::var("TERMOSO_TEST_S3_ACCESS_KEY")
+        access_key: std::env::var("LABTERM_TEST_S3_ACCESS_KEY")
             .unwrap_or_else(|_| "minioadmin".into()),
-        secret_key: std::env::var("TERMOSO_TEST_S3_SECRET_KEY")
+        secret_key: std::env::var("LABTERM_TEST_S3_SECRET_KEY")
             .unwrap_or_else(|_| "minioadmin".into()),
         force_path_style: true,
         presign_secs: 300,
@@ -92,9 +92,9 @@ async fn s3_config() -> Option<S3Config> {
 
 async fn smtp_config() -> Option<(SmtpConfig, String)> {
     let smtp =
-        std::env::var("TERMOSO_TEST_SMTP_ADDR").unwrap_or_else(|_| DEFAULT_MAILPIT_SMTP.into());
+        std::env::var("LABTERM_TEST_SMTP_ADDR").unwrap_or_else(|_| DEFAULT_MAILPIT_SMTP.into());
     let api =
-        std::env::var("TERMOSO_TEST_MAILPIT_URL").unwrap_or_else(|_| DEFAULT_MAILPIT_API.into());
+        std::env::var("LABTERM_TEST_MAILPIT_URL").unwrap_or_else(|_| DEFAULT_MAILPIT_API.into());
     if !optional("Mailpit", &smtp).await {
         return None;
     }
@@ -106,7 +106,7 @@ async fn smtp_config() -> Option<(SmtpConfig, String)> {
             username: None,
             password: None,
             security: SmtpSecurity::None,
-            from: "Termoso Test <no-reply@test.local>".into(),
+            from: "Labterm Test <no-reply@test.local>".into(),
         },
         api,
     ))
@@ -123,7 +123,7 @@ pub async fn server() -> Option<&'static TestServer> {
 }
 
 async fn boot() -> Option<TestServer> {
-    let base = std::env::var("TERMOSO_TEST_DATABASE_URL").unwrap_or_else(|_| DEFAULT_PG.into());
+    let base = std::env::var("LABTERM_TEST_DATABASE_URL").unwrap_or_else(|_| DEFAULT_PG.into());
     let mut admin = match PgConnection::connect(&base).await {
         Ok(c) => c,
         Err(e) => {
@@ -135,7 +135,7 @@ async fn boot() -> Option<TestServer> {
         }
     };
     let stale: Vec<(String,)> =
-        sqlx::query_as("SELECT datname FROM pg_database WHERE datname LIKE 'termoso_coretest_%'")
+        sqlx::query_as("SELECT datname FROM pg_database WHERE datname LIKE 'labterm_coretest_%'")
             .fetch_all(&mut admin)
             .await
             .expect("list test databases");
@@ -146,7 +146,7 @@ async fn boot() -> Option<TestServer> {
         .execute(&mut admin)
         .await;
     }
-    let db_name = format!("termoso_coretest_{}", Uuid::new_v4().simple());
+    let db_name = format!("labterm_coretest_{}", Uuid::new_v4().simple());
     sqlx::query(sqlx::AssertSqlSafe(format!(
         "CREATE DATABASE \"{db_name}\""
     )))
@@ -170,7 +170,7 @@ async fn boot() -> Option<TestServer> {
         bind: addr,
         public_url: format!("http://{addr}"),
         database_url: database_url.to_string(),
-        redis_url: std::env::var("TERMOSO_TEST_REDIS_URL").unwrap_or_else(|_| DEFAULT_REDIS.into()),
+        redis_url: std::env::var("LABTERM_TEST_REDIS_URL").unwrap_or_else(|_| DEFAULT_REDIS.into()),
         redis_prefix: format!("{db_name}:"),
         trust_proxy: true,
         master_key: SymmetricKey::generate().to_b64(),
@@ -207,8 +207,8 @@ async fn boot() -> Option<TestServer> {
                         return;
                     }
                 };
-                tokio::spawn(termoso_server::ws::run_fanout(state.clone()));
-                let app = termoso_server::app(state);
+                tokio::spawn(labterm_server::ws::run_fanout(state.clone()));
+                let app = labterm_server::app(state);
                 let _ = ready_tx.send(Ok(()));
                 axum::serve(
                     listener,

@@ -1,5 +1,5 @@
-// The Termoso server's REST API (`/api/v1`), as a native client uses it. Self-hosted servers must
-// list Hatch's origin in TERMOSO_CORS_ORIGINS; the browser refuses the calls otherwise.
+// The Labterm server's REST API (`/api/v1`), as a native client uses it. Self-hosted servers must
+// list Hatch's origin in LABTERM_CORS_ORIGINS; the browser refuses the calls otherwise.
 import { fail } from "./errors";
 
 export interface ApiErrorBody {
@@ -18,7 +18,7 @@ export class ApiError extends Error {
   }
 }
 
-/** `https://termoso.example.com/` or `…/api/v1` → `https://termoso.example.com`. */
+/** `https://labterm.example.com/` or `…/api/v1` → `https://labterm.example.com`. */
 export function normalizeServer(url: string): string {
   let u = url.trim();
   if (!/^https?:\/\//i.test(u)) u = "https://" + u;
@@ -47,7 +47,7 @@ export async function call<T>(
   } catch {
     fail(
       "network",
-      `Cannot reach ${server}. If it is your own server, add this page's origin (${location.origin}) to TERMOSO_CORS_ORIGINS.`,
+      `Cannot reach ${server}. If it is your own server, add this page's origin (${location.origin}) to LABTERM_CORS_ORIGINS.`,
     );
   }
   if (res.status === 204) return undefined as T;

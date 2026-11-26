@@ -265,7 +265,7 @@ pub async fn add_fido2<R: Runtime>(app: &AppHandle<R>, form: SshIdFido2Form) -> 
     let mut opts = form.options;
     opts.passphrase = None;
     if opts.comment.trim().is_empty() {
-        opts.comment = format!("{}@termoso", profile.handle);
+        opts.comment = format!("{}@labterm", profile.handle);
     }
     let material = tokio::task::spawn_blocking(move || fido2::generate(&opts))
         .await

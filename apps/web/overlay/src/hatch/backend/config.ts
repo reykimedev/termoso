@@ -8,8 +8,8 @@ export interface HatchConfig {
   oidcIssuer: string;
   /** Public client id of that application (PKCE, no secret). */
   oidcClientId: string;
-  /** Pre-filled Termoso server in the sign-in form; empty means Termoso's own cloud. */
-  termosoServer: string;
+  /** Pre-filled Labterm server in the sign-in form; empty means Labterm's own cloud. */
+  labtermServer: string;
   /** Extra scopes for the Authentik sign-in, e.g. `offline_access`. */
   oidcScopes?: string;
 }
@@ -25,7 +25,7 @@ export async function loadConfig(): Promise<HatchConfig> {
     relayUrl: (c.relayUrl ?? "").replace(/\/+$/, ""),
     oidcIssuer: c.oidcIssuer ?? "",
     oidcClientId: c.oidcClientId ?? "",
-    termosoServer: (c.termosoServer ?? "").replace(/\/+$/, ""),
+    labtermServer: (c.labtermServer ?? "").replace(/\/+$/, ""),
     oidcScopes: c.oidcScopes ?? "",
   };
   return loaded;

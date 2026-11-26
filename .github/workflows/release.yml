@@ -2,7 +2,7 @@ name: Desktop release
 
 # Builds signed desktop bundles, signed Android APKs and the unsigned iOS
 # .ipa (sideload: signed on the user's side by AltStore/SideStore, see
-# docs/IOS_SIDELOAD.md) with its AltStore source `termoso-altstore.json`.
+# docs/IOS_SIDELOAD.md) with its AltStore source `labterm-altstore.json`.
 # On a `v*` tag it assembles a draft GitHub release with the installers, their
 # minisign `.sig` files and the updater manifest `latest.json`, then adds
 # SHA256SUMS and publishes it once every asset is in place (so
@@ -16,8 +16,8 @@ name: Desktop release
 #   TAURI_SIGNING_PRIVATE_KEY           stable updater key (from `tauri signer generate`); the dev
 #                                       channel (desktop-dev-channel.yml) has its own key
 #   TAURI_SIGNING_PRIVATE_KEY_PASSWORD  its password
-#   ANDROID_KEYSTORE_BASE64             release keystore (`base64 -w0 termoso-release.jks`)
-#   ANDROID_KEYSTORE_PASSWORD           its store/key password (alias `termoso`)
+#   ANDROID_KEYSTORE_BASE64             release keystore (`base64 -w0 labterm-release.jks`)
+#   ANDROID_KEYSTORE_PASSWORD           its store/key password (alias `labterm`)
 # Optional, same environment (macOS Developer ID signing + notarization; without them the .app is
 # ad-hoc signed and users open it with `xattr -cr`, see docs/RELEASING.md):
 #   APPLE_CERTIFICATE                   Developer ID Application .p12, base64
@@ -75,17 +75,17 @@ jobs:
           ios=$(sed -n 's/^    MARKETING_VERSION: "\(.*\)"/\1/p' apps/ios/project.yml | head -1)
           [ "$ios" = "$ws" ] || { echo "::error::apps/ios/project.yml MARKETING_VERSION ($ios) differs from Cargo.toml ($ws)"; exit 1; }
           # Store manifests and the Helm chart carry the version too.
-          chart=$(sed -n 's/^appVersion: "\(.*\)"/\1/p' deploy/helm/termoso/Chart.yaml)
+          chart=$(sed -n 's/^appVersion: "\(.*\)"/\1/p' deploy/helm/labterm/Chart.yaml)
           snap=$(sed -n 's/^version: "\(.*\)"/\1/p' packaging/snap/snapcraft.yaml)
           scoop=$(node -p "require('./packaging/scoop/termoso.json').version")
           fdroid=$(sed -n 's/^CurrentVersion: \(.*\)/\1/p' packaging/fdroid/com.termoso.android.yml)
           flatpak=$(sed -n 's|.*/archive/refs/tags/v\(.*\)\.tar\.gz|\1|p' packaging/flatpak/dev.termoso.Termoso.yml)
-          for pair in "deploy/helm/termoso/Chart.yaml=$chart" "packaging/snap/snapcraft.yaml=$snap" "packaging/scoop/termoso.json=$scoop" "packaging/fdroid/com.termoso.android.yml=$fdroid" "packaging/flatpak/dev.termoso.Termoso.yml=$flatpak"; do
+          for pair in "deploy/helm/labterm/Chart.yaml=$chart" "packaging/snap/snapcraft.yaml=$snap" "packaging/scoop/termoso.json=$scoop" "packaging/fdroid/com.termoso.android.yml=$fdroid" "packaging/flatpak/dev.termoso.Termoso.yml=$flatpak"; do
             [ "${pair#*=}" = "$ws" ] || { echo "::error::${pair%%=*} carries version ${pair#*=}, Cargo.toml has $ws"; exit 1; }
           done
           # The version field alone is not enough: download URLs, the F-Droid
           # build list and the AppStream release list carry it too.
-          grep -q "releases/download/v$ws/Termoso_${ws}_x64-setup.exe" packaging/scoop/termoso.json \
+          grep -q "releases/download/v$ws/Labterm_${ws}_x64-setup.exe" packaging/scoop/termoso.json \
             || { echo "::error::packaging/scoop/termoso.json download URLs are not at $ws"; exit 1; }
           grep -q "^  - versionName: $ws\$" packaging/fdroid/com.termoso.android.yml \
             || { echo "::error::packaging/fdroid/com.termoso.android.yml has no Builds entry for $ws"; exit 1; }
@@ -98,7 +98,7 @@ jobs:
           if [ "$GITHUB_REF_TYPE" = tag ]; then
             [ "$GITHUB_REF_NAME" = "v$pkg" ] || { echo "::error::tag $GITHUB_REF_NAME does not match version $pkg"; exit 1; }
             # A release must carry Labterm's own updater key and feed: with upstream Termoso's
-            # the app keeps its updater off (update.rs) and the feed would be Termoso's.
+            # the app keeps its updater off (update.rs) and the feed would be Labterm's.
             conf=apps/desktop/src-tauri/tauri.conf.json
             key=$(jq -r '.plugins.updater.pubkey // ""' "$conf")
             [ -n "$key" ] || { echo "::error::$conf has no updater public key"; exit 1; }
@@ -183,9 +183,9 @@ jobs:
             libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev \
             libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libxdo-dev libudev-dev libssl-dev patchelf file xdg-utils
 
-      # Pre-seeds ~/.cache/tauri with Termoso's linuxdeploy `appimage` output
+      # Pre-seeds ~/.cache/tauri with Labterm's linuxdeploy `appimage` output
       # plugin, which strips the bundled libwayland before packing.
-      - name: Termoso linuxdeploy appimage plugin
+      - name: Labterm linuxdeploy appimage plugin
         if: runner.os == 'Linux'
         run: apps/desktop/src-tauri/appimage/prepare.sh
 
@@ -220,7 +220,7 @@ jobs:
           export_env() {
             # heredoc form: a base64 .p12 may span several lines
             for v in "$@"; do
-              printf '%s<<__TERMOSO_EOF__\n%s\n__TERMOSO_EOF__\n' "$v" "${!v}" >> "$GITHUB_ENV"
+              printf '%s<<__LABTERM_EOF__\n%s\n__LABTERM_EOF__\n' "$v" "${!v}" >> "$GITHUB_ENV"
             done
           }
           if [ -n "$APPLE_CERTIFICATE" ] && [ -n "$APPLE_SIGNING_IDENTITY" ]; then
@@ -363,27 +363,27 @@ jobs:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
           [ -n "$KEYSTORE_BASE64" ] || { echo "::error::ANDROID_KEYSTORE_BASE64 is not set"; exit 1; }
-          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/termoso-release.jks"
-          echo "TERMOSO_ANDROID_KEYSTORE=$RUNNER_TEMP/termoso-release.jks" >> "$GITHUB_ENV"
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/labterm-release.jks"
+          echo "LABTERM_ANDROID_KEYSTORE=$RUNNER_TEMP/labterm-release.jks" >> "$GITHUB_ENV"
 
       # arm64 + armv7 for devices, x86_64 for emulators; one APK per ABI plus a universal one.
       # Without the keystore (manual / PR run) Gradle leaves the APKs unsigned.
       - name: Build
         run: |
-          ./gradlew --no-daemon -Ptermoso.abis=arm64-v8a,armeabi-v7a,x86_64 -Ptermoso.splits=true :app:assembleRelease
+          ./gradlew --no-daemon -Plabterm.abis=arm64-v8a,armeabi-v7a,x86_64 -Plabterm.splits=true :app:assembleRelease
           v=${{ needs.version.outputs.version }}
           mkdir -p out
           for f in app/build/outputs/apk/release/*.apk; do
             b=$(basename "$f" .apk)              # app-arm64-v8a-release[-unsigned]
             abi=${b#app-}; abi=${abi%-release*}
-            cp "$f" "out/termoso-${v}-${abi}.apk"
+            cp "$f" "out/labterm-${v}-${abi}.apk"
           done
           ls -l out
         working-directory: apps/android
         env:
           ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.2.12479018
-          TERMOSO_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          TERMOSO_ANDROID_KEY_ALIAS: termoso
+          LABTERM_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          LABTERM_ANDROID_KEY_ALIAS: labterm
 
       - name: Verify signatures
         if: github.ref_type == 'tag'
@@ -395,7 +395,7 @@ jobs:
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: termoso-android-${{ needs.version.outputs.version }}
+          name: labterm-android-${{ needs.version.outputs.version }}
           if-no-files-found: error
           retention-days: 14
           path: apps/android/out/*.apk
@@ -443,13 +443,13 @@ jobs:
           test -d "$app/Frameworks" && ls "$app/Frameworks" || echo "(no embedded frameworks: Rust core is statically linked)"
           mkdir -p "$RUNNER_TEMP/ipa/Payload" out
           cp -R "$app" "$RUNNER_TEMP/ipa/Payload/"
-          (cd "$RUNNER_TEMP/ipa" && zip -qry "$GITHUB_WORKSPACE/apps/ios/out/termoso-$v-ios.ipa" Payload)
+          (cd "$RUNNER_TEMP/ipa" && zip -qry "$GITHUB_WORKSPACE/apps/ios/out/labterm-$v-ios.ipa" Payload)
           ls -l out
-          unzip -l "out/termoso-$v-ios.ipa" | tail -3
+          unzip -l "out/labterm-$v-ios.ipa" | tail -3
         working-directory: apps/ios
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: termoso-ios-${{ needs.version.outputs.version }}
+          name: labterm-ios-${{ needs.version.outputs.version }}
           if-no-files-found: error
           retention-days: 14
           path: apps/ios/out/*.ipa
@@ -479,11 +479,11 @@ jobs:
           echo "id=$id" >> "$GITHUB_OUTPUT"
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: termoso-android-${{ needs.version.outputs.version }}
+          name: labterm-android-${{ needs.version.outputs.version }}
           path: android
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: termoso-ios-${{ needs.version.outputs.version }}
+          name: labterm-ios-${{ needs.version.outputs.version }}
           path: ios
       - name: Upload APKs to the draft release
         run: |
@@ -498,19 +498,19 @@ jobs:
       - name: Upload .ipa + AltStore source to the draft release
         run: |
           v=${{ needs.version.outputs.version }}
-          ipa=ios/termoso-$v-ios.ipa
+          ipa=ios/labterm-$v-ios.ipa
           test -f "$ipa"
           python3 src/apps/ios/altstore/render.py \
             --template src/apps/ios/altstore/source.template.json \
             --repo "$GITHUB_REPOSITORY" --tag "$GITHUB_REF_NAME" --version "$v" \
-            --ipa "$ipa" --out termoso-altstore.json
-          python3 -m json.tool termoso-altstore.json | head -40
+            --ipa "$ipa" --out labterm-altstore.json
+          python3 -m json.tool labterm-altstore.json | head -40
           gh api --method POST -H 'Content-Type: application/octet-stream' \
             "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/${{ steps.rel.outputs.id }}/assets?name=$(basename "$ipa")" \
             --input "$ipa" > /dev/null
           gh api --method POST -H 'Content-Type: application/json' \
-            "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/${{ steps.rel.outputs.id }}/assets?name=termoso-altstore.json" \
-            --input termoso-altstore.json > /dev/null
+            "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/${{ steps.rel.outputs.id }}/assets?name=labterm-altstore.json" \
+            --input labterm-altstore.json > /dev/null
       - name: Download and verify assets
         run: |
           mkdir assets && cd assets
@@ -527,12 +527,12 @@ jobs:
             [ -e "$f" ] || { echo "::error::missing bundle $f"; exit 1; }
           done
           for abi in arm64-v8a armeabi-v7a x86_64 universal; do
-            [ -e "termoso-${{ needs.version.outputs.version }}-$abi.apk" ] || { echo "::error::missing APK for $abi"; exit 1; }
+            [ -e "labterm-${{ needs.version.outputs.version }}-$abi.apk" ] || { echo "::error::missing APK for $abi"; exit 1; }
           done
-          test -f "termoso-${{ needs.version.outputs.version }}-ios.ipa" || { echo "::error::missing iOS .ipa"; exit 1; }
-          test -f termoso-altstore.json || { echo "::error::missing termoso-altstore.json"; exit 1; }
-          jq -e --arg v "${{ needs.version.outputs.version }}" '.apps[0].versions[0] | select(.version == $v) | .downloadURL, .sha256' termoso-altstore.json
-          [ "$(jq -r '.apps[0].versions[0].sha256' termoso-altstore.json)" = "$(sha256sum "termoso-${{ needs.version.outputs.version }}-ios.ipa" | cut -d' ' -f1)" ] || { echo "::error::altstore sha256 does not match the uploaded .ipa"; exit 1; }
+          test -f "labterm-${{ needs.version.outputs.version }}-ios.ipa" || { echo "::error::missing iOS .ipa"; exit 1; }
+          test -f labterm-altstore.json || { echo "::error::missing labterm-altstore.json"; exit 1; }
+          jq -e --arg v "${{ needs.version.outputs.version }}" '.apps[0].versions[0] | select(.version == $v) | .downloadURL, .sha256' labterm-altstore.json
+          [ "$(jq -r '.apps[0].versions[0].sha256' labterm-altstore.json)" = "$(sha256sum "labterm-${{ needs.version.outputs.version }}-ios.ipa" | cut -d' ' -f1)" ] || { echo "::error::altstore sha256 does not match the uploaded .ipa"; exit 1; }
           for f in *.AppImage *.msi *.exe *.app.tar.gz; do
             [ -e "$f.sig" ] || { echo "::error::missing signature for $f"; exit 1; }
           done
@@ -587,7 +587,7 @@ jobs:
         with:
           path: src
           format: spdx-json
-          output-file: assets/termoso-${{ needs.version.outputs.version }}.spdx.json
+          output-file: assets/labterm-${{ needs.version.outputs.version }}.spdx.json
           upload-artifact: false
           upload-release-assets: false
       - name: SBOM (CycloneDX)
@@ -595,7 +595,7 @@ jobs:
         with:
           path: src
           format: cyclonedx-json
-          output-file: assets/termoso-${{ needs.version.outputs.version }}.cdx.json
+          output-file: assets/labterm-${{ needs.version.outputs.version }}.cdx.json
           upload-artifact: false
           upload-release-assets: false
       - name: Upload SBOMs
@@ -630,7 +630,7 @@ jobs:
             !assets/*.sig
             !assets/*.sigstore.json
             !assets/latest.json
-            !assets/termoso-altstore.json
+            !assets/labterm-altstore.json
       - name: Publish
         run: |
           case "$GITHUB_REF_NAME" in *-*) latest=false ;; *) latest=true ;; esac
@@ -639,7 +639,7 @@ jobs:
           echo "published https://github.com/$GITHUB_REPOSITORY/releases/tag/$GITHUB_REF_NAME"
 
   # Off in Labterm: every target below (termoso/termoso-repo, termoso/homebrew-termoso, the
-  # Termoso.Termoso winget package) is upstream Termoso's. TODO: point it at Labterm's own
+  # Labterm.Labterm winget package) is upstream Termoso's. TODO: point it at Labterm's own
   # channels, then turn it back on.
   # Package channels: the apt/dnf repositories served from termoso/termoso-repo
   # (GitHub Pages), the Homebrew tap termoso/homebrew-termoso and the winget
@@ -676,7 +676,7 @@ jobs:
           printf '%s\n' "$REPO_GPG_KEY" | gpg --batch --quiet --import
           gpg --batch --list-secret-keys --with-colons | awk -F: '$1=="fpr"{print $10; exit}' > keyid
           test -s keyid
-      - name: Check out termoso-repo
+      - name: Check out labterm-repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: termoso/termoso-repo
@@ -686,10 +686,10 @@ jobs:
         run: |
           src/scripts/repo/build.sh assets repo "$VERSION" "$(cat keyid)"
           cd repo
-          git config user.name "Termoso release"
+          git config user.name "Labterm release"
           git config user.email "packages@termoso.dev"
           git add -A
-          git commit -q -m "Termoso $VERSION"
+          git commit -q -m "Labterm $VERSION"
           git push -q
       - name: Check out the Homebrew tap
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -700,12 +700,12 @@ jobs:
       - name: Update the cask
         run: |
           mkdir -p tap/Casks
-          src/scripts/repo/cask.sh assets/SHA256SUMS.txt "$VERSION" > tap/Casks/termoso.rb
+          src/scripts/repo/cask.sh assets/SHA256SUMS.txt "$VERSION" > tap/Casks/labterm.rb
           cd tap
-          git config user.name "Termoso release"
+          git config user.name "Labterm release"
           git config user.email "packages@termoso.dev"
           git add -A
-          git commit -q -m "termoso $VERSION" || echo "cask unchanged"
+          git commit -q -m "labterm $VERSION" || echo "cask unchanged"
           git push -q
       # Opens the version-bump PR in microsoft/winget-pkgs from a fork owned by
       # the token's account (WINGET_TOKEN needs public_repo). The first
@@ -719,5 +719,5 @@ jobs:
         run: |
           curl -fsSL -o komac.tgz https://github.com/russellbanks/Komac/releases/download/v2.17.1/komac-2.17.1-x86_64-unknown-linux-gnu.tar.gz
           tar xzf komac.tgz
-          ./komac update Termoso.Termoso --version "$VERSION" --submit --token "$WINGET_TOKEN" \
-            --urls "https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/Termoso_${VERSION}_x64_en-US.msi"
+          ./komac update Labterm.Labterm --version "$VERSION" --submit --token "$WINGET_TOKEN" \
+            --urls "https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/Labterm_${VERSION}_x64_en-US.msi"

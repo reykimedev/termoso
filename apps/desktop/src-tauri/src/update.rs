@@ -28,8 +28,8 @@ pub const DEFAULT_FEED: &str = match option_env!("LABTERM_UPDATE_FEED") {
     None => "https://github.com/reykimedev/termoso/releases/latest/download/latest.json",
 };
 
-/// Upstream Termoso's updater key. A binary that still trusts it would accept
-/// Termoso's releases as updates and replace Labterm with Termoso, so the
+/// Upstream Labterm's updater key. A binary that still trusts it would accept
+/// Labterm's releases as updates and replace Labterm with Labterm, so the
 /// updater stays off in such a build.
 const UPSTREAM_PUBKEY: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENDMjE2QzA2NTRBQUEzQjgKUldTNG82cFVCbXdoelBNRER5bFBWcy82cWdWYUhwdk5sN3MzUXF5WU5YRnY4TUl5S0NxMHJUY2YK";
 
@@ -271,7 +271,7 @@ mod tests {
     #[test]
     fn custom_https_feed_is_kept() {
         let u =
-            feed_url("https://updates.example.org/termoso/{{target}}/{{current_version}}").unwrap();
+            feed_url("https://updates.example.org/labterm/{{target}}/{{current_version}}").unwrap();
         assert_eq!(u.host_str(), Some("updates.example.org"));
     }
 
@@ -287,7 +287,7 @@ mod tests {
 
     #[test]
     fn default_feed_is_labterms_own() {
-        assert!(!DEFAULT_FEED.contains("termoso/termoso"));
+        assert!(!DEFAULT_FEED.contains("labterm/labterm"));
         assert!(DEFAULT_FEED.starts_with("https://"));
     }
 

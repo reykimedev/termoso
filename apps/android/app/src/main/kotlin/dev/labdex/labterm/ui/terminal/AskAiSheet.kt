@@ -120,7 +120,7 @@ fun AskAiSheet(
             when {
                 !shell.ai.signedIn -> EmptyState(
                     title = stringResource(R.string.sign_in_to_use_ai_suggestions),
-                    hint = stringResource(R.string.suggestions_come_from_your_termoso_server_so_they),
+                    hint = stringResource(R.string.suggestions_come_from_your_labterm_server_so_they),
                     action = { Button(onClick = { onClose(); onOpenAccount() }) { Text(stringResource(R.string.account)) } },
                 )
                 s == null && !loaded -> Spacer(Modifier.height(80.dp))
@@ -131,7 +131,7 @@ fun AskAiSheet(
                 )
                 !s.available -> EmptyState(
                     title = stringResource(R.string.no_ai_provider_on_this_server),
-                    hint = stringResource(R.string.the_server_operator_can_set_termoso_ai_to),
+                    hint = stringResource(R.string.the_server_operator_can_set_labterm_ai_to),
                 )
                 !s.enabled -> {
                     Text(

@@ -17,7 +17,7 @@ struct ConnectionsView: View {
                         sessionsCard
                     }
                     newConnectionCard
-                    Text("iOS gives background apps only a short grace period, so sessions live while Termoso is on screen.")
+                    Text("iOS gives background apps only a short grace period, so sessions live while Labterm is on screen.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 20)

@@ -109,7 +109,7 @@ impl LocalTerminal {
         }
         cmd.env("TERM", "xterm-256color");
         cmd.env("COLORTERM", "truecolor");
-        cmd.env("TERM_PROGRAM", "termoso");
+        cmd.env("TERM_PROGRAM", "labterm");
         // GUI apps on macOS inherit no locale; without one the shell (and every
         // ssh session started from it) falls back to ASCII.
         if cfg!(target_os = "macos") && std::env::var_os("LANG").is_none() {
@@ -148,7 +148,7 @@ impl LocalTerminal {
         let t2 = term.clone();
         // Blocking reader thread; PTY reads have no async API on all platforms.
         std::thread::Builder::new()
-            .name("termoso-pty-reader".into())
+            .name("labterm-pty-reader".into())
             .spawn(move || {
                 let mut buf = [0u8; 16 * 1024];
                 loop {
@@ -240,7 +240,7 @@ mod tests {
             ..Default::default()
         })
         .unwrap();
-        term.write(b"echo termoso-ok; exit 3\n").await.unwrap();
+        term.write(b"echo labterm-ok; exit 3\n").await.unwrap();
         let mut out = Vec::new();
         let mut exit = None;
         while let Some(ev) = tokio::time::timeout(std::time::Duration::from_secs(10), events.recv())
@@ -257,7 +257,7 @@ mod tests {
                 _ => {}
             }
         }
-        assert!(String::from_utf8_lossy(&out).contains("termoso-ok"));
+        assert!(String::from_utf8_lossy(&out).contains("labterm-ok"));
         assert_eq!(exit, Some(3));
         assert!(term.write(b"x").await.is_err());
     }

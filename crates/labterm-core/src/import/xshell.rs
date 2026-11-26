@@ -230,7 +230,7 @@ mod tests {
 
     #[test]
     fn scans_sessions_tree() {
-        let dir = std::env::temp_dir().join(format!("termoso-xsh-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("labterm-xsh-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(dir.join("Sessions").join("Lab")).unwrap();
         std::fs::write(

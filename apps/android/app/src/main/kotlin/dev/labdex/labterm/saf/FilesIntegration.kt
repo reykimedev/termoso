@@ -24,7 +24,7 @@ import kotlinx.coroutines.launch
 /**
  * The "show SFTP hosts in Files" switch and the roots-changed signal behind
  * it. The switch lives in plain preferences, not the encrypted settings: the
- * system asks for roots while the vault is still locked, and whether Termoso
+ * system asks for roots while the vault is still locked, and whether Labterm
  * appears in the picker at all is a device-level choice, not vault data.
  */
 class FilesIntegration(context: Context) {

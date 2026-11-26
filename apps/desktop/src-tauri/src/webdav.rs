@@ -33,7 +33,7 @@ pub struct Connection {
 }
 
 fn spool_dir() -> PathBuf {
-    std::env::temp_dir().join("termoso-webdav")
+    std::env::temp_dir().join("labterm-webdav")
 }
 
 /// Human-readable target for prompts and tab titles: the URL without scheme

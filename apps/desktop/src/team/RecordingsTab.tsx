@@ -64,7 +64,7 @@ export function RecordingsTab({ team }: { team: Team }) {
     mutationFn: async () => {
       const ndjson = await ipc.teamLogsExport(team.id);
       const path = await save({
-        defaultPath: `termoso-recordings-${team.name.replace(/[^\w.-]+/g, "_")}.ndjson`,
+        defaultPath: `labterm-recordings-${team.name.replace(/[^\w.-]+/g, "_")}.ndjson`,
         filters: [{ name: "NDJSON", extensions: ["ndjson"] }],
       });
       if (!path) return false;

@@ -53,7 +53,7 @@ impl Algorithms {
     }
 }
 
-/// Termoso's russh client handler.
+/// Labterm's russh client handler.
 pub struct ClientHandler {
     host: String,
     port: u16,

@@ -330,7 +330,7 @@ function Body({
   const saveTemplate = async () => {
     const path = await saveFile({
       title: tr("Save CSV template"),
-      defaultPath: "termoso-hosts.csv",
+      defaultPath: "labterm-hosts.csv",
       filters: [{ name: "CSV", extensions: ["csv"] }],
     });
     if (!path) return;

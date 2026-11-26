@@ -1,0 +1,102 @@
+[package]
+name = "labterm-server"
+description = "Labterm backend: zero-knowledge sync, auth, teams and vaults"
+version.workspace = true
+edition.workspace = true
+publish = false
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+default-run = "labterm-server"
+
+[[bin]]
+name = "labterm-server"
+path = "src/main.rs"
+
+[dependencies]
+labterm-crypto = { workspace = true }
+labterm-proto = { workspace = true, features = ["openapi"] }
+
+tokio = { workspace = true }
+axum = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+futures = { workspace = true }
+bytes = { workspace = true }
+
+sqlx = { workspace = true }
+redis = { workspace = true }
+aws-sdk-s3 = { workspace = true }
+
+serde = { workspace = true }
+serde_json = { workspace = true }
+utoipa = { workspace = true }
+utoipa-swagger-ui = { workspace = true }
+
+argon2 = { workspace = true }
+blake3 = { workspace = true }
+rand = { workspace = true }
+# rand_core 0.6 `OsRng` feeds the `rsa` 0.9 API, which predates rand 0.9+.
+rand_core = { workspace = true }
+base64 = { workspace = true }
+zeroize = { workspace = true }
+subtle = { workspace = true }
+webauthn-rs = { workspace = true }
+totp-rs = { workspace = true }
+openidconnect = { workspace = true }
+oauth2 = { workspace = true }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+hex = "0.4"
+# Avatars: decode whatever the browser/phone sends, store a tiny lossy WebP.
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "gif", "bmp"] }
+webp = { version = "0.3", default-features = false }
+
+uuid = { workspace = true }
+time = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+figment = { workspace = true }
+lettre = { workspace = true }
+metrics = { workspace = true }
+metrics-exporter-prometheus = { workspace = true }
+url = { workspace = true }
+http = { workspace = true }
+async-trait = "0.1"
+# SAML: pure-Rust XML-DSig / XML-Enc over roxmltree (no libxml2/xmlsec).
+roxmltree = "0.21"
+flate2 = "1"
+x509-parser = "0.18"
+# `rsa` parses keys and verifies IdP signatures (public-key operations only);
+# SP private-key operations run in AWS-LC (constant-time RSA), already in the
+# tree as the rustls crypto provider.
+# Team SSH CA: key generation and certificate signing.
+ssh-key = { version = "0.7.0-rc.11", default-features = false, features = ["std", "ed25519", "p256", "rsa"] }
+rsa = { version = "0.9", features = ["sha1", "sha2"] }
+aws-lc-rs = { workspace = true }
+# syslog_tls webhooks: raw TLS client with the OS trust store.
+tokio-rustls = { version = "0.26", default-features = false, features = ["aws-lc-rs"] }
+rustls-native-certs = "0.8"
+rustls-pki-types = { version = "1", features = ["std"] }
+labterm-awslc-rsa = { workspace = true }
+sha1 = "0.10"
+sha2 = { workspace = true }
+aes = "0.8"
+cbc = "0.1"
+aes-gcm = "0.10"
+
+[features]
+# Mock SAML IdP (fixture keys, signed/encrypted responses) for the test suites.
+saml-test-support = []
+
+[dev-dependencies]
+labterm-server = { path = ".", features = ["saml-test-support"] }
+tower = { workspace = true }
+http-body-util = "0.1"
+rcgen = "0.14"
+tokio-tungstenite = "0.29"
+# Software CTAP2 authenticator drives the WebAuthn ceremonies end to end.
+labterm-core = { workspace = true, features = ["fido2-soft"] }
+# The API bridge runtime is exercised end to end against the in-process server.
+labterm-bridge = { workspace = true }

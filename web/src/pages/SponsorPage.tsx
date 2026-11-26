@@ -144,7 +144,7 @@ function Tier({ title, text, items }: { title: string; text: string; items: stri
 const STEPS: [string, string][] = [
   [
     "Write",
-    `Send a line to ${EMAIL}: who you are, how you use Termoso and what you have in mind — a one-off, a monthly amount or a support agreement.`,
+    `Send a line to ${EMAIL}: who you are, how you use Labterm and what you have in mind — a one-off, a monthly amount or a support agreement.`,
   ],
   [
     "Agree",
@@ -187,21 +187,21 @@ export function SponsorPage() {
                 component="h1"
                 sx={{ fontSize: { xs: "2.25rem", md: "3.25rem" }, letterSpacing: "-0.03em" }}
               >
-                Support Termoso
+                Support Labterm
               </Typography>
               <Typography
                 variant="body1"
                 color="text.secondary"
                 sx={{ mt: 2.5, fontSize: "1.125rem", lineHeight: 1.6 }}
               >
-                Termoso is free software under AGPL-3.0 with no paid tier and no vendor behind it.
+                Labterm is free software under AGPL-3.0 with no paid tier and no vendor behind it.
                 The clients, the server and the hosted cloud are funded by the people and companies
                 who rely on them. If it saves your team time, consider sponsoring; if your
                 organisation runs it, we can back you with support and engineering.
               </Typography>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mt: 4 }}>
                 <Button
-                  href={`mailto:${EMAIL}?subject=Sponsoring%20Termoso`}
+                  href={`mailto:${EMAIL}?subject=Sponsoring%20Labterm`}
                   variant="contained"
                   size="large"
                 >
@@ -244,7 +244,7 @@ export function SponsorPage() {
               />
               <Tier
                 title="Company sponsor"
-                text="For teams that use Termoso every day and want it to stay maintained."
+                text="For teams that use Labterm every day and want it to stay maintained."
                 items={[
                   "Logo on termoso.dev and in the README",
                   "Private channel with the maintainers",
@@ -254,7 +254,7 @@ export function SponsorPage() {
               />
               <Tier
                 title="Enterprise support"
-                text="For organisations running their own Termoso server. Scoped per agreement."
+                text="For organisations running their own Labterm server. Scoped per agreement."
                 items={[
                   "Deployment and upgrade assistance, HA and backups",
                   "SLA-backed support for the self-hosted server",
