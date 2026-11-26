@@ -107,8 +107,9 @@ jobs:
           mkdir -p "$out"
           cp apps/android/app/build/outputs/apk/debug/*.apk "$out/labterm-debug.apk"
           sha=$(sha256sum "$out/labterm-debug.apk" | cut -d' ' -f1)
-          jq -n --argjson build "$BUILD" --arg commit "$COMMIT" --arg sha "$sha" \
-            '{build: $build, commit: $commit, apk: "labterm-debug.apk", sha256: $sha}' > "$out/latest.json"
+          size=$(stat -c %s "$out/labterm-debug.apk")
+          jq -n --argjson build "$BUILD" --arg commit "$COMMIT" --arg sha "$sha" --argjson size "$size" \
+            '{build: $build, commit: $commit, apk: "labterm-debug.apk", sha256: $sha, size: $size}' > "$out/latest.json"
           if ! gh release view "$CHANNEL_TAG" >/dev/null 2>&1; then
             gh release create "$CHANNEL_TAG" --prerelease --target "$COMMIT" \
               --title "Labterm Debug (rolling, $CHANNEL_TAG)" \

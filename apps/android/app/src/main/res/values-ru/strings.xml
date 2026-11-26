@@ -1870,6 +1870,13 @@
     <string name="debug_update_downloading">Загрузка…</string>
     <string name="debug_update_current">Установлена последняя версия (сборка %1$d)</string>
     <string name="debug_update_available_notice">Доступна отладочная сборка %1$d: Настройки → О приложении</string>
+    <string name="debug_update_progress">%1$s из %2$s · %3$s/с · %4$d%%</string>
+    <string name="debug_update_progress_unknown">%1$s · %2$s/с</string>
+    <string name="debug_update_error_network">Не удалось связаться с сервером обновлений. Проверьте подключение и повторите попытку.</string>
+    <string name="debug_update_error_feed">Канал обновлений вернул ответ, который не является описанием обновления.</string>
+    <string name="debug_update_error_http">Сервер обновлений ответил HTTP %1$d.</string>
+    <string name="debug_update_error_download">Загрузка прервалась. Нажмите, чтобы повторить.</string>
+    <string name="debug_update_error_checksum">Загруженное обновление не совпадает с контрольной суммой и было удалено.</string>
     <string name="debug_log">Журнал отладки</string>
     <string name="debug_log_hint">Недавние журналы приложения и ядра без секретов. Скопируйте или отправьте их для отчёта об ошибке.</string>
     <string name="openid_no_keys">В этом хранилище нет ключей OpenID: создайте ключ в связке ключей</string>
