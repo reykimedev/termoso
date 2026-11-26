@@ -178,13 +178,19 @@ jobs:
       # backup/restore round trip needs pg_dump of the server's major version.
       LABTERM_TEST_PG_DUMP: /usr/lib/postgresql/18/bin/pg_dump
       LABTERM_TEST_PG_RESTORE: /usr/lib/postgresql/18/bin/pg_restore
+      # Line tables keep file:line in panics and backtraces but drop the variable info, which
+      # shrinks target/ and the time spent writing and linking the ~40 test binaries.
+      CARGO_PROFILE_DEV_DEBUG: line-tables-only
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Free runner disk (cargo test --workspace fills the 14 GB root volume)
+      # Deleting these takes about 3 minutes, so it runs in the background while the next steps
+      # install tools and cargo starts compiling; the space is only needed late in the build.
+      - name: Free runner disk in the background (cargo test --workspace fills the 14 GB root volume)
         run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup \
-            /opt/hostedtoolcache/CodeQL /usr/local/share/boost /usr/share/swift
-          sudo docker image prune -af >/dev/null 2>&1 || true
+          nohup sudo sh -c 'rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup \
+            /opt/hostedtoolcache/CodeQL /usr/local/share/boost /usr/share/swift' > /dev/null 2>&1 &
+          # In the foreground: it must finish before RustFS's image is pulled below.
+          sudo docker image prune -af > /dev/null 2>&1 || true
           df -h /
       - name: Tauri system libraries + mosh-server (Mosh interop tests)
         run: |
