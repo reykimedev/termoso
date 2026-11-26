@@ -1705,6 +1705,11 @@ async fn ssh_connect<R: Runtime>(
                 (None, Some(_)) => None,
                 (None, None) => Some(ui_prompt),
             };
+        // A team network this device has not joined yet: sign in first, in
+        // the browser, so the dial below can start the peer.
+        if let Ok(store) = state.store() {
+            crate::vpn::ensure_signed_in(&store, resolved).await?;
+        }
         let opts = ConnectOptions {
             target: target.clone(),
             auth,
@@ -1720,8 +1725,10 @@ async fn ssh_connect<R: Runtime>(
             proxy: proxy.clone(),
             proxy_command: proxy_command.clone(),
             gateway: gateway_dial(app, resolved).await,
-            // Overlay networks (NetBird) are only built into the Android app so far.
-            transport: None,
+            transport: match state.store() {
+                Ok(store) => crate::vpn::dialer(&store, resolved),
+                Err(_) => None,
+            },
             env: ssh_cfg.env_variables.clone(),
             agent_forwarding: ssh_cfg.agent_forwarding,
             x11: (ssh_cfg.forward_x11 && hop.is_none())

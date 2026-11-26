@@ -4670,6 +4670,7 @@ name = "labterm-client"
 version = "0.12.1"
 dependencies = [
  "labterm-core",
+ "labterm-netbird",
  "labterm-oidc-cert",
  "labterm-proto",
  "serde",
@@ -4677,6 +4678,7 @@ dependencies = [
  "tempfile",
  "time",
  "tokio",
+ "tracing",
  "url",
  "uuid",
  "zeroize",
@@ -4823,7 +4825,6 @@ dependencies = [
  "labterm-client",
  "labterm-core",
  "labterm-crypto",
- "labterm-netbird",
  "labterm-proto",
  "lzma-sys",
  "rand 0.10.3",

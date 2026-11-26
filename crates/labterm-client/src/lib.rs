@@ -18,5 +18,7 @@ pub mod overlays;
 pub mod snippets;
 pub mod transports;
 pub mod trust;
+#[cfg(feature = "vpn")]
+pub mod vpn;
 
 pub use error::{ClientError, Result};

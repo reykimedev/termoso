@@ -11,6 +11,7 @@ import * as history from "./history";
 import * as policy from "./policy";
 import { type Resolved, type SshKey, pins } from "./model";
 import { resolveToConnect } from "./overlays";
+import * as vpn from "./vpn";
 import { type Uuid, changed, isUnlocked, require, s } from "./state";
 import { loadWasm, w } from "./wasm";
 
@@ -143,6 +144,7 @@ function planFor(target: Target): Plan {
       "unsupported",
       "This host connects through a jump host or proxy, which the web app does not support yet.",
     );
+  vpn.refuseIfVpn(r.ssh.transport_id);
   if (policy.jumpHostRequired(r.host.vaultId))
     fail("forbidden", "team policy requires a jump host for this host; add one to its chain");
   const keysOnly = policy.keysOnly(r.host.vaultId);

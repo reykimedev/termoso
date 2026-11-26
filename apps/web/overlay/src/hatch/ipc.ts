@@ -16,6 +16,7 @@ import * as m from "./backend/model";
 import * as oidc from "./backend/oidc";
 import * as opkssh from "./backend/opkssh";
 import * as overlays from "./backend/overlays";
+import * as vpn from "./backend/vpn";
 import { defaultSettings } from "./backend/settings";
 import * as snippets from "./backend/snippets";
 import * as st from "./backend/state";
@@ -258,6 +259,16 @@ const commands: Record<string, Handler> = {
   oidc_providers: (a) => opkssh.providers(a.vaultId ?? null),
   oidc_provider_save: (a) => opkssh.saveProvider(a.vaultId, a.id ?? null, a.provider),
   oidc_provider_delete: (a) => opkssh.deleteProvider(a.id),
+  // VPN networks: edited here, joined only by the desktop and Android apps for now
+  vpn_available: () => false,
+  vpn_networks: (a) => vpn.networks(a.vaultId ?? null),
+  vpn_sign_in_only: (a) => vpn.signInOnly(a.vaultId),
+  vpn_network_save: (a) => vpn.save(a.vaultId, a.id ?? null, a.network),
+  vpn_network_delete: (a) => vpn.del(a.id),
+  vpn_sign_in: notInBrowser("Joining VPN networks"),
+  vpn_sign_in_cancel: () => null,
+  vpn_connect: notInBrowser("Joining VPN networks"),
+  vpn_running: () => [],
   key_create_opkssh: (a) => opkssh.createKey(a.form),
   key_set_oidc: (a) => opkssh.setOptions(a.id, a.oidc ?? {}),
   key_oidc_session: (a) => opkssh.session(a.id),

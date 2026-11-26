@@ -23,6 +23,7 @@
   "bundle": {
     "macOS": {
       "minimumSystemVersion": "11.0",
+      "frameworks": ["vpn/liblabterm_netbird.dylib"],
       "signingIdentity": "-",
       "dmg": {
         "appPosition": { "x": 180, "y": 170 },

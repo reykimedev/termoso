@@ -321,6 +321,12 @@ jobs:
         working-directory: apps/desktop
       - run: cargo clippy -p labterm-core -p labterm-desktop --all-targets --locked
       - run: cargo test -p labterm-core --locked
+      # The embedded VPN client goes into Contents/Frameworks (tauri.macos.conf.json).
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: crates/labterm-netbird/go/go.mod
+          cache-dependency-path: crates/labterm-netbird/go/go.sum
+      - run: apps/desktop/src-tauri/vpn/build.sh
       # No updater key on CI: build the .app only, skip the signed updater tarball.
       - run: npm run tauri build -- --debug --bundles app --ci --config '{"bundle":{"createUpdaterArtifacts":false}}'
         working-directory: apps/desktop
@@ -333,6 +339,7 @@ jobs:
           codesign --verify --deep --strict --verbose=2 "$app"
           codesign -dv "$app" 2>&1 | grep -E '^(Identifier|TeamIdentifier|Signature)'
           lipo -info "$exe"
+          test -f "$app/Contents/Frameworks/liblabterm_netbird.dylib" || { echo "::error::no VPN client in the bundle"; exit 1; }
       - name: Runtime smoke
         run: apps/desktop/smoke/macos.sh target/debug/bundle/macos/Labterm.app "$RUNNER_TEMP/smoke"
       - uses: actions/upload-artifact@v7

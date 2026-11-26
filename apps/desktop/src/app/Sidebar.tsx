@@ -15,6 +15,7 @@ import CodeRoundedIcon from "@mui/icons-material/CodeRounded";
 import KeyRoundedIcon from "@mui/icons-material/KeyRounded";
 import VerifiedUserRoundedIcon from "@mui/icons-material/VerifiedUserRounded";
 import BadgeRoundedIcon from "@mui/icons-material/BadgeRounded";
+import HubRoundedIcon from "@mui/icons-material/HubRounded";
 import ArticleRoundedIcon from "@mui/icons-material/ArticleRounded";
 import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
 import CloudOffRoundedIcon from "@mui/icons-material/CloudOffRounded";
@@ -54,6 +55,11 @@ const items: Item[] = [
     id: "oidcProviders",
     label: msg("OpenID Providers"),
     icon: <BadgeRoundedIcon fontSize="small" />,
+  },
+  {
+    id: "vpnNetworks",
+    label: msg("VPN Networks"),
+    icon: <HubRoundedIcon fontSize="small" />,
   },
   { id: "logs", label: msg("Logs"), icon: <ArticleRoundedIcon fontSize="small" /> },
 ];

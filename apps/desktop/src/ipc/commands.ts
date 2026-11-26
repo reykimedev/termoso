@@ -80,6 +80,8 @@ import type {
   KeyCard,
   OidcKeyOptions,
   OidcProvider,
+  VpnNetwork,
+  VpnNetworkForm,
   OidcSession,
   OpksshHostSetup,
   OpksshKeyForm,
@@ -484,6 +486,25 @@ export const oidcProviders = (vaultId: Uuid | null) =>
 export const oidcProviderSave = (vaultId: Uuid, id: Uuid | null, provider: OidcProvider) =>
   invoke<Entity<OidcProvider>>("oidc_provider_save", { vaultId, id, provider });
 export const oidcProviderDelete = (id: Uuid) => invoke<null>("oidc_provider_delete", { id });
+
+// VPN networks (NetBird), joined by the app itself; see src-tauri/src/vpn.rs.
+/** Whether this build can join VPN networks (not on Windows yet). */
+export const vpnAvailable = () => invoke<boolean>("vpn_available");
+export const vpnNetworks = (vaultId: Uuid | null) =>
+  invoke<VpnNetwork[]>("vpn_networks", { vaultId });
+/** Team vaults join by signing in, never with a setup key. */
+export const vpnSignInOnly = (vaultId: Uuid) => invoke<boolean>("vpn_sign_in_only", { vaultId });
+/** `id = null` adds a network. */
+export const vpnNetworkSave = (vaultId: Uuid, id: Uuid | null, network: VpnNetworkForm) =>
+  invoke<VpnNetwork>("vpn_network_save", { vaultId, id, network });
+export const vpnNetworkDelete = (id: Uuid) => invoke<null>("vpn_network_delete", { id });
+/** Signs in in the system browser; resolves with the email when the provider gives one. */
+export const vpnSignIn = (id: Uuid, account: string | null) =>
+  invoke<string | null>("vpn_sign_in", { id, account });
+export const vpnSignInCancel = (id: Uuid) => invoke<null>("vpn_sign_in_cancel", { id });
+export const vpnConnect = (id: Uuid) => invoke<null>("vpn_connect", { id });
+/** Of `ids`, the networks this app has joined right now. */
+export const vpnRunning = (ids: Uuid[]) => invoke<Uuid[]>("vpn_running", { ids });
 export const keyCreateOpkssh = (form: OpksshKeyForm) =>
   invoke<KeyCard>("key_create_opkssh", { form });
 export const keySetOidc = (id: Uuid, oidc: OidcKeyOptions) =>

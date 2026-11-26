@@ -79,6 +79,7 @@ async fn shutdown<R: Runtime>(app: &AppHandle<R>) {
     crate::sftp::close_all(app).await;
     crate::forwarding::stop_all(app).await;
     crate::agent_server::stop(app).await;
+    crate::vpn::stop_all().await;
     app.state::<AppState>().edits.close_all();
     crate::account::suspend(app).await;
 }

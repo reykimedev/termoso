@@ -128,6 +128,9 @@ export const de: Readonly<Record<string, string>> = {
 
   // not in the browser
   "{what} is not available in the browser.": "{what} ist im Browser nicht verfügbar.",
+  "Joining VPN networks": "Das Beitreten zu VPN-Netzwerken",
+  "This host connects through the VPN network {name}, which the browser cannot join yet. Use the desktop or Android app.":
+    "Dieser Host verbindet über das VPN-Netzwerk {name}, dem der Browser noch nicht beitreten kann. Verwende die Desktop- oder Android-App.",
   "A vault without a lock password": "Ein Tresor ohne Sperrpasswort",
   "Creating an account (use the Labterm app, then sign in here)":
     "Ein Konto erstellen (in der Labterm-App, danach hier anmelden)",
