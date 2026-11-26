@@ -1848,4 +1848,10 @@
     <string name="openid_identity">Разрешённый email (пусто: текущий вход)</string>
     <string name="openid_set_up">Настроить</string>
     <string name="opkssh_set_up_on">opkssh настроен на</string>
+    <string name="debug_check_for_updates">Проверить обновления</string>
+    <string name="debug_update_available">Доступно обновление: сборка %1$d</string>
+    <string name="debug_update_tap_to_install">Коммит %1$s, нажмите для установки</string>
+    <string name="debug_update_downloading">Загрузка…</string>
+    <string name="debug_update_current">Установлена последняя версия (сборка %1$d)</string>
+    <string name="debug_update_available_notice">Доступна сборка Termoso Debug %1$d: Настройки → О приложении</string>
 </resources>

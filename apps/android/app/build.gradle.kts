@@ -25,6 +25,13 @@ fun versionCodeOf(v: String): Int {
 // nothing is read from the tree, so a checkout never contains key material.
 val releaseKeystore: File? = System.getenv("TERMOSO_ANDROID_KEYSTORE")?.let(::File)?.takeIf { it.isFile }
 
+// Debug channel (fork CI): a fixed debug key lets each new build install over the last one,
+// and the build number tells the in-app updater which build is newer. Unset = stock debug.
+val debugKeystore: File? = System.getenv("TERMOSO_ANDROID_DEBUG_KEYSTORE")?.let(::File)?.takeIf { it.isFile }
+val debugBuildNumber: Int = System.getenv("TERMOSO_DEBUG_BUILD")?.toIntOrNull() ?: 0
+// latest.json of the debug channel; empty turns the in-app updater off.
+val debugUpdateUrl: String = (findProperty("termoso.debugUpdateUrl") as String?).orEmpty()
+
 // `-Ptermoso.splits=true` produces one APK per ABI plus a universal one (release workflow).
 val abiSplits: Boolean = (findProperty("termoso.splits") as String?)?.toBoolean() ?: false
 
@@ -47,6 +54,8 @@ android {
         // Only ship the ABIs we build Rust for (JNA's AAR carries mips/armeabi too).
         ndk.abiFilters += rustAbis
         manifestPlaceholders["appLinkHost"] = appLinkHost
+        buildConfigField("int", "DEBUG_BUILD", "0")
+        buildConfigField("String", "DEBUG_UPDATE_URL", "\"\"")
     }
 
     signingConfigs {
@@ -58,6 +67,14 @@ android {
                 keyPassword = System.getenv("TERMOSO_ANDROID_KEY_PASSWORD") ?: System.getenv("TERMOSO_ANDROID_KEYSTORE_PASSWORD")
                 enableV2Signing = true
                 enableV3Signing = true
+            }
+        }
+        if (debugKeystore != null) {
+            create("debugChannel") {
+                storeFile = debugKeystore
+                storePassword = System.getenv("TERMOSO_ANDROID_DEBUG_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("TERMOSO_ANDROID_DEBUG_KEY_ALIAS") ?: "termoso-debug"
+                keyPassword = System.getenv("TERMOSO_ANDROID_DEBUG_KEYSTORE_PASSWORD")
             }
         }
     }
@@ -74,6 +91,9 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+            signingConfigs.findByName("debugChannel")?.let { signingConfig = it }
+            buildConfigField("int", "DEBUG_BUILD", "$debugBuildNumber")
+            buildConfigField("String", "DEBUG_UPDATE_URL", "\"$debugUpdateUrl\"")
         }
     }
 

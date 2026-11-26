@@ -210,6 +210,10 @@ fun MainShell(
     val shell: ShellViewModel = viewModel { ShellViewModel(repo, sessions, sftp, forwards, presence, ai) }
     val workspaces = sessions.workspaces
     LaunchedEffect(shell) { account.personalVaultsHidden.collect { shell.hidePersonalVaults.value = it } }
+    LaunchedEffect(Unit) {
+        runCatching { com.termoso.android.data.DebugUpdater.check() }.getOrNull()
+            ?.let { shell.notify(com.termoso.android.str(R.string.debug_update_available_notice, it.build)) }
+    }
     val nav = rememberNavController()
     val scope = rememberCoroutineScope()
     val backStack by nav.currentBackStackEntryAsState()

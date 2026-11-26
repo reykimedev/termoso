@@ -1810,4 +1810,10 @@
     <string name="openid_identity">Email to allow (empty: the signed-in one)</string>
     <string name="openid_set_up">Set up</string>
     <string name="opkssh_set_up_on">opkssh set up on</string>
+    <string name="debug_check_for_updates">Check for updates</string>
+    <string name="debug_update_available">Update available: build %1$d</string>
+    <string name="debug_update_tap_to_install">Commit %1$s, tap to install</string>
+    <string name="debug_update_downloading">Downloading…</string>
+    <string name="debug_update_current">Up to date (build %1$d)</string>
+    <string name="debug_update_available_notice">Termoso Debug build %1$d is available: Settings → About</string>
 </resources>
