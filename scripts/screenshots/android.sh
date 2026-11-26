@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Takes the Android pictures (android-*.png) on a running emulator.
+#
+#   scripts/screenshots/android.sh <apk> <out dir> [shot ...]
+#
+# Needs: adb with one emulator (a google_apis image, so adb can be root), the test SSH server
+# from android/sshd listening on the host's port 2222, python3 with Pillow.
+# .github/workflows/screenshots-android.yml does all of that on a GitHub runner.
+set -euo pipefail
+here="$(cd "$(dirname "$0")" && pwd)"
+apk="${1:?apk}"; out="${2:?out dir}"; shift 2
+pkg="${SHOTS_PACKAGE:-dev.labdex.labterm}"
+
+adb wait-for-device
+adb root >/dev/null; sleep 2; adb wait-for-device
+# Example addresses go to the test server on the host (10.0.2.2:2222).
+adb shell "iptables -t nat -A OUTPUT -p tcp -d 192.0.2.0/24 --dport 22 -j DNAT --to-destination 10.0.2.2:2222"
+adb shell "iptables -t nat -A OUTPUT -p tcp -d 192.0.2.0/24 --dport 2222 -j DNAT --to-destination 10.0.2.2:2222"
+# Same look every time: dark, English, no animations, a calm status bar at 9:42.
+adb shell "cmd uimode night yes"
+adb shell "settings put global window_animation_scale 0; settings put global transition_animation_scale 0; settings put global animator_duration_scale 0"
+adb shell "settings put system time_12_24 24"
+adb shell "settings put global sysui_demo_allowed 1"
+demo() { adb shell "am broadcast -a com.android.systemui.demo -e command $*" >/dev/null; }
+demo enter
+demo clock -e hhmm 0942
+demo battery -e level 100 -e plugged false
+demo network -e wifi show -e level 4 -e fully true
+demo network -e mobile show -e level 4 -e datatype none
+demo notifications -e visible false
+
+adb uninstall "$pkg" >/dev/null 2>&1 || true
+adb install -r "$apk"
+
+mkdir -p "$out/raw"
+status=0
+SHOTS_PACKAGE="$pkg" python3 "$here/android/shots.py" "$out/raw" "$@" || status=$?
+# Phone captures are 1080x2400; the docs use half size.
+python3 - "$out/raw" "$out" <<'PY'
+import glob, os, sys
+from PIL import Image
+for f in glob.glob(os.path.join(sys.argv[1], "*.png")):
+    im = Image.open(f)
+    im.resize((im.width // 2, im.height // 2), Image.LANCZOS).save(os.path.join(sys.argv[2], os.path.basename(f)), optimize=True)
+PY
+exit $status
