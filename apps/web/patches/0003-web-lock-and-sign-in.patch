@@ -1,0 +1,61 @@
+diff --git a/apps/desktop/src/account/SignIn.tsx b/apps/desktop/src/account/SignIn.tsx
+index f313705..7c8ff06 100644
+--- a/apps/desktop/src/account/SignIn.tsx
++++ b/apps/desktop/src/account/SignIn.tsx
+@@ -31,6 +31,8 @@ import type { SsoDiscoverResponse } from "@/ipc/types";
+ import { keys, type useAccount } from "@/ipc/hooks";
+ import { createStore, useStore } from "@/lib/store";
+ import { CLOUD_HOST, CLOUD_URL, normalizeServerUrl } from "@/lib/cloud";
++import { IS_WEB } from "@/lib/platform";
++import { webDefaultServer } from "@/hatch/defaults";
+ import {
+   errorMessage,
+   isDesktopError,
+@@ -104,8 +106,14 @@ export function SignInForm({
+   // remounts of this form; pick the server it was started against back up.
+   const ssoState = useStore(ssoStore, (s) => s);
+   const resumed = ssoState.phase !== "idle" ? ssoState.serverUrl : null;
+-  const [where, setWhere] = useState<Where>(resumed && resumed !== CLOUD_URL ? "custom" : "cloud");
+-  const [serverUrl, setServerUrl] = useState(resumed && resumed !== CLOUD_URL ? resumed : "");
++  // Web build: start with the deployment's own Termoso server from config.json.
++  const preset = IS_WEB ? webDefaultServer() : null;
++  const [where, setWhere] = useState<Where>(
++    resumed && resumed !== CLOUD_URL ? "custom" : preset ? "custom" : "cloud",
++  );
++  const [serverUrl, setServerUrl] = useState(
++    resumed && resumed !== CLOUD_URL ? resumed : (preset ?? ""),
++  );
+   const [touched, setTouched] = useState(resumed !== null);
+   const [email, setEmail] = useState("");
+   const [password, setPassword] = useState("");
+diff --git a/apps/desktop/src/app/LockScreen.tsx b/apps/desktop/src/app/LockScreen.tsx
+index 35c7399..5326383 100644
+--- a/apps/desktop/src/app/LockScreen.tsx
++++ b/apps/desktop/src/app/LockScreen.tsx
+@@ -8,6 +8,8 @@ import { errorMessage, isDesktopError } from "@/ipc/types";
+ import { sizes } from "@/theme/theme";
+ import { WindowControls } from "./WindowControls";
+ import { tr } from "@/i18n";
++import { IS_WEB } from "@/lib/platform";
++import { ResetBrowser } from "@/hatch/ResetBrowser";
+ 
+ export const RECOVERY_DOC_URL =
+   "https://github.com/termoso/termoso/blob/main/docs/ARCHITECTURE.md#desktop-master-password-and-app-lock";
+@@ -103,6 +105,9 @@ export function LockScreen() {
+             </Stack>
+           </Box>
+ 
++          {IS_WEB ? (
++            <ResetBrowser />
++          ) : (
+           <Typography variant="caption" color="text.secondary" sx={{ textAlign: "center" }}>
+             {tr(
+               "Forgot it? The password cannot be reset — restore an encrypted vault backup instead.",
+@@ -116,6 +121,7 @@ export function LockScreen() {
+               {tr("Learn more")}
+             </Link>
+           </Typography>
++          )}
+         </Stack>
+       </Box>
+     </Box>

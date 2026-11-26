@@ -1,91 +1,178 @@
-import { usePhone } from "./phone";
 import { useState } from "react";
 import {
-  Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Stack, Table, TableBody,
-  TableCell, TableHead, TableRow, Tooltip, Typography,
+  Alert,
+  Box,
+  Button,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  Tooltip,
+  Typography,
 } from "@mui/material";
 import VerifiedUserRoundedIcon from "@mui/icons-material/VerifiedUserRounded";
 import GppMaybeRoundedIcon from "@mui/icons-material/GppMaybeRounded";
 import LockRoundedIcon from "@mui/icons-material/LockRounded";
 import * as ipc from "@/ipc/commands";
+import { tr } from "@/i18n";
+import { integrity } from "./integrity";
+import { usePhone } from "./phone";
 
-// Mockup of the web build's integrity status: the loader verified a signed manifest before
-// anything else ran. Values are examples.
-const build = { release: "v0.1.0", commit: "3f9c2e1", termoso: "v0.12.1", russh: "0.65.1", key: "ed25519 · 5C:1A:8E:F2" };
-const files = [
-  ["index.html", "1.2 kB", "c4Nf…Q2s="], ["loader.js", "6.8 kB", "Hk9a…7Lw="], ["sw.js", "4.1 kB", "2bTm…pX0="],
-  ["assets/index-3f9c2e1.js", "2.4 MB", "Yq1r…v8E="], ["assets/termoso_wasm_bg.wasm", "1.1 MB", "a0Pz…Ue4="], ["assets/hatch_ssh_bg.wasm", "2.3 MB", "Rr5g…9nM="],
-];
+function size(n: number): string {
+  if (n >= 1 << 20) return `${(n / (1 << 20)).toFixed(1)} MB`;
+  if (n >= 1 << 10) return `${(n / (1 << 10)).toFixed(1)} kB`;
+  return `${n} B`;
+}
 
-export function WebControls() {
+/** Release and commit with the result of the loader's check; opens the details. */
+export function BuildBadge({ compact = false }: { compact?: boolean }) {
   const [open, setOpen] = useState(false);
-  const [tampered, setTampered] = useState(false);
-  const phone = usePhone();
+  const i = integrity();
+  const good = i.status === "verified" && !i.workerChanged;
+  const label = `${i.version} · ${i.commit.slice(0, 7)}`;
+  const tip = good
+    ? tr("Signed release, every file checked")
+    : i.workerChanged
+      ? tr("The service worker on the server differs from the signed release")
+      : tr("Unsigned development build");
   return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0, ml: 1, mr: 1 }}>
-      <Tooltip title={tampered ? "The loader changed outside a signed release" : "Signed release, every file checked"}>
+    <>
+      <Tooltip title={tip}>
         <Chip
           size="small"
           clickable
           onClick={() => setOpen(true)}
-          color={tampered ? "error" : "success"}
+          color={good ? "success" : i.workerChanged ? "error" : "warning"}
           variant="outlined"
-          icon={tampered ? <GppMaybeRoundedIcon /> : <VerifiedUserRoundedIcon />}
-          label={phone ? undefined : `${build.release} · ${build.commit}`}
-          aria-label={`${build.release} · ${build.commit}`}
-          sx={{ fontFamily: "monospace", ...(phone && { "& .MuiChip-label": { display: "none" }, "& .MuiChip-icon": { mx: "6px" } }) }}
+          icon={good ? <VerifiedUserRoundedIcon /> : <GppMaybeRoundedIcon />}
+          label={compact ? undefined : label}
+          aria-label={`${label}: ${tip}`}
+          sx={{
+            fontFamily: "monospace",
+            ...(compact && {
+              "& .MuiChip-label": { display: "none" },
+              "& .MuiChip-icon": { mx: "6px" },
+            }),
+          }}
         />
       </Tooltip>
-      <Tooltip title="Lock: close sessions and forget the vault key">
-        <IconButton size="small" onClick={() => void ipc.vaultLock()}>
-          <LockRoundedIcon fontSize="small" />
-        </IconButton>
-      </Tooltip>
-      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth fullScreen={phone}>
-        <DialogTitle>Build and integrity</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2}>
-            {tampered ? (
-              <Alert severity="error" variant="outlined">
-                sw.js changed on the server without a new signed manifest. The browser fetches the service worker itself,
-                so this can only be warned about. Lock now and compare the hash with the release page before unlocking.
-              </Alert>
-            ) : (
-              <Alert severity="success" variant="outlined">
-                Every file matched a manifest signed for {build.release} before the app started.
-              </Alert>
-            )}
-            <Box sx={{ display: "grid", gridTemplateColumns: "auto 1fr", columnGap: 2, rowGap: 0.75, fontSize: 14 }}>
-              <Typography variant="body2" color="text.secondary">Release</Typography><Typography variant="body2">{build.release} ({build.commit})</Typography>
-              <Typography variant="body2" color="text.secondary">Signed by</Typography><Typography variant="body2" fontFamily="monospace">{build.key}</Typography>
-              <Typography variant="body2" color="text.secondary">Termoso</Typography><Typography variant="body2" fontFamily="monospace">{build.termoso} (pinned tag)</Typography>
-              <Typography variant="body2" color="text.secondary">russh</Typography><Typography variant="body2" fontFamily="monospace">{build.russh}</Typography>
-              <Typography variant="body2" color="text.secondary">Relay</Typography><Typography variant="body2" fontFamily="monospace">relay.example.com · sees ciphertext only</Typography>
-            </Box>
+      <IntegrityDialog open={open} onClose={() => setOpen(false)} />
+    </>
+  );
+}
+
+function IntegrityDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const phone = usePhone();
+  const i = integrity();
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth fullScreen={phone}>
+      <DialogTitle>{tr("Build and integrity")}</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2}>
+          {i.workerChanged ? (
+            <Alert severity="error" variant="outlined">
+              {tr(
+                "sw.js on the server is not the one in the signed manifest. The browser updates the service worker on its own, so Hatch can only warn. Lock now and compare the manifest hash with the release page before you unlock again.",
+              )}
+            </Alert>
+          ) : i.status === "verified" ? (
+            <Alert severity="success" variant="outlined">
+              {tr("Every file matched the manifest signed for {version} before the app started.", {
+                version: i.version,
+              })}
+            </Alert>
+          ) : (
+            <Alert severity="warning" variant="outlined">
+              {tr("This build has no signed manifest. Use it for development only.")}
+            </Alert>
+          )}
+          <Box
+            sx={{ display: "grid", gridTemplateColumns: "auto 1fr", columnGap: 2, rowGap: 0.75 }}
+          >
+            <Typography variant="body2" color="text.secondary">
+              {tr("Release")}
+            </Typography>
+            <Typography variant="body2" sx={{ fontFamily: "monospace" }}>
+              {i.version} ({i.commit})
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {tr("Signed by")}
+            </Typography>
+            <Typography variant="body2" sx={{ fontFamily: "monospace" }}>
+              {i.keyId ?? "–"}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {tr("Manifest")}
+            </Typography>
+            <Typography variant="body2" sx={{ fontFamily: "monospace", wordBreak: "break-all" }}>
+              {i.manifestHash ?? "–"}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Termoso
+            </Typography>
+            <Typography variant="body2" sx={{ fontFamily: "monospace" }}>
+              {i.termoso}
+            </Typography>
+          </Box>
+          {i.files.length > 0 && (
             <Table size="small">
-              <TableHead><TableRow><TableCell>File</TableCell><TableCell>Size</TableCell><TableCell>SHA-256</TableCell><TableCell /></TableRow></TableHead>
+              <TableHead>
+                <TableRow>
+                  <TableCell>{tr("File")}</TableCell>
+                  <TableCell>{tr("Size")}</TableCell>
+                  <TableCell>SHA-256</TableCell>
+                </TableRow>
+              </TableHead>
               <TableBody>
-                {files.map(([f, size, h]) => (
-                  <TableRow key={f}>
-                    <TableCell sx={{ fontFamily: "monospace", fontSize: 12 }}>{f}</TableCell>
-                    <TableCell>{size}</TableCell>
-                    <TableCell sx={{ fontFamily: "monospace", fontSize: 12 }}>{h}</TableCell>
-                    <TableCell>{tampered && f === "sw.js" ? <Chip size="small" color="error" label="differs" /> : <Chip size="small" color="success" variant="outlined" label="ok" />}</TableCell>
+                {i.files.map((f) => (
+                  <TableRow key={f.path}>
+                    <TableCell
+                      sx={{ fontFamily: "monospace", fontSize: 12, wordBreak: "break-all" }}
+                    >
+                      {f.path}
+                    </TableCell>
+                    <TableCell sx={{ whiteSpace: "nowrap" }}>{size(f.size)}</TableCell>
+                    <TableCell sx={{ fontFamily: "monospace", fontSize: 12 }}>
+                      {f.sha256.slice(0, 12)}…
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-            <Typography variant="caption" color="text.secondary">
-              Reproduce: git checkout {build.release} && nix build .#web, then compare manifest.sha256.
-            </Typography>
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button color="inherit" onClick={() => setTampered(!tampered)}>{tampered ? "Simulate: back to normal" : "Simulate: loader changed"}</Button>
-          <Box sx={{ flex: 1 }} />
-          <Button variant="contained" onClick={() => setOpen(false)}>Close</Button>
-        </DialogActions>
-      </Dialog>
+          )}
+          <Typography variant="caption" color="text.secondary">
+            {tr("To check a release yourself, build the same tag and compare the manifest hash.")}
+          </Typography>
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button variant="contained" onClick={onClose}>
+          {tr("Close")}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+/** Top bar, web build: the build badge and a lock button. */
+export function WebControls() {
+  const phone = usePhone();
+  return (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0, ml: 1, mr: 1 }}>
+      <BuildBadge compact={phone} />
+      <Tooltip title={tr("Lock: close sessions and forget the vault key")}>
+        <IconButton size="small" aria-label={tr("Lock")} onClick={() => void ipc.vaultLock()}>
+          <LockRoundedIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
     </Box>
   );
 }

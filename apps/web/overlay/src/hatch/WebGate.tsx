@@ -1,57 +1,147 @@
-import { useState } from "react";
-import { Box, Button, CssBaseline, Stack, TextField, ThemeProvider, Typography } from "@mui/material";
-import VerifiedUserRoundedIcon from "@mui/icons-material/VerifiedUserRounded";
+import { useState, type SyntheticEvent } from "react";
+import {
+  Alert,
+  Box,
+  Button,
+  CssBaseline,
+  Stack,
+  TextField,
+  ThemeProvider,
+  Typography,
+} from "@mui/material";
 import { LogoMark } from "@/components/Logo";
 import { theme } from "@/theme/theme";
+import { tr } from "@/i18n";
+import { BuildBadge } from "./WebControls";
 
-// Web-only steps before Termoso's own lock screen: the Termoso account (OPAQUE) and approving
-// this browser as a device. Authentik comes later, on the first connect (relay ticket + opkssh).
-export function WebGate({ onDone }: { onDone: () => void }) {
-  const [step, setStep] = useState(1);
-  const titles = ["Sign in", "Termoso account", "Approve this browser"];
+const MIN = 8;
+
+/**
+ * First start in this browser: the lock password that encrypts this browser's copy of the vault
+ * (Argon2id, AES-GCM in IndexedDB). It plays the part of Termoso's master password; the Termoso
+ * account sign-in follows in the app, under Settings → Account.
+ */
+export function WebGate({ onSetUp }: { onSetUp: (password: string) => Promise<void> }) {
+  const [pw, setPw] = useState("");
+  const [again, setAgain] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const short = pw.length > 0 && pw.length < MIN;
+  const mismatch = again.length > 0 && again !== pw;
+  const ok = pw.length >= MIN && again === pw;
+
+  const submit = async (e: SyntheticEvent) => {
+    e.preventDefault();
+    if (!ok || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await onSetUp(pw);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : String((err as { message?: string } | null)?.message ?? err),
+      );
+      setBusy(false);
+    }
+  };
+
   return (
-    <ThemeProvider theme={theme} defaultMode="dark" noSsr>
+    <ThemeProvider theme={theme} defaultMode="system" noSsr>
       <CssBaseline enableColorScheme />
-      <Box sx={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", bgcolor: "surface.lowest", px: 3 }}>
-        <Stack spacing={3} sx={{ width: 380, maxWidth: "100%" }}>
+      <Box
+        sx={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          bgcolor: "surface.lowest",
+          px: 2,
+          py: 4,
+        }}
+      >
+        <Stack component="form" onSubmit={submit} spacing={3} sx={{ width: 400, maxWidth: "100%" }}>
           <Stack spacing={1.5} sx={{ alignItems: "center", textAlign: "center" }}>
             <LogoMark size={52} />
-            <Typography variant="h5" sx={{ fontWeight: 600, letterSpacing: "-0.01em" }}>{titles[step]}</Typography>
+            <Typography
+              variant="h5"
+              component="h1"
+              sx={{ fontWeight: 600, letterSpacing: "-0.01em" }}
+            >
+              {tr("Set a lock password")}
+            </Typography>
             <Typography variant="body2" color="text.secondary">
-              {step === 0 && "Your identity provider lets you reach this app and the relay. It can't open your vault."}
-              {step === 1 && "Your own Termoso server. Checked with OPAQUE: the server never sees your password."}
-              {step === 2 && "This browser is a new device. Approve it in Termoso on your phone or desktop and check that it shows the same words."}
+              {tr(
+                "It encrypts this browser's copy of your vault and unlocks Hatch on this computer. It is not your Termoso account password and never leaves this browser.",
+              )}
             </Typography>
           </Stack>
           <Box sx={{ p: 3, borderRadius: 3, bgcolor: "surface.high" }}>
-            {step === 0 && (
-              <Button variant="contained" fullWidth onClick={() => setStep(1)}>Continue with Authentik</Button>
-            )}
-            {step === 1 && (
-              <Stack spacing={2}>
-                <TextField fullWidth label="Server" defaultValue="https://termoso.example.com" slotProps={{ htmlInput: { readOnly: true } }} />
-                <TextField fullWidth label="Email" defaultValue="mike@example.com" />
-                <TextField fullWidth type="password" label="Account password" defaultValue="correct horse" />
-                <Button variant="contained" fullWidth onClick={() => setStep(2)}>Sign in</Button>
-              </Stack>
-            )}
-            {step === 2 && (
-              <Stack spacing={2} sx={{ alignItems: "center" }}>
-                <Typography sx={{ fontFamily: "monospace", fontSize: 18, fontWeight: 600 }}>harbor · violet · seven · kettle</Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ textAlign: "center" }}>
-                  Device key: P-256, created non-extractable in this browser.
-                </Typography>
-                <Button variant="contained" fullWidth onClick={onDone}>Simulate: approved on my phone</Button>
-              </Stack>
-            )}
+            <Stack spacing={2}>
+              <TextField
+                autoFocus
+                fullWidth
+                type="password"
+                label={tr("Lock password")}
+                value={pw}
+                onChange={(e) => setPw(e.target.value)}
+                error={short}
+                helperText={short ? tr("Use at least {count} characters", { count: MIN }) : " "}
+                disabled={busy}
+                slotProps={{ htmlInput: { autoComplete: "new-password", spellCheck: false } }}
+              />
+              <TextField
+                fullWidth
+                type="password"
+                label={tr("Repeat the lock password")}
+                value={again}
+                onChange={(e) => setAgain(e.target.value)}
+                error={mismatch}
+                helperText={mismatch ? tr("The passwords differ") : " "}
+                disabled={busy}
+                slotProps={{ htmlInput: { autoComplete: "new-password", spellCheck: false } }}
+              />
+              {error && <Alert severity="error">{error}</Alert>}
+              <Button type="submit" variant="contained" fullWidth disabled={!ok || busy}>
+                {busy ? tr("Setting up…") : tr("Continue")}
+              </Button>
+            </Stack>
           </Box>
-          <Stack direction="row" spacing={1} sx={{ justifyContent: "center", alignItems: "center", color: "success.main" }}>
-            <VerifiedUserRoundedIcon sx={{ fontSize: 16 }} />
-            <Typography variant="caption">Signed build v0.1.0 · 3f9c2e1 · every file checked</Typography>
-          </Stack>
           <Typography variant="caption" color="text.secondary" sx={{ textAlign: "center" }}>
-            Mockup with example data. Next comes Termoso's own vault unlock; any password works.
+            {tr(
+              "Next: sign in to your Termoso account (the person icon at the top) to sync your hosts and keys.",
+            )}
           </Typography>
+          <Box sx={{ display: "flex", justifyContent: "center" }}>
+            <BuildBadge />
+          </Box>
+        </Stack>
+      </Box>
+    </ThemeProvider>
+  );
+}
+
+/** Shown when the app cannot start: config.json or the WebAssembly module is missing. */
+export function StartError({ message }: { message: string }) {
+  return (
+    <ThemeProvider theme={theme} defaultMode="system" noSsr>
+      <CssBaseline enableColorScheme />
+      <Box
+        sx={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          bgcolor: "surface.lowest",
+          px: 2,
+        }}
+      >
+        <Stack spacing={2} sx={{ width: 480, maxWidth: "100%" }}>
+          <Typography variant="h5" component="h1">
+            {tr("Hatch cannot start")}
+          </Typography>
+          <Alert severity="error">{message}</Alert>
         </Stack>
       </Box>
     </ThemeProvider>

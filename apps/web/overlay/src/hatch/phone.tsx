@@ -1,5 +1,13 @@
 import { useState } from "react";
-import { BottomNavigation, BottomNavigationAction, Box, ButtonBase, Drawer, Paper, useMediaQuery } from "@mui/material";
+import {
+  BottomNavigation,
+  BottomNavigationAction,
+  Box,
+  ButtonBase,
+  Drawer,
+  Paper,
+  useMediaQuery,
+} from "@mui/material";
 import DnsRoundedIcon from "@mui/icons-material/DnsRounded";
 import KeyRoundedIcon from "@mui/icons-material/KeyRounded";
 import GppGoodRoundedIcon from "@mui/icons-material/GppGoodRounded";
@@ -11,6 +19,7 @@ import { Sidebar } from "@/app/Sidebar";
 import { activeTab } from "@/terminal/store";
 import { focusPane } from "@/terminal/store";
 import * as ipc from "@/ipc/commands";
+import { tr } from "@/i18n";
 import { monoFontFamily } from "@/theme/theme";
 
 /** Phone layout in the web build only: the desktop window never gets this narrow. */
@@ -27,7 +36,11 @@ export function PhoneNav() {
   const main = ["hosts", "keychain", "knownHosts"] as const;
   const value = (main as readonly string[]).includes(section) ? section : "more";
   return (
-    <Paper square elevation={0} sx={{ borderTop: 1, borderColor: "border.light", pb: "env(safe-area-inset-bottom, 0px)" }}>
+    <Paper
+      square
+      elevation={0}
+      sx={{ borderTop: 1, borderColor: "border.light", pb: "env(safe-area-inset-bottom, 0px)" }}
+    >
       <BottomNavigation
         showLabels
         value={value}
@@ -38,11 +51,19 @@ export function PhoneNav() {
           else goToSection(v as (typeof main)[number]);
         }}
       >
-        <BottomNavigationAction value="hosts" label="Hosts" icon={<DnsRoundedIcon />} />
-        <BottomNavigationAction value="keychain" label="Keychain" icon={<KeyRoundedIcon />} />
-        <BottomNavigationAction value="knownHosts" label="Known hosts" icon={<GppGoodRoundedIcon />} />
-        <BottomNavigationAction value="settings" label="Settings" icon={<SettingsRoundedIcon />} />
-        <BottomNavigationAction value="more" label="More" icon={<MenuRoundedIcon />} />
+        <BottomNavigationAction value="hosts" label={tr("Hosts")} icon={<DnsRoundedIcon />} />
+        <BottomNavigationAction value="keychain" label={tr("Keychain")} icon={<KeyRoundedIcon />} />
+        <BottomNavigationAction
+          value="knownHosts"
+          label={tr("Known hosts")}
+          icon={<GppGoodRoundedIcon />}
+        />
+        <BottomNavigationAction
+          value="settings"
+          label={tr("Settings")}
+          icon={<SettingsRoundedIcon />}
+        />
+        <BottomNavigationAction value="more" label={tr("More")} icon={<MenuRoundedIcon />} />
       </BottomNavigation>
       <Drawer anchor="left" open={more} onClose={() => setMore(false)}>
         <Box onClick={() => setMore(false)} sx={{ height: "100%", display: "flex" }}>
@@ -55,9 +76,18 @@ export function PhoneNav() {
 
 // Keys a phone keyboard lacks. Sent straight to the session, like typed input.
 const KEYS: [string, string][] = [
-  ["Esc", "\x1b"], ["Tab", "\t"], ["Ctrl-C", "\x03"], ["Ctrl-D", "\x04"],
-  ["←", "\x1b[D"], ["↑", "\x1b[A"], ["↓", "\x1b[B"], ["→", "\x1b[C"],
-  ["|", "|"], ["~", "~"], ["/", "/"], ["-", "-"],
+  ["Esc", "\x1b"],
+  ["Tab", "\t"],
+  ["Ctrl-C", "\x03"],
+  ["Ctrl-D", "\x04"],
+  ["←", "\x1b[D"],
+  ["↑", "\x1b[A"],
+  ["↓", "\x1b[B"],
+  ["→", "\x1b[C"],
+  ["|", "|"],
+  ["~", "~"],
+  ["/", "/"],
+  ["-", "-"],
 ];
 
 export function PhoneKeyBar() {
@@ -70,8 +100,15 @@ export function PhoneKeyBar() {
   return (
     <Box
       sx={{
-        display: "flex", gap: 0.75, px: 1, py: 0.75, overflowX: "auto", flexShrink: 0,
-        bgcolor: "surface.lowest", borderTop: 1, borderColor: "border.light",
+        display: "flex",
+        gap: 0.75,
+        px: 1,
+        py: 0.75,
+        overflowX: "auto",
+        flexShrink: 0,
+        bgcolor: "surface.lowest",
+        borderTop: 1,
+        borderColor: "border.light",
         pb: "max(6px, env(safe-area-inset-bottom, 0px))",
       }}
     >
@@ -82,8 +119,15 @@ export function PhoneKeyBar() {
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => send(seq)}
           sx={{
-            minWidth: 44, height: 36, px: 1.25, borderRadius: 1, flexShrink: 0,
-            bgcolor: "surface.high", color: "text.primary", fontFamily: monoFontFamily, fontSize: 13,
+            minWidth: 44,
+            height: 36,
+            px: 1.25,
+            borderRadius: 1,
+            flexShrink: 0,
+            bgcolor: "surface.high",
+            color: "text.primary",
+            fontFamily: monoFontFamily,
+            fontSize: 13,
           }}
         >
           {label}

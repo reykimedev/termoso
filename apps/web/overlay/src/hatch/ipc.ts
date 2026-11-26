@@ -1,14 +1,305 @@
+// The desktop's Tauri commands, served in the browser. Termoso's frontend calls `invoke(...)` as
+// on the desktop; mockIPC routes each call to the web backend (vault in IndexedDB, Termoso account
+// over REST, SSH in hatch-wasm through the relay). Commands the browser cannot do (local files,
+// SFTP, port forwarding, serial, agent, updates) answer empty or with a clear "not in the browser".
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
 import { emit } from "@tauri-apps/api/event";
-(window as unknown as { __emit: typeof emit }).__emit = emit;
-import { fixtures } from "./fixtures";
+import * as account from "./backend/account";
+import { call, normalizeServer } from "./backend/api";
+import { config } from "./backend/config";
+import * as db from "./backend/db";
+import { asDesktopError, fail } from "./backend/errors";
+import * as m from "./backend/model";
+import * as oidc from "./backend/oidc";
+import { defaultSettings } from "./backend/settings";
+import * as st from "./backend/state";
+import * as term from "./backend/terminal";
+import { TERMOSO_VERSION } from "./build";
+import { integrity } from "./integrity";
+import { tr } from "@/i18n";
+
+// The UI sends each command's arguments as the desktop's types; they are passed on as such.
+/* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */
+type Args = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+type Handler = (a: Args) => unknown;
+
+const MIN_PASSWORD = 8;
+
+/** Theme and language survive the lock, so the lock screen looks like the app. Not secret. */
+const UI_KEY = "hatch.ui";
+function rememberUi(s: Record<string, unknown>) {
+  try {
+    localStorage.setItem(UI_KEY, JSON.stringify({ theme: s.theme, language: s.language }));
+  } catch {
+    /* private mode */
+  }
+}
+function lockedSettings(): Record<string, unknown> {
+  let ui: Record<string, unknown> = {};
+  try {
+    ui = JSON.parse(localStorage.getItem(UI_KEY) ?? "{}") as Record<string, unknown>;
+  } catch {
+    /* ignore */
+  }
+  return { ...defaultSettings(), ...ui };
+}
+
+function vaultStatus() {
+  return {
+    locked: !st.isUnlocked(),
+    passwordProtected: true,
+    masterSource: "password",
+    minPasswordChars: MIN_PASSWORD,
+  };
+}
+
+// ── idle lock (Settings → Security → lock after) ────────────────────────
+let idle: ReturnType<typeof setTimeout> | null = null;
+function touch() {
+  if (idle) clearTimeout(idle);
+  idle = null;
+  if (!st.isUnlocked()) return;
+  const minutes = Number(st.s().settings.lockAfterMinutes ?? 0);
+  if (minutes > 0) idle = setTimeout(() => void lockNow(), minutes * 60_000);
+}
+
+async function lockNow() {
+  if (!st.isUnlocked()) return;
+  if (idle) clearTimeout(idle);
+  idle = null;
+  term.closeAll();
+  account.stopSync();
+  oidc.forget();
+  await st.lock();
+}
+
+async function unlock(password: string) {
+  // The loader saw a service worker on the server that no signed release contains: this load is
+  // still the checked one, the next may not be. Don't open the vault on it.
+  if (integrity().workerChanged)
+    fail(
+      "integrity",
+      "This Hatch changed on the server outside a signed release. Compare the manifest hash with the release page before you unlock.",
+    );
+  if (!(await st.unlock(password))) fail("wrong_password", "Wrong password");
+  rememberUi(st.s().settings);
+  touch();
+  if (st.s().account) {
+    account.startSync();
+    void account
+      .refreshVaults()
+      .then(() => account.syncNow())
+      .catch(() => undefined);
+  }
+  void emit("vault", { type: "unlocked" });
+  return vaultStatus();
+}
+
+const notInBrowser = (what: string) => () =>
+  fail("unsupported", "{what} is not available in the browser.", { what: tr(what) });
+
+const commands: Record<string, Handler> = {
+  // window and app
+  "plugin:window|is_maximized": () => false,
+  "plugin:window|is_fullscreen": () => false,
+  app_info: () => ({
+    version: TERMOSO_VERSION,
+    profileDir: "",
+    deviceId: db.deviceId(),
+    masterKeySource: "password",
+    signedIn: st.isUnlocked() && st.s().account !== null,
+    platform: "web",
+  }),
+  app_quit: () => lockNow(),
+  launch_files: () => [],
+  launch_links: () => [],
+  deep_links_register: () => null,
+  update_check: () => null,
+
+  // vault and lock password
+  vault_status: () => vaultStatus(),
+  vault_unlock: (a) => unlock(String(a.password ?? "")),
+  vault_lock: async () => {
+    await lockNow();
+    return vaultStatus();
+  },
+  vault_activity: () => {
+    touch();
+    return null;
+  },
+  master_password_set: async (a) => {
+    const next = String(a.password ?? "");
+    if (next.length < MIN_PASSWORD)
+      fail("invalid", "Use at least {count} characters", { count: MIN_PASSWORD });
+    if (!(await db.unlock(String(a.current ?? "")))) fail("wrong_password", "Wrong password");
+    await st.changePassword(next);
+    return vaultStatus();
+  },
+  master_password_remove: notInBrowser("A vault without a lock password"),
+  master_key_migrate: () => "password",
+  vaults_list: () => account.vaultsView(),
+  vault_default: () => account.vaultsView().find((v) => v.is_default) ?? account.vaultsView()[0],
+  vault_session_logging_set: () => null,
+
+  // settings
+  settings_get: () => (st.isUnlocked() ? st.s().settings : lockedSettings()),
+  settings_set: (a) => {
+    const s = st.s();
+    s.settings = { ...s.settings, ...(a.settings as Record<string, unknown>) };
+    st.changed();
+    rememberUi(s.settings);
+    touch();
+    return s.settings;
+  },
+  workspaces_get: () => st.s().settings["hatch.workspaces"] ?? { templates: [], lastSession: null },
+  workspaces_set: (a) => {
+    st.s().settings["hatch.workspaces"] = a.workspaces;
+    st.changed();
+    return a.workspaces;
+  },
+
+  // account
+  account_status: () => account.accountStatus(),
+  account_server_info: (a) =>
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- an empty form field means the default
+    call(normalizeServer(String(a.serverUrl || config().termosoServer)), "GET", "server/info"),
+  account_login: (a) => account.login(a.form),
+  account_mfa: (a) => account.mfa(a.credential),
+  account_mfa_email_send: () => account.mfaEmailSend(),
+  account_device_approve: (a) => account.approveDevice(String(a.code ?? "")),
+  account_device_resend: () => account.resendDeviceCode(),
+  account_cancel_login: () => account.cancelLogin(),
+  account_sign_out: () => account.signOut(),
+  account_sync_now: async () => {
+    await account.syncNow();
+    return account.syncStatus();
+  },
+  account_profile: () => account.authed("GET", "account"),
+  account_devices: async () => {
+    const r = await account.authed<{ devices?: unknown[] } | unknown[]>("GET", "account/devices");
+    return Array.isArray(r) ? r : (r.devices ?? []);
+  },
+  account_register: (a) => account.register(a.form),
+  account_sso_discover: () => null,
+  account_sso_start: notInBrowser("Single sign-on to Termoso"),
+  teams_list: () => [],
+  acl_me: () => null,
+  user_avatar: () => null,
+
+  // hosts, groups, tags
+  hosts_list: (a) => m.hostCards(a.vaultId ?? null),
+  host_form: (a) => m.hostForm(a.id),
+  host_save: (a) => m.hostSave(a.form),
+  host_delete: (a) => m.hostDelete(a.id),
+  hosts_delete: (a) => {
+    for (const id of a.ids as string[]) m.hostDelete(id);
+    return null;
+  },
+  host_duplicate: (a) => m.hostDuplicate(a.id),
+  hosts_move: (a) => m.hostsMove(a.ids, a.groupId ?? null),
+  host_inherited: (a) => m.inherited(a.groupId ?? null),
+  groups_list: (a) => m.groupNodes(a.vaultId ?? null),
+  group_save: (a) => m.groupSave(a as Parameters<typeof m.groupSave>[0]),
+  group_form: (a) => m.groupForm(a.id),
+  group_save_form: (a) => m.groupSaveForm(a.form),
+  group_delete: (a) => m.groupDelete(a.id, !!a.recursive),
+  tags_list: (a) => m.tags(a.vaultId ?? null),
+  entity_delete: (a) => {
+    st.remove(a.id);
+    return null;
+  },
+
+  // keychain
+  identities_list: (a) => m.identityCards(a.vaultId ?? null),
+  identity_save: (a) => m.identitySave(a.form),
+  identity_delete: (a) => {
+    st.remove(a.id);
+    return null;
+  },
+  keys_list: (a) => m.keyCards(a.vaultId ?? null),
+  key_inspect: (a) => m.keyInspect(String(a.text ?? "")),
+  certificate_inspect: (a) => m.certificateInspect(String(a.text ?? "")),
+  key_generate: (a) => m.keyGenerate(a.form),
+  key_import: (a) => m.keyImport(a.form),
+  key_rename: (a) => m.keyRename(a.id, a.label),
+  key_delete: (a) => m.keyDelete(a.id),
+  key_public: (a) => m.keyPublic(a.id),
+  key_certificate: (a) => m.keyCertificate(a.id),
+  key_set_certificate: (a) => m.keySetCertificate(a.id, a.certificate ?? null),
+  key_remember_passphrase: (a) => m.keyRememberPassphrase(a.id, a.passphrase ?? null),
+  key_inspect_file: notInBrowser("Reading key files from disk"),
+  key_import_file: notInBrowser("Reading key files from disk"),
+  key_export_file: notInBrowser("Saving files to disk"),
+  agent_keys: () => [],
+  agent_server_status: () => null,
+
+  // known hosts: only from the vault or pasted by hand, never learned from a connection
+  known_hosts_list: () => m.knownHostCards(),
+  known_host_forget: (a) => m.knownHostForget(a.id),
+  known_host_forget_host: (a) => m.knownHostForgetHost(a.hostname),
+  known_hosts_export_text: () => m.knownHostsExportText(),
+  known_hosts_default_path: () => null,
+  known_hosts_import_text: notInBrowser(
+    "Importing known_hosts (pin keys in the Termoso app or paste one on the host)",
+  ),
+  known_hosts_import_file: notInBrowser("Importing known_hosts"),
+  host_key_pins: (a) => m.hostKeyPins(String(a.host ?? ""), Number(a.port ?? 22)),
+  host_key_pin: (a) => m.hostKeyPin(a as Parameters<typeof m.hostKeyPin>[0]),
+  host_key_unpin: (a) => {
+    st.remove(a.id);
+    return null;
+  },
+
+  // terminal
+  terminal_open: (a) => term.open(a as Parameters<typeof term.open>[0]),
+  terminal_attach: (a) => term.attach(a as Parameters<typeof term.attach>[0]),
+  terminal_write: (a) => term.write(a as Parameters<typeof term.write>[0]),
+  terminal_resize: (a) => term.resize(a as Parameters<typeof term.resize>[0]),
+  terminal_close: (a) => term.close(a as Parameters<typeof term.close>[0]),
+  terminal_list_dir: () => [],
+  terminal_host_identity: () => null,
+  prompt_answer: (a) => term.promptAnswer(a.id, a.answer),
+  sessions_list: () => term.list(),
+  history_connections: () => [],
+  history_commands: () => [],
+  history_record_command: () => null,
+
+  // what a browser tab has no access to
+  local_list: () => ({ path: "/", parent: null, entries: [] }),
+  local_home: () => "/",
+  local_drives: () => [],
+  local_shells: () => [],
+  edits_list: () => [],
+  serial_ports: () => [],
+  file_cache_settings: () => ({ enabled: false, maxMb: 0 }),
+  ai_status: () => ({ enabled: false, available: false }),
+  multiplayer_info: () => null,
+  sftp_open: notInBrowser("SFTP"),
+  pf_start: notInBrowser("Port forwarding"),
+  snippet_run: notInBrowser("Running snippets on several hosts"),
+};
+
+/** Writes the user made: queue them for the next push to the Termoso server. */
+const WRITE =
+  /(_save|_delete|_duplicate|_move|_generate|_import|_rename|_set_|_remember_|_forget|_pin$|_unpin$|^tag_|^tags_merge)/;
 
 mockWindows("main");
-mockIPC((cmd, args) => {
-  const f = (fixtures as Record<string, unknown>)[cmd];
-  const out = typeof f === "function" ? (f as (a: unknown) => unknown)(args) : f;
-  if (f === undefined) console.log("[ipc-miss]", cmd, JSON.stringify(args ?? {}).slice(0, 160));
-  if (out !== undefined) return out;
-  if (/_list$|^list_/.test(cmd)) return [];
-  return null;
-}, { shouldMockEvents: true });
+mockIPC(
+  async (cmd, args) => {
+    const a = (args ?? {}) as Args;
+    const h = commands[cmd];
+    try {
+      if (!h) {
+        if (import.meta.env.DEV) console.debug("[hatch] no handler for", cmd);
+        if (/_list$|^list_|s_list$/.test(cmd)) return [];
+        return null;
+      }
+      const out = await h(a);
+      if (WRITE.test(cmd) && st.isUnlocked() && st.s().account) account.schedulePush();
+      return out;
+    } catch (e) {
+      throw asDesktopError(e);
+    }
+  },
+  { shouldMockEvents: true },
+);

@@ -79,6 +79,13 @@ impl Allowlist {
         })
     }
 
+    /// Lets the relay's own tests dial a loopback echo server. Never compiled into the binary.
+    #[cfg(test)]
+    pub(crate) fn allow_loopback_for_tests(&mut self) {
+        let lo: IpNet = "127.0.0.0/8".parse().expect("static range");
+        self.deny.retain(|n| *n != lo);
+    }
+
     pub fn rule_count(&self) -> usize {
         self.allow.len()
     }
