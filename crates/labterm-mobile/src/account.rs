@@ -1649,7 +1649,7 @@ fn apply_report(s: &mut SyncStatus, r: &SyncReport) {
     s.last_sync_at = Some(labterm_proto::timestamp::to_rfc3339(
         OffsetDateTime::now_utc(),
     ));
-    s.last_error = r.errors.first().map(|(id, code)| format!("{code} ({id})"));
+    s.last_error = r.error_message();
     s.pushed = u32::try_from(r.pushed).unwrap_or(u32::MAX);
     s.pulled = u32::try_from(r.pulled).unwrap_or(u32::MAX);
     s.conflicts = u32::try_from(r.conflicts).unwrap_or(u32::MAX);
@@ -1688,6 +1688,7 @@ mod tests {
             errors: vec![(Uuid::nil(), "too_large".into())],
             history: (0, 0),
             logs: (0, 0),
+            unknown_kinds: Vec::new(),
         };
         apply_report(&mut s, &r);
         assert_eq!(s.state, SyncState::Idle);

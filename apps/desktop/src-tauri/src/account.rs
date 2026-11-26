@@ -992,7 +992,7 @@ fn apply_report(s: &mut SyncStatus, r: &SyncReport) {
         SyncState::Offline
     };
     s.last_sync_at = Some(OffsetDateTime::now_utc());
-    s.last_error = r.errors.first().map(|(id, code)| format!("{code} ({id})"));
+    s.last_error = r.error_message();
     s.pushed = r.pushed;
     s.pulled = r.pulled;
     s.conflicts = r.conflicts;
