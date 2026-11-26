@@ -92,3 +92,14 @@ updates:
       - dependency-name: node
         update-types: ["version-update:semver-major"]
     labels: [area:deps, area:deploy]
+
+  # The embedded NetBird client. NetBird pins its pion modules (stun, dtls, ice,
+  # transport) as one set; a bump of one alone breaks the build (pion/stun 3.1.5
+  # moved to pion/transport v4, PR #58). They move with the NetBird version.
+  - package-ecosystem: gomod
+    directory: /crates/labterm-netbird/go
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    ignore:
+      - dependency-name: "github.com/pion/*"
+    labels: [area:deps]
