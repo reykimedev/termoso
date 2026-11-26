@@ -4,12 +4,12 @@
 mod common;
 
 use common::*;
+use labterm_proto::auth::{AuthResponse, DeviceApproveRequest};
+use labterm_proto::ca::*;
+use labterm_proto::sshid::SshIdKeyType;
 use reqwest::{Method, StatusCode};
 use ssh_key::certificate::CertType;
 use ssh_key::{Certificate, HashAlg, PrivateKey, PublicKey};
-use termoso_proto::auth::{AuthResponse, DeviceApproveRequest};
-use termoso_proto::ca::*;
-use termoso_proto::sshid::SshIdKeyType;
 
 macro_rules! server {
     () => {

@@ -23,8 +23,8 @@ less if the fix is quick.
 ## Scope
 
 In scope: everything in this repository — the server and its API, all
-clients, the cryptographic design in `crates/termoso-crypto` and
-`crates/termoso-proto`, the deployment files, the release pipeline. Bugs that
+clients, the cryptographic design in `crates/labterm-crypto` and
+`crates/labterm-proto`, the deployment files, the release pipeline. Bugs that
 let the server or another user read vault contents, bypass MFA or device
 approval, escalate team roles, or make a client trust the wrong SSH host key
 are the highest priority.

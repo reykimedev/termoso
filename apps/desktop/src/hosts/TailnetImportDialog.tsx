@@ -208,7 +208,7 @@ function Body({ vaultId, onClose, onImported }: Omit<Props, "open">) {
         {scan.kind === "done" && !scan.error && installed.length === 0 && (
           <Alert severity="info" variant="outlined" data-testid="tailnet-none">
             {tr(
-              "No Tailscale, NetBird or ZeroTier client found on this computer. Termoso reads the device list from the local client — install one and sign in, then refresh.",
+              "No Tailscale, NetBird or ZeroTier client found on this computer. Labterm reads the device list from the local client — install one and sign in, then refresh.",
             )}
           </Alert>
         )}

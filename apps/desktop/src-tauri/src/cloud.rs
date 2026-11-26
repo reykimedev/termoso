@@ -13,12 +13,12 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::{Mutex, OnceLock};
 
-use serde::{Deserialize, Serialize};
-use termoso_core::cloud::{
+use labterm_core::cloud::{
     AddressType, AwsService, CloudClient, CloudConfig, CloudInstance, CloudProvider, Endpoints,
 };
-use termoso_core::model::{Entity, Group, Host, Tag};
-use termoso_core::store::Store;
+use labterm_core::model::{Entity, Group, Host, Tag};
+use labterm_core::store::Store;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::error::{DesktopError, Result};
@@ -412,9 +412,9 @@ fn refresh(store: &Store, h: &Entity<Host>, inst: &CloudInstance, address: &str)
 #[cfg(test)]
 mod tests {
     use super::*;
-    use termoso_core::cloud::CloudError;
-    use termoso_core::model::{Identity, SshConfig};
-    use termoso_core::termoso_crypto::keys::SymmetricKey;
+    use labterm_core::cloud::CloudError;
+    use labterm_core::labterm_crypto::keys::SymmetricKey;
+    use labterm_core::model::{Identity, SshConfig};
 
     fn store() -> Store {
         Store::open_in_memory(SymmetricKey::generate()).expect("store")

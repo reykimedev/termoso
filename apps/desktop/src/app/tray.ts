@@ -36,12 +36,12 @@ export function quitApp(): void {
 async function create(): Promise<void> {
   const show = await MenuItem.new({
     id: "tray.show",
-    text: tr("Show Termoso"),
+    text: tr("Show Labterm"),
     action: () => void bringToFront(),
   });
   const quit = await MenuItem.new({
     id: "tray.quit",
-    text: tr("Quit Termoso"),
+    text: tr("Quit Labterm"),
     action: quitApp,
   });
   const menu = await Menu.new({
@@ -52,7 +52,7 @@ async function create(): Promise<void> {
     id: TRAY_ID,
     icon: icon ?? undefined,
     menu,
-    tooltip: "Termoso",
+    tooltip: "Labterm",
     showMenuOnLeftClick: false,
     action: (ev) => {
       if (ev.type === "Click" && ev.button === "Left" && ev.buttonState === "Up") {
@@ -112,8 +112,8 @@ export function startTray(): () => void {
       else unlistenClose = un;
     });
   const unlistenLanguage = onLanguageChange(() => {
-    void showItem?.setText(tr("Show Termoso"));
-    void quitItem?.setText(tr("Quit Termoso"));
+    void showItem?.setText(tr("Show Labterm"));
+    void quitItem?.setText(tr("Quit Labterm"));
   });
   return () => {
     stopped = true;

@@ -3,9 +3,9 @@
 use axum::Json;
 use axum::extract::{Query, State};
 use chrono::{DateTime, Utc};
+use labterm_crypto::encoding::unb64;
+use labterm_proto::sync::*;
 use serde::Deserialize;
-use termoso_crypto::encoding::unb64;
-use termoso_proto::sync::*;
 use uuid::Uuid;
 
 use crate::error::{ApiResult, Error, NoContent};

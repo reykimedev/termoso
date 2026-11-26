@@ -10,12 +10,12 @@ use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use chrono::{DateTime, Utc};
+use labterm_crypto::encoding::unb64;
+use labterm_proto::logs::*;
+use labterm_proto::sync::MAX_BATCH;
+use labterm_proto::vault::VaultKind;
 use serde::Deserialize;
 use sqlx::AssertSqlSafe;
-use termoso_crypto::encoding::unb64;
-use termoso_proto::logs::*;
-use termoso_proto::sync::MAX_BATCH;
-use termoso_proto::vault::VaultKind;
 use uuid::Uuid;
 
 use crate::audit;

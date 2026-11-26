@@ -3,7 +3,7 @@
 //! never escapes the root or keeps `.`/`..` segments.
 
 use libfuzzer_sys::fuzz_target;
-use termoso_core::webdav::{normalize_fingerprint, normalize_path, normalize_url};
+use labterm_core::webdav::{normalize_fingerprint, normalize_path, normalize_url};
 
 fuzz_target!(|data: &[u8]| {
     let Ok(s) = std::str::from_utf8(data) else { return };

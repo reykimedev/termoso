@@ -1,15 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Termoso mark shared with the desktop/web clients (favicon.svg 64-unit grid mapped onto the
-     72dp visible area of the adaptive icon: x' = 18 + 1.125x). -->
+<!-- Labterm mark (labdex lantern with a prompt, line version), the 32-unit grid of the desktop
+     favicon.svg mapped onto the 72dp visible area of the adaptive icon: x' = 18 + 2.25x. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path
-        android:fillColor="#2BB884"
-        android:pathData="M36,40.5 h36 v9 H58.5 v22.5 h-9 V49.5 H36 z" />
-    <path
-        android:fillColor="#5AA9E6"
-        android:pathData="M67.5,63 h4.5 a2.25,2.25 0 0 1 2.25,2.25 v4.5 a2.25,2.25 0 0 1 -2.25,2.25 h-4.5 a2.25,2.25 0 0 1 -2.25,-2.25 v-4.5 a2.25,2.25 0 0 1 2.25,-2.25 z" />
+    <group
+        android:scaleX="2.25"
+        android:scaleY="2.25"
+        android:translateX="18"
+        android:translateY="18">
+        <path
+            android:pathData="M13.2 7.6a2.8 2.8 0 0 1 5.6 0"
+            android:strokeColor="#F59A23"
+            android:strokeWidth="1.8"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M11.4 8.2h9.2l2.4 3H9z"
+            android:fillColor="#F59A23" />
+        <path
+            android:pathData="M10.2 11.2h11.6v12.3a1.8 1.8 0 0 1-1.8 1.8h-8a1.8 1.8 0 0 1-1.8-1.8z"
+            android:strokeColor="#F59A23"
+            android:strokeWidth="2" />
+        <path
+            android:pathData="M12.9,15.3l2.7,2.7l-2.7,2.7"
+            android:strokeColor="#F59A23"
+            android:strokeWidth="1.9"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M16.9,20.7h2.2"
+            android:strokeColor="#F59A23"
+            android:strokeWidth="1.9"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M8.6 25.6h14.8"
+            android:strokeColor="#F59A23"
+            android:strokeWidth="2.2"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+    </group>
 </vector>

@@ -2,8 +2,8 @@
 //! SSO-only sign-in and hiding personal vaults. All of it lives in the admin
 //! `ServerSettings`, so the operator switches it on from the cabinet.
 
-use termoso_proto::account::HomeTeam;
-use termoso_proto::admin::ServerSettings;
+use labterm_proto::account::HomeTeam;
+use labterm_proto::admin::ServerSettings;
 use uuid::Uuid;
 
 use crate::audit;
@@ -82,7 +82,7 @@ pub async fn sso_required(state: &AppState, email: &str) -> Error {
     let provider = provider_for(state, email).await;
     Error::new(
         axum::http::StatusCode::UNAUTHORIZED,
-        termoso_proto::error::codes::SSO_REQUIRED,
+        labterm_proto::error::codes::SSO_REQUIRED,
         "This server accepts single sign-on only",
     )
     .with_details(serde_json::json!({ "provider": provider }))
@@ -111,7 +111,7 @@ pub async fn require_team_sso(state: &AppState, sso_verified: bool, email: &str)
     let provider = crate::policy::resolve_provider(team_id, provider);
     Err(Error::new(
         axum::http::StatusCode::UNAUTHORIZED,
-        termoso_proto::error::codes::SSO_REQUIRED,
+        labterm_proto::error::codes::SSO_REQUIRED,
         format!(
             "{team_name} requires signing in through its identity provider for this e-mail domain"
         ),

@@ -3,17 +3,17 @@
 mod common;
 
 use common::*;
-use reqwest::{Method, StatusCode};
-use termoso_crypto::keys::KeyPair;
-use termoso_crypto::sealed;
-use termoso_proto::auth::DeviceList;
-use termoso_proto::bridge::*;
-use termoso_proto::sync::{
+use labterm_crypto::keys::KeyPair;
+use labterm_crypto::sealed;
+use labterm_proto::auth::DeviceList;
+use labterm_proto::bridge::*;
+use labterm_proto::sync::{
     EntityChange, PullRequest, PullResponse, PushRequest, PushResponse, PushResult,
 };
-use termoso_proto::vault::{
+use labterm_proto::vault::{
     RotateVaultKeyRequest, RotateVaultKeyResponse, SealedKeyFor, VaultList,
 };
+use reqwest::{Method, StatusCode};
 use uuid::Uuid;
 
 macro_rules! server {

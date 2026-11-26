@@ -9,12 +9,12 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use labterm_core::hostkey::{FixedPrompt, HostKeyDecision, KnownHosts, StrictPrompt};
+use labterm_core::ssh::{AuthMethod, ConnectOptions, SshClient, SshTarget};
+use labterm_core::store::Store;
+use labterm_crypto::keys::SymmetricKey;
+use labterm_proto::entities::payload::{Group, Host, Identity, KnownHost, SshConfig, SshKey};
 use serde::Serialize;
-use termoso_core::hostkey::{FixedPrompt, HostKeyDecision, KnownHosts, StrictPrompt};
-use termoso_core::ssh::{AuthMethod, ConnectOptions, SshClient, SshTarget};
-use termoso_core::store::Store;
-use termoso_crypto::keys::SymmetricKey;
-use termoso_proto::entities::payload::{Group, Host, Identity, KnownHost, SshConfig, SshKey};
 use uuid::Uuid;
 use zeroize::Zeroizing;
 
@@ -232,7 +232,7 @@ pub async fn run(
     if !t.known_hosts.is_empty() {
         let _ = kh.import_openssh(&t.known_hosts);
     }
-    let prompt: Arc<dyn termoso_core::hostkey::HostKeyPrompt> = if strict_host_key {
+    let prompt: Arc<dyn labterm_core::hostkey::HostKeyPrompt> = if strict_host_key {
         Arc::new(StrictPrompt)
     } else {
         Arc::new(FixedPrompt(HostKeyDecision::AcceptOnce))
@@ -286,16 +286,16 @@ fn clip(bytes: &[u8]) -> (String, bool) {
 pub async fn resolve_secrets(t: &mut Target) -> Result<()> {
     for m in &mut t.auth {
         match m {
-            AuthMethod::Password(p) if termoso_core::extsecret::is_reference(p) => {
-                *p = termoso_core::extsecret::resolve(p)
+            AuthMethod::Password(p) if labterm_core::extsecret::is_reference(p) => {
+                *p = labterm_core::extsecret::resolve(p)
                     .await
                     .map_err(|e| BridgeError::Invalid(e.to_string()))?;
             }
             AuthMethod::Key {
                 passphrase: Some(p),
                 ..
-            } if termoso_core::extsecret::is_reference(p) => {
-                *p = termoso_core::extsecret::resolve(p)
+            } if labterm_core::extsecret::is_reference(p) => {
+                *p = labterm_core::extsecret::resolve(p)
                     .await
                     .map_err(|e| BridgeError::Invalid(e.to_string()))?;
             }

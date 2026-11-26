@@ -15,7 +15,7 @@ code; the user-facing summary lives in the [README](../README.md).
    with a *local vault* that never leaves the device. Signing in adds
    personal/team vaults that synchronise; it never becomes a requirement.
 3. **One core, thin shells.** Everything that is not pixels lives in Rust
-   (`termoso-core`, `termoso-client`) and is reused by every client. UI layers
+   (`labterm-core`, `labterm-client`) and is reused by every client. UI layers
    (React in a Tauri webview, Jetpack Compose, SwiftUI) render state and send
    intents; they do not hold business logic or secrets of their own.
 4. **No phone-home.** The only network peers are the hosts the user connects
@@ -25,26 +25,26 @@ code; the user-facing summary lives in the [README](../README.md).
 ## Crates
 
 ```
-termoso-crypto ─┬─► termoso-proto ─┬─► termoso-server            (axum, sqlx, redis, aws-sdk-s3)
-                │                  ├─► termoso-core ─┬─► termoso-client ─┬─► apps/desktop/src-tauri
-                │                  │                 │                   ├─► termoso-mobile ─► android / ios
+labterm-crypto ─┬─► labterm-proto ─┬─► termoso-server            (axum, sqlx, redis, aws-sdk-s3)
+                │                  ├─► labterm-core ─┬─► labterm-client ─┬─► apps/desktop/src-tauri
+                │                  │                 │                   ├─► labterm-mobile ─► android / ios
                 │                  │                 │                   └─► termoso-bridge
-                └─► termoso-wasm ──┘ (browser)       └────────────────────► apps/desktop/src-tauri
+                └─► labterm-wasm ──┘ (browser)       └────────────────────► apps/desktop/src-tauri
 ```
 
 | Crate | Role | Key modules |
 |---|---|---|
-| `termoso-crypto` | Every primitive used by clients and server: OPAQUE (`opaque-ke`), Argon2id KDF, XChaCha20-Poly1305 envelopes with AAD, X25519 sealed boxes, BIP39-style 24-word recovery key, key wrapping. No I/O. | `opaque`, `kdf`, `aead`, `sealed`, `keys`, `recovery`, `live` |
-| `termoso-proto` | Request/response and entity types shared by server and all clients, with `utoipa` schemas. Changing a type here changes the wire protocol — keep it backward compatible (add optional fields, never repurpose). | `auth`, `account`, `vault`, `entities`, `sync`, `team`, `logs`, `ws` |
+| `labterm-crypto` | Every primitive used by clients and server: OPAQUE (`opaque-ke`), Argon2id KDF, XChaCha20-Poly1305 envelopes with AAD, X25519 sealed boxes, BIP39-style 24-word recovery key, key wrapping. No I/O. | `opaque`, `kdf`, `aead`, `sealed`, `keys`, `recovery`, `live` |
+| `labterm-proto` | Request/response and entity types shared by server and all clients, with `utoipa` schemas. Changing a type here changes the wire protocol — keep it backward compatible (add optional fields, never repurpose). | `auth`, `account`, `vault`, `entities`, `sync`, `team`, `logs`, `ws` |
 | `termoso-server` | Stateless HTTP/WebSocket API. PostgreSQL holds durable state, Redis holds sessions cache, rate limits, short-lived login state and the pub/sub bus for realtime fan-out, S3-compatible storage holds encrypted session logs. | `routes/*`, `session`, `ws`, `events`, `sso`, `live`, `presence`, `audit`, `digest`, `ai`, `metrics` |
-| `termoso-core` | Client engine: encrypted local store, secrets, API client, sync engine, SSH/SFTP/WebDAV/S3/Mosh/Telnet/Serial/PTY transports, terminal session abstraction, port forwarding, in-process SSH agent, FIDO2/CTAP2, OS detection, cloud import, autocomplete. `#![forbid(unsafe_code)]`. | `store`, `secrets`, `api`, `sync`, `ssh`, `sftp`, `webdav`, `s3`, `remote`, `terminal`, `forward`, `agent`, `keys`, `fido2`, `mosh`, `serial`, `telnet`, `pty`, `live`, `cloud`, `autocomplete` |
-| `termoso-client` | Higher-level repositories over the store used identically by desktop and mobile: hosts with inherited group credentials, keychain façade (keys, identities, certificates), snippets with variables. | `hosts`, `keychain`, `snippets` |
-| `termoso-mobile` | UniFFI façade (`cdylib` + `staticlib`) exposing `termoso-core`/`termoso-client` to Kotlin and Swift. Owns the tokio runtime and terminal emulation (`alacritty_terminal`) so both mobile apps get identical grid frames. | `app`, `connect`, `session`, `sftp`, `webdav`, `forward`, `keys`, `account`, `live`, `presence`, `fido2`, `ai` |
+| `labterm-core` | Client engine: encrypted local store, secrets, API client, sync engine, SSH/SFTP/WebDAV/S3/Mosh/Telnet/Serial/PTY transports, terminal session abstraction, port forwarding, in-process SSH agent, FIDO2/CTAP2, OS detection, cloud import, autocomplete. `#![forbid(unsafe_code)]`. | `store`, `secrets`, `api`, `sync`, `ssh`, `sftp`, `webdav`, `s3`, `remote`, `terminal`, `forward`, `agent`, `keys`, `fido2`, `mosh`, `serial`, `telnet`, `pty`, `live`, `cloud`, `autocomplete` |
+| `labterm-client` | Higher-level repositories over the store used identically by desktop and mobile: hosts with inherited group credentials, keychain façade (keys, identities, certificates), snippets with variables. | `hosts`, `keychain`, `snippets` |
+| `labterm-mobile` | UniFFI façade (`cdylib` + `staticlib`) exposing `labterm-core`/`labterm-client` to Kotlin and Swift. Owns the tokio runtime and terminal emulation (`alacritty_terminal`) so both mobile apps get identical grid frames. | `app`, `connect`, `session`, `sftp`, `webdav`, `forward`, `keys`, `account`, `live`, `presence`, `fido2`, `ai` |
 | `termoso-bridge` | Headless client for automation: pulls a vault, exposes a Termius-compatible REST API for hosts/groups, pushes ciphertext back. See [API_BRIDGE.md](API_BRIDGE.md). | `rest`, `sync` |
-| `termoso-wasm` | `termoso-crypto` compiled with `wasm-bindgen` for the web cabinet, so passwords and keys never leave the browser in clear. | — |
+| `labterm-wasm` | `labterm-crypto` compiled with `wasm-bindgen` for the web cabinet, so passwords and keys never leave the browser in clear. | — |
 
-`apps/desktop/src-tauri` (`termoso-desktop`) is also a workspace member: it
-wires `termoso-core` into Tauri commands and events and holds desktop-only
+`apps/desktop/src-tauri` (`labterm-desktop`) is also a workspace member: it
+wires `labterm-core` into Tauri commands and events and holds desktop-only
 runtime (workspaces, updater, imports, multiplayer host/viewer, presence).
 
 ## Data model
@@ -56,7 +56,7 @@ runtime (workspaces, updater, imports, multiplayer host/viewer, presence).
   vault and any **team** vaults the account is a member of.
 * Every vault has a symmetric **vault key** (versioned; rotation bumps
   `key_version`). The server stores one sealed copy per member and cannot
-  open any of them. Two envelope formats exist (`termoso-crypto::sealed`):
+  open any of them. Two envelope formats exist (`labterm-crypto::sealed`):
   * **Team vaults** use an anonymous sealed box (ephemeral X25519 →
     member's account public key). Anyone who knows the member's public key
     can produce one, which is what lets a vault manager hand keys to new
@@ -72,7 +72,7 @@ runtime (workspaces, updater, imports, multiplayer host/viewer, presence).
     (same version, caller must already hold the key) on first sync. Signup
     and personal rotation on every client (core, WASM/web) seal this way.
 * An **entity** is one encrypted record with a client-generated UUID, a `kind`
-  (`termoso_proto::entities::KINDS`: `host`, `group`, `ssh_config`,
+  (`labterm_proto::entities::KINDS`: `host`, `group`, `ssh_config`,
   `telnet_config`, `webdav_config`, `serial_config`, `identity`, `ssh_key`, `ssh_certificate`,
   `known_host`, `snippet`, `snippet_package`, `host_snippet`, `pf_rule`,
   `proxy`, `host_chain`, `tag`, `tag_host`, `port_knocking`, `cloud_import`,
@@ -99,7 +99,7 @@ that sets one. `gateway_id` is host-only. A new inheritable `SshConfig` field
 needs its line in `merge_ssh` and its place in `SshDefaultsForm` (the shared
 group and tag editor form).
 
-### Local store (`termoso-core::store`)
+### Local store (`labterm-core::store`)
 
 One SQLite file per profile (`~/.local/share/termoso/<profile>/` on Linux;
 app-private storage on mobile). Tables: `vaults` (vault keys wrapped with the
@@ -178,7 +178,7 @@ per origin. E-mails are built from a single `Email` structure and sent as
 styles, no external CSS/JS/tracking; the logo is the only image). The daily
 and weekly digests are skipped when the period has no activity.
 
-## Sync protocol (`termoso-proto::sync`, `termoso-core::sync`)
+## Sync protocol (`labterm-proto::sync`, `labterm-core::sync`)
 
 Each vault has an independent, monotonically increasing `seq`. A client keeps
 `since = max(seq)` per vault.
@@ -235,7 +235,7 @@ sync_once
   (`rsa-oaep-mgf1p`, `rsa-oaep` with any SHA-1/2 digest and MGF1 hash
   combination, `rsa-1_5` only with `SAML_ALLOW_SHA1`; AES-CBC/GCM content).
   All SP private-key operations — request signing and key unwrapping — run in
-  AWS-LC (`aws-lc-rs`, plus `crates/termoso-awslc-rsa`, the one `unsafe` FFI
+  AWS-LC (`aws-lc-rs`, plus `crates/labterm-awslc-rsa`, the one `unsafe` FFI
   boundary in the workspace, so OAEP digest and MGF1 hash can be set
   independently as XML Encryption allows); the RustCrypto `rsa` crate only
   parses keys and verifies IdP signatures. Every
@@ -295,9 +295,9 @@ interface.
 
 ### iOS (`apps/ios`)
 
-`build-core.sh` cross-compiles `termoso-mobile` for `aarch64-apple-ios` and
+`build-core.sh` cross-compiles `labterm-mobile` for `aarch64-apple-ios` and
 `aarch64-apple-ios-sim`, generates the Swift bindings and assembles
-`TermosoCoreFFI.xcframework` inside the `TermosoCore` Swift package.
+`LabtermCoreFFI.xcframework` inside the `LabtermCore` Swift package.
 `project.yml` (xcodegen) defines the app, XCTest and XCUITest targets. The
 SwiftUI app mirrors the Android structure (`AppContainer`, `VaultRepository`,
 `SessionStore`, `MasterKeyStore`); the terminal view renders the same grid
@@ -308,7 +308,7 @@ frames as Android. The store key lives in the Keychain with
 
 Transports (`ssh`, `mosh`, `telnet`, `serial`, `pty`) implement one
 `terminal::Session` abstraction: bytes in, bytes out, resize. Desktop feeds
-the bytes to xterm.js; mobile runs `alacritty_terminal` inside `termoso-mobile`
+the bytes to xterm.js; mobile runs `alacritty_terminal` inside `labterm-mobile`
 and ships packed **grid frames** (cells, attributes, cursor, dirty rows) to
 Compose/SwiftUI canvases, which keeps rendering identical across both mobile
 platforms and lets recording, multiplayer and OS detection tap the same
@@ -356,14 +356,14 @@ stream.
   doc comment, into `deploy/.env.example`, into the README table and into
   `deploy/quadlet` if the Compose stack needs it.
 * **New entity kinds** need: the string in `KINDS`, a model in
-  `termoso-core::model`, store/repo support, and UI on every client (or an
+  `labterm-core::model`, store/repo support, and UI on every client (or an
   explicit note in the README's "Not yet" column).
 * **Migrations** are forward-only SQL files under `migrations/`; the server
   applies them on start, so a rolling upgrade must keep the previous binary
   working against the new schema.
 * **Tests**: unit tests live next to the code; server integration tests boot
   a real server against PostgreSQL/Redis (`crates/termoso-server/tests`);
-  `termoso-core` tests run against an in-process `russh` server; desktop
+  `labterm-core` tests run against an in-process `russh` server; desktop
   frontend uses `vitest`; Android has JVM unit tests; iOS has XCTest against
   the real core and XCUITest in the simulator; CI runs a macOS runtime smoke
   of the built app.

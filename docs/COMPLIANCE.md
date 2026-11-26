@@ -14,7 +14,7 @@ Android, iOS or web cabinet.
 
 | Control | Implementation |
 | --- | --- |
-| Data encrypted at rest, client side | Vault contents (hosts, identities, keys, snippets, session recordings) are encrypted on the client with a per-vault key; the server stores ciphertext only (`crates/termoso-crypto`, `docs/ARCHITECTURE.md`). Backups and the object store inherit this. |
+| Data encrypted at rest, client side | Vault contents (hosts, identities, keys, snippets, session recordings) are encrypted on the client with a per-vault key; the server stores ciphertext only (`crates/labterm-crypto`, `docs/ARCHITECTURE.md`). Backups and the object store inherit this. |
 | Key distribution | Vault keys exist on the server only sealed to members' account public keys. Team membership and JIT grants create *pending* memberships; a manager's client seals the key. The server never holds a vault key. |
 | Password never reaches the server | OPAQUE password-authenticated key exchange (`crates/termoso-server/src/routes/auth.rs`). |
 | Server-side secrets | IdP client secrets, webhook secrets, SCIM tokens are encrypted with the server master key (`TERMOSO_MASTER_KEY`); backups record its fingerprint (`backup.rs`). |

@@ -4,7 +4,7 @@
 use std::net::IpAddr;
 
 use axum::http::StatusCode;
-use termoso_proto::auth::DeviceInfo;
+use labterm_proto::auth::DeviceInfo;
 use uuid::Uuid;
 
 use crate::audit;
@@ -95,7 +95,7 @@ pub fn posture_missing(
     need_hw: bool,
 ) -> Option<&'static str> {
     let p = device.posture.as_ref();
-    let has = |f: fn(&termoso_proto::auth::Posture) -> Option<bool>| p.and_then(f) == Some(true);
+    let has = |f: fn(&labterm_proto::auth::Posture) -> Option<bool>| p.and_then(f) == Some(true);
     if need_disk && !has(|p| p.disk_encryption) {
         Some("disk_encryption")
     } else if need_lock && !has(|p| p.screen_lock) {

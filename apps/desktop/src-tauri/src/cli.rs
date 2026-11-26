@@ -16,7 +16,7 @@ pub enum EarlyExit {
 
 pub fn help() -> String {
     let mut s = String::new();
-    let _ = writeln!(s, "Termoso {}", env!("CARGO_PKG_VERSION"));
+    let _ = writeln!(s, "Labterm {}", env!("CARGO_PKG_VERSION"));
     s.push_str(
         "\nUsage:\n  termoso                          open the app\n  termoso ssh [user@]host[:port]   connect over SSH (saved host by label, or ad hoc)\n  termoso ssh -l user -p port host same, OpenSSH-style flags\n  termoso telnet host[:port]       connect over Telnet\n  termoso sftp <host>              open the SFTP browser on a saved host\n  termoso open <host>              open a saved host (label, address or termoso://host/<id>)\n  termoso local                    open a local terminal\n  termoso new                      new host dialog\n  termoso <file>…                  import a key / theme / ssh_config\n  termoso <ssh:// | telnet:// | termoso:// link>\n\nOptions:\n  -h, --help       show this help\n  -V, --version    print the version\n\nIf Termoso is already running, the command is handed to that window.\n",
     );

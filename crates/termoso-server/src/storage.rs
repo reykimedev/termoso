@@ -11,7 +11,7 @@ use aws_sdk_s3::Client;
 use aws_sdk_s3::config::{BehaviorVersion, Credentials, Region};
 use aws_sdk_s3::presigning::PresigningConfig;
 
-use termoso_crypto::aead::Aad;
+use labterm_crypto::aead::Aad;
 
 use crate::config::S3Config;
 
@@ -33,7 +33,7 @@ enum Backend {
         dir: std::path::PathBuf,
         /// `https://…/api/v1/logs/blob` — where tokens are redeemed.
         public_base: String,
-        key: termoso_crypto::keys::SymmetricKey,
+        key: labterm_crypto::keys::SymmetricKey,
     },
 }
 
@@ -90,7 +90,7 @@ impl Storage {
     pub fn local(
         dir: std::path::PathBuf,
         public_url: &str,
-        key: termoso_crypto::keys::SymmetricKey,
+        key: labterm_crypto::keys::SymmetricKey,
     ) -> anyhow::Result<Self> {
         std::fs::create_dir_all(&dir).with_context(|| format!("creating {}", dir.display()))?;
         Ok(Self {
@@ -122,7 +122,7 @@ impl Storage {
         let Backend::Local { key, .. } = &self.backend else {
             anyhow::bail!("not a local store");
         };
-        let bytes = termoso_crypto::aead::encrypt(
+        let bytes = labterm_crypto::aead::encrypt(
             key,
             &Aad::server(BLOB_AAD),
             &serde_json::to_vec(grant)?,
@@ -139,7 +139,7 @@ impl Storage {
             anyhow::bail!("not a local store");
         };
         let raw = base64::Engine::decode(&base64::engine::general_purpose::URL_SAFE_NO_PAD, token)?;
-        let plain = termoso_crypto::aead::decrypt(key, &Aad::server(BLOB_AAD), &raw)?;
+        let plain = labterm_crypto::aead::decrypt(key, &Aad::server(BLOB_AAD), &raw)?;
         let grant: BlobGrant = serde_json::from_slice(&plain)?;
         if grant.exp < chrono::Utc::now().timestamp() {
             anyhow::bail!("token expired");

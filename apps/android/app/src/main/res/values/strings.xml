@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Termoso</string>
+    <string name="app_name">Labterm</string>
     <string name="no_vault_selected">No vault selected.</string>
     <string name="the_vault_is_locked">The vault is locked.</string>
     <string name="authentication_failed">Authentication failed (%1$s).</string>
@@ -43,9 +43,9 @@
     <string name="active_sessions_2">Active sessions</string>
     <string name="notif_forwarding_for">Port forwarding · %1$s</string>
     <string name="shown_while_a_terminal_is_connected_so_the">Shown while a terminal is connected so the connection survives in the background.</string>
-    <string name="unlock_termoso">Unlock Termoso</string>
+    <string name="unlock_termoso">Unlock Labterm</string>
     <string name="use_your_fingerprint_or_screen_lock">Use your fingerprint or screen lock</string>
-    <string name="termoso_is_locked">Termoso is locked</string>
+    <string name="termoso_is_locked">Labterm is locked</string>
     <string name="unlock_with_your_fingerprint_or_screen_lock_to">Unlock with your fingerprint or screen lock to continue.</string>
     <string name="the_encrypted_vault_is_closed_unlock_to_continue">The encrypted vault is closed. Unlock to continue.</string>
     <string name="unlock">Unlock</string>
@@ -186,8 +186,8 @@
     <string name="the_key_signs_a_one_time_challenge_from">The key signs a one-time challenge from the server; the PIN is only ever sent to the key itself.</string>
     <string name="this_is_a_new_device_for_your_account">This is a new device for your account. We sent a confirmation code to %1$s.</string>
     <string name="approve_device">Approve device</string>
-    <string name="write_these_words_down_and_keep_them_somewhere">Write these words down and keep them somewhere safe. They are the only way to regain access if you forget your master password — Termoso cannot reset it for you. This phrase is shown once.</string>
-    <string name="termoso_recovery_phrase">Termoso recovery phrase</string>
+    <string name="write_these_words_down_and_keep_them_somewhere">Write these words down and keep them somewhere safe. They are the only way to regain access if you forget your master password — Labterm cannot reset it for you. This phrase is shown once.</string>
+    <string name="termoso_recovery_phrase">Labterm recovery phrase</string>
     <string name="copy">Copy</string>
     <string name="i_have_saved_my_recovery_phrase">I have saved my recovery phrase</string>
     <string name="enter_your_server_address">Enter your server address.</string>
@@ -519,7 +519,7 @@
     <string name="turn_on_nfc_and_hold_the_security_key">Turn on NFC and hold the security key to the back of the phone.</string>
     <string name="this_phone_has_neither_usb_host_nor_nfc">This phone has neither USB host nor NFC, so it cannot talk to a security key.</string>
     <string name="waiting_for_a_security_key">Waiting for a security key…</string>
-    <string name="allow_termoso_to_use_the_usb_device_in">Allow Termoso to use the USB device in the system dialog.</string>
+    <string name="allow_termoso_to_use_the_usb_device_in">Allow Labterm to use the USB device in the system dialog.</string>
     <string name="nfc_security_key">NFC security key</string>
     <string name="rescan_usb">Rescan USB</string>
     <string name="pin_set">PIN set</string>
@@ -686,15 +686,15 @@
     <string name="lock_vault_now">Lock vault now</string>
     <string name="disconnects_every_session_and_closes_the_encrypted_database">Disconnects every session and closes the encrypted database</string>
     <string name="about">About</string>
-    <string name="termoso_for_android">Termoso for Android</string>
+    <string name="termoso_for_android">Labterm for Android</string>
     <string name="core">%1$s · core %2$s</string>
     <string name="privacy">Privacy</string>
     <string name="no_telemetry_no_analytics_no_accounts_required">No telemetry, no analytics, no accounts required</string>
     <string name="source_code">Source code</string>
     <string name="agpl_licensed_on_github">AGPL-licensed, on GitHub</string>
     <string name="open_source_licenses">Open-source licenses</string>
-    <string name="termoso_reports_to_you_not_on_you_no">Termoso reports to you, not on you.\n\n• No telemetry, crash reporting or analytics SDKs — the app contains none.\n• Hosts, keys, passwords and settings live in an encrypted database on this device; the key is wrapped by Android Keystore and never written in plain text.\n• Private keys leave the device only when you export them yourself.\n• When you sign in to a Termoso server (Termoso Cloud or your own), only end-to-end encrypted data is synced — the server cannot read your vault.\n• No ads, no plans, no upsells. Free software, forever.</string>
-    <string name="termoso_agpl_3_0_bundled_terminal_fonts_jetbrains">Termoso — AGPL-3.0.\n\nBundled terminal fonts:\n• JetBrains Mono — SIL Open Font License 1.1\n• Fira Code — SIL Open Font License 1.1\n• Source Code Pro — SIL Open Font License 1.1\n• Ubuntu Mono — Ubuntu Font Licence 1.0\n\nFull texts ship in apps/android/licenses in the source tree. Rust and Android library notices are listed in the repository.\n\nLinux environment (bundled native binaries, run as separate processes):\n• PRoot 5.1.107 (Termux build) — GPL-2.0\n• talloc 2.5.0 — LGPL-3.0\n• libandroid-shmem 0.7 — MIT\nDetails and sources: res/raw/license_proot.txt. Root filesystems (Alpine, Ubuntu) are downloaded from the distributions\u2019 mirrors and are not part of the app.</string>
+    <string name="termoso_reports_to_you_not_on_you_no">Labterm reports to you, not on you.\n\n• No telemetry, crash reporting or analytics SDKs — the app contains none.\n• Hosts, keys, passwords and settings live in an encrypted database on this device; the key is wrapped by Android Keystore and never written in plain text.\n• Private keys leave the device only when you export them yourself.\n• When you sign in to a Termoso server (Termoso Cloud or your own), only end-to-end encrypted data is synced — the server cannot read your vault.\n• No ads, no plans, no upsells. Free software, forever.</string>
+    <string name="termoso_agpl_3_0_bundled_terminal_fonts_jetbrains">Labterm — AGPL-3.0. A fork of Termoso by the Termoso contributors (github.com/termoso/termoso), part of labdex.\n\nBundled terminal fonts:\n• JetBrains Mono — SIL Open Font License 1.1\n• Fira Code — SIL Open Font License 1.1\n• Source Code Pro — SIL Open Font License 1.1\n• Ubuntu Mono — Ubuntu Font Licence 1.0\n\nFull texts ship in apps/android/licenses in the source tree. Rust and Android library notices are listed in the repository.\n\nLinux environment (bundled native binaries, run as separate processes):\n• PRoot 5.1.107 (Termux build) — GPL-2.0\n• talloc 2.5.0 — LGPL-3.0\n• libandroid-shmem 0.7 — MIT\nDetails and sources: res/raw/license_proot.txt. Root filesystems (Alpine, Ubuntu) are downloaded from the distributions\u2019 mirrors and are not part of the app.</string>
     <string name="terminal_appearance">Terminal appearance</string>
     <string name="font">Font</string>
     <string name="size">Size</string>
@@ -1064,18 +1064,18 @@
     <string name="ask_ai">Ask AI</string>
     <string name="the_host_let_you_type_into_this_terminal">The host let you type into this terminal.</string>
     <string name="view_only_ask_the_host_for_control_to">View only. Ask the host for control to type.</string>
-    <string name="let_others_watch_this_terminal_live_through_termoso">Let others watch this terminal live through Termoso, end-to-end encrypted. You choose who may type; stop any time.</string>
+    <string name="let_others_watch_this_terminal_live_through_termoso">Let others watch this terminal live through Labterm, end-to-end encrypted. You choose who may type; stop any time.</string>
     <string name="starting">Starting…</string>
     <string name="start_sharing">Start sharing</string>
     <string name="anyone_with_the_link_and_a_termoso_account">Anyone with the link and a Termoso account can watch. It contains the session key, so share it only with people you trust.</string>
-    <string name="termoso_link">Termoso link</string>
+    <string name="termoso_link">Labterm link</string>
     <string name="share">Share</string>
     <string name="stop_sharing">Stop sharing</string>
     <string name="participants">Participants</string>
     <string name="participants_2">Participants · %1$s</string>
     <string name="nobody_has_joined_yet">Nobody has joined yet.</string>
     <string name="can_type">can type</string>
-    <string name="join_my_terminal_in_termoso">Join my terminal in Termoso</string>
+    <string name="join_my_terminal_in_termoso">Join my terminal in Labterm</string>
     <string name="share_link">Share link</string>
     <string name="paste_the_join_link_the_host_sent_you">Paste the join link the host sent you. You will watch their terminal; typing needs their permission.</string>
     <string name="link">Link</string>
@@ -1201,7 +1201,7 @@
     <string name="known_hosts_shared_by_all_vaults">Shared by all vaults</string>
     <string name="local_vault">Local vault</string>
     <string name="personal_vault">Personal vault</string>
-    <string name="welcome_to_termoso">Welcome to Termoso</string>
+    <string name="welcome_to_termoso">Welcome to Labterm</string>
     <string name="free_open_source_ssh_client_end_to_end">Free, open-source SSH client. End-to-end encrypted sync, teams and live sharing — no telemetry.</string>
     <string name="create_a_free_account">Create a free account</string>
     <string name="termoso_cloud_is_completely_free_for_everyone_no">Termoso Cloud is completely free for everyone — no limits, no plans, no strings attached. Or sign in to your own self-hosted server.</string>
@@ -1347,7 +1347,7 @@
     <!-- Files integration (storage access framework) -->
     <string name="files_integration">Files integration</string>
     <string name="files_show_sftp_hosts_in_files">Show SFTP hosts in Files</string>
-    <string name="files_show_sftp_hosts_in_files_summary">Browse, open and save files on your SSH hosts from the system Files app and any app that opens documents. Only hosts with “Show in Files” turned on are listed; the home directory of the local terminal is always there. Hosts that need a password or a new host key must be connected from Termoso first.</string>
+    <string name="files_show_sftp_hosts_in_files_summary">Browse, open and save files on your SSH hosts from the system Files app and any app that opens documents. Only hosts with “Show in Files” turned on are listed; the home directory of the local terminal is always there. Hosts that need a password or a new host key must be connected from Labterm first.</string>
     <string name="show_in_files">Show in Files</string>
     <string name="show_in_files_summary">List this host’s SFTP and WebDAV shares in the system Files app and other apps that open documents</string>
     <string name="host_shell_integration">Shell integration</string>
@@ -1356,20 +1356,20 @@
     <string name="host_shell_integration_off">Off for this host</string>
     <string name="show_in_files_disabled_summary">Files integration is turned off in Settings; this host stays hidden until it is enabled</string>
     <string name="asked_on_connect">Asked on connect</string>
-    <string name="files_locked_root_summary">Unlock Termoso to browse SFTP hosts</string>
-    <string name="files_unlock_termoso_first">Unlock Termoso first</string>
-    <string name="files_host_no_longer_exists">This host no longer exists in Termoso</string>
+    <string name="files_locked_root_summary">Unlock Labterm to browse SFTP hosts</string>
+    <string name="files_unlock_termoso_first">Unlock Labterm first</string>
+    <string name="files_host_no_longer_exists">This host no longer exists in Labterm</string>
     <string name="files_connection_timed_out">Connection timed out</string>
-    <string name="files_host_key_needs_confirmation">Connect to %1$s from Termoso once to confirm its host key</string>
-    <string name="files_host_needs_credentials">%1$s asks for a password. Connect from Termoso and choose to remember it</string>
-    <string name="files_host_needs_username">%1$s has no username. Connect from Termoso and choose to remember it</string>
-    <string name="files_host_needs_security_key">%1$s needs a security key. Connect from Termoso instead</string>
+    <string name="files_host_key_needs_confirmation">Connect to %1$s from Labterm once to confirm its host key</string>
+    <string name="files_host_needs_credentials">%1$s asks for a password. Connect from Labterm and choose to remember it</string>
+    <string name="files_host_needs_username">%1$s has no username. Connect from Labterm and choose to remember it</string>
+    <string name="files_host_needs_security_key">%1$s needs a security key. Connect from Labterm instead</string>
     <string name="files_invalid_name">That name cannot be used</string>
     <string name="files_name_taken">%1$s already exists here</string>
     <string name="files_cannot_remove_root">The host root cannot be changed</string>
     <string name="files_move_between_hosts">Moving between hosts is not supported; copy instead</string>
     <string name="files_move_into_itself">A folder cannot be moved into itself</string>
-    <string name="files_host_certificate_needs_confirmation">Connect to %1$s from Termoso once to accept its certificate</string>
+    <string name="files_host_certificate_needs_confirmation">Connect to %1$s from Labterm once to accept its certificate</string>
     <string name="files_copy_unsupported">This host cannot copy files on the server</string>
 
     <!-- WebDAV -->
@@ -1461,7 +1461,7 @@
     <string name="or">or</string>
     <string name="continue_with">Continue with %1$s</string>
     <string name="sso_finish_in_browser">Finish signing in with %1$s in your browser.</string>
-    <string name="sso_waiting_hint">Termoso picks up automatically when the browser comes back. Nothing from the provider is stored on this device.</string>
+    <string name="sso_waiting_hint">Labterm picks up automatically when the browser comes back. Nothing from the provider is stored on this device.</string>
     <string name="open_browser_again">Open browser again</string>
     <string name="sso_verified_with">Verified with %1$s</string>
     <string name="change">Change</string>
@@ -1511,7 +1511,7 @@
     <string name="pattern">Pattern</string>
     <string name="codes_do_not_match">The codes do not match, start again</string>
     <string name="app_pin_or_pattern">App PIN / pattern</string>
-    <string name="app_pin_hint">A 6-digit PIN or a pattern asked for when Termoso is locked, in addition to the screen lock. Stored only as a salted hash on this device.</string>
+    <string name="app_pin_hint">A 6-digit PIN or a pattern asked for when Labterm is locked, in addition to the screen lock. Stored only as a salted hash on this device.</string>
     <string name="set_up">Set up</string>
     <string name="shake_device">Shake the device</string>
     <string name="quick_import">Quick Import</string>
@@ -1656,7 +1656,7 @@
     <string name="acl_connect">Connect only</string>
     <string name="acl_read">Read</string>
     <string name="acl_edit">Edit</string>
-    <string name="update_termoso_to_sign_in">Update Termoso to sign in.</string>
+    <string name="update_termoso_to_sign_in">Update Labterm to sign in.</string>
     <string name="copy_to_another_server">Copy to another server…</string>
     <string name="destination_folder">Destination folder</string>
     <string name="folders_are_not_copied_between_servers">Folders are not copied between servers; pick files.</string>
@@ -1760,7 +1760,7 @@
     <string name="magic_packet_sent">Magic packet sent on the local network</string>
     <string name="backspace">Backspace</string>
     <string name="files_read_only_offline">Read-only while offline</string>
-    <string name="files_offline_open_termoso">Host unreachable. Open Termoso to browse its local copies.</string>
+    <string name="files_offline_open_termoso">Host unreachable. Open Labterm to browse its local copies.</string>
     <string name="files_offline_read_only">Offline: local copies, read-only</string>
     <string name="files_browse_local_copies">Browse local copies</string>
     <string name="keep_local_copies">Keep local copies</string>

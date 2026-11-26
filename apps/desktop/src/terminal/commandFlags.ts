@@ -1,9 +1,9 @@
 // Frequent flags and first-level subcommands of frequently used commands, for
-// the terminal autocomplete; the tables live in `crates/termoso-core/assets/autocomplete` and are
+// the terminal autocomplete; the tables live in `crates/labterm-core/assets/autocomplete` and are
 // shared with the Android client. Format: `flag description;flag description;…`.
 
-import OPTION_ROWS from "../../../../crates/termoso-core/assets/autocomplete/options.txt?raw";
-import SUB_ROWS from "../../../../crates/termoso-core/assets/autocomplete/subcommands.txt?raw";
+import OPTION_ROWS from "../../../../crates/labterm-core/assets/autocomplete/options.txt?raw";
+import SUB_ROWS from "../../../../crates/labterm-core/assets/autocomplete/subcommands.txt?raw";
 
 export interface Flag {
   name: string;

@@ -7,7 +7,7 @@ import { tr } from "@/i18n";
 /** Server-side limit on the request text; mirrored so the field stops there. */
 export const MAX_PROMPT_CHARS = 500;
 
-/** Human wording for the AI error kinds `termoso-client` maps from the API. */
+/** Human wording for the AI error kinds `labterm-client` maps from the API. */
 export function aiErrorText(e: unknown): { text: string; retry: boolean } {
   if (isDesktopError(e)) {
     switch (e.kind) {

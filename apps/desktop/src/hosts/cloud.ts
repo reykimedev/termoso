@@ -49,7 +49,7 @@ export const AWS_REGIONS = [
 ];
 
 export const PRIVACY_NOTE = msg(
-  "Keys and tokens are used for this request only, inside the app, and are not saved, synced or logged. Termoso never sends them anywhere but the provider's own API.",
+  "Keys and tokens are used for this request only, inside the app, and are not saved, synced or logged. Labterm never sends them anywhere but the provider's own API.",
 );
 
 export interface Draft {

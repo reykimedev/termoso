@@ -2,12 +2,12 @@
 
 use std::time::Duration;
 
+use labterm_proto::bridge::BridgeSelf;
+use labterm_proto::error::ApiError;
+use labterm_proto::sync::{PullRequest, PullResponse, PushRequest, PushResponse};
 use reqwest::{Method, StatusCode};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
-use termoso_proto::bridge::BridgeSelf;
-use termoso_proto::error::ApiError;
-use termoso_proto::sync::{PullRequest, PullResponse, PushRequest, PushResponse};
 use url::Url;
 use uuid::Uuid;
 
@@ -85,8 +85,8 @@ impl ServerClient {
     pub async fn claim_runs(
         &self,
         team_id: Uuid,
-        req: &termoso_proto::automation::ClaimRunsRequest,
-    ) -> Result<termoso_proto::automation::ClaimRunsResponse> {
+        req: &labterm_proto::automation::ClaimRunsRequest,
+    ) -> Result<labterm_proto::automation::ClaimRunsResponse> {
         self.send(
             Method::POST,
             &format!("teams/{team_id}/automations/runs/claim"),
@@ -100,8 +100,8 @@ impl ServerClient {
         &self,
         team_id: Uuid,
         run_id: Uuid,
-        req: &termoso_proto::automation::FinishRunRequest,
-    ) -> Result<termoso_proto::automation::AutomationRun> {
+        req: &labterm_proto::automation::FinishRunRequest,
+    ) -> Result<labterm_proto::automation::AutomationRun> {
         self.send(
             Method::PATCH,
             &format!("teams/{team_id}/automations/runs/{run_id}"),

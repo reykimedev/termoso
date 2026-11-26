@@ -284,11 +284,11 @@ function AgentSignPrompt({
       <Stack spacing={1.5}>
         <Typography variant="body2">
           {prompt.process
-            ? trx("{process} asks the Termoso SSH agent to sign with {key}.", {
+            ? trx("{process} asks the Labterm SSH agent to sign with {key}.", {
                 process: <b>{prompt.process}</b>,
                 key: <b>{prompt.key_label}</b>,
               })
-            : trx("A local program asks the Termoso SSH agent to sign with {key}.", {
+            : trx("A local program asks the Labterm SSH agent to sign with {key}.", {
                 key: <b>{prompt.key_label}</b>,
               })}
         </Typography>
@@ -296,7 +296,7 @@ function AgentSignPrompt({
           {prompt.fingerprint}
         </Typography>
         <Typography variant="caption" color="text.secondary">
-          {tr("The private key stays in Termoso; only the signature is handed over.")}
+          {tr("The private key stays in Labterm; only the signature is handed over.")}
         </Typography>
       </Stack>
     </PromptFrame>

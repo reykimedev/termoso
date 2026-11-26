@@ -16,7 +16,7 @@ use tokio::sync::broadcast;
 use tokio::time::{interval, timeout};
 use uuid::Uuid;
 
-use termoso_proto::ws::{ClientMessage, ServerMessage};
+use labterm_proto::ws::{ClientMessage, ServerMessage};
 
 use crate::events::Event;
 use crate::presence;

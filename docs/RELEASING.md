@@ -116,7 +116,7 @@ keytool -list -v -keystore termoso-release.jks -alias termoso | grep SHA256
 # or, for a built APK:
 apksigner verify --print-certs termoso-x.y.z-arm64-v8a.apk | grep SHA-256
 
-TERMOSO_ANDROID_APP_LINKS="com.termoso.android=AA:BB:…"
+TERMOSO_ANDROID_APP_LINKS="dev.labdex.labterm=AA:BB:…"
 ```
 
 Self-hosted servers are still reachable from the app through the same links:

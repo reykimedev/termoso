@@ -3,7 +3,7 @@
   "app": {
     "windows": [
       {
-        "title": "Termoso",
+        "title": "Labterm",
         "label": "main",
         "width": 1280,
         "height": 820,

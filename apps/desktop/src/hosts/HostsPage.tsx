@@ -802,7 +802,7 @@ export function HostsPage() {
             icon: <LinkRoundedIcon fontSize="small" />,
             items: [
               {
-                label: tr("Termoso link"),
+                label: tr("Labterm link"),
                 icon: <LinkRoundedIcon fontSize="small" />,
                 onClick: () => void copyLinks(targets),
               },

@@ -4,11 +4,11 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Context;
+use labterm_crypto::aead::{self, Aad};
+use labterm_crypto::keys::SymmetricKey;
+use labterm_crypto::opaque;
+use labterm_proto::admin::ServerSettings;
 use sqlx::PgPool;
-use termoso_crypto::aead::{self, Aad};
-use termoso_crypto::keys::SymmetricKey;
-use termoso_crypto::opaque;
-use termoso_proto::admin::ServerSettings;
 use tokio::sync::broadcast;
 use webauthn_rs::prelude::*;
 

@@ -371,7 +371,7 @@ export function SignInForm({
                 </Button>
               }
             >
-              <strong>{tr("Update Termoso to sign in.")}</strong> {updateRequired}
+              <strong>{tr("Update Labterm to sign in.")}</strong> {updateRequired}
             </Alert>
           )}
           {idp && (
@@ -544,7 +544,7 @@ function SsoWaiting({ provider, onCancel }: { provider: SsoProvider; onCancel: (
       </Typography>
       <Typography variant="caption" color="text.secondary">
         {tr(
-          "Termoso picks up automatically when the browser comes back. Nothing from the provider is stored on this device.",
+          "Labterm picks up automatically when the browser comes back. Nothing from the provider is stored on this device.",
         )}
       </Typography>
       <Button color="inherit" size="small" onClick={onCancel}>
@@ -600,7 +600,7 @@ export function RecoveryDialog({ phrase, onDone }: { phrase: string; onDone: () 
       <DialogContent>
         <Alert severity="warning" sx={{ mb: 2 }}>
           {tr(
-            "This is the only way to regain access if you forget your password. Termoso does not keep a copy anywhere — not on this device, not on the server.",
+            "This is the only way to regain access if you forget your password. Labterm does not keep a copy anywhere — not on this device, not on the server.",
           )}
         </Alert>
         <Box

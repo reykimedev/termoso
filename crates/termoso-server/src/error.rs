@@ -3,7 +3,7 @@
 use axum::Json;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use termoso_proto::error::{ApiError, codes};
+use labterm_proto::error::{ApiError, codes};
 
 pub type ApiResult<T> = Result<T, Error>;
 
@@ -229,8 +229,8 @@ impl From<serde_json::Error> for Error {
         Error::Internal(anyhow::Error::new(e).context("json"))
     }
 }
-impl From<termoso_crypto::CryptoError> for Error {
-    fn from(e: termoso_crypto::CryptoError) -> Self {
+impl From<labterm_crypto::CryptoError> for Error {
+    fn from(e: labterm_crypto::CryptoError) -> Self {
         Error::bad_request(format!("cryptographic input rejected: {e}"))
     }
 }

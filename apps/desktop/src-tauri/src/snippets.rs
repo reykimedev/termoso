@@ -1,16 +1,16 @@
 //! Snippets on the desktop: the store logic lives in
-//! [`termoso_client::snippets`]; this module only types expanded scripts
+//! [`labterm_client::snippets`]; this module only types expanded scripts
 //! into live sessions.
 
 use std::collections::HashMap;
 use std::time::Duration;
 
+use labterm_core::model::Snippet;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, Runtime};
-use termoso_core::model::Snippet;
 use uuid::Uuid;
 
-pub use termoso_client::snippets::*;
+pub use labterm_client::snippets::*;
 
 use crate::error::{DesktopError, Result};
 use crate::state::AppState;
@@ -148,7 +148,7 @@ pub async fn run_quiet<R: Runtime>(
                 .state::<AppState>()
                 .store()
                 .ok()
-                .and_then(|s| s.require::<termoso_core::model::Host>(host_id).ok())
+                .and_then(|s| s.require::<labterm_core::model::Host>(host_id).ok())
                 .map(|h| h.data.label.clone())
             {
                 result.label = label;

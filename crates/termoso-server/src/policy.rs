@@ -4,9 +4,9 @@
 //! its SSO-only rule so an owner can never lock themself out.
 
 use chrono::{DateTime, Utc};
+use labterm_proto::team::{EffectivePolicies, Team, TeamPolicies};
 use sqlx::{PgExecutor, PgPool};
 use std::collections::HashMap;
-use termoso_proto::team::{EffectivePolicies, Team, TeamPolicies};
 use uuid::Uuid;
 
 use crate::error::ApiResult;

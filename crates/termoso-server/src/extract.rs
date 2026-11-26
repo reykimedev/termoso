@@ -47,7 +47,7 @@ impl Auth {
 /// vaults, logs, live sessions — is off limits so a leaked bridge token
 /// cannot reach beyond the vaults sealed to it.
 fn bridge_allowed(method: &http::Method, path: &str) -> bool {
-    let path = path.strip_prefix(termoso_proto::API_PREFIX).unwrap_or(path);
+    let path = path.strip_prefix(labterm_proto::API_PREFIX).unwrap_or(path);
     matches!(
         (method, path),
         (&http::Method::POST, "/sync/push")

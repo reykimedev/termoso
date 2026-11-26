@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Termoso",
+  "productName": "Labterm",
   "version": "../package.json",
-  "identifier": "com.termoso.desktop",
+  "identifier": "dev.labdex.labterm",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:5174",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Termoso",
+        "title": "Labterm",
         "label": "main",
         "width": 1280,
         "height": 820,
@@ -44,8 +44,8 @@
     "targets": ["deb", "rpm", "appimage", "nsis", "msi", "app", "dmg"],
     "category": "DeveloperTool",
     "shortDescription": "SSH, SFTP and terminal client",
-    "longDescription": "Termoso is a free, open-source, self-hostable SSH/SFTP client with end-to-end encrypted sync and no telemetry.",
-    "publisher": "Termoso",
+    "longDescription": "Labterm is the labdex SSH/SFTP client: free, open source, end-to-end encrypted sync, no telemetry. A fork of Termoso.",
+    "publisher": "labdex",
     "copyright": "AGPL-3.0-only",
     "license": "AGPL-3.0-only",
     "licenseFile": "../../../LICENSE",
@@ -60,7 +60,7 @@
       {
         "ext": ["pem", "ppk"],
         "name": "SSH private key",
-        "description": "Private key for the Termoso keychain",
+        "description": "Private key for the Labterm keychain",
         "role": "Viewer"
       },
       {

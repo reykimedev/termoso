@@ -186,13 +186,13 @@ async fn policies_are_validated_and_enforced() {
     let err: serde_json::Value = resp.json().await.unwrap();
     assert_eq!(err["code"], "domain_not_allowed");
     // SSO-only: the member cannot use a password any more, the owner can.
-    let (request, _) = termoso_crypto::opaque::client_login_start(bob_pw.as_bytes()).unwrap();
+    let (request, _) = labterm_crypto::opaque::client_login_start(bob_pw.as_bytes()).unwrap();
     let resp = s
         .call(
             Method::POST,
             "/auth/login/start",
             None,
-            Some(&termoso_proto::auth::LoginStartRequest {
+            Some(&labterm_proto::auth::LoginStartRequest {
                 email: bob_email.clone(),
                 opaque_request: request,
                 device: device("bob laptop"),

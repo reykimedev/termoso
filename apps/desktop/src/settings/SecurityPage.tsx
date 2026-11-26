@@ -89,7 +89,7 @@ export function SecurityPage({
       <SectionCard
         title={tr("Master password")}
         description={tr(
-          "The vault is always encrypted with a random key. A master password wraps that key so nobody can open Termoso without it — not even with access to your OS account.",
+          "The vault is always encrypted with a random key. A master password wraps that key so nobody can open Labterm without it — not even with access to your OS account.",
         )}
       >
         <SettingRow
@@ -168,7 +168,7 @@ export function SecurityPage({
         <SettingRow
           label={tr("Lock after inactivity")}
           hint={tr(
-            "No keyboard or mouse input in Termoso for this long locks the vault. Running sessions are closed.",
+            "No keyboard or mouse input in Labterm for this long locks the vault. Running sessions are closed.",
           )}
           control={
             <TextField
@@ -271,7 +271,7 @@ function PasswordDialogView({
     onSuccess: (st) => {
       snackbar.notify(
         kind === "enable"
-          ? tr("Master password set — Termoso will ask for it on start")
+          ? tr("Master password set — Labterm will ask for it on start")
           : kind === "change"
             ? tr("Master password changed")
             : tr("Master password turned off"),
@@ -319,14 +319,14 @@ function PasswordDialogView({
             {kind === "enable" && (
               <Typography variant="body2" color="text.secondary">
                 {tr(
-                  "Termoso will ask for it every time it starts and whenever the vault is locked. It cannot be recovered — if you forget it, only an encrypted backup restores your data.",
+                  "Labterm will ask for it every time it starts and whenever the vault is locked. It cannot be recovered — if you forget it, only an encrypted backup restores your data.",
                 )}
               </Typography>
             )}
             {kind === "disable" && (
               <Typography variant="body2" color="text.secondary">
                 {tr(
-                  "The vault key goes back to the OS keychain (or an owner-only file when no keychain is available) and Termoso opens without asking for a password again.",
+                  "The vault key goes back to the OS keychain (or an owner-only file when no keychain is available) and Labterm opens without asking for a password again.",
                 )}
               </Typography>
             )}
