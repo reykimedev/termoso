@@ -64,6 +64,7 @@ pub mod store;
 pub mod sync;
 pub mod telnet;
 pub mod terminal;
+pub mod transport;
 pub mod webdav;
 pub mod wol;
 

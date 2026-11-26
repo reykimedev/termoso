@@ -9201,6 +9201,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "termoso-netbird"
+version = "0.12.1"
+dependencies = [
+ "libc",
+ "serde",
+ "serde_json",
+ "termoso-core",
+ "termoso-proto",
+ "tokio",
+ "tracing",
+ "uuid",
+ "zeroize",
+]
+
+[[package]]
 name = "termoso-oidc-cert"
 version = "0.12.1"
 dependencies = [

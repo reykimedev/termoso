@@ -83,6 +83,8 @@ pub enum ProxyStream {
     Ws(Box<crate::gateway::WsStream>),
     /// The stdin/stdout of a `ProxyCommand` child process.
     Child(Box<ChildStream>),
+    /// Through an overlay network run inside the app (see `crate::transport`).
+    Transport(crate::transport::BoxStream),
 }
 
 /// SSH over the pipes of a helper process (`ProxyCommand`): what the child
@@ -176,6 +178,7 @@ impl AsyncRead for ProxyStream {
             ProxyStream::Tcp(s) => Pin::new(s).poll_read(cx, buf),
             ProxyStream::Ws(s) => Pin::new(s).poll_read(cx, buf),
             ProxyStream::Child(s) => Pin::new(&mut s.stdout).poll_read(cx, buf),
+            ProxyStream::Transport(s) => Pin::new(s).poll_read(cx, buf),
         }
     }
 }
@@ -190,6 +193,7 @@ impl AsyncWrite for ProxyStream {
             ProxyStream::Tcp(s) => Pin::new(s).poll_write(cx, buf),
             ProxyStream::Ws(s) => Pin::new(s).poll_write(cx, buf),
             ProxyStream::Child(s) => Pin::new(&mut s.stdin).poll_write(cx, buf),
+            ProxyStream::Transport(s) => Pin::new(s).poll_write(cx, buf),
         }
     }
     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
@@ -197,6 +201,7 @@ impl AsyncWrite for ProxyStream {
             ProxyStream::Tcp(s) => Pin::new(s).poll_flush(cx),
             ProxyStream::Ws(s) => Pin::new(s).poll_flush(cx),
             ProxyStream::Child(s) => Pin::new(&mut s.stdin).poll_flush(cx),
+            ProxyStream::Transport(s) => Pin::new(s).poll_flush(cx),
         }
     }
     fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
@@ -204,6 +209,7 @@ impl AsyncWrite for ProxyStream {
             ProxyStream::Tcp(s) => Pin::new(s).poll_shutdown(cx),
             ProxyStream::Ws(s) => Pin::new(s).poll_shutdown(cx),
             ProxyStream::Child(s) => Pin::new(&mut s.stdin).poll_shutdown(cx),
+            ProxyStream::Transport(s) => Pin::new(s).poll_shutdown(cx),
         }
     }
 }
