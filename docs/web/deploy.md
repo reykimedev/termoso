@@ -9,7 +9,7 @@ a CDN or a TLS-terminating proxy you don't run in front of it ([threat model](th
 
 ## Images
 
-Every push to `main` publishes, for `linux/amd64` and `linux/arm64`:
+Every push to `main` publishes, for `linux/amd64` (arm64 is one line in `images.yml` away):
 
 | Image | Port | Health | Runs as |
 | --- | --- | --- | --- |
