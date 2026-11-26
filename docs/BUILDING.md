@@ -406,7 +406,7 @@ cargo install cargo-ndk
 from `ANDROID_NDK_HOME` if set, otherwise the newest one under
 `$ANDROID_HOME/ndk`. JDK 17 must be the `java` on `PATH` or `JAVA_HOME`.
 
-The embedded NetBird client ([NETBIRD.md](NETBIRD.md)) is a Go library built
+The embedded NetBird client ([VPN_NETWORKS.md](VPN_NETWORKS.md)) is a Go library built
 with the same NDK, so Android builds also need **Go** at the version in
 `crates/labterm-netbird/go/go.mod` (`go` on `PATH`; with `GOTOOLCHAIN=auto`,
 the default, an older Go fetches it). `-Ptermoso.netbird=false` builds without
