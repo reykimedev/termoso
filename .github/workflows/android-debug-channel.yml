@@ -4,7 +4,7 @@
 # channel (`android-debug` for feat/opkssh-certificates, `android-debug-<branch>` for
 # the others), so an installed build only ever updates from the branch it came from.
 #
-# Repository secrets (skipped without them):
+# Secrets of the GitHub environment `android-debug` (deployments limited to main; skipped without them):
 #   ANDROID_DEBUG_KEYSTORE_BASE64     debug-channel keystore (`base64 -w0 termoso-debug.jks`, alias `termoso-debug`)
 #   ANDROID_DEBUG_KEYSTORE_PASSWORD   its store/key password
 name: Android debug channel
@@ -25,6 +25,8 @@ jobs:
   publish:
     name: debug APK → android-debug prerelease
     runs-on: ubuntu-latest
+    # The signing key lives in this environment, so only branches it allows can sign.
+    environment: android-debug
     permissions:
       contents: write
     env:
