@@ -179,7 +179,7 @@ function useFileDrop(onPaths: (paths: string[]) => void) {
   }, []);
 }
 
-function PanelMenuButton({ items }: { items: MenuAction[] }) {
+export function PanelMenuButton({ items }: { items: MenuAction[] }) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   if (items.length === 0) return null;
   return (

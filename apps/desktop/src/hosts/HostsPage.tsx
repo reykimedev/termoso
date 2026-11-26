@@ -120,7 +120,8 @@ import { useVaultPresence } from "./PresenceViews";
 import { HostEditPanel } from "./HostEditPanel";
 import { DeleteGroupDialog, GroupPanel } from "./GroupPanel";
 import { MoveCopyDialog, type MoveCopyRequest } from "./MoveCopyDialog";
-import { AddKeyToHostDialog } from "@/keychain/KeyDialogs";
+import { AddKeyToHostDialog, SetupOpksshDialog } from "@/keychain/KeyDialogs";
+import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
 import { ImportDialog } from "./ImportDialog";
 import { CLOUD_PROVIDERS, CloudImportDialog } from "./CloudImportDialog";
 import { LanDiscoveryDialog } from "./LanDiscoveryDialog";
@@ -295,6 +296,8 @@ export function HostsPage() {
   const [anchorId, setAnchorId] = useState<Uuid | null>(null);
   const [moveCopy, setMoveCopy] = useState<MoveCopyRequest | null>(null);
   const [addKeyHost, setAddKeyHost] = useState<HostCard | null>(null);
+  const [opksshHost, setOpksshHost] = useState<HostCard | null>(null);
+  const [opksshBusy, setOpksshBusy] = useState(false);
   const [addKeyBusy, setAddKeyBusy] = useState(false);
   const sshKeys = useSshKeys(vaultId);
   const [importOpen, setImportOpen] = useState(false);
@@ -780,6 +783,12 @@ export function HostsPage() {
             label: tr("Add SSH key to host…"),
             icon: <VpnKeyOutlinedIcon fontSize="small" />,
             onClick: () => setAddKeyHost(h),
+            disabled: many || !hasSsh(h),
+          },
+          {
+            label: tr("Set up opkssh on host…"),
+            icon: <BadgeOutlinedIcon fontSize="small" />,
+            onClick: () => setOpksshHost(h),
             disabled: many || !hasSsh(h),
           },
           {
@@ -1460,6 +1469,35 @@ export function HostsPage() {
           vaultId={vaultId}
           onClose={() => setMoveCopy(null)}
           onDone={clearSelection}
+        />
+      )}
+
+      {opksshHost && (
+        <SetupOpksshDialog
+          open
+          card={null}
+          keys={sshKeys.data ?? []}
+          hosts={hosts.data ?? []}
+          fixedHost={opksshHost}
+          busy={opksshBusy}
+          onCancel={() => setOpksshHost(null)}
+          onConfirm={(key, host, principal, identity) => {
+            setOpksshBusy(true);
+            ipc
+              .keySetupOpksshOnHost({ id: key.id, hostId: host.id, principal, identity })
+              .then((r) => {
+                snackbar.notify(
+                  tr("opkssh ready on {target}: {identity} may log in as {principal}", {
+                    target: r.target,
+                    identity: r.identity,
+                    principal: r.principal,
+                  }),
+                );
+                setOpksshHost(null);
+              })
+              .catch((e: unknown) => snackbar.error(errorMessage(e)))
+              .finally(() => setOpksshBusy(false));
+          }}
         />
       )}
 

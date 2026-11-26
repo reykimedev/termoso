@@ -127,6 +127,7 @@ object Routes {
     const val TERMINAL_INPUT = "terminalInput"
     const val LINUX = "linux"
     const val KNOWN_HOSTS = "knownHosts"
+    const val OIDC_PROVIDERS = "oidcProviders"
     const val HISTORY = "history"
     const val LOGS = "logs"
     const val LOG = "log/{id}"
@@ -210,6 +211,10 @@ fun MainShell(
     val shell: ShellViewModel = viewModel { ShellViewModel(repo, sessions, sftp, forwards, presence, ai) }
     val workspaces = sessions.workspaces
     LaunchedEffect(shell) { account.personalVaultsHidden.collect { shell.hidePersonalVaults.value = it } }
+    LaunchedEffect(Unit) {
+        runCatching { dev.labdex.labterm.data.DebugUpdater.check() }.getOrNull()
+            ?.let { shell.notify(dev.labdex.labterm.str(R.string.debug_update_available_notice, it.build)) }
+    }
     val nav = rememberNavController()
     val scope = rememberCoroutineScope()
     val backStack by nav.currentBackStackEntryAsState()
@@ -462,6 +467,7 @@ fun MainShell(
                     onOpenForwarding = { nav.navigate(Routes.FORWARDING) },
                     onOpenSnippets = { nav.navigate(Routes.snippets(null)) },
                     onOpenKnownHosts = { nav.navigate(Routes.KNOWN_HOSTS) },
+                    onOpenOidcProviders = { nav.navigate(Routes.OIDC_PROVIDERS) },
                     onOpenHistory = { nav.navigate(Routes.HISTORY) },
                     onOpenLogs = { nav.navigate(Routes.LOGS) },
                 )
@@ -695,6 +701,7 @@ fun MainShell(
                 IdentityEditorScreen(shell = shell, identityId = entry.arguments?.getString("id"), onClose = { nav.popBackStack() })
             }
             composable(Routes.KNOWN_HOSTS) { KnownHostsScreen(shell = shell, onBack = { nav.popBackStack() }) }
+            composable(Routes.OIDC_PROVIDERS) { dev.labdex.labterm.ui.keychain.OidcProvidersScreen(shell = shell, onBack = { nav.popBackStack() }) }
             composable(Routes.HISTORY) {
                 HistoryScreen(shell = shell, onBack = { nav.popBackStack() }, onOpenHost = { nav.navigate(Routes.hostEdit(it)) })
             }

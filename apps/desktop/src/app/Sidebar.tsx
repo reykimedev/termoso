@@ -14,6 +14,7 @@ import SwapHorizRoundedIcon from "@mui/icons-material/SwapHorizRounded";
 import CodeRoundedIcon from "@mui/icons-material/CodeRounded";
 import KeyRoundedIcon from "@mui/icons-material/KeyRounded";
 import VerifiedUserRoundedIcon from "@mui/icons-material/VerifiedUserRounded";
+import BadgeRoundedIcon from "@mui/icons-material/BadgeRounded";
 import ArticleRoundedIcon from "@mui/icons-material/ArticleRounded";
 import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
 import CloudOffRoundedIcon from "@mui/icons-material/CloudOffRounded";
@@ -48,6 +49,11 @@ const items: Item[] = [
     id: "knownHosts",
     label: msg("Known Hosts"),
     icon: <VerifiedUserRoundedIcon fontSize="small" />,
+  },
+  {
+    id: "oidcProviders",
+    label: msg("OpenID Providers"),
+    icon: <BadgeRoundedIcon fontSize="small" />,
   },
   { id: "logs", label: msg("Logs"), icon: <ArticleRoundedIcon fontSize="small" /> },
 ];

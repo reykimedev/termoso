@@ -290,6 +290,7 @@ pub async fn add_fido2<R: Runtime>(app: &AppHandle<R>, form: SshIdFido2Form) -> 
     state.store()?.insert(
         vault_id,
         &SshKey {
+            oidc: None,
             external_id: None,
             label,
             private_key: material.private_key.to_string(),

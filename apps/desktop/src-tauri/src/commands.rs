@@ -235,6 +235,7 @@ fn validate_payload(kind: &str, data: &serde_json::Value) -> Result<()> {
         "tag" => m::Tag,
         "tag_host" => m::TagHost,
         "color_scheme" => m::ColorScheme,
+        "oidc_provider" => m::OidcProvider,
     }
     Ok(())
 }

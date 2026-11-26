@@ -10,6 +10,7 @@ members = [
     "crates/labterm-awslc-rsa",
     "crates/termoso-server",
     "crates/termoso-bridge",
+    "crates/labterm-oidc-cert",
     "crates/labterm-wasm",
     "apps/desktop/src-tauri",
 ]
@@ -32,6 +33,7 @@ labterm-core = { path = "crates/labterm-core", default-features = false }
 labterm-client = { path = "crates/labterm-client", default-features = false }
 termoso-bridge = { path = "crates/termoso-bridge" }
 labterm-awslc-rsa = { path = "crates/labterm-awslc-rsa" }
+labterm-oidc-cert = { path = "crates/labterm-oidc-cert", default-features = false }
 
 # mobile bindings
 uniffi = { version = "0.32.0", default-features = false }

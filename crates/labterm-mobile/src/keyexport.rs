@@ -6,14 +6,14 @@
 
 use std::sync::{Arc, Mutex};
 
-use labterm_client::keychain;
+use labterm_client::{keychain, oidc};
 use labterm_core::ssh::SshTarget;
 use labterm_core::store::Store;
 use uuid::Uuid;
 
 use crate::connect::{
-    ConnectStage, ConnectUi, Connector, PromptAnswer, PromptRequest, SecretCache, connect_resolved,
-    stage_label,
+    ConnectStage, ConnectUi, Connector, PromptAnswer, PromptRequest, SecretCache, ask_username,
+    connect_resolved, stage_label,
 };
 use crate::error::{MobileError, Result};
 use crate::settings::MobileSettings;
@@ -59,6 +59,14 @@ pub(crate) struct KeyExportLaunch {
     pub host_id: Uuid,
     pub vault_id: Option<Uuid>,
     pub listener: Arc<dyn KeyExportListener>,
+    /// Set up opkssh for an OpenID key instead of copying a public key.
+    pub opkssh: Option<OpksshSetup>,
+}
+
+/// Who may log in, for opkssh host setup; `None` fields take defaults.
+pub(crate) struct OpksshSetup {
+    pub principal: Option<String>,
+    pub identity: Option<String>,
 }
 
 /// One in-flight export; keep it alive until `on_done` / `on_failed`.
@@ -78,6 +86,7 @@ impl KeyExport {
             host_id,
             vault_id,
             listener,
+            opkssh,
         } = launch;
         let conn = Arc::new(Connector::new(
             store.clone(),
@@ -88,7 +97,16 @@ impl KeyExport {
         ));
         let job_conn = conn.clone();
         let task = runtime.spawn(async move {
-            match run(&job_conn, &store, &settings, key_id, host_id, vault_id).await {
+            let done = match opkssh {
+                Some(setup) => {
+                    run_opkssh(
+                        &job_conn, &store, &settings, key_id, host_id, vault_id, setup,
+                    )
+                    .await
+                }
+                None => run(&job_conn, &store, &settings, key_id, host_id, vault_id).await,
+            };
+            match done {
                 Ok(r) => listener.on_done(r),
                 Err(e) => listener.on_failed(job_conn.map_error(e).to_string()),
             }
@@ -152,6 +170,56 @@ async fn run(
     let outcome = keychain::export_outcome(out.exit_code, &out.stdout, &out.stderr)?;
     Ok(KeyExportResult {
         added: outcome == keychain::ExportOutcome::Added,
+        host_label: resolved.host.data.label.clone(),
+        target: display,
+    })
+}
+
+async fn run_opkssh(
+    conn: &Arc<Connector>,
+    store: &Store,
+    settings: &MobileSettings,
+    key_id: Uuid,
+    host_id: Uuid,
+    vault_id: Option<Uuid>,
+    setup: OpksshSetup,
+) -> Result<KeyExportResult> {
+    let (oidc_settings, policy, identity) =
+        crate::oidc::host_setup_inputs(store, key_id, setup.identity).await?;
+    let resolved = store.resolve_host_in(host_id, vault_id)?;
+    if resolved.protocol() != "ssh" {
+        return Err(MobileError::invalid(
+            "opkssh can only be set up on SSH hosts",
+        ));
+    }
+    let mut target = SshTarget {
+        host: resolved.host.data.address.clone(),
+        port: resolved.port(),
+        username: resolved.username().unwrap_or_default(),
+    };
+    // The principal defaults to the login user, so settle it before the script.
+    if target.username.trim().is_empty() {
+        target.username = ask_username(conn, &target, Some(&resolved)).await?;
+    }
+    let display = format!("{}@{}:{}", target.username, target.host, target.port);
+    let principal = setup
+        .principal
+        .map(|p| p.trim().to_owned())
+        .filter(|p| !p.is_empty())
+        .unwrap_or_else(|| target.username.clone());
+    let script = oidc::host_setup_script(&oidc_settings, policy.as_deref(), &principal, &identity)?;
+    let (client, jumps) = connect_resolved(conn, settings, target, Some(&resolved)).await?;
+    let out = client
+        .exec(oidc::HOST_SETUP_COMMAND, Some(bytes::Bytes::from(script)))
+        .await;
+    let _ = client.disconnect().await;
+    for j in jumps {
+        let _ = j.disconnect().await;
+    }
+    let out = out?;
+    oidc::host_setup_outcome(out.exit_code, &out.stdout, &out.stderr)?;
+    Ok(KeyExportResult {
+        added: true,
         host_label: resolved.host.data.label.clone(),
         target: display,
     })

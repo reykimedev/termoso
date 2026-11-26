@@ -7,6 +7,8 @@ import dev.labdex.labterm.data.VaultRepository
 import dev.labdex.labterm.data.userMessage
 import dev.labdex.labterm.str
 import dev.labdex.labterm.core.KeyItem
+import dev.labdex.labterm.core.OidcKeyChoice
+import dev.labdex.labterm.core.OidcSessionItem
 import dev.labdex.labterm.core.SecurityKeyCard
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,6 +21,12 @@ data class KeyDetailState(
     val key: KeyItem? = null,
     val publicKey: String = "",
     val securityKey: SecurityKeyCard? = null,
+    /** Provider choice of an opkssh key; null for other keys. */
+    val oidc: OidcKeyChoice? = null,
+    /** This device's sign-in of an opkssh key, while its certificate is usable. */
+    val session: OidcSessionItem? = null,
+    /** Label of the provider the key resolves to (named or the vault default). */
+    val providerLabel: String? = null,
     val working: Boolean = false,
     val deleted: Boolean = false,
     val notice: String? = null,
@@ -41,13 +49,21 @@ class KeyDetailViewModel(private val repo: VaultRepository, private val id: Stri
         runCatching {
             repo.read {
                 val key = keys(null).firstOrNull { it.id == id } ?: error(str(R.string.key_not_found))
-                Triple(
-                    key,
-                    runCatching { publicKey(id) }.getOrDefault(key.publicKey),
-                    if (key.keyType.startsWith("sk-")) runCatching { securityKeyInfo(id) }.getOrNull() else null,
-                )
+                KeyDetailState(
+                    loading = false,
+                    key = key,
+                    publicKey = runCatching { publicKey(id) }.getOrDefault(key.publicKey),
+                    securityKey = if (key.keyType.startsWith("sk-")) runCatching { securityKeyInfo(id) }.getOrNull() else null,
+                    oidc = runCatching { keyOidcChoice(id) }.getOrNull(),
+                    session = runCatching { keyOidcSession(id) }.getOrNull(),
+                ).let { st ->
+                    val providers = if (st.oidc != null) runCatching { oidcProviders(key.vaultId) }.getOrDefault(emptyList()) else emptyList()
+                    val chosen = st.oidc?.providerId?.let { pid -> providers.firstOrNull { it.id == pid } }
+                        ?: providers.firstOrNull { it.isDefault } ?: providers.singleOrNull()
+                    st.copy(providerLabel = chosen?.label)
+                }
             }
-        }.onSuccess { (k, pub, sk) -> _state.update { it.copy(loading = false, key = k, publicKey = pub, securityKey = sk) } }
+        }.onSuccess { l -> _state.update { it.copy(loading = false, key = l.key, publicKey = l.publicKey, securityKey = l.securityKey, oidc = l.oidc, session = l.session, providerLabel = l.providerLabel) } }
             .onFailure { e -> _state.update { it.copy(loading = false, notice = e.userMessage()) } }
     }
 
@@ -57,7 +73,7 @@ class KeyDetailViewModel(private val repo: VaultRepository, private val id: Stri
         _state.update { it.copy(working = true) }
         viewModelScope.launch {
             runCatching { block() }
-                .onSuccess { _state.update { it.copy(working = false, notice = success) } }
+                .onSuccess { _state.update { it.copy(working = false, notice = success ?: it.notice) } }
                 .onFailure { e -> _state.update { it.copy(working = false, notice = e.userMessage()) } }
         }
     }
@@ -73,6 +89,17 @@ class KeyDetailViewModel(private val repo: VaultRepository, private val id: Stri
         mutate(if (text == null) str(R.string.certificate_removed) else str(R.string.certificate_attached)) {
             repo.write { setKeyCertificate(id, text?.trim()?.takeIf { it.isNotEmpty() }) }
         }
+
+    fun setOidcChoice(value: OidcKeyChoice) =
+        mutate(str(R.string.openid_provider_saved)) { repo.write { setKeyOidcChoice(id, value) } }
+
+    /** Opens the provider's sign-in page in the browser and waits for it. */
+    fun signIn() = mutate(null) {
+        val s = repo.write { keyOidcSignIn(id) }
+        _state.update { it.copy(notice = str(R.string.openid_signed_in_as, s.identity)) }
+    }
+
+    fun signOut() = mutate(str(R.string.openid_signed_out)) { repo.write { keyOidcSignOut(id) } }
 
     fun delete() {
         deleting = true

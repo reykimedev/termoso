@@ -42,6 +42,7 @@ const MENU: { label: string; entries: Entry[] }[] = [
       "nav.forwarding",
       "nav.snippets",
       "nav.knownHosts",
+      "nav.oidcProviders",
       "nav.logs",
       null,
       "term.zoomIn",

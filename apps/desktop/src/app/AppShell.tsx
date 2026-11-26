@@ -10,6 +10,7 @@ import { ForwardingPage } from "@/forwarding/ForwardingPage";
 import { SnippetsPage } from "@/snippets/SnippetsPage";
 import { KeychainPage } from "@/keychain/KeychainPage";
 import { KnownHostsPage } from "@/knownhosts/KnownHostsPage";
+import { OidcProvidersPage } from "@/keychain/OidcProvidersPage";
 import { LogsPage } from "@/logs/LogsPage";
 import { PromptHost } from "@/prompts/PromptHost";
 import { TerminalWorkspace } from "@/terminal/TerminalWorkspace";
@@ -211,6 +212,7 @@ function UnlockedShell() {
             {section === "snippets" && <SnippetsPage />}
             {section === "keychain" && <KeychainPage />}
             {section === "knownHosts" && <KnownHostsPage />}
+            {section === "oidcProviders" && <OidcProvidersPage />}
             {section === "logs" && <LogsPage />}
           </Box>
         </Box>

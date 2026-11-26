@@ -11,9 +11,11 @@ use labterm_core::fido2;
 #[cfg(feature = "fido2")]
 use labterm_core::fido2::{Fido2Device, GenerateOptions, SecurityKeyInfo};
 use labterm_core::keys::{self, CertificateInfo, KeyAlgorithm, KeyInfo};
-use labterm_core::model::{Entity, Identity, SshCertificate, SshConfig, SshKey, TelnetConfig};
+use labterm_core::model::{
+    Entity, Identity, OidcKeyOptions, OidcProvider, SshCertificate, SshConfig, SshKey, TelnetConfig,
+};
 use labterm_core::store::Store;
-use labterm_proto::entities::AGENT_KEY_TYPE;
+use labterm_proto::entities::{AGENT_KEY_TYPE, OPKSSH_KEY_TYPE};
 use labterm_proto::sshid::SshIdKeyType;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -87,6 +89,11 @@ pub struct KeyCard {
     /// Only the public half is stored; the system SSH agent signs with
     /// exactly this key (no other agent keys are tried).
     pub agent_backed: bool,
+    /// OpenID (opkssh) key: no key material in the vault; each device signs
+    /// in with the provider and gets a fresh key + certificate.
+    pub opkssh: bool,
+    /// Provider choice and overrides of an opkssh key.
+    pub oidc: Option<OidcKeyOptions>,
     /// Identities (visible and inline) that reference this key.
     pub used_by: usize,
     /// Certificate attached to this key, if any.
@@ -328,8 +335,10 @@ fn card(
         comment,
         encrypted,
         has_passphrase: k.passphrase.as_deref().is_some_and(|p| !p.is_empty()),
-        unreadable: info.is_none() && !k.is_agent_backed(),
+        unreadable: info.is_none() && !k.is_agent_backed() && !k.is_opkssh(),
         agent_backed: k.is_agent_backed(),
+        opkssh: k.is_opkssh(),
+        oidc: k.oidc.clone().filter(|_| k.is_opkssh()),
         used_by,
         certificate: cert_info.and_then(|c| c.ok()),
         certificate_unreadable,
@@ -397,6 +406,7 @@ pub fn store_security_key(
     let credential =
         fido2::describe(&material.private_key, passphrase).and_then(|s| s.credential_id);
     let key = SshKey {
+        oidc: None,
         external_id: None,
         label,
         private_key: material.private_key.to_string(),
@@ -475,6 +485,7 @@ pub fn generate(store: &Store, form: &GenerateForm) -> Result<KeyCard> {
     let passphrase = non_empty(form.passphrase.clone());
     let material = keys::generate(form.algorithm, form.comment.trim(), passphrase.as_deref())?;
     let key = SshKey {
+        oidc: None,
         external_id: None,
         label,
         private_key: material.private_key.to_string(),
@@ -508,6 +519,7 @@ pub fn import(store: &Store, form: &ImportForm) -> Result<KeyCard> {
         _ => None,
     };
     let key = SshKey {
+        oidc: None,
         external_id: None,
         label: label.clone(),
         private_key: material.private_key.to_string(),
@@ -544,6 +556,7 @@ pub fn agent_key(label: &str, public_key: &str) -> Result<SshKey> {
         l => label_of(l, "key")?,
     };
     Ok(SshKey {
+        oidc: None,
         external_id: None,
         label,
         private_key: String::new(),
@@ -615,6 +628,11 @@ fn public_line_of(k: &SshKey) -> Option<String> {
 }
 
 fn needs_private(k: &SshKey) -> Result<()> {
+    if k.is_opkssh() {
+        return Err(ClientError::invalid(
+            "this is an OpenID key; it gets a fresh key at each sign-in and stores none",
+        ));
+    }
     if k.is_agent_backed() {
         return Err(ClientError::invalid(
             "this key is signed by the SSH agent; its private half is not in the vault",
@@ -751,6 +769,8 @@ pub fn copy_to_vault(store: &Store, id: Uuid, vault_id: Uuid, mv: bool) -> Resul
                     (Some(a), Some(b)) => key_blob(&a) == key_blob(&b),
                     _ => false,
                 }
+        } else if e.data.is_opkssh() {
+            false
         } else {
             k.data.private_key == e.data.private_key
         }
@@ -762,7 +782,12 @@ pub fn copy_to_vault(store: &Store, id: Uuid, vault_id: Uuid, mv: bool) -> Resul
         return key_card(store, existing.id);
     }
     let cert = certificate_of(store, &e)?;
-    let new_id = store.insert(vault_id, &e.data)?;
+    let mut data = e.data.clone();
+    // Providers are per vault: the copy uses the target vault's default.
+    if let Some(o) = data.oidc.as_mut() {
+        o.provider_id = None;
+    }
+    let new_id = store.insert(vault_id, &data)?;
     if let Some(c) = cert {
         store.insert(
             vault_id,
@@ -776,6 +801,72 @@ pub fn copy_to_vault(store: &Store, id: Uuid, vault_id: Uuid, mv: bool) -> Resul
         delete(store, id)?;
     }
     key_card(store, new_id)
+}
+
+/// Form for a new OpenID (opkssh) key.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OpksshKeyForm {
+    pub vault_id: Uuid,
+    pub label: String,
+    #[serde(default)]
+    pub oidc: OidcKeyOptions,
+}
+
+fn check_oidc_options(store: &Store, vault_id: Uuid, o: &mut OidcKeyOptions) -> Result<()> {
+    let tidy = |v: &Option<String>| {
+        v.as_deref()
+            .map(str::trim)
+            .filter(|v| !v.is_empty())
+            .map(str::to_owned)
+    };
+    o.issuer = tidy(&o.issuer);
+    o.client_id = tidy(&o.client_id);
+    o.principals = o
+        .principals
+        .iter()
+        .map(|p| p.trim().to_owned())
+        .filter(|p| !p.is_empty())
+        .collect();
+    if let Some(pid) = o.provider_id {
+        match store.get::<OidcProvider>(pid)? {
+            Some(p) if p.vault_id == vault_id => {}
+            _ => {
+                return Err(ClientError::invalid(
+                    "the OpenID provider must be in the key's vault",
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Create an OpenID (opkssh) key. It stores no key material: each device
+/// signs in with the provider before connecting.
+pub fn create_opkssh(store: &Store, form: &OpksshKeyForm) -> Result<KeyCard> {
+    let mut oidc = form.oidc.clone();
+    check_oidc_options(store, form.vault_id, &mut oidc)?;
+    let key = SshKey {
+        label: label_of(&form.label, "key")?,
+        key_type: OPKSSH_KEY_TYPE.to_string(),
+        oidc: Some(oidc),
+        ..Default::default()
+    };
+    let id = store.insert(form.vault_id, &key)?;
+    key_card(store, id)
+}
+
+/// Change the provider choice and overrides of an opkssh key.
+pub fn set_oidc_options(store: &Store, id: Uuid, oidc: OidcKeyOptions) -> Result<KeyCard> {
+    let mut e = store.require::<SshKey>(id)?;
+    if !e.data.is_opkssh() {
+        return Err(ClientError::invalid("not an OpenID key"));
+    }
+    let mut oidc = oidc;
+    check_oidc_options(store, e.vault_id, &mut oidc)?;
+    e.data.oidc = Some(oidc);
+    store.update(id, &e.data)?;
+    key_card(store, id)
 }
 
 pub fn rename(store: &Store, id: Uuid, label: &str) -> Result<KeyCard> {
@@ -1958,5 +2049,51 @@ mod tests {
         assert_eq!(twice.id, copied.id);
         let json = serde_json::to_string(&keys_list(&store, None).unwrap()).unwrap();
         assert!(json.contains("\"agentBacked\":true"));
+    }
+
+    #[test]
+    fn opkssh_keys_hold_no_material() {
+        let store = store();
+        let vault = store.local_vault().unwrap().id;
+        let card = create_opkssh(
+            &store,
+            &OpksshKeyForm {
+                vault_id: vault,
+                label: " work ".into(),
+                oidc: OidcKeyOptions {
+                    issuer: Some("  ".into()),
+                    principals: vec!["alice".into(), " ".into()],
+                    ..Default::default()
+                },
+            },
+        )
+        .unwrap();
+        assert!(card.opkssh && !card.unreadable && card.label == "work");
+        let o = card.oidc.clone().unwrap();
+        assert_eq!((o.issuer, o.principals), (None, vec!["alice".to_string()]));
+        assert!(export(&store, card.id, None, None).is_err());
+
+        // An unknown provider is refused.
+        let bad = set_oidc_options(
+            &store,
+            card.id,
+            OidcKeyOptions {
+                provider_id: Some(Uuid::new_v4()),
+                ..Default::default()
+            },
+        );
+        assert!(bad.is_err());
+
+        // Two opkssh keys are never "the same key" when copied.
+        let second = create_opkssh(
+            &store,
+            &OpksshKeyForm {
+                vault_id: vault,
+                label: "second".into(),
+                oidc: OidcKeyOptions::default(),
+            },
+        )
+        .unwrap();
+        assert_ne!(card.id, second.id);
     }
 }

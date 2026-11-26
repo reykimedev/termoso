@@ -49,6 +49,7 @@ payloads! {
     Workspace => "workspace",
     LogBookmark => "log_bookmark",
     ColorScheme => "color_scheme",
+    OidcProvider => "oidc_provider",
 }
 
 /// Decrypted entity as handed to the UI.

@@ -768,6 +768,7 @@ pub fn apply(
             env_variables: h.env_variables.clone(),
             keep_alive_interval: h.keep_alive_interval,
             timeout: h.timeout,
+            oidc_key_id: None,
             color_scheme: None,
             has_password: false,
             files_provider: false,
@@ -990,6 +991,7 @@ fn import_key(
         // Cannot normalise without the passphrase; store as-is, the
         // connection prompts for it.
         SshKey {
+            oidc: None,
             external_id: None,
             label,
             private_key: text.trim().to_string(),
@@ -1002,6 +1004,7 @@ fn import_key(
     } else {
         let material = keys::import(&text, None)?;
         SshKey {
+            oidc: None,
             external_id: None,
             label,
             private_key: material.private_key.to_string(),
@@ -1239,6 +1242,7 @@ fn build_chain(
                     env_variables: Vec::new(),
                     keep_alive_interval: None,
                     timeout: None,
+                    oidc_key_id: None,
                     color_scheme: None,
                     has_password: false,
                     files_provider: false,

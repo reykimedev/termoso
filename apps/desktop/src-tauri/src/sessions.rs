@@ -1601,6 +1601,21 @@ async fn ssh_connect<R: Runtime>(
         {
             auth.push(m);
         }
+        // OpenID key from the host's (or its group's) settings, before the
+        // identity's credentials.
+        let host_oidc = match resolved {
+            Some(r) => labterm_client::oidc::host_key(&*state.store()?, r)?,
+            None => None,
+        };
+        if let Some(k) = host_oidc.as_ref() {
+            match oidc_auth(&state, k).await {
+                Ok(Some(m)) => auth.push(m),
+                Ok(None) => {}
+                Err(e) => {
+                    tracing::warn!(error = %e, "OpenID sign-in failed; trying the other methods")
+                }
+            }
+        }
         if identity.as_ref().is_some_and(|i| i.data.ssh_id) {
             let preferred = identity.as_ref().and_then(|i| i.data.ssh_id_key_type);
             auth.extend(sshid::auth_methods(
@@ -1632,6 +1647,16 @@ async fn ssh_connect<R: Runtime>(
                     backend: Arc::new(fido2::UsbBackend::default()),
                     certificate,
                 });
+            } else if key.data.is_opkssh() {
+                // OpenID key: fresh key + certificate from a sign-in. A
+                // failed sign-in leaves the other methods to try.
+                match oidc_auth(&state, key).await {
+                    Ok(Some(m)) => auth.push(m),
+                    Ok(None) => {}
+                    Err(e) => {
+                        tracing::warn!(error = %e, "OpenID sign-in failed; trying the other methods")
+                    }
+                }
             } else {
                 auth.push(AuthMethod::Key {
                     private_key: Zeroizing::new(key.data.private_key.clone()),
@@ -2078,6 +2103,35 @@ async fn gateway_dial<R: Runtime>(
         vault_id: r.host.vault_id,
         host_id: r.host.id,
     })
+}
+
+/// Opens the OpenID provider's login page in the system browser.
+pub(crate) struct SystemBrowser;
+
+impl labterm_client::oidc::OpenBrowser for SystemBrowser {
+    fn open(&self, url: &str) -> std::result::Result<(), String> {
+        tauri_plugin_opener::open_url(url, None::<&str>).map_err(|e| e.to_string())
+    }
+}
+
+/// Key + certificate of an OpenID (opkssh) key: the sign-in kept on this
+/// device, or a fresh one through the browser. `None` for other keys.
+pub(crate) async fn oidc_auth(
+    state: &AppState,
+    key: &labterm_core::model::Entity<labterm_core::model::SshKey>,
+) -> Result<Option<AuthMethod>> {
+    use labterm_client::oidc::{self, PreConnect};
+    let prepared = oidc::prepare(&*state.store()?, key)?;
+    match prepared {
+        PreConnect::NotOidc => Ok(None),
+        PreConnect::Cached(m) => Ok(Some(m)),
+        PreConnect::Login(settings) => {
+            // The store is not held while the browser login runs.
+            let fresh = oidc::login(&settings, &SystemBrowser).await?;
+            oidc::remember(&*state.store()?, key.id, &settings, &fresh)?;
+            Ok(Some(fresh.auth_method()))
+        }
+    }
 }
 
 #[cfg(test)]

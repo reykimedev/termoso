@@ -65,7 +65,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private enum class Sheet { RENAME, PASSPHRASE, CERTIFICATE, EXPORT, TO_HOST, DELETE }
+private enum class Sheet { RENAME, PASSPHRASE, CERTIFICATE, OIDC, SIGN_OUT, OPKSSH_HOST, PROVIDERS, EXPORT, TO_HOST, DELETE }
 
 /** Details and actions for one stored SSH key. */
 @Composable
@@ -124,92 +124,126 @@ fun KeyDetailScreen(shell: ShellViewModel, keyId: String, onBack: () -> Unit) {
                 }
             }
 
-            SectionLabel(stringResource(R.string.public_key_2))
-            SectionCard {
-                Text(
-                    s.publicKey.ifBlank { "—" },
-                    style = MaterialTheme.typography.bodySmall,
-                    fontFamily = FontFamily.Monospace,
-                    modifier = Modifier.padding(16.dp),
-                )
-                RowDivider()
-                Row(Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
-                    TextButton(
-                        enabled = s.publicKey.isNotBlank(),
-                        onClick = { copyText(context, str(R.string.public_key_2), s.publicKey); shell.notify(str(R.string.public_key_copied)) },
-                    ) {
-                        Icon(Icons.Filled.ContentCopy, contentDescription = null, Modifier.height(18.dp))
-                        Text(stringResource(R.string.copy_public_key_2))
-                    }
-                }
-            }
-
-            s.securityKey?.let { sk ->
-                SectionLabel(stringResource(R.string.security_key))
+            if (key.isOpkssh()) {
+                SectionLabel(stringResource(R.string.openid))
                 SectionCard {
-                    ListRow(
-                        title = stringResource(R.string.private_key_lives_on_the_security_key),
-                        subtitle = stringResource(R.string.only_the_public_key_and_a_handle_are),
-                    )
-                    RowDivider()
-                    ListRow(title = stringResource(R.string.application), subtitle = sk.application)
-                    RowDivider()
-                    ListRow(
-                        title = stringResource(R.string.on_connect),
-                        subtitle = listOfNotNull(
-                            when (sk.userPresence) { true -> stringResource(R.string.touch_required); false -> stringResource(R.string.no_touch); null -> null },
-                            when (sk.userVerification) { true -> stringResource(R.string.pin_required); false -> null; null -> null },
-                        ).joinToString(", ").ifBlank { stringResource(R.string.unknown) },
-                    )
-                    RowDivider()
-                    ListRow(
-                        title = stringResource(R.string.resident_key),
-                        subtitle = when (sk.resident) {
-                            true -> stringResource(R.string.stored_on_the_token_can_be_loaded_elsewhere)
-                            false -> stringResource(R.string.not_stored_on_the_token_only_this_handle)
-                            null -> stringResource(R.string.unknown)
+                    val session = s.session
+                    ChevronRow(
+                        title = if (session != null) stringResource(R.string.openid_signed_in) else stringResource(R.string.openid_sign_in),
+                        subtitle = if (session != null) {
+                            stringResource(R.string.openid_session, session.identity, formatUntil(session.useUntil))
+                        } else {
+                            stringResource(R.string.openid_sign_in_hint)
                         },
+                        modifier = Modifier.clickable(enabled = !s.working) { if (session != null) sheet = Sheet.SIGN_OUT else vm.signIn() },
                     )
-                    sk.credentialId?.let { cred ->
-                        RowDivider()
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(stringResource(R.string.credential_id), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(cred, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
+                    RowDivider()
+                    ChevronRow(
+                        title = stringResource(R.string.openid_provider),
+                        subtitle = s.providerLabel ?: stringResource(R.string.openid_no_providers),
+                        modifier = Modifier.clickable { sheet = Sheet.OIDC },
+                    )
+                    RowDivider()
+                    ChevronRow(
+                        title = stringResource(R.string.setup_opkssh_on_host),
+                        subtitle = stringResource(R.string.setup_opkssh_on_host_hint),
+                        modifier = Modifier.clickable { sheet = Sheet.OPKSSH_HOST },
+                    )
+                    RowDivider()
+                    ChevronRow(
+                        title = stringResource(R.string.openid_providers),
+                        subtitle = stringResource(R.string.openid_providers_hint),
+                        modifier = Modifier.clickable { sheet = Sheet.PROVIDERS },
+                    )
+                }
+            } else {
+                SectionLabel(stringResource(R.string.public_key_2))
+                SectionCard {
+                    Text(
+                        s.publicKey.ifBlank { "—" },
+                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.padding(16.dp),
+                    )
+                    RowDivider()
+                    Row(Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
+                        TextButton(
+                            enabled = s.publicKey.isNotBlank(),
+                            onClick = { copyText(context, str(R.string.public_key_2), s.publicKey); shell.notify(str(R.string.public_key_copied)) },
+                        ) {
+                            Icon(Icons.Filled.ContentCopy, contentDescription = null, Modifier.height(18.dp))
+                            Text(stringResource(R.string.copy_public_key_2))
                         }
                     }
                 }
-            }
 
-            SectionLabel(stringResource(R.string.security))
-            SectionCard {
-                ChevronRow(
-                    title = if (key.encrypted) stringResource(R.string.change_passphrase) else stringResource(R.string.set_passphrase),
-                    subtitle = when {
-                        !key.encrypted && s.securityKey != null -> stringResource(R.string.key_handle_is_stored_without_a_passphrase)
-                        !key.encrypted -> stringResource(R.string.private_key_is_stored_without_a_passphrase)
-                        key.hasPassphrase -> stringResource(R.string.passphrase_remembered_in_the_vault)
-                        else -> stringResource(R.string.prompted_on_every_connection)
-                    },
-                    modifier = Modifier.clickable(enabled = !key.unreadable) { sheet = Sheet.PASSPHRASE },
-                )
-                RowDivider()
-                ChevronRow(
-                    title = if (key.hasCertificate) stringResource(R.string.certificate) else stringResource(R.string.attach_certificate),
-                    subtitle = if (key.hasCertificate) stringResource(R.string.openssh_certificate_attached) else stringResource(R.string.optional_signed_public_key_from_your_ca),
-                    modifier = Modifier.clickable(enabled = !key.unreadable) { sheet = Sheet.CERTIFICATE },
-                )
-                RowDivider()
-                ChevronRow(
-                    title = if (s.securityKey != null) stringResource(R.string.export_key_handle) else stringResource(R.string.export_private_key),
-                    subtitle = if (s.securityKey != null) stringResource(R.string.useless_without_the_security_key_confirmation_required) else stringResource(R.string.reveals_the_secret_confirmation_required),
-                    modifier = Modifier.clickable(enabled = !key.unreadable) { sheet = Sheet.EXPORT },
-                )
-                RowDivider()
-                ChevronRow(
-                    title = stringResource(R.string.export_key_to_host),
-                    subtitle = stringResource(R.string.export_key_to_host_hint),
-                    modifier = Modifier.clickable(enabled = !key.unreadable) { sheet = Sheet.TO_HOST },
-                )
+                s.securityKey?.let { sk ->
+                    SectionLabel(stringResource(R.string.security_key))
+                    SectionCard {
+                        ListRow(
+                            title = stringResource(R.string.private_key_lives_on_the_security_key),
+                            subtitle = stringResource(R.string.only_the_public_key_and_a_handle_are),
+                        )
+                        RowDivider()
+                        ListRow(title = stringResource(R.string.application), subtitle = sk.application)
+                        RowDivider()
+                        ListRow(
+                            title = stringResource(R.string.on_connect),
+                            subtitle = listOfNotNull(
+                                when (sk.userPresence) { true -> stringResource(R.string.touch_required); false -> stringResource(R.string.no_touch); null -> null },
+                                when (sk.userVerification) { true -> stringResource(R.string.pin_required); false -> null; null -> null },
+                            ).joinToString(", ").ifBlank { stringResource(R.string.unknown) },
+                        )
+                        RowDivider()
+                        ListRow(
+                            title = stringResource(R.string.resident_key),
+                            subtitle = when (sk.resident) {
+                                true -> stringResource(R.string.stored_on_the_token_can_be_loaded_elsewhere)
+                                false -> stringResource(R.string.not_stored_on_the_token_only_this_handle)
+                                null -> stringResource(R.string.unknown)
+                            },
+                        )
+                        sk.credentialId?.let { cred ->
+                            RowDivider()
+                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(stringResource(R.string.credential_id), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(cred, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
+                            }
+                        }
+                    }
+                }
+
+                SectionLabel(stringResource(R.string.security))
+                SectionCard {
+                    ChevronRow(
+                        title = if (key.encrypted) stringResource(R.string.change_passphrase) else stringResource(R.string.set_passphrase),
+                        subtitle = when {
+                            !key.encrypted && s.securityKey != null -> stringResource(R.string.key_handle_is_stored_without_a_passphrase)
+                            !key.encrypted -> stringResource(R.string.private_key_is_stored_without_a_passphrase)
+                            key.hasPassphrase -> stringResource(R.string.passphrase_remembered_in_the_vault)
+                            else -> stringResource(R.string.prompted_on_every_connection)
+                        },
+                        modifier = Modifier.clickable(enabled = !key.unreadable) { sheet = Sheet.PASSPHRASE },
+                    )
+                    RowDivider()
+                    ChevronRow(
+                        title = if (key.hasCertificate) stringResource(R.string.certificate) else stringResource(R.string.attach_certificate),
+                        subtitle = if (key.hasCertificate) stringResource(R.string.openssh_certificate_attached) else stringResource(R.string.optional_signed_public_key_from_your_ca),
+                        modifier = Modifier.clickable(enabled = !key.unreadable) { sheet = Sheet.CERTIFICATE },
+                    )
+                    RowDivider()
+                    ChevronRow(
+                        title = if (s.securityKey != null) stringResource(R.string.export_key_handle) else stringResource(R.string.export_private_key),
+                        subtitle = if (s.securityKey != null) stringResource(R.string.useless_without_the_security_key_confirmation_required) else stringResource(R.string.reveals_the_secret_confirmation_required),
+                        modifier = Modifier.clickable(enabled = !key.unreadable) { sheet = Sheet.EXPORT },
+                    )
+                    RowDivider()
+                    ChevronRow(
+                        title = stringResource(R.string.export_key_to_host),
+                        subtitle = stringResource(R.string.export_key_to_host_hint),
+                        modifier = Modifier.clickable(enabled = !key.unreadable) { sheet = Sheet.TO_HOST },
+                    )
+                }
             }
 
             SectionLabel(" ")
@@ -237,6 +271,25 @@ fun KeyDetailScreen(shell: ShellViewModel, keyId: String, onBack: () -> Unit) {
                 vm.setCertificate(text)
                 sheet = null
             }
+        }
+        Sheet.OIDC -> key?.let { k ->
+            OidcKeyChoiceDialog(shell.repo, k, s.oidc, onDismiss = { sheet = null }) { value ->
+                vm.setOidcChoice(value)
+                sheet = null
+            }
+        }
+        Sheet.SIGN_OUT -> ConfirmDialog(
+            title = stringResource(R.string.openid_sign_out),
+            text = stringResource(R.string.openid_sign_out_hint),
+            confirm = stringResource(R.string.openid_sign_out),
+            onConfirm = { sheet = null; vm.signOut() },
+            onDismiss = { sheet = null },
+        )
+        Sheet.OPKSSH_HOST -> key?.let { k ->
+            SetupOpksshOnHostFlow(shell.repo, k, onNotify = shell::notify, onDismiss = { sheet = null })
+        }
+        Sheet.PROVIDERS -> key?.let { k ->
+            OidcProvidersDialog(shell.repo, k.vaultId, onNotify = shell::notify, onDismiss = { sheet = null })
         }
         Sheet.EXPORT -> key?.let { k ->
             ExportDialog(k, vm, onNotify = shell::notify, onDismiss = { sheet = null })
@@ -446,3 +499,7 @@ private fun ExportDialog(key: KeyItem, vm: KeyDetailViewModel, onNotify: (String
         dismissButton = { TextButton(enabled = !busy, onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
+
+private fun formatUntil(unixSecs: ULong): String =
+    java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT)
+        .format(java.util.Date(unixSecs.toLong() * 1000))

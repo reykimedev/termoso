@@ -153,7 +153,7 @@ fun AddKeyToHostFlow(repo: VaultRepository, host: HostItem, onNotify: (String) -
 }
 
 @Composable
-private fun <T> PickerDialog(
+internal fun <T> PickerDialog(
     title: String,
     hint: String,
     empty: String,

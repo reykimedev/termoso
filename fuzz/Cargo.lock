@@ -3419,6 +3419,7 @@ version = "0.12.1"
 dependencies = [
  "chrono",
  "labterm-core",
+ "labterm-oidc-cert",
  "labterm-proto",
  "serde",
  "serde_json",
@@ -3532,6 +3533,26 @@ dependencies = [
  "uniffi",
  "uuid",
  "xz2",
+ "zeroize",
+]
+
+[[package]]
+name = "labterm-oidc-cert"
+version = "0.12.1"
+dependencies = [
+ "base64 0.23.1",
+ "getrandom 0.4.3",
+ "p256 0.14.0",
+ "rand 0.10.3",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "sha3 0.11.0",
+ "ssh-key",
+ "thiserror 2.0.20",
+ "tokio",
+ "url",
  "zeroize",
 ]
 

@@ -14,7 +14,7 @@ name = "labterm_mobile"
 
 [dependencies]
 labterm-core = { workspace = true, features = ["local-pty", "fido2-ctap"] }
-labterm-client = { workspace = true }
+labterm-client = { workspace = true, features = ["oidc-cert"] }
 labterm-proto = { workspace = true }
 labterm-crypto = { workspace = true }
 

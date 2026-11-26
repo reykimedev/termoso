@@ -103,6 +103,30 @@ jobs:
       - if: always()
         run: df -h / target
 
+  opkssh:
+    name: opkssh certificates (e2e against opkssh verify + wasm32)
+    runs-on: ubuntu-latest
+    env:
+      TERMOSO_OPKSSH_E2E: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - name: Test OpenID provider + OpenSSH host with opkssh
+        run: docker compose -f crates/labterm-client/tests/opkssh/compose.yml up -d --build --wait
+      - name: System libraries (USB HID for the fido2 feature)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libudev-dev
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --locked -p labterm-oidc-cert
+      - run: cargo test --locked -p labterm-client --features oidc-cert --test opkssh_e2e
+      # The crate also has to build for the browser (future web client).
+      - run: cargo check --locked -p labterm-oidc-cert --target wasm32-unknown-unknown --no-default-features --features http
+      - if: failure()
+        run: docker compose -f crates/labterm-client/tests/opkssh/compose.yml logs
+
   web:
     name: web cabinet (wasm + typecheck + lint + build)
     runs-on: ubuntu-latest
