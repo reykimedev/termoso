@@ -84,6 +84,21 @@ runtime (workspaces, updater, imports, multiplayer host/viewer, presence).
 * Credential kinds (`ssh_key`, `identity`, …) can be marked *local-only* on a
   device; they are then excluded from sync while still being usable.
 
+### Inherited settings (groups and tags)
+
+A host's SSH settings are layered, nearest first: the host itself, then its
+group chain (the nearest group first), then its tags, then the built-in
+defaults. A group and a tag each carry an optional `ssh_config_id`. A tag also
+has a `priority`. When several tags of one host set the same field, the higher
+priority wins, then the label A to Z (case-insensitive), then the id.
+`Store::defaults_layers` builds the order; `merge_ssh` merges field by field.
+
+Credentials stay together: the key, password and certificate come as one block
+from a single layer. Only an empty username falls through to the nearest layer
+that sets one. `gateway_id` is host-only. A new inheritable `SshConfig` field
+needs its line in `merge_ssh` and its place in `SshDefaultsForm` (the shared
+group and tag editor form).
+
 ### Local store (`termoso-core::store`)
 
 One SQLite file per profile (`~/.local/share/termoso/<profile>/` on Linux;

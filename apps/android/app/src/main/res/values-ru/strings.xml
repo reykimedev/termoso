@@ -1813,6 +1813,22 @@
     <string name="local_copies_settings_summary">Зашифрованные офлайн-копии удалённых файлов</string>
     <string name="clear_local_copies">Очистить локальные копии?</string>
     <string name="clear_local_copies_text">Удаляет все офлайн-копии удалённых файлов с этого устройства (%1$s). Настройки хостов сохраняются.</string>
+    <string name="group_settings">Настройки группы</string>
+    <string name="tag_settings">Настройки тега</string>
+    <string name="priority">Приоритет</string>
+    <string name="group_settings_hint">Хосты в этой группе используют эти значения, если их собственные настройки не заданы. Группы важнее тегов.</string>
+    <string name="tag_settings_hint">Хосты с этим тегом используют эти значения, если их не задают ни сам хост, ни его группы. Если одно и то же задают несколько тегов, побеждает более высокий приоритет, затем имя по алфавиту.</string>
+    <string name="defaults_use_shared_identity">Учётные данные берутся из общего профиля. Изменить его можно в настольном приложении.</string>
+    <string name="inherited_value">Унаследовано: %1$s</string>
+    <string name="settings_saved">Настройки сохранены</string>
+    <string name="settings_for">Настройки %1$s</string>
+    <string name="tag_has_settings">есть настройки</string>
+    <plurals name="tag_host_count">
+        <item quantity="one">%d хост</item>
+        <item quantity="few">%d хоста</item>
+        <item quantity="many">%d хостов</item>
+        <item quantity="other">%d хоста</item>
+    </plurals>
     <string name="openid">OpenID (opkssh)</string>
     <string name="openid_key">Ключ OpenID (opkssh)</string>
     <string name="openid_key_hint">Вход через провайдера удостоверений вместо хранимого ключа. При каждом входе на этом устройстве создаются новый ключ и краткосрочный сертификат; ничего секретного не синхронизируется.</string>

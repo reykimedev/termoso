@@ -5,6 +5,7 @@ import type {
   CloudSyncConfig,
   CloudSyncSecret,
   GroupForm,
+  TagForm,
   HostChainData,
   HostForm,
   ProxyData,
@@ -25,7 +26,9 @@ export const keys = {
   tags: (vaultId: Uuid | null) => ["tags", vaultId] as const,
   hostForm: (id: Uuid) => ["hostForm", id] as const,
   groupForm: (id: Uuid) => ["groupForm", id] as const,
-  inherited: (groupId: Uuid | null) => ["inherited", groupId] as const,
+  inherited: (groupId: Uuid | null, vaultId: Uuid | null = null, tagIds: Uuid[] = []) =>
+    ["inherited", groupId, vaultId, [...tagIds].sort().join(",")] as const,
+  tagForm: (id: Uuid) => ["tagForm", id] as const,
   identities: (vaultId: Uuid | null) => ["identities", vaultId] as const,
   sshKeys: (vaultId: Uuid | null) => ["sshKeys", vaultId] as const,
   proxies: (vaultId: Uuid | null) => ["proxies", vaultId] as const,
@@ -129,10 +132,18 @@ export const useGroupForm = (id: Uuid | null) =>
     enabled: id !== null,
   });
 
-export const useInherited = (groupId: Uuid | null) =>
+/** What a host inherits from its group chain and, given the vault, its tags. */
+export const useInherited = (groupId: Uuid | null, vaultId?: Uuid | null, tagIds?: Uuid[]) =>
   useQuery({
-    queryKey: keys.inherited(groupId),
-    queryFn: () => ipc.hostInherited(groupId),
+    queryKey: keys.inherited(groupId, vaultId ?? null, tagIds ?? []),
+    queryFn: () => ipc.hostInherited(groupId, vaultId, tagIds),
+  });
+
+export const useTagForm = (id: Uuid | null) =>
+  useQuery({
+    queryKey: keys.tagForm(id ?? ""),
+    queryFn: () => ipc.tagForm(id ?? ""),
+    enabled: id !== null,
   });
 
 export const useIdentities = (vaultId: Uuid | null) =>
@@ -217,7 +228,9 @@ function useInvalidateTags() {
   const qc = useQueryClient();
   return () =>
     Promise.all(
-      (["tags", "hosts", "hostForm"] as const).map((k) => qc.invalidateQueries({ queryKey: [k] })),
+      (["tags", "tagForm", "hosts", "hostForm", "inherited"] as const).map((k) =>
+        qc.invalidateQueries({ queryKey: [k] }),
+      ),
     );
 }
 
@@ -226,6 +239,14 @@ export function useUpdateTag() {
   return useMutation({
     mutationFn: (a: { id: Uuid; label: string; color: string | null }) =>
       ipc.tagUpdate(a.id, a.label, a.color),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useSaveTagForm() {
+  const invalidate = useInvalidateTags();
+  return useMutation({
+    mutationFn: (form: TagForm) => ipc.tagSaveForm(form),
     onSuccess: () => invalidate(),
   });
 }
@@ -391,6 +412,7 @@ export function useSyncNotices() {
             "sshKeys",
             "hostForm",
             "groupForm",
+            "tagForm",
             "inherited",
             "pfRules",
             "snippets",

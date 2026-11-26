@@ -333,6 +333,23 @@ impl TermosoApp {
         Ok(hosts::inherited(&self.store, parse_opt_id(&group_id)?)?.into())
     }
 
+    /// What a host in `vault_id` and `group_id` carrying `tag_ids` inherits
+    /// from its groups and tags (groups win over tags).
+    pub fn inherited_for(
+        &self,
+        vault_id: String,
+        group_id: Option<String>,
+        tag_ids: Vec<String>,
+    ) -> Result<InheritedInfo> {
+        Ok(hosts::inherited_for(
+            &self.store,
+            parse_id(&vault_id)?,
+            parse_opt_id(&group_id)?,
+            &crate::dto::parse_ids(&tag_ids)?,
+        )?
+        .into())
+    }
+
     /// Create or update a host. Sections the mobile editor does not show
     /// are preserved on update.
     pub fn save_host(&self, draft: HostDraft) -> Result<HostItem> {
@@ -656,6 +673,45 @@ impl TermosoApp {
         .into())
     }
 
+    /// Group editor model, with the SSH defaults the group hands down.
+    pub fn group_draft(&self, id: String) -> Result<GroupDraft> {
+        Ok(hosts::group_form(&self.store, parse_id(&id)?)?.into())
+    }
+
+    /// Save a group with its SSH defaults. A `None` id creates the group.
+    pub fn save_group_draft(&self, draft: GroupDraft) -> Result<GroupItem> {
+        let mut form = match parse_opt_id(&draft.id)? {
+            Some(id) => hosts::group_form(&self.store, id)?,
+            None => hosts::GroupForm {
+                id: None,
+                vault_id: parse_id(&draft.vault_id)?,
+                label: String::new(),
+                parent_id: None,
+                icon: None,
+                defaults: hosts::SshDefaultsForm::default(),
+            },
+        };
+        form.label = draft.label;
+        form.parent_id = parse_opt_id(&draft.parent_id)?;
+        draft.defaults.apply(&mut form.defaults)?;
+        Ok(hosts::save_group_form(&self.store, &form)?.into())
+    }
+
+    /// Tag editor model, with the SSH defaults the tag hands down.
+    pub fn tag_draft(&self, id: String) -> Result<TagDraft> {
+        Ok(hosts::tag_form(&self.store, parse_id(&id)?)?.into())
+    }
+
+    /// Save a tag's name, priority and SSH defaults.
+    pub fn save_tag_draft(&self, draft: TagDraft) -> Result<TagItem> {
+        let mut form = hosts::tag_form(&self.store, parse_id(&draft.id)?)?;
+        form.label = draft.label;
+        form.color = draft.color;
+        form.priority = draft.priority;
+        draft.defaults.apply(&mut form.defaults)?;
+        Ok(hosts::save_tag_form(&self.store, &form)?.into())
+    }
+
     /// Delete a group; hosts and sub-groups move up one level.
     pub fn delete_group(&self, id: String) -> Result<()> {
         Ok(hosts::delete_group(&self.store, parse_id(&id)?)?)
@@ -679,6 +735,7 @@ impl TermosoApp {
             &termoso_core::model::Tag {
                 label: label.to_string(),
                 color: None,
+                ..Default::default()
             },
         )?;
         hosts::tags(&self.store, Some(vault))?

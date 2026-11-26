@@ -874,6 +874,7 @@ fn plan_host(v: &VaultState, external_id: &str, req: &HostRequest) -> Result<Pla
                     &Tag {
                         label: t.to_string(),
                         color: None,
+                        ..Default::default()
                     },
                 )?;
                 id
