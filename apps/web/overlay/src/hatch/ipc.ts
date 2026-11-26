@@ -10,10 +10,12 @@ import { call, normalizeServer } from "./backend/api";
 import { config } from "./backend/config";
 import * as db from "./backend/db";
 import * as files from "./backend/files";
+import * as history from "./backend/history";
 import { asDesktopError, fail } from "./backend/errors";
 import * as m from "./backend/model";
 import * as oidc from "./backend/oidc";
 import { defaultSettings } from "./backend/settings";
+import * as snippets from "./backend/snippets";
 import * as st from "./backend/state";
 import * as sftp from "./backend/sftp";
 import * as term from "./backend/terminal";
@@ -278,9 +280,27 @@ const commands: Record<string, Handler> = {
   terminal_host_identity: () => null,
   prompt_answer: (a) => term.promptAnswer(a.id, a.answer),
   sessions_list: () => term.list(),
-  history_connections: () => [],
-  history_commands: () => [],
-  history_record_command: () => null,
+  history_connections: (a) => history.connections(a.limit),
+  history_commands: (a) => history.commands(a.limit),
+  history_record_command: (a) => history.recordCommand(a.hostId ?? null, String(a.command ?? "")),
+  history_delete: (a) => history.remove(a.id),
+  history_clear_commands: () => history.clearCommands(),
+  history_clear_connections: () => history.clearConnections(),
+
+  // snippets
+  snippets_list: (a) => snippets.list(a.vaultId ?? null),
+  snippet_save: (a) => snippets.save(a.form),
+  snippet_delete: (a) => snippets.remove(a.id),
+  snippet_set_targets: (a) => snippets.setTargets(a.id, a.hostIds ?? []),
+  snippet_copy_to_vault: (a) => snippets.copyToVault(a.id, a.vaultId, !!a.moveSnippet),
+  snippet_run: (a) => snippets.run(a as Parameters<typeof snippets.run>[0]),
+  snippet_run_quiet: (a) => snippets.runQuiet(a as Parameters<typeof snippets.runQuiet>[0]),
+  snippet_packages: (a) => snippets.packages(a.vaultId ?? null),
+  snippet_package_save: (a) =>
+    snippets.savePackage(a as Parameters<typeof snippets.savePackage>[0]),
+  snippet_package_delete: (a) => snippets.removePackage(a.id),
+  snippet_package_copy_to_vault: (a) =>
+    snippets.copyPackageToVault(a.id, a.vaultId, !!a.movePackage),
 
   // what a browser tab has no access to
   // The "local" side of SFTP: downloads go to the browser, uploads come from dropped files.
@@ -314,7 +334,6 @@ const commands: Record<string, Handler> = {
   drop_mkdir: (a) => sftp.dropMkdir(a.dir, a.rel),
   drop_abort: (a) => sftp.dropAbort(a.dir),
   pf_start: notInBrowser("Port forwarding"),
-  snippet_run: notInBrowser("Running snippets on several hosts"),
 };
 
 /** Writes the user made: queue them for the next push to the Termoso server. */

@@ -6,9 +6,10 @@ import { config } from "./config";
 import { asDesktopError, fail } from "./errors";
 import { tr } from "@/i18n";
 import * as oidc from "./oidc";
+import * as history from "./history";
 import * as policy from "./policy";
 import { type Resolved, pins, resolve } from "./model";
-import { type Uuid, changed, s } from "./state";
+import { type Uuid, changed, isUnlocked, s } from "./state";
 import { loadWasm, w } from "./wasm";
 
 interface OutputChannel {
@@ -29,6 +30,8 @@ interface Sess {
   } | null;
   keepalive: ReturnType<typeof setInterval> | null;
   closed: boolean;
+  /** This connection's entry in the history. */
+  historyId?: Uuid;
 }
 
 interface SessionInfo {
@@ -52,6 +55,8 @@ const sessions = new Map<Uuid, Sess>();
 export function hostOfSession(id: Uuid): Uuid | null {
   return sessions.get(id)?.info.hostId ?? null;
 }
+
+export const isOpen = (id: Uuid) => !!sessions.get(id)?.ssh;
 const prompts = new Map<string, (answer: Record<string, unknown> | null) => void>();
 const enc = new TextEncoder();
 
@@ -346,12 +351,24 @@ async function run(id: Uuid, sess: Sess, target: Target, cols: number, rows: num
       prompt,
     );
   } catch (e) {
-    return connectFailed(id, targetStr(), e);
+    const entry = { host_id: plan.hostId, label: plan.label, target: targetStr(), protocol: "ssh" };
+    try {
+      return await connectFailed(id, targetStr(), e);
+    } catch (err) {
+      history.connected(entry, asDesktopError(err).message);
+      throw err;
+    }
   }
   if (sess.closed) {
     sess.ssh.close();
     return;
   }
+  sess.historyId = history.connected({
+    host_id: plan.hostId,
+    label: plan.label,
+    target: targetStr(),
+    protocol: "ssh",
+  });
   sess.info = { ...sess.info, state: "connected" };
   sessionEvent({ type: "connected", id, info: sess.info });
   sess.keepalive = setInterval(() => sess.ssh?.keepalive(), Math.max(10, plan.keepAlive) * 1000);
@@ -367,6 +384,7 @@ function finish(id: Uuid) {
   if (!sess) return;
   if (sess.keepalive) clearInterval(sess.keepalive);
   sess.closed = true;
+  if (sess.historyId && isUnlocked()) history.finished(sess.historyId);
   sessions.delete(id);
   sessionEvent({ type: "closed", id });
 }

@@ -456,9 +456,12 @@ pub async fn connect(
         // Servers refuse most variables (AcceptEnv); that is not an error.
         let _ = ch.set_env(false, k.as_str(), v.as_str()).await;
     }
-    ch.request_pty(true, &o.term, o.cols, o.rows, 0, 0, &[])
-        .await
-        .map_err(transport)?;
+    // A command without a size runs without a terminal, so its stderr stays apart (quiet runs).
+    if o.command.is_none() || o.cols > 0 {
+        ch.request_pty(true, &o.term, o.cols, o.rows, 0, 0, &[])
+            .await
+            .map_err(transport)?;
+    }
     match &o.command {
         Some(c) => ch.exec(true, c.as_bytes()).await.map_err(transport)?,
         None => ch.request_shell(true).await.map_err(transport)?,
@@ -473,13 +476,8 @@ pub async fn connect(
         let mut reason = "closed";
         while let Some(msg) = read.wait().await {
             match msg {
-                ChannelMsg::Data { data } | ChannelMsg::ExtendedData { data, .. } => {
-                    let obj = js_sys::Object::new();
-                    let _ = js_sys::Reflect::set(&obj, &"type".into(), &"data".into());
-                    let _ =
-                        js_sys::Reflect::set(&obj, &"data".into(), &Uint8Array::from(&data[..]));
-                    let _ = ev1.call1(&JsValue::NULL, &obj);
-                }
+                ChannelMsg::Data { data } => data_event(&ev1, &data, false),
+                ChannelMsg::ExtendedData { data, .. } => data_event(&ev1, &data, true),
                 ChannelMsg::ExitStatus { exit_status } => emit(
                     &ev1,
                     &Event::Exit {
@@ -524,6 +522,17 @@ pub async fn connect(
         tx,
         algorithms: JsValue::NULL,
     })
+}
+
+/// `{type: "data", data}`, with `stderr: true` for the server's extended data.
+fn data_event(f: &Function, data: &[u8], stderr: bool) {
+    let obj = js_sys::Object::new();
+    let _ = js_sys::Reflect::set(&obj, &"type".into(), &"data".into());
+    let _ = js_sys::Reflect::set(&obj, &"data".into(), &Uint8Array::from(data));
+    if stderr {
+        let _ = js_sys::Reflect::set(&obj, &"stderr".into(), &true.into());
+    }
+    let _ = f.call1(&JsValue::NULL, &obj);
 }
 
 /// Calls `prompt(kind, data)`; `None` when the user cancelled or the answer was null.
