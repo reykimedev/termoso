@@ -131,6 +131,4 @@ jobs:
               --notes "Debug builds for testing; the app updates itself from here. Not for production use."
           fi
           gh release upload "$CHANNEL_TAG" "$out/labterm-debug.apk" "$out/latest.json" --clobber
-          # The asset was called labterm-debug.apk before the rename; installed builds follow latest.json.
-          gh release delete-asset "$CHANNEL_TAG" labterm-debug.apk --yes 2>/dev/null || true
           gh release edit "$CHANNEL_TAG" --title "Labterm Debug (rolling, $CHANNEL_TAG)" --notes "Debug build $BUILD from $COMMIT. The app updates itself from here."
