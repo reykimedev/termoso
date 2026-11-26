@@ -176,6 +176,8 @@ struct LoginResult {
     private_key: String,
     #[serde(default)]
     email: Option<String>,
+    #[serde(default)]
+    timings: String,
 }
 
 #[derive(Serialize)]
@@ -414,9 +416,12 @@ impl Netbird {
         #[derive(Deserialize)]
         struct Begin {
             auth_url: String,
+            #[serde(default)]
+            timings: String,
         }
         let begin: Begin = serde_json::from_str(&out)
             .map_err(|e| CoreError::Transport(format!("netbird: bad sign-in result: {e}")))?;
+        tracing::info!(network = %config.id, timings = %begin.timings, "netbird: sign-in started");
         Ok(SignIn {
             auth_url: begin.auth_url,
             handle,
@@ -452,7 +457,7 @@ impl Netbird {
         if let Some(n) = self.nodes.lock().await.remove(&config.id) {
             self.stop_node(n).await;
         }
-        tracing::info!(network = %config.id, "netbird: signed in");
+        tracing::info!(network = %config.id, timings = %result.timings, "netbird: signed in");
         Ok(SignedIn {
             email: result.email.filter(|e| !e.is_empty()),
         })

@@ -39,8 +39,29 @@ data class ActiveItems(
     val terminals: List<ActiveItem> = emptyList(),
     val files: List<ActiveItem> = emptyList(),
     val tunnels: List<ActiveItem> = emptyList(),
+    /** VPN sign-ins waiting for the browser: the sign-in listens on localhost in this process. */
+    val signIns: List<ActiveItem> = emptyList(),
 ) {
-    val total: Int get() = terminals.size + files.size + tunnels.size
+    val total: Int get() = terminals.size + files.size + tunnels.size + signIns.size
+}
+
+/**
+ * VPN sign-ins in progress. While the browser is in front, the sign-in's
+ * localhost listener lives in this process; without a foreground service
+ * Android freezes or kills the app and the browser's redirect finds nothing
+ * listening. KeepAlive mirrors this into [SessionService].
+ */
+object VpnSignIns {
+    private val _active = MutableStateFlow<List<ActiveItem>>(emptyList())
+    val active: StateFlow<List<ActiveItem>> = _active.asStateFlow()
+
+    fun add(id: String, title: String, text: String) {
+        _active.value = _active.value.filterNot { it.id == id } + ActiveItem(id, title, text)
+    }
+
+    fun remove(id: String) {
+        _active.value = _active.value.filterNot { it.id == id }
+    }
 }
 
 /** How the notification's buttons reach the managers (same process, set by KeepAlive). */
@@ -147,12 +168,14 @@ class SessionService : Service() {
             if (items.terminals.isNotEmpty()) add(res.getQuantityString(R.plurals.notif_terminals, items.terminals.size, items.terminals.size))
             if (items.tunnels.isNotEmpty()) add(res.getQuantityString(R.plurals.notif_tunnels, items.tunnels.size, items.tunnels.size))
             if (items.files.isNotEmpty()) add(res.getQuantityString(R.plurals.notif_file_connections, items.files.size, items.files.size))
+            items.signIns.forEach { add(it.title) }
         }
         // Tap lands where the work is: terminals first, then forwarding, then files.
         val open = when {
             items.terminals.isNotEmpty() -> openApp(ACTION_OPEN_CONNECTIONS)
             items.tunnels.isNotEmpty() -> openApp(ACTION_OPEN_FORWARDING)
-            else -> openApp(ACTION_OPEN_FILES, items.files.first().id)
+            items.files.isNotEmpty() -> openApp(ACTION_OPEN_FILES, items.files.first().id)
+            else -> openApp(Intent.ACTION_MAIN)
         }
         val style = Notification.InboxStyle().setBigContentTitle(getString(R.string.app_name))
         lines.forEach { style.addLine(it) }

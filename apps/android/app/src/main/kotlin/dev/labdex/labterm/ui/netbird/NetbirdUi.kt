@@ -46,6 +46,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.labdex.labterm.R
 import dev.labdex.labterm.data.VaultRepository
 import dev.labdex.labterm.data.userMessage
+import dev.labdex.labterm.service.VpnSignIns
 import dev.labdex.labterm.str
 import dev.labdex.labterm.ui.components.EmptyState
 import dev.labdex.labterm.ui.components.FormField
@@ -358,6 +359,9 @@ fun NetbirdSignInDialog(
                     starting = true
                     scope.launch {
                         try {
+                            // Keeps the process in the foreground while the browser is in
+                            // front: the sign-in's localhost listener lives here.
+                            VpnSignIns.add(id, str(R.string.notif_vpn_sign_in, network.label), network.managementUrl ?: "")
                             val u = try {
                                 repo.read { transportSignInBegin(id, account.trim().ifEmpty { null }) }
                             } finally {
@@ -379,6 +383,8 @@ fun NetbirdSignInDialog(
                             waiting = false
                             Log.w("LabtermNetbird", "sign-in to ${network.label} failed", e)
                             error = e.userMessage()
+                        } finally {
+                            VpnSignIns.remove(id)
                         }
                     }
                 }) { Text(stringResource(R.string.netbird_sign_in)) }
