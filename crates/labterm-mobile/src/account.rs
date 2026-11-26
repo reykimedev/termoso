@@ -1298,6 +1298,8 @@ impl AccountRuntime {
             },
         };
         core::sign_out(&api, &self.store).await?;
+        // This device's NetBird peers belong to the account's vaults.
+        crate::netbird::forget(&self.store).await;
         self.update_status(|s| *s = SyncStatus::default());
         if let Some(l) = self.listener() {
             l.on_signed_out(None);

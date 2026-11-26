@@ -1,0 +1,24 @@
+[package]
+name = "labterm-netbird"
+description = "Embedded NetBird client: dials hosts inside a NetBird network from the app itself (userspace, no system VPN), started on demand"
+version.workspace = true
+edition.workspace = true
+publish = false
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+labterm-core = { workspace = true }
+labterm-proto = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+zeroize = { workspace = true }
+tracing = { workspace = true }
+# dlopen/dlsym: the Go library is loaded on first use, not at app start.
+libc = "0.2"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

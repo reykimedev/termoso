@@ -1019,6 +1019,82 @@ async fn unknown_host_key_is_rejected_by_strict_prompt() {
     ));
 }
 
+/// Stands in for an in-app overlay network: records what it was asked to
+/// dial and connects to the test server on loopback instead.
+struct LoopbackTransport {
+    port: u16,
+    dialled: std::sync::Mutex<Vec<(String, u16)>>,
+}
+
+impl labterm_core::transport::TransportDial for LoopbackTransport {
+    fn label(&self) -> String {
+        "test network".into()
+    }
+    fn dial<'a>(
+        &'a self,
+        host: &'a str,
+        port: u16,
+    ) -> std::pin::Pin<
+        Box<
+            dyn std::future::Future<
+                    Output = labterm_core::error::Result<labterm_core::transport::BoxStream>,
+                > + Send
+                + 'a,
+        >,
+    > {
+        self.dialled.lock().unwrap().push((host.to_string(), port));
+        Box::pin(async move {
+            let s = tokio::net::TcpStream::connect(("127.0.0.1", self.port)).await?;
+            Ok(Box::new(s) as labterm_core::transport::BoxStream)
+        })
+    }
+}
+
+#[tokio::test]
+async fn transport_dials_the_host_and_host_key_is_checked_by_its_name() {
+    let h = start().await;
+    let transport = Arc::new(LoopbackTransport {
+        port: h.port,
+        dialled: Default::default(),
+    });
+    let target = || SshTarget {
+        host: "nb-host.example.com".into(),
+        port: 22,
+        username: USER.into(),
+    };
+    let opts = |prompt: Arc<dyn HostKeyPrompt>| {
+        let mut o = ConnectOptions::new(target(), h.kh.clone(), prompt);
+        o.timeout = Duration::from_secs(10);
+        o.transport = Some(transport.clone());
+        o.auth
+            .push(AuthMethod::Password(Zeroizing::new(PASSWORD.into())));
+        o
+    };
+
+    // A pin for the loopback address the network happens to reach does not
+    // count: the key is checked against the host's own name and port.
+    h.kh.trust("127.0.0.1", h.port, &h.host_key).unwrap();
+    let err = SshClient::connect(opts(Arc::new(StrictPrompt)))
+        .await
+        .err()
+        .unwrap();
+    assert!(matches!(err, CoreError::HostKeyRejected { .. }), "{err:?}");
+
+    h.kh.trust("nb-host.example.com", 22, &h.host_key).unwrap();
+    let c = SshClient::connect(opts(Arc::new(StrictPrompt)))
+        .await
+        .unwrap();
+    let out = c.exec("whoami", None).await.unwrap();
+    assert_eq!(out.exit_code, Some(0));
+    assert_eq!(
+        *transport.dialled.lock().unwrap(),
+        vec![
+            ("nb-host.example.com".to_string(), 22),
+            ("nb-host.example.com".to_string(), 22)
+        ]
+    );
+}
+
 /// Prompt standing in for the UI's changed-key dialog: records what it was
 /// shown and answers with a fixed decision even for a changed key.
 struct RecordingPrompt {
