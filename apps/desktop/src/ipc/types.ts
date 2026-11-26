@@ -43,6 +43,14 @@ export type VaultEvent = { type: "locked" } | { type: "unlocked" };
 
 export interface AppInfo {
   version: string;
+  /** Full commit hash the binary was built from (desktop only, like the next three). */
+  commit?: string;
+  /** null on stable, "dev" on the dev channel. */
+  channel?: string | null;
+  /** Feed used when no custom update feed is set. */
+  updateFeed?: string;
+  /** In-app updates available: only in builds carrying Labterm's own signing key. */
+  updatesEnabled?: boolean;
   profileDir: string;
   deviceId: Uuid;
   masterKeySource: MasterKeySource;

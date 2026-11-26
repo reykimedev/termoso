@@ -1,8 +1,11 @@
 # Releasing the desktop and Android apps
 
-Desktop and Android builds are produced by `.github/workflows/release.yml`.
+Desktop and Android builds are produced by `.github/workflows/release.yml`,
+and the rolling desktop dev builds from `main` by
+`.github/workflows/desktop-dev-channel.yml` ([Dev channel](#dev-channel)).
 Nothing is built on a developer machine and no private key ever leaves
-GitHub Actions.
+GitHub Actions. The keys live in GitHub environments that only a `v*` tag
+(`release`) or `main` (`desktop-dev`) can deploy to.
 
 ## What a release contains
 
@@ -65,6 +68,14 @@ that is how packaging changes are smoke-tested.
 
 ## Secrets
 
+Every signing secret below lives in the GitHub environment **`release`**, not in
+plain repository secrets. Its deployment rule allows only tags matching `v*`, so
+pull requests, branches and manual runs never see the keys and build unsigned
+(desktop bundles without updater signatures, APKs unsigned). Adding yourself as a
+required reviewer on the environment makes every release wait for one click
+before anything is signed. The dev channel has its own environment and key,
+see [Dev channel](#dev-channel).
+
 | Secret                                                                      | Purpose                                                                                                         |
 | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | `TAURI_SIGNING_PRIVATE_KEY`                                                 | minisign private key (contents of the `.key` file)                                                              |
@@ -77,23 +88,35 @@ that is how packaging changes are smoke-tested.
 | `TERMOSO_REPO_DEPLOY_KEY`, `HOMEBREW_TAP_DEPLOY_KEY`                        | write deploy keys (ed25519 private halves) of `termoso/termoso-repo` and `termoso/homebrew-termoso`             |
 | `WINGET_TOKEN`                                                              | _optional_ — GitHub token with `public_repo` for the winget-pkgs fork; without it the winget step is skipped    |
 
-Generate a key pair once with
+Create the environment, generate the updater key pair and store it (once):
 
 ```bash
-npx tauri signer generate -w ~/.termoso-signing/termoso.key
+R=reykimedev/termoso
+gh api -X PUT repos/$R/environments/release --input - <<<'{"deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true}}'
+gh api -X POST repos/$R/environments/release/deployment-branch-policies -f name='v*' -f type=tag
+
+mkdir -p ~/.labterm-signing && cd ~/.labterm-signing
+npx @tauri-apps/cli signer generate -w labterm-updater.key
+gh secret set TAURI_SIGNING_PRIVATE_KEY --env release -R $R < labterm-updater.key
+gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD --env release -R $R
 ```
 
-store the private key and password as repository Actions secrets, keep an
-offline backup (losing the key means shipping a new key and asking every
-user to reinstall), and paste the `.key.pub` contents into
-`plugins.updater.pubkey`. Rotating the key requires one release signed with
-the _old_ key whose binary already carries the _new_ public key.
+Keep an offline backup of the folder (losing the key means shipping a new
+key and asking every user to reinstall), and paste the `.key.pub` contents
+into `plugins.updater.pubkey` in `tauri.conf.json`. A tag whose config still
+carries upstream Termoso's key, or whose updater endpoints are not this
+repository's releases, fails the `version consistency` job, and a binary
+with Termoso's key keeps its updater off (`update.rs`). Rotating the key
+requires one release signed with the _old_ key whose binary already carries
+the _new_ public key.
 
 The Android keystore is created once with
 
 ```bash
 keytool -genkeypair -keystore termoso-release.jks -alias termoso \
   -keyalg RSA -keysize 4096 -validity 10950
+base64 -w0 termoso-release.jks | gh secret set ANDROID_KEYSTORE_BASE64 --env release -R $R
+gh secret set ANDROID_KEYSTORE_PASSWORD --env release -R $R
 ```
 
 Android refuses to update an installed app whose new APK is signed with a
@@ -125,6 +148,10 @@ Termoso_, which hands the link to the installed app over the `termoso://`
 scheme, so App Links are an optimisation, not a requirement.
 
 ## Package channels
+
+**Off in Labterm.** The `distribute` job still targets upstream Termoso's
+repositories and winget package, so it is disabled (`if: false`) until Labterm
+has channels of its own. The rest of this section describes the upstream setup.
 
 The `distribute` job of `release.yml` runs after `publish` for stable tags
 (no `-` in the tag) and feeds three channels from the assets that were just
@@ -202,6 +229,71 @@ Locally, `npm run tauri build -- --bundles app,dmg` on a Mac produces the
 same ad-hoc bundle; `--target x86_64-apple-darwin` (with that Rust target
 installed) cross-builds the Intel one on an Apple Silicon machine.
 
+## Dev channel
+
+Every push to `main` builds **Labterm Dev** for Linux x86_64 (AppImage, deb),
+Windows x86_64 (NSIS installer) and macOS Apple Silicon (dmg) and publishes it
+to the rolling prerelease
+[`desktop-dev`](https://github.com/reykimedev/termoso/releases/tag/desktop-dev)
+with its own `latest.json`.
+
+- **Its own app.** Labterm Dev (`dev.labdex.labterm.dev`, config overlay
+  `apps/desktop/src-tauri/channels/dev.json`) installs next to Labterm, keeps
+  its own profile (`…/termoso/dev`) and keychain entry, and never touches the
+  stable app's vault.
+- **Its own feed and key.** The build bakes in the dev feed and the dev public
+  key, so a dev build only updates from `desktop-dev` and a stable build never
+  offers a dev build. The dev key signs nothing else: `main` can reach the
+  `desktop-dev` environment, so a leaked dev key must not be able to sign a
+  stable update.
+- **Versions.** `X.Y.(Z+1)-dev.N`, with `X.Y.Z` the current version and `N` the
+  workflow run number, so every build is newer than the last one and than the
+  last release.
+- **Keys stay off the build runners.** The three build jobs (which run npm and
+  Cargo build scripts) produce unsigned bundles. Only the `publish` jobs enter
+  the `desktop-dev` environment; they install the Tauri CLI with
+  `--ignore-scripts`, sign the updater artifacts, add build provenance
+  attestations and `SHA256SUMS.txt`, and upload `latest.json` last.
+- **macOS does not hold back the others.** macOS runners are often slow to
+  start, so Linux and Windows publish first. When the macOS build finishes, a
+  second job adds it to the same release and `latest.json`; until then, that
+  build has no macOS update.
+
+One-time setup (until the dev public key is in `channels/dev.json` the whole
+workflow is skipped with a notice, not failed):
+
+```bash
+R=reykimedev/termoso
+gh api -X PUT repos/$R/environments/desktop-dev --input - <<<'{"deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true}}'
+gh api -X POST repos/$R/environments/desktop-dev/deployment-branch-policies -f name=main -f type=branch
+
+cd ~/.labterm-signing
+npx @tauri-apps/cli signer generate -w labterm-updater-dev.key
+gh secret set TAURI_SIGNING_PRIVATE_KEY --env desktop-dev -R $R < labterm-updater-dev.key
+gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD --env desktop-dev -R $R
+```
+
+then put the `labterm-updater-dev.key.pub` contents into
+`plugins.updater.pubkey` in `channels/dev.json`.
+
+## Verifying a download
+
+Settings → About shows the commit the app was built from (`labterm --version`
+prints it too); the release notes name the same commit. To check a file you
+downloaded:
+
+```bash
+sha256sum -c SHA256SUMS.txt --ignore-missing          # the file is the one released
+gh attestation verify Labterm_X.Y.Z_amd64.AppImage -R reykimedev/termoso
+                                                      # built by this repository's workflow, from that commit
+cosign verify-blob SHA256SUMS.txt --bundle SHA256SUMS.txt.sigstore.json \
+  --certificate-identity-regexp '^https://github.com/reykimedev/termoso/' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+In-app updates need none of this: the updater verifies every package against
+the public key compiled into the app before installing it.
+
 ## How the updater behaves
 
 - **Off by default.** The app never contacts any server unless the user
@@ -224,7 +316,8 @@ installed) cross-builds the Intel one on an Apple Silicon machine.
 
 ## Self-hosting the update feed
 
-The default feed is `https://github.com/termoso/termoso/releases/latest/download/latest.json`.
+The default feed is `https://github.com/reykimedev/termoso/releases/latest/download/latest.json`
+(dev builds: `…/releases/download/desktop-dev/latest.json`).
 To keep updates entirely on infrastructure you control:
 
 1. Download `latest.json`, the updater artifacts and their `.sig` files from

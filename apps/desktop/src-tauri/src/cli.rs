@@ -29,8 +29,9 @@ pub fn early_exit<I: IntoIterator<Item = String>>(args: I) -> Option<EarlyExit> 
     match args.first().map(String::as_str) {
         Some("-h" | "--help" | "help") => Some(EarlyExit::Stdout(help())),
         Some("-V" | "--version" | "version") => Some(EarlyExit::Stdout(format!(
-            "termoso {}",
-            env!("CARGO_PKG_VERSION")
+            "termoso {} ({})",
+            env!("CARGO_PKG_VERSION"),
+            env!("LABTERM_BUILD_COMMIT")
         ))),
         Some(cmd) if SUBCOMMANDS.contains(&cmd) && parse(&args).is_none() => {
             Some(EarlyExit::Stderr(format!(

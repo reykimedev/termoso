@@ -26,7 +26,16 @@ use crate::state::{AppState, Settings};
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppInfo {
-    pub version: &'static str,
+    /// The bundle's version (`-dev.N` on the dev channel), as the updater sees it.
+    pub version: String,
+    /// Full commit hash the binary was built from (`build.rs`).
+    pub commit: &'static str,
+    /// `None` on stable, `Some("dev")` on the dev channel.
+    pub channel: Option<&'static str>,
+    /// Feed used when Settings → Updates has no custom one.
+    pub update_feed: &'static str,
+    /// Whether in-app updates are available in this build (`update::enabled`).
+    pub updates_enabled: bool,
     pub profile_dir: String,
     pub device_id: Uuid,
     pub master_key_source: MasterKeySource,
@@ -35,9 +44,13 @@ pub struct AppInfo {
 }
 
 #[tauri::command]
-pub fn app_info(state: State<'_, AppState>) -> Result<AppInfo> {
+pub fn app_info<R: Runtime>(app: AppHandle<R>, state: State<'_, AppState>) -> Result<AppInfo> {
     Ok(AppInfo {
-        version: env!("CARGO_PKG_VERSION"),
+        version: app.package_info().version.to_string(),
+        commit: env!("LABTERM_BUILD_COMMIT"),
+        channel: crate::update::CHANNEL,
+        update_feed: crate::update::DEFAULT_FEED,
+        updates_enabled: crate::update::enabled(&app),
         profile_dir: state.profile_dir.display().to_string(),
         device_id: state.store()?.device_id()?,
         master_key_source: state.master_source(),

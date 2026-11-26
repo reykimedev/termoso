@@ -22,7 +22,7 @@ import { startMultiplayerEvents } from "@/terminal/multiplayer";
 import { startWorkspaces } from "@/terminal/workspaces";
 import { RestoreBanner } from "@/terminal/RestoreBanner";
 import { dropAllSftp, startSftpEvents } from "@/sftp/store";
-import { startUpdateEvents, UPDATES_ENABLED } from "@/update/store";
+import { startUpdateEvents, useUpdatesEnabled } from "@/update/store";
 import { UpdateBanner } from "@/update/UpdateBanner";
 import {
   useAccount,
@@ -105,6 +105,7 @@ export function AppShell() {
 
 function UnlockedShell() {
   const section = useNav((s) => s.section);
+  const updatesEnabled = useUpdatesEnabled();
   const queryClient = useQueryClient();
   const tabs = useTerminal((s) => s.tabs);
   const activeTabId = useTerminal((s) => s.activeTabId);
@@ -170,7 +171,7 @@ function UnlockedShell() {
             position: "relative",
           }}
         >
-          {home && UPDATES_ENABLED && (
+          {home && updatesEnabled && (
             <UpdateBanner onOpenSettings={() => goToSettings("updates")} />
           )}
           {home && <RestoreBanner />}

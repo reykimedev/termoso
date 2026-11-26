@@ -558,7 +558,7 @@ pub(crate) async fn startup(app: tauri::AppHandle) {
     {
         return;
     }
-    if update::ENABLED {
+    if update::enabled(&app) {
         if settings.update_check != "manual" {
             update::check_on_startup(&app).await;
         }

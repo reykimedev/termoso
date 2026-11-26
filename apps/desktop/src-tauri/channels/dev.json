@@ -1,0 +1,13 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Labterm Dev",
+  "identifier": "dev.labdex.labterm.dev",
+  "bundle": {
+    "createUpdaterArtifacts": false
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": ["https://github.com/reykimedev/termoso/releases/download/desktop-dev/latest.json"]
+    }
+  }
+}
