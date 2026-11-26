@@ -99,7 +99,27 @@ def fill(label, value):
     type_text(value)
 
 
+def to_tabs():
+    """Backs out of whatever is open until the bottom tabs show."""
+    in_app()
+    for _ in range(5):
+        if has("Vaults") and has("Settings"):
+            return
+        drive.back()
+        in_app()
+
+
+def keyboard_off():
+    """Hides the soft keyboard without Back (Back leaves the terminal)."""
+    if "mInputShown=true" in sh("dumpsys input_method | grep mInputShown"):
+        if has("Toggle keyboard"):
+            tap("Toggle keyboard")
+        else:
+            hide_keyboard()
+
+
 def host_list():
+    to_tabs()
     nav("Vaults")
     if has("Keychain"):
         tap("Hosts")
@@ -107,6 +127,7 @@ def host_list():
 
 
 def vault_overview():
+    to_tabs()
     nav("Vaults")
     for _ in range(3):
         if has("Keychain"):
@@ -171,16 +192,16 @@ def terminal():
     # Unknown host key: the test server's key is trusted here, once, like a person would.
     wait("Trust & save", timeout=40)
     tap("Trust & save")
-    wait("Password", timeout=30)
+    wait("Save in vault", timeout=30)
+    tap("Save in vault")
+    text_field(0)
     type_text(PASSWORD)
-    if has("Save in vault"):
-        tap("Save in vault")
-    key("ENTER")
+    tap("Continue")
     time.sleep(4)
     for cmd in ("uptime", "ls -la", "df -h /", "tail -n 5 logs/app.log"):
         type_text(cmd + "\n")
         time.sleep(1.2)
-    hide_keyboard()
+    keyboard_off()
 
 
 @step("android-session-menu")
@@ -206,7 +227,7 @@ def hidden_input():
 @step("android-compose")
 def compose():
     tap("Cancel")
-    hide_keyboard()
+    keyboard_off()
     if not has("Compose"):
         tap("More keys")
     tap("Compose")
@@ -218,14 +239,14 @@ def compose():
 
 @step("android-connections")
 def connections():
-    hide_keyboard()
-    drive.back()
+    to_tabs()
     nav("Connections")
     wait("Ways to connect", exact=False)
 
 
 @step("android-sftp")
 def sftp():
+    nav("Connections")
     tap("Files")
     time.sleep(1)
     tap("web-01")
@@ -244,8 +265,6 @@ def ai_agent():
 
 @step("android-keys")
 def keys():
-    drive.back()
-    drive.back()
     vault_overview()
     tap("Keychain")
     for label, algo in (("deploy", "Ed25519"), ("backup", "ECDSA"), ("ci-runner", "RSA")):
@@ -284,6 +303,7 @@ def settings():
     drive.back()
     if has("Discard", exact=False):
         tap("Discard", exact=False)
+    to_tabs()
     nav("Settings")
     w, h = screen_size()
     for _ in range(3):

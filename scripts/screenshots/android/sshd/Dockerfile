@@ -6,7 +6,9 @@ RUN apk add --no-cache bash openssh openssh-sftp-server coreutils procps tzdata 
  && adduser -D -s /bin/bash deploy \
  && echo "deploy:example-password" | chpasswd \
  && sed -i -e 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/' \
-           -e 's/^#\?PrintMotd.*/PrintMotd yes/' /etc/ssh/sshd_config
+           -e 's/^#\?PrintMotd.*/PrintMotd yes/' \
+           -e 's/^#\?KbdInteractiveAuthentication.*/KbdInteractiveAuthentication no/' /etc/ssh/sshd_config \
+ && echo 'KbdInteractiveAuthentication no' >> /etc/ssh/sshd_config
 COPY home/ /home/deploy/
 COPY motd /etc/motd
 RUN chown -R deploy:deploy /home/deploy && touch -d "2026-11-24 15:20" /home/deploy/* /home/deploy/*/*
