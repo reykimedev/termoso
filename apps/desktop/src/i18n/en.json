@@ -2405,6 +2405,7 @@
   "Sign in": "Sign in",
   "Sign in again": "Sign in again",
   "Sign in again to use AI suggestions.": "Sign in again to use AI suggestions.",
+  "Sign in as this user, e.g. your admin account. Keys with different accounts sign in separately. Empty: whoever signs in.": "Sign in as this user, e.g. your admin account. Keys with different accounts sign in separately. Empty: whoever signs in.",
   "Sign in now": "Sign in now",
   "Sign in on another device or add a FIDO2 key so you keep access if this one is lost.": "Sign in on another device or add a FIDO2 key so you keep access if this one is lost.",
   "Sign in only through SSO": "Sign in only through SSO",
@@ -2961,6 +2962,5 @@
   "ZOC Terminal": "ZOC Terminal",
   "Zoom": "Zoom",
   "Zoom in": "Zoom in",
-  "Zoom out": "Zoom out",
-  "Sign in as this user, e.g. your admin account. Keys with different accounts sign in separately. Empty: whoever signs in.": "Sign in as this user, e.g. your admin account. Keys with different accounts sign in separately. Empty: whoever signs in."
+  "Zoom out": "Zoom out"
 }
