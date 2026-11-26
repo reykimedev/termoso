@@ -271,12 +271,7 @@ pub async fn oidc_provider_save(
     id: Option<Uuid>,
     provider: OidcProvider,
 ) -> Result<Entity<OidcProvider>> {
-    oidc::save_provider(
-        &*state.store()?,
-        vault_id,
-        id,
-        provider,
-    )
+    oidc::save_provider(&*state.store()?, vault_id, id, provider)
 }
 
 /// Delete an OpenID provider; its keys fall back to the vault default.
