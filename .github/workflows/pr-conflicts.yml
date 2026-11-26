@@ -1,0 +1,50 @@
+# Flags open pull requests that stop merging cleanly after main moves, so their
+# authors fix the conflict right away. Label `merge-conflict` + one comment per
+# conflict; both are removed again once the PR merges cleanly.
+name: PR conflicts
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-conflicts
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      LABEL: merge-conflict
+    steps:
+      - name: Label conflicting PRs
+        # No checkout: this job only reads PR metadata, never PR code.
+        run: |
+          gh label create "$LABEL" --color B60205 --description "Does not merge cleanly into its base" 2>/dev/null || true
+          for pr in $(gh pr list --state open --limit 100 --json number --jq '.[].number'); do
+            # GitHub computes mergeability lazily; ask until it has an answer.
+            state=UNKNOWN
+            for _ in 1 2 3 4 5 6; do
+              state=$(gh pr view "$pr" --json mergeable --jq .mergeable)
+              [ "$state" != UNKNOWN ] && break
+              sleep 10
+            done
+            labeled=$(gh pr view "$pr" --json labels --jq "[.labels[].name] | index(\"$LABEL\") != null")
+            if [ "$state" = CONFLICTING ] && [ "$labeled" = false ]; then
+              gh pr edit "$pr" --add-label "$LABEL"
+              gh pr comment "$pr" --body "This pull request no longer merges cleanly into its base. Please merge the base branch into it and resolve the conflicts."
+            elif [ "$state" = MERGEABLE ] && [ "$labeled" = true ]; then
+              gh pr edit "$pr" --remove-label "$LABEL"
+            fi
+          done

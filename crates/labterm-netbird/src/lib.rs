@@ -28,11 +28,11 @@ use std::sync::{Arc, Mutex, Weak};
 use std::task::{Context, Poll};
 use std::time::Duration;
 
-use serde::{Deserialize, Serialize};
 use labterm_core::error::{CoreError, Result};
 use labterm_core::model::{Entity, Transport};
 use labterm_core::transport::{BoxStream, TransportDial};
 use labterm_proto::entities::TRANSPORT_NETBIRD;
+use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use uuid::Uuid;
 use zeroize::Zeroizing;

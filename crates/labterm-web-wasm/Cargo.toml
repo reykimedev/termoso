@@ -1,0 +1,44 @@
+[package]
+name = "labterm-web-wasm"
+description = "The browser side of Labterm Web in WebAssembly: SSH over the relay, the known-hosts check, key tools, the lock key, and labterm-wasm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Labterm's own browser crypto (OPAQUE, account and vault keys, entity encryption), built into
+# the same module so there is one wasm file and one wasm-bindgen version.
+labterm-wasm = { path = "../labterm-wasm" }
+# opkssh certificates. Only the core: the browser does the HTTP itself.
+labterm-oidc-cert = { workspace = true }
+# The .termoso backup format: same Argon2id and XChaCha20-Poly1305 as the Labterm apps.
+labterm-crypto = { workspace = true, features = ["wasm"] }
+serde_json = { workspace = true }
+argon2 = { version = "0.5", default-features = false, features = ["alloc"] }
+# Same russh as Termoso v0.12.1, with ring instead of aws-lc-rs (aws-lc-sys has no wasm32 build).
+russh = { version = "=0.65.1", default-features = false, features = ["ring", "rsa"] }
+# ring 0.17 uses getrandom 0.2, which needs `js` on wasm32-unknown-unknown.
+getrandom02 = { package = "getrandom", version = "0.2", features = ["js"] }
+tokio = { version = "1", default-features = false, features = ["io-util", "sync"] }
+futures = "0.3"
+serde = { workspace = true }
+base64 = { workspace = true }
+rand = { version = "0.10", default-features = false, features = ["thread_rng"] }
+serde-wasm-bindgen = "0.6"
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+web-sys = { version = "0.3", features = ["WebSocket", "BinaryType", "MessageEvent", "CloseEvent", "Event"] }
+url = "2"
+russh-sftp = "4.0.0"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }

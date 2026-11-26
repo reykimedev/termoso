@@ -13,6 +13,9 @@ members = [
     "crates/labterm-oidc-cert",
     "crates/labterm-netbird",
     "crates/labterm-wasm",
+    "crates/labterm-relay-proto",
+    "crates/labterm-relay",
+    "crates/labterm-web-wasm",
     "apps/desktop/src-tauri",
 ]
 # cargo-fuzz targets (nightly, libFuzzer); built on their own via `cargo fuzz`.
@@ -36,6 +39,7 @@ termoso-bridge = { path = "crates/termoso-bridge" }
 labterm-awslc-rsa = { path = "crates/labterm-awslc-rsa" }
 labterm-oidc-cert = { path = "crates/labterm-oidc-cert", default-features = false }
 labterm-netbird = { path = "crates/labterm-netbird" }
+labterm-relay-proto = { path = "crates/labterm-relay-proto" }
 
 # mobile bindings
 uniffi = { version = "0.32.0", default-features = false }
@@ -94,6 +98,13 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 figment = { version = "0.10", features = ["env", "toml"] }
 lettre = { version = "0.11", default-features = false, features = ["tokio1-rustls-tls", "smtp-transport", "builder", "hostname", "pool"] }
 metrics = "0.24"
+# Labterm Web relay (crates/labterm-relay): no default TLS, rustls with ring, no C toolchain.
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+ipnet = { version = "2", features = ["serde"] }
+jsonwebtoken = { version = "11", default-features = false, features = ["rust_crypto", "use_pem"] }
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls-no-provider"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+serde_yaml = "0.9"
 metrics-exporter-prometheus = { version = "0.18", default-features = false }
 url = "2"
 bytes = "1"
@@ -104,3 +115,7 @@ lto = "thin"
 codegen-units = 1
 opt-level = 3
 strip = true
+
+# Argon2 is unbearably slow unoptimised, even in tests (Labterm Web's lock key and backups).
+[profile.dev.package.argon2]
+opt-level = 3

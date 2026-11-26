@@ -69,6 +69,11 @@ ignore = [
   { id = "RUSTSEC-2026-0370", reason = "zvariant via zbus 5 (notify-rust, secret-service); Linux desktop only, no vulnerability" },
   { id = "RUSTSEC-2026-0371", reason = "zbus_names via zbus 5 (notify-rust, secret-service); Linux desktop only, no vulnerability" },
   { id = "RUSTSEC-2026-0372", reason = "zvariant_derive via zbus 5 (notify-rust, secret-service); Linux desktop only, no vulnerability" },
+  # chrono is unmaintained (no vulnerability, no fixed release will come). We are
+  # moving our own code to `time`; oauth2, openidconnect and russh-util (wasm32)
+  # still pull chrono in until their chrono-free releases ship (oauth2-rs #355,
+  # openidconnect-rs #256, russh #832). Drop when chrono leaves Cargo.lock.
+  { id = "RUSTSEC-2026-0543", reason = "chrono unmaintained, no vulnerability; migration to time in progress, waiting on oauth2/openidconnect/russh-util releases" },
 ]
 
 [licenses]

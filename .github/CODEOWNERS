@@ -15,6 +15,16 @@
 /apps/ios/                          @rep0rtDev
 /web/                               @rep0rtDev
 
+# Labterm Web. Trust, signing, sign-in and the relay: merged by hand after a second look.
+/apps/web/                          @rep0rtDev
+/apps/web/overlay/src/loader/       @rep0rtDev
+/apps/web/patches/                  @rep0rtDev
+/apps/web/tools/                    @rep0rtDev
+/crates/labterm-relay/              @rep0rtDev
+/crates/labterm-relay-proto/        @rep0rtDev
+/crates/labterm-web-wasm/           @rep0rtDev
+/docs/web/threat-model.md           @rep0rtDev
+
 /deploy/                            @rep0rtDev
 /.github/                           @rep0rtDev
 /docs/                              @rep0rtDev
