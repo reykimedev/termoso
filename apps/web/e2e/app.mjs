@@ -152,6 +152,34 @@ try {
   await b.getByRole("button", { name: "Unlock" }).click();
   await hostCard(b).waitFor({ timeout: 20000 });
   check(true, "reload, wrong password refused, unlock keeps the vault");
+  if (process.env.HATCH_E2E_SIGNED === "1") {
+    const badge = await b.getByRole("button", { name: /Signed release, every file checked/ }).count();
+    check(badge === 1, "build badge says signed and checked");
+    check(await b.evaluate(() => navigator.serviceWorker.controller !== null), "service worker serves the app");
+
+    // A changed manifest or a changed file must stop the app before it runs.
+    for (const [what, pattern, change] of [
+      ["manifest", "**/manifest.json", (s) => s.replace('"format": 1', '"format": 1 ')],
+      ["module", "**/assets/index-*.js", (s) => s + "\n// changed"],
+      ["wasm", "**/assets/*.wasm", null],
+    ]) {
+      const ctx = await browser.newContext();
+      await ctx.route(pattern, async (route) => {
+        const r = await route.fetch();
+        const body = change ? change(await r.text()) : Buffer.concat([await r.body(), Buffer.from([0])]);
+        await route.fulfill({ response: r, body });
+      });
+      const t = await ctx.newPage();
+      await t.goto(APP);
+      if (what === "wasm") {
+        await t.getByText("does not match the signed manifest").waitFor({ timeout: 20000 });
+      } else {
+        await t.getByRole("heading", { name: "Hatch did not start" }).waitFor({ timeout: 20000 });
+      }
+      check(true, `a changed ${what} stops the app`);
+      await ctx.close();
+    }
+  }
   console.log("all checks passed");
 } catch (e) {
   for (const [i, ctx] of browser.contexts().entries())

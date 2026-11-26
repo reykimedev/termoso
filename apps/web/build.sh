@@ -16,10 +16,12 @@ mkdir -p "$work/apps" "$work/crates/termoso-core/assets"
 tar -C "$up/apps" --exclude=node_modules --exclude=src-tauri -cf - desktop | tar -C "$work/apps" -xf -
 cp -r "$up/crates/termoso-core/assets/autocomplete" "$work/crates/termoso-core/assets/"
 
-# SSH, known hosts, keys and the lock key, with termoso-wasm linked in: one wasm module.
-# The git dependency (termoso-oidc-cert) is fetched by the git CLI so proxies and credentials work.
-CARGO_NET_GIT_FETCH_WITH_CLI=true wasm-pack build "$here/../crates/hatch-wasm" \
-  --target web --release --no-pack --out-dir "$work/pkg" --out-name hatch_wasm
+# The wasm module: built here, or prebuilt (Docker builds it in a Rust stage).
+if [ -n "${HATCH_WASM_PKG:-}" ]; then
+  cp -r "$HATCH_WASM_PKG" "$work/pkg"
+else
+  "$here/build-wasm.sh" "$work/pkg"
+fi
 
 cd "$work"
 git init -q && git apply --whitespace=nowarn "$here"/patches/*.patch
@@ -31,5 +33,11 @@ npm ci --no-audit --no-fund
 export VITE_HATCH_VERSION="${HATCH_VERSION:-$(git -C "$here/.." describe --tags --always 2>/dev/null || echo dev)}"
 export VITE_HATCH_COMMIT="${HATCH_COMMIT:-$(git -C "$here/.." rev-parse HEAD 2>/dev/null || echo dev)}"
 export VITE_TERMOSO_VERSION="$(git -C "$up" describe --tags 2>/dev/null | sed 's/^v//' || echo unknown)"
+npx tsc -b
 VITE_TERMOSO_WEB=1 npx vite build --base ./ --outDir "$out" --emptyOutDir
+
+# Release manifest, loader and service worker, CSP and SRI (sign it with tools/sign-manifest.mjs).
+HATCH_VERSION="$VITE_HATCH_VERSION" HATCH_COMMIT="$VITE_HATCH_COMMIT" HATCH_TERMOSO_VERSION="$VITE_TERMOSO_VERSION" \
+  HATCH_SERIAL="${HATCH_SERIAL:-$(git -C "$here/.." log -1 --format=%ct 2>/dev/null || echo 0)}" \
+  node "$here/../tools/manifest.mjs" "$out"
 echo "built $out"

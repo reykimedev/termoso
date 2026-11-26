@@ -53,6 +53,9 @@ export const de: Readonly<Record<string, string>> = {
   "To check a release yourself, build the same tag and compare the manifest hash.":
     "Um ein Release selbst zu prüfen, denselben Tag bauen und den Manifest-Hash vergleichen.",
 
+  "This Hatch changed on the server outside a signed release. Compare the manifest hash with the release page before you unlock.":
+    "Dieses Hatch wurde auf dem Server ausserhalb eines signierten Releases geändert. Vergleiche den Manifest-Hash mit der Release-Seite, bevor du entsperrst.",
+
   // host keys (patch 0001)
   "Unknown host": "Unbekannter Host",
   "Host key has changed": "Host-Schlüssel hat sich geändert",

@@ -15,6 +15,7 @@ import { defaultSettings } from "./backend/settings";
 import * as st from "./backend/state";
 import * as term from "./backend/terminal";
 import { TERMOSO_VERSION } from "./build";
+import { integrity } from "./integrity";
 import { tr } from "@/i18n";
 
 type Args = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -66,6 +67,10 @@ async function lockNow() {
 }
 
 async function unlock(password: string) {
+  // The loader saw a service worker on the server that no signed release contains: this load is
+  // still the checked one, the next may not be. Don't open the vault on it.
+  if (integrity().workerChanged)
+    fail("integrity", "This Hatch changed on the server outside a signed release. Compare the manifest hash with the release page before you unlock.");
   if (!(await st.unlock(password))) fail("wrong_password", "Wrong password");
   rememberUi(st.s().settings);
   touch();

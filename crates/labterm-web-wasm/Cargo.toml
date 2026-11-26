@@ -37,7 +37,3 @@ url = "2"
 [lints]
 workspace = true
 
-# wasm-opt would fetch binaryen at build time; the release profile's LTO is enough and keeps the
-# build reproducible from the lockfile alone.
-[package.metadata.wasm-pack.profile.release]
-wasm-opt = false

@@ -30,3 +30,18 @@ variables at the top of the script. Screenshots land in `/tmp/hatch-e2e/shots`.
 
 The test marks the new account's email as verified directly in the database (`psql`), because the
 server only asks new devices for a code once the address is verified.
+
+## Signed build
+
+To also check the loader, build with a throwaway key and `HATCH_E2E_SIGNED=1`:
+
+```sh
+node tools/release-key.mjs /tmp/hatch-e2e/test.pem e2e-test-key   # prints the public entry
+# put that entry into tools/release-keys.json for this build only (don't commit it)
+HATCH_CSP_CONNECT="'self' http://127.0.0.1:8080 http://127.0.0.1:8090 ws://127.0.0.1:8090 http://localhost:9400" ./web/build.sh
+HATCH_RELEASE_KEY_FILE=/tmp/hatch-e2e/test.pem node tools/sign-manifest.mjs web/dist
+HATCH_E2E_SIGNED=1 node web/e2e/app.mjs
+```
+
+It then also checks the build badge, that the service worker serves the app, and that a changed
+manifest, module or wasm file stops the app before it runs.
