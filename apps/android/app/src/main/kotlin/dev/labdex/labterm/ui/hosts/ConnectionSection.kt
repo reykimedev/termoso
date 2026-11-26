@@ -132,10 +132,10 @@ fun ConnectionSection(state: HostEditorState, draft: HostDraft, vm: HostEditorVi
         }
         if (draft.ssh) PickerRow(
             label = stringResource(R.string.color_scheme),
-            value = themes.firstOrNull { it.id == draft.colorScheme || it.name == draft.colorScheme }?.name
+            value = themes.firstOrNull { it.id == canonicalThemeId(draft.colorScheme) || it.name == draft.colorScheme }?.name
                 ?: draft.colorScheme ?: stringResource(R.string.app_default),
             options = listOf<Pair<String?, String>>(null to stringResource(R.string.app_default)) + themes.map { it.id to it.name },
-            selected = draft.colorScheme,
+            selected = canonicalThemeId(draft.colorScheme),
             onPick = { id -> vm.update { it.copy(colorScheme = id) } },
             empty = null,
         )
@@ -312,4 +312,11 @@ private fun ChainEditorDialog(
             }
         },
     )
+}
+
+/** Scheme ids saved before the rename open the Labterm pair. */
+private fun canonicalThemeId(id: String?): String? = when (id) {
+    "termoso-dark" -> "labterm-dark" // rename:keep
+    "termoso-light" -> "labterm-light" // rename:keep
+    else -> id
 }

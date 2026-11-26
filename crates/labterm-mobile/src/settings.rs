@@ -100,7 +100,7 @@ pub struct MobileSettings {
     /// `list` | `grid`.
     #[serde(default = "default_view")]
     pub hosts_view: String,
-    #[serde(default = "default_theme")]
+    #[serde(default = "default_theme", deserialize_with = "theme_id")]
     pub terminal_theme: String,
     #[serde(default = "default_font_size")]
     pub terminal_font_size: u32,
@@ -323,6 +323,12 @@ fn sanitize_groups(groups: Vec<KeyGroup>) -> Vec<KeyGroup> {
     out
 }
 
+/// Reads a saved terminal scheme id, moving ids from before the rename to the Labterm pair.
+fn theme_id<'de, D: serde::Deserializer<'de>>(d: D) -> std::result::Result<String, D::Error> {
+    let id = <String as serde::Deserialize>::deserialize(d)?;
+    Ok(crate::themes::canonical_id(&id).to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -332,6 +338,15 @@ mod tests {
             label: format!("  {action}  "),
             action: action.into(),
         }
+    }
+
+    #[test]
+    fn old_terminal_theme_id_moves_to_labterm() {
+        let s: MobileSettings =
+            serde_json::from_str(r#"{"terminalTheme":"termoso-dark"}"#).unwrap(); // rename:keep
+        assert_eq!(s.terminal_theme, crate::themes::LABTERM_DARK);
+        let s: MobileSettings = serde_json::from_str(r#"{"terminalTheme":"nord-dark"}"#).unwrap();
+        assert_eq!(s.terminal_theme, "nord-dark");
     }
 
     #[test]

@@ -74,7 +74,7 @@ import {
 } from "@/ipc/types";
 import * as ipc from "@/ipc/commands";
 import { useActiveVault } from "@/app/vault";
-import { allTerminalThemes, useCustomThemes } from "@/terminal/themes";
+import { allTerminalThemes, canonicalThemeId, useCustomThemes } from "@/terminal/themes";
 import { monoFontFamily, sizes } from "@/theme/theme";
 import { ChainDialog, ProxyDialog } from "./HostAdvancedDialogs";
 import { ConnectedNowCard, useVaultPresence } from "./PresenceViews";
@@ -1534,11 +1534,11 @@ function ThemeField({
   const all = allTerminalThemes();
   const dark = all.filter((t) => t.dark && !custom.includes(t));
   const light = all.filter((t) => !t.dark && !custom.includes(t));
-  const current = all.find((t) => t.id === value) ?? null;
+  const current = all.find((t) => value !== null && t.id === canonicalThemeId(value)) ?? null;
   return (
     <TextField
       select
-      value={value ?? ""}
+      value={value === null ? "" : canonicalThemeId(value)}
       onChange={(e) => onChange(e.target.value === "" ? null : e.target.value)}
       slotProps={{
         select: {

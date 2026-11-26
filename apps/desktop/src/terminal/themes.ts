@@ -48,13 +48,20 @@ const t = (
   ansi,
 });
 
-export const LABTERM_DARK = "termoso-dark";
-export const LABTERM_LIGHT = "termoso-light";
+export const LABTERM_DARK = "labterm-dark";
+export const LABTERM_LIGHT = "labterm-light";
+/** Ids saved before the rename (settings, synced hosts): they open the Labterm pair. */
+const LEGACY_IDS: Readonly<Record<string, string>> = {
+  "termoso-dark": LABTERM_DARK, // rename:keep
+  "termoso-light": LABTERM_LIGHT, // rename:keep
+};
+/** The current id for a saved one. */
+export const canonicalThemeId = (id: string): string => LEGACY_IDS[id] ?? id;
 /** Follow the app colour scheme with the Labterm pair. */
 export const AUTO_THEME = "auto";
 
-// labdex's status colours, so a colour means the same in the terminal as in labdex. The ids
-// stay "labterm-*" so saved settings keep working.
+// labdex's Blueprint palette: lantern orange cursor on warm neutrals, and labdex's status
+// colours, so a colour means the same in the terminal as in labdex.
 // prettier-ignore
 const labtermDark = t(LABTERM_DARK, "Labterm Dark", appDark.lowest, appDark.text, lantern.main, "#F59A2340", [
   "#1E1E1C", "#F2555A", "#3ECF8E", "#F5C84C", "#5AA9FF", "#E879F9", "#4FD1C5", "#C9C9C4",
@@ -354,7 +361,7 @@ export function allTerminalThemes(): TerminalTheme[] {
 }
 
 export function terminalThemeById(id: string): TerminalTheme | undefined {
-  return byId.get(id) ?? custom.get(id);
+  return byId.get(canonicalThemeId(id)) ?? custom.get(id);
 }
 
 /** Scheme to render for a settings value; unknown ids fall back to the Labterm pair. */
@@ -364,7 +371,7 @@ export function resolveTerminalTheme(
 ): TerminalTheme {
   const fallback = scheme === "light" ? labtermLight : labtermDark;
   if (!id || id === AUTO_THEME) return fallback;
-  return byId.get(id) ?? custom.get(id) ?? fallback;
+  return byId.get(canonicalThemeId(id)) ?? custom.get(id) ?? fallback;
 }
 
 export function toXtermTheme(th: TerminalTheme): ITheme {
