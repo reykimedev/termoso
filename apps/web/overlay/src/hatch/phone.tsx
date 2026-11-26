@@ -11,6 +11,7 @@ import { Sidebar } from "@/app/Sidebar";
 import { activeTab } from "@/terminal/store";
 import { focusPane } from "@/terminal/store";
 import * as ipc from "@/ipc/commands";
+import { tr } from "@/i18n";
 import { monoFontFamily } from "@/theme/theme";
 
 /** Phone layout in the web build only: the desktop window never gets this narrow. */
@@ -38,11 +39,11 @@ export function PhoneNav() {
           else goToSection(v as (typeof main)[number]);
         }}
       >
-        <BottomNavigationAction value="hosts" label="Hosts" icon={<DnsRoundedIcon />} />
-        <BottomNavigationAction value="keychain" label="Keychain" icon={<KeyRoundedIcon />} />
-        <BottomNavigationAction value="knownHosts" label="Known hosts" icon={<GppGoodRoundedIcon />} />
-        <BottomNavigationAction value="settings" label="Settings" icon={<SettingsRoundedIcon />} />
-        <BottomNavigationAction value="more" label="More" icon={<MenuRoundedIcon />} />
+        <BottomNavigationAction value="hosts" label={tr("Hosts")} icon={<DnsRoundedIcon />} />
+        <BottomNavigationAction value="keychain" label={tr("Keychain")} icon={<KeyRoundedIcon />} />
+        <BottomNavigationAction value="knownHosts" label={tr("Known hosts")} icon={<GppGoodRoundedIcon />} />
+        <BottomNavigationAction value="settings" label={tr("Settings")} icon={<SettingsRoundedIcon />} />
+        <BottomNavigationAction value="more" label={tr("More")} icon={<MenuRoundedIcon />} />
       </BottomNavigation>
       <Drawer anchor="left" open={more} onClose={() => setMore(false)}>
         <Box onClick={() => setMore(false)} sx={{ height: "100%", display: "flex" }}>
