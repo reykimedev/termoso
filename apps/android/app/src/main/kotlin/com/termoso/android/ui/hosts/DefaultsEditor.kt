@@ -32,7 +32,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -79,7 +78,7 @@ private data class Loaded(
 @Composable
 fun DefaultsEditorDialog(shell: ShellViewModel, target: DefaultsTarget, onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
+    val savedMessage = stringResource(R.string.settings_saved)
     var loaded by remember(target) { mutableStateOf<Loaded?>(null) }
     var label by remember(target) { mutableStateOf("") }
     var priority by remember(target) { mutableStateOf("0") }
@@ -133,7 +132,7 @@ fun DefaultsEditorDialog(shell: ShellViewModel, target: DefaultsTarget, onDismis
                     }
                 }
             }.onSuccess {
-                shell.notify(context.getString(R.string.settings_saved))
+                shell.notify(savedMessage)
                 onDismiss()
             }.onFailure { shell.notify(it.userMessage()) }
             saving = false
