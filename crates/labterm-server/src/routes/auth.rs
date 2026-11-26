@@ -1540,24 +1540,24 @@ fn html_escape(s: &str) -> String {
 
 const SAML_POST_HTML: &str = r#"<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Signing in…</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#12151F;color:#E6E8F0;font-family:system-ui,sans-serif}
-button{background:#3DDC84;color:#0B1F14;border:0;border-radius:8px;padding:10px 18px;font-size:15px;cursor:pointer}</style></head>
+<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0B0B0A;color:#ECECEA;font-family:system-ui,sans-serif}
+button{background:#F59A23;color:#1A1206;border:0;border-radius:8px;padding:10px 18px;font-size:15px;cursor:pointer}</style></head>
 <body><form method="post" action="{action}"><input type="hidden" name="SAMLRequest" value="{request}"><input type="hidden" name="RelayState" value="{relay}">
 <noscript><button type="submit">Continue to your identity provider</button></noscript></form>
 <script>document.forms[0].submit()</script></body></html>"#;
 
 const SSO_DONE_HTML: &str = r#"<!doctype html><html lang="en"><head><meta charset="utf-8"><title>{name}</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#12151F;color:#E6E8F0;font-family:system-ui,sans-serif}
-.card{background:#1A1E2B;border:1px solid #2D3345;border-radius:12px;padding:32px 40px;text-align:center;max-width:420px}
-h1{font-size:20px;margin:0 0 8px;color:#5FD0A4}p{margin:0;color:#8E93A8}</style></head>
+<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0B0B0A;color:#ECECEA;font-family:system-ui,sans-serif}
+.card{background:#141413;border:1px solid #272725;border-radius:12px;padding:32px 40px;text-align:center;max-width:420px}
+h1{font-size:20px;margin:0 0 8px;color:#F59A23}p{margin:0;color:#A3A39E}</style></head>
 <body><div class="card"><h1>Signed in</h1><p>You can close this window and return to {name}.</p></div></body></html>"#;
 
 const SLO_DONE_HTML: &str = r#"<!doctype html><html lang="en"><head><meta charset="utf-8"><title>{name}</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#12151F;color:#E6E8F0;font-family:system-ui,sans-serif}
-.card{background:#1A1E2B;border:1px solid #2D3345;border-radius:12px;padding:32px 40px;text-align:center;max-width:420px}
-h1{font-size:20px;margin:0 0 8px;color:#5FD0A4}p{margin:0;color:#8E93A8}</style></head>
+<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0B0B0A;color:#ECECEA;font-family:system-ui,sans-serif}
+.card{background:#141413;border:1px solid #272725;border-radius:12px;padding:32px 40px;text-align:center;max-width:420px}
+h1{font-size:20px;margin:0 0 8px;color:#F59A23}p{margin:0;color:#A3A39E}</style></head>
 <body><div class="card"><h1>Signed out</h1><p>Your {name} sessions from this identity provider have been ended. You can close this window.</p></div></body></html>"#;
 
 const USERS_INSERT_SQL: &str =

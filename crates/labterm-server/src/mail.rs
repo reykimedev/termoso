@@ -168,8 +168,9 @@ impl Email {
 
     /// HTML alternative. 600px card on a light background, system font stack,
     /// everything inline — Gmail, Outlook (desktop and web), Apple Mail and
-    /// Proton all render this the same way. Colours mirror the app: ink
-    /// `#1A1E2B`, muted `#6B7280`, brand green `#2BB884`, background `#F3F4F7`.
+    /// Proton all render this the same way. Colours are labdex's Blueprint light
+    /// tokens: ink `#1A1A19`, muted `#5F5F5C`, lantern `#E8870E` with `#1A1206` text on
+    /// it, links in `#A85A00` (the lantern is too light for text on white), background `#F0F0ED`.
     pub fn html(&self, server_name: &str, site_url: &str) -> String {
         const FONT: &str = "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;";
         const MONO: &str =
@@ -178,12 +179,12 @@ impl Email {
         let mut body = String::new();
         let p = |s: &str| {
             format!(
-                "<p style=\"margin:0 0 16px;{FONT}font-size:16px;line-height:24px;color:#1A1E2B\">{}</p>",
+                "<p style=\"margin:0 0 16px;{FONT}font-size:16px;line-height:24px;color:#1A1A19\">{}</p>",
                 e(s)
             )
         };
         body.push_str(&format!(
-            "<h1 style=\"margin:0 0 20px;{FONT}font-size:24px;line-height:32px;font-weight:700;color:#1A1E2B\">{}</h1>",
+            "<h1 style=\"margin:0 0 20px;{FONT}font-size:24px;line-height:32px;font-weight:700;color:#1A1A19\">{}</h1>",
             e(&self.title)
         ));
         for s in &self.intro {
@@ -192,8 +193,8 @@ impl Email {
         if let Some(code) = &self.code {
             body.push_str(&format!(
                 "<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\" style=\"margin:8px 0 24px\"><tr>\
-                 <td align=\"center\" bgcolor=\"#F3F4F7\" style=\"background:#F3F4F7;border-radius:8px;padding:20px 16px\">\
-                 <span style=\"{MONO}font-size:32px;line-height:40px;letter-spacing:6px;font-weight:700;color:#1A1E2B\">{}</span>\
+                 <td align=\"center\" bgcolor=\"#F0F0ED\" style=\"background:#F0F0ED;border-radius:8px;padding:20px 16px\">\
+                 <span style=\"{MONO}font-size:32px;line-height:40px;letter-spacing:6px;font-weight:700;color:#1A1A19\">{}</span>\
                  </td></tr></table>",
                 e(code)
             ));
@@ -201,11 +202,11 @@ impl Email {
         if let Some(b) = &self.button {
             body.push_str(&format!(
                 "<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"margin:8px 0 20px\"><tr>\
-                 <td align=\"center\" bgcolor=\"#2BB884\" style=\"background:#2BB884;border-radius:8px\">\
-                 <a href=\"{url}\" style=\"display:inline-block;padding:13px 24px;{FONT}font-size:16px;line-height:20px;font-weight:600;color:#FFFFFF;text-decoration:none;border-radius:8px\">{label}</a>\
+                 <td align=\"center\" bgcolor=\"#E8870E\" style=\"background:#E8870E;border-radius:8px\">\
+                 <a href=\"{url}\" style=\"display:inline-block;padding:13px 24px;{FONT}font-size:16px;line-height:20px;font-weight:600;color:#1A1206;text-decoration:none;border-radius:8px\">{label}</a>\
                  </td></tr></table>\
-                 <p style=\"margin:0 0 20px;{FONT}font-size:13px;line-height:20px;color:#6B7280\">If the button does not work, open this link:<br>\
-                 <a href=\"{url}\" style=\"color:#2BB884;text-decoration:underline;word-break:break-all\">{url}</a></p>",
+                 <p style=\"margin:0 0 20px;{FONT}font-size:13px;line-height:20px;color:#5F5F5C\">If the button does not work, open this link:<br>\
+                 <a href=\"{url}\" style=\"color:#A85A00;text-decoration:underline;word-break:break-all\">{url}</a></p>",
                 url = e(&b.url),
                 label = e(&b.label)
             ));
@@ -214,8 +215,8 @@ impl Email {
             body.push_str("<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\" style=\"margin:4px 0 20px;border-collapse:collapse\">");
             for (k, v) in &self.rows {
                 body.push_str(&format!(
-                    "<tr><td style=\"padding:8px 0;border-bottom:1px solid #E5E7EB;{FONT}font-size:15px;line-height:22px;color:#6B7280\">{}</td>\
-                     <td align=\"right\" style=\"padding:8px 0;border-bottom:1px solid #E5E7EB;{FONT}font-size:15px;line-height:22px;color:#1A1E2B;font-weight:600\">{}</td></tr>",
+                    "<tr><td style=\"padding:8px 0;border-bottom:1px solid #E3E3E0;{FONT}font-size:15px;line-height:22px;color:#5F5F5C\">{}</td>\
+                     <td align=\"right\" style=\"padding:8px 0;border-bottom:1px solid #E3E3E0;{FONT}font-size:15px;line-height:22px;color:#1A1A19;font-weight:600\">{}</td></tr>",
                     e(k),
                     e(v)
                 ));
@@ -225,14 +226,14 @@ impl Email {
         if !self.log.is_empty() {
             if let Some(t) = &self.log_title {
                 body.push_str(&format!(
-                    "<p style=\"margin:0 0 8px;{FONT}font-size:13px;line-height:18px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:#6B7280\">{}</p>",
+                    "<p style=\"margin:0 0 8px;{FONT}font-size:13px;line-height:18px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:#5F5F5C\">{}</p>",
                     e(t)
                 ));
             }
             body.push_str(&format!(
                 "<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\" style=\"margin:4px 0 20px\"><tr>\
-                 <td bgcolor=\"#12151F\" style=\"background:#12151F;border-radius:8px;padding:14px 16px\">\
-                 <pre style=\"margin:0;{MONO}font-size:13px;line-height:20px;color:#D9DEE8;white-space:pre-wrap;word-break:break-word\">{}</pre>\
+                 <td bgcolor=\"#141413\" style=\"background:#141413;border-radius:8px;padding:14px 16px\">\
+                 <pre style=\"margin:0;{MONO}font-size:13px;line-height:20px;color:#ECECEA;white-space:pre-wrap;word-break:break-word\">{}</pre>\
                  </td></tr></table>",
                 self.log.iter().map(|l| e(l)).collect::<Vec<_>>().join("\n")
             ));
@@ -242,15 +243,15 @@ impl Email {
         }
         if let Some(l) = &self.secondary {
             body.push_str(&format!(
-                "<p style=\"margin:0 0 20px;{FONT}font-size:15px;line-height:22px;color:#1A1E2B\">{}: \
-                 <a href=\"{url}\" style=\"color:#2BB884;text-decoration:underline;word-break:break-all\">{url}</a></p>",
+                "<p style=\"margin:0 0 20px;{FONT}font-size:15px;line-height:22px;color:#1A1A19\">{}: \
+                 <a href=\"{url}\" style=\"color:#A85A00;text-decoration:underline;word-break:break-all\">{url}</a></p>",
                 e(&l.label),
                 url = e(&l.url)
             ));
         }
         if let Some(n) = &self.note {
             body.push_str(&format!(
-                "<p style=\"margin:4px 0 0;padding-top:16px;border-top:1px solid #E5E7EB;{FONT}font-size:13px;line-height:20px;color:#6B7280\">{}</p>",
+                "<p style=\"margin:4px 0 0;padding-top:16px;border-top:1px solid #E3E3E0;{FONT}font-size:13px;line-height:20px;color:#5F5F5C\">{}</p>",
                 e(n)
             ));
         }
@@ -265,16 +266,16 @@ impl Email {
              <head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\
              <meta name=\"color-scheme\" content=\"light\"><meta name=\"supported-color-schemes\" content=\"light\">\
              <title>{subject}</title></head>\
-             <body style=\"margin:0;padding:0;background:#F3F4F7;-webkit-text-size-adjust:100%\">\
+             <body style=\"margin:0;padding:0;background:#F0F0ED;-webkit-text-size-adjust:100%\">\
              <div style=\"display:none;max-height:0;overflow:hidden;opacity:0;color:transparent\">{preheader}</div>\
-             <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\" bgcolor=\"#F3F4F7\" style=\"background:#F3F4F7\"><tr><td align=\"center\" style=\"padding:32px 16px\">\
+             <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\" bgcolor=\"#F0F0ED\" style=\"background:#F0F0ED\"><tr><td align=\"center\" style=\"padding:32px 16px\">\
              <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"600\" style=\"width:100%;max-width:600px\">\
              <tr><td align=\"center\" style=\"padding:0 0 24px\">\
              <a href=\"{site}\" style=\"text-decoration:none\"><img src=\"{site}/email-logo.png\" width=\"180\" height=\"44\" alt=\"{name}\" style=\"display:block;border:0;width:180px;height:44px\"></a>\
              </td></tr>\
              <tr><td bgcolor=\"#FFFFFF\" style=\"background:#FFFFFF;border-radius:12px;padding:36px 40px\">{body}</td></tr>\
-             <tr><td align=\"center\" style=\"padding:24px 16px 0;{FONT}font-size:12px;line-height:18px;color:#8E93A8\">\
-             This email was sent by {name}. <a href=\"{site}\" style=\"color:#8E93A8;text-decoration:underline\">{host}</a>\
+             <tr><td align=\"center\" style=\"padding:24px 16px 0;{FONT}font-size:12px;line-height:18px;color:#6B6B68\">\
+             This email was sent by {name}. <a href=\"{site}\" style=\"color:#6B6B68;text-decoration:underline\">{host}</a>\
              </td></tr>\
              </table></td></tr></table></body></html>",
             subject = e(&self.subject),
