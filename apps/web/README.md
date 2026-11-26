@@ -19,7 +19,7 @@ Hatch is an independent project and not part of Termoso.
 git submodule update --init      # Termoso at the pinned tag, in web/upstream
 ./web/build.sh                   # the web app, in web/dist
 cargo test                       # ticket format and relay checks
-HATCH_RELAY_ALLOWLIST_FILE=deploy/allowlist.example.yaml cargo run -p hatch-relay
+HATCH_RELAY_ALLOWLIST_FILE=deploy/kubernetes/allowlist.yaml cargo run -p hatch-relay
 ```
 
 ## Where things are
@@ -30,7 +30,7 @@ HATCH_RELAY_ALLOWLIST_FILE=deploy/allowlist.example.yaml cargo run -p hatch-rela
 | `crates/hatch-relay` | The relay: allowlist, tickets, limits, audit log, `/healthz`, `/metrics` |
 | `web/upstream` | Termoso at the pinned release tag (submodule, never edited) |
 | `web/patches`, `web/overlay` | The changes to Termoso's frontend for the browser, and the web-only screens |
-| `deploy/` | Example allowlist; Kubernetes manifests live in the cluster repo |
+| `deploy/` | Web server config and example Kubernetes manifests ([deploying](docs/deploy.md)) |
 | `docs/` | Architecture, [threat model](docs/threat-model.md), [decisions](docs/decisions/) |
 
 ## Licence

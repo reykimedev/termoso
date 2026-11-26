@@ -1,0 +1,64 @@
+# Both Traefik instances share the ingress namespace, so each rule pairs the namespace selector with
+# a pod selector. TODO: check the public instance's label in your cluster.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: hatch-web
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: hatch-web
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: traefik-public-ingress
+      ports:
+        - port: http
+  egress: [] # a static file server talks to nobody
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: hatch-relay
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: hatch-relay
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: traefik-public-ingress
+      ports:
+        - port: http
+    - from: # metrics scraping; TODO: match your monitoring namespace
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: operations
+      ports:
+        - port: http
+  egress:
+    - to: # DNS, to resolve targets before the allowlist check
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - { port: 53, protocol: UDP }
+        - { port: 53, protocol: TCP }
+    - to: # the same ranges as allowlist.yaml: a second fence if the relay's own check fails
+        - ipBlock:
+            cidr: 192.0.2.0/24 # TODO: your home ranges, as routed into the cluster
+      ports:
+        - { port: 22, protocol: TCP }
