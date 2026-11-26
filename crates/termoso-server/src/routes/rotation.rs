@@ -8,7 +8,7 @@ use axum::extract::{Path, Query, State};
 
 use super::paging::PageQuery;
 use chrono::{DateTime, Utc};
-use termoso_proto::team::{
+use labterm_proto::team::{
     CreateRotationJobsRequest, RotationDue, RotationJob, RotationJobList, RotationOverview,
     UpdateRotationJobRequest,
 };

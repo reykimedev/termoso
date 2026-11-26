@@ -15,7 +15,7 @@
     "lint": "eslint .",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"*.{ts,json}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"*.{ts,json}\"",
-    "wasm": "wasm-pack build ../crates/termoso-wasm --release --target web --out-dir ../../web/src/crypto/pkg --out-name termoso_wasm"
+    "wasm": "wasm-pack build ../crates/labterm-wasm --release --target web --out-dir ../../web/src/crypto/pkg --out-name labterm_wasm"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",

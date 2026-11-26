@@ -4,9 +4,9 @@ mod common;
 
 use common::*;
 use reqwest::{Method, StatusCode};
-use termoso_proto::account::ServerInfo;
-use termoso_proto::admin::ServerSettings;
-use termoso_proto::auth::{AuthResponse, LoginStartRequest};
+use labterm_proto::account::ServerInfo;
+use labterm_proto::admin::ServerSettings;
+use labterm_proto::auth::{AuthResponse, LoginStartRequest};
 use uuid::Uuid;
 
 #[tokio::test]

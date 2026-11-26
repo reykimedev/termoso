@@ -4,12 +4,12 @@ use std::collections::HashMap;
 
 use serde::Serialize;
 use serde::de::DeserializeOwned;
-use termoso_crypto::aead::{self, Aad};
-use termoso_crypto::keys::SymmetricKey;
-use termoso_proto::entities::SyncEntity;
-use termoso_proto::entities::payload::{Group, Host, Identity, Snippet, SshKey, Tag};
-use termoso_proto::sync::EntityChange;
-use termoso_proto::vault::{VaultKind, VaultRole};
+use labterm_crypto::aead::{self, Aad};
+use labterm_crypto::keys::SymmetricKey;
+use labterm_proto::entities::SyncEntity;
+use labterm_proto::entities::payload::{Group, Host, Identity, Snippet, SshKey, Tag};
+use labterm_proto::sync::EntityChange;
+use labterm_proto::vault::{VaultKind, VaultRole};
 use uuid::Uuid;
 
 use crate::error::{BridgeError, Result};

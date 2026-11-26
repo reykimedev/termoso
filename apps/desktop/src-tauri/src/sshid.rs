@@ -1,20 +1,20 @@
 //! SSH ID for the desktop: the account handle, this device's passkeys and
 //! the FIDO2 keys attached to the SSH ID. Private device keys are generated
-//! and kept in the encrypted store (`termoso_core::sshid`); the server and
+//! and kept in the encrypted store (`labterm_core::sshid`); the server and
 //! the webview only ever see public keys, fingerprints and metadata.
 
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, Runtime};
-use termoso_core::api::ApiClient;
-use termoso_core::fido2::{self, GenerateOptions};
-use termoso_core::keys;
-use termoso_core::model::SshKey;
-use termoso_core::ssh::AuthMethod;
-use termoso_core::sshid as core;
-use termoso_core::store::Store;
-use termoso_proto::sshid::{
+use labterm_core::api::ApiClient;
+use labterm_core::fido2::{self, GenerateOptions};
+use labterm_core::keys;
+use labterm_core::model::SshKey;
+use labterm_core::ssh::AuthMethod;
+use labterm_core::sshid as core;
+use labterm_core::store::Store;
+use labterm_proto::sshid::{
     AddFido2KeyRequest, AddPublicKeyRequest, SshIdKeyType, SshIdProfile, normalize_handle,
 };
 use uuid::Uuid;
@@ -140,7 +140,7 @@ async fn publish(
         .await
     {
         Ok(p) => Ok(p),
-        Err(e) if e.is_api_code(termoso_proto::error::codes::REAUTH_REQUIRED) => Ok(profile),
+        Err(e) if e.is_api_code(labterm_proto::error::codes::REAUTH_REQUIRED) => Ok(profile),
         Err(e) => Err(e.into()),
     }
 }
@@ -417,7 +417,7 @@ pub fn auth_methods(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use termoso_core::termoso_crypto::keys::SymmetricKey;
+    use labterm_core::labterm_crypto::keys::SymmetricKey;
 
     #[test]
     fn same_key_ignores_comment() {

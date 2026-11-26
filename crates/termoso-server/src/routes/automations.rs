@@ -13,7 +13,7 @@ use axum::Json;
 use axum::extract::{Path, State};
 use chrono::{DateTime, Duration, Utc};
 use sqlx::PgExecutor;
-use termoso_proto::automation::*;
+use labterm_proto::automation::*;
 use uuid::Uuid;
 
 use crate::audit;

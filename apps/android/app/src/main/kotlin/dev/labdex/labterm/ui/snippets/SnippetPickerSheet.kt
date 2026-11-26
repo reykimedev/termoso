@@ -1,0 +1,114 @@
+package dev.labdex.labterm.ui.snippets
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Code
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import dev.labdex.labterm.R
+import dev.labdex.labterm.ui.components.EmptyState
+import dev.labdex.labterm.ui.components.FormField
+import dev.labdex.labterm.ui.components.IconTile
+import dev.labdex.labterm.ui.components.ListRow
+import dev.labdex.labterm.ui.shell.ShellViewModel
+import dev.labdex.labterm.core.SnippetItem
+import dev.labdex.labterm.core.SnippetPackageItem
+
+/**
+ * The `{}` key of the terminal panel: every snippet from every unlocked vault,
+ * filtered as you type; picking one opens [RunSnippetDialog] aimed at the
+ * current session.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SnippetPickerSheet(
+    shell: ShellViewModel,
+    sessionId: String,
+    onOpenSnippets: () -> Unit,
+    onClose: () -> Unit,
+) {
+    var snippets by remember { mutableStateOf<List<SnippetItem>?>(null) }
+    var packages by remember { mutableStateOf<List<SnippetPackageItem>>(emptyList()) }
+    var query by remember { mutableStateOf("") }
+    var run by remember { mutableStateOf<SnippetItem?>(null) }
+
+    LaunchedEffect(Unit) {
+        runCatching { shell.repo.read { snippets(null) to snippetPackages(null) } }
+            .onSuccess { (s, p) -> snippets = s; packages = p }
+            .onFailure { snippets = emptyList() }
+    }
+
+    val shown = snippets.orEmpty().filter { s ->
+        query.isBlank() || s.label.contains(query, ignoreCase = true) || s.script.contains(query, ignoreCase = true)
+    }
+
+    if (run == null) {
+        ModalBottomSheet(onDismissRequest = onClose) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(stringResource(R.string.snippets), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                TextButton(onClick = { onClose(); onOpenSnippets() }) { Text(stringResource(R.string.manage)) }
+            }
+            if (snippets.orEmpty().size > 5) {
+                Row(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                    FormField(query, { query = it }, stringResource(R.string.search))
+                }
+            }
+            when {
+                snippets == null -> Spacer(Modifier.height(120.dp))
+                shown.isEmpty() -> {
+                    EmptyState(
+                        title = if (query.isBlank()) stringResource(R.string.no_snippets_yet) else stringResource(R.string.nothing_matches),
+                        hint = if (query.isBlank()) stringResource(R.string.create_one_under_vaults_snippets) else stringResource(R.string.try_another_name_or_command),
+                        modifier = Modifier.padding(16.dp),
+                    )
+                    Spacer(Modifier.height(24.dp))
+                }
+                else -> LazyColumn(contentPadding = PaddingValues(bottom = 32.dp)) {
+                    items(shown, key = { it.id }) { s ->
+                        val pkg = packages.firstOrNull { it.id == s.packageId }?.label
+                        ListRow(
+                            title = s.label,
+                            subtitle = listOfNotNull(pkg, snippetSubtitle(s)).joinToString(" · "),
+                            leading = { IconTile(Icons.Filled.Code) },
+                            modifier = Modifier.clickable { run = s },
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    run?.let { s ->
+        RunSnippetDialog(
+            shell = shell,
+            snippet = s,
+            preselect = listOf(sessionId),
+            onDismiss = { run = null },
+            onLaunched = { onClose() },
+        )
+    }
+}

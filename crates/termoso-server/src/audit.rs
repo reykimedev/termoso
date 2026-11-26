@@ -7,7 +7,7 @@ use axum::extract::{Path, Query, State};
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use sqlx::{PgExecutor, PgPool};
-use termoso_proto::team::{AuditEvent, AuditEventList};
+use labterm_proto::team::{AuditEvent, AuditEventList};
 use uuid::Uuid;
 
 use crate::error::{ApiResult, Error};

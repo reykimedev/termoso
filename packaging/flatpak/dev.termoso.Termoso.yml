@@ -32,8 +32,8 @@ modules:
     build-commands:
       - cargo --offline fetch --manifest-path Cargo.toml
       - cd apps/desktop && npm ci --offline && npm run build
-      - cargo --offline build --release -p termoso-desktop
-      - install -Dm755 target/release/termoso-desktop /app/bin/termoso
+      - cargo --offline build --release -p labterm-desktop
+      - install -Dm755 target/release/labterm-desktop /app/bin/termoso
       - install -Dm644 packaging/flatpak/dev.termoso.Termoso.desktop /app/share/applications/dev.termoso.Termoso.desktop
       - install -Dm644 packaging/flatpak/dev.termoso.Termoso.metainfo.xml /app/share/metainfo/dev.termoso.Termoso.metainfo.xml
       - install -Dm644 apps/desktop/src-tauri/icons/128x128.png /app/share/icons/hicolor/128x128/apps/dev.termoso.Termoso.png

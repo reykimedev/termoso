@@ -3,7 +3,7 @@
 use chrono::{DateTime, Utc};
 use sqlx::AssertSqlSafe;
 use sqlx::FromRow;
-use termoso_proto::account::{AccountKeys, UserProfile};
+use labterm_proto::account::{AccountKeys, UserProfile};
 use uuid::Uuid;
 
 use crate::error::{ApiResult, Error};

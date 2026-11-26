@@ -49,7 +49,7 @@ Authentik guide; nothing app specific is needed.
 ## How it works
 
 - The NetBird client is NetBird's own `client/embed` package, built as a C
-  library (`crates/termoso-netbird/go`) and loaded on the first connection
+  library (`crates/labterm-netbird/go`) and loaded on the first connection
   through a network, so the Go runtime only starts when it is needed.
 - It runs in netstack mode: WireGuard and TCP/IP in userspace, nothing changes
   on the phone's network. Inbound connections are blocked and the peer never
@@ -77,7 +77,7 @@ Authentik guide; nothing app specific is needed.
 
 ## Testing
 
-`crates/termoso-netbird/tests/e2e.sh` builds a NetBird server, a far-end
+`crates/labterm-netbird/tests/e2e.sh` builds a NetBird server, a far-end
 peer and the library, and runs the crate's end-to-end tests on loopback (CI
 job `netbird`): joining with a setup key, and signing in at the server's
 built-in identity provider (`tests/sso-login.py` plays the browser), signing

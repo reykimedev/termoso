@@ -1,12 +1,12 @@
 // Offline command dictionary for terminal autocomplete: common Unix / Linux /
 // macOS / Windows commands with one-line descriptions, read from the
-// catalogue in `crates/termoso-core/assets/autocomplete` that the Android client shares
+// catalogue in `crates/labterm-core/assets/autocomplete` that the Android client shares
 // (`name|description[|d|n]` — `d` = takes directories, `n` = no paths).
 // Frequent options and subcommands live in `commandFlags.ts`. It is a hint
 // list, not a manual — anything the shell knows still works as usual.
 
-import ROWS from "../../../../crates/termoso-core/assets/autocomplete/commands.txt?raw";
-import WRAPPER_ROWS from "../../../../crates/termoso-core/assets/autocomplete/wrappers.txt?raw";
+import ROWS from "../../../../crates/labterm-core/assets/autocomplete/commands.txt?raw";
+import WRAPPER_ROWS from "../../../../crates/labterm-core/assets/autocomplete/wrappers.txt?raw";
 
 export type PathKind = "any" | "dir" | "none";
 

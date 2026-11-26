@@ -158,14 +158,14 @@ Database migrations run automatically at start. The complete variable list is
 ## Web cabinet
 
 The cabinet is a static single-page app; the only "native" piece is the
-`termoso-crypto` crate compiled to WebAssembly (OPAQUE, key wrapping, sealed
+`labterm-crypto` crate compiled to WebAssembly (OPAQUE, key wrapping, sealed
 boxes) — no cryptography is implemented in JavaScript.
 
 ```bash
 rustup target add wasm32-unknown-unknown
 cd web
 npm ci
-npm run wasm        # crates/termoso-wasm → web/src/crypto/pkg (generated, git-ignored)
+npm run wasm        # crates/labterm-wasm → web/src/crypto/pkg (generated, git-ignored)
 npm run build       # → web/dist
 ```
 
@@ -276,7 +276,7 @@ src-tauri/appimage/verify.sh ../../target/release/bundle/appimage/*.AppImage
 Output (`target/` is the workspace target directory, two levels up):
 
 ```text
-target/release/termoso-desktop                                  # the binary itself
+target/release/labterm-desktop                                  # the binary itself
 target/release/bundle/deb/Termoso_0.3.0_amd64.deb
 target/release/bundle/rpm/Termoso-0.3.0-1.x86_64.rpm
 target/release/bundle/appimage/Termoso_0.3.0_amd64.AppImage
@@ -323,7 +323,7 @@ npm run tauri build -- --config src-tauri\tauri.no-updater.conf.json --bundles m
 Output:
 
 ```text
-target\release\termoso-desktop.exe
+target\release\labterm-desktop.exe
 target\release\bundle\msi\Termoso_0.3.0_x64_en-US.msi
 target\release\bundle\nsis\Termoso_0.3.0_x64-setup.exe
 ```
@@ -379,7 +379,7 @@ too but doubles the download; the project ships two `.dmg`s instead.
 ## Android
 
 The Android app is Kotlin/Jetpack Compose over the same Rust core as iOS
-(`crates/termoso-mobile`, exposed through UniFFI). Gradle drives everything:
+(`crates/labterm-mobile`, exposed through UniFFI). Gradle drives everything:
 the `:core` module runs `cargo ndk` for each ABI, generates the Kotlin
 bindings from the built library and packages them into an AAR; `:app` is the
 application.
@@ -408,7 +408,7 @@ from `ANDROID_NDK_HOME` if set, otherwise the newest one under
 
 The embedded NetBird client ([NETBIRD.md](NETBIRD.md)) is a Go library built
 with the same NDK, so Android builds also need **Go** at the version in
-`crates/termoso-netbird/go/go.mod` (`go` on `PATH`; with `GOTOOLCHAIN=auto`,
+`crates/labterm-netbird/go/go.mod` (`go` on `PATH`; with `GOTOOLCHAIN=auto`,
 the default, an older Go fetches it). `-Ptermoso.netbird=false` builds without
 it.
 
@@ -485,7 +485,7 @@ The unit tests and lint run with `./gradlew :app:testDebugUnitTest :app:lintDebu
 
 ## iOS
 
-The iOS app is SwiftUI over the same `termoso-mobile` core; there is no
+The iOS app is SwiftUI over the same `labterm-mobile` core; there is no
 App Store build, the release ships an **unsigned** `.ipa` for sideloading
 (AltStore/SideStore/Sideloadly sign it with the installer's Apple ID — see
 [IOS_SIDELOAD.md](IOS_SIDELOAD.md)). Requires macOS with Xcode 16 and
@@ -493,7 +493,7 @@ App Store build, the release ships an **unsigned** `.ipa` for sideloading
 
 ```bash
 cd apps/ios
-./build-core.sh --release --device --no-sim   # Rust → TermosoCoreFFI.xcframework + TermosoCore.swift
+./build-core.sh --release --device --no-sim   # Rust → LabtermCoreFFI.xcframework + LabtermCore.swift
 xcodegen generate                              # → Termoso.xcodeproj (git-ignored)
 xcodebuild archive -project Termoso.xcodeproj -scheme Termoso -configuration Release \
   -destination 'generic/platform=iOS' -archivePath build/Termoso.xcarchive \
@@ -523,7 +523,7 @@ usual; nothing in the project prevents that.
 
   `http://localhost:8080/` serves the landing page — proof that the cabinet is
   bundled.
-* **Desktop.** Install the package or run `target/release/termoso-desktop`;
+* **Desktop.** Install the package or run `target/release/labterm-desktop`;
   *Settings → About* shows the version. Publish checksums of your installers
   with `sha256sum target/release/bundle/*/*.{deb,rpm,AppImage}` the way the
   release publishes `SHA256SUMS.txt`.
@@ -558,7 +558,7 @@ usual; nothing in the project prevents that.
 | `A public key has been found, but no private key` at the end of `tauri build` | The updater is configured. Either export your own key (variant A) or pass `--config src-tauri/tauri.no-updater.conf.json` (variant B). |
 | `failed to run custom build command for glib-sys / soup3-sys / javascriptcoregtk` | Missing Linux system libraries; install the list under [Linux](#linux). |
 | `npm ci` in `web/` or `apps/desktop/` complains about `engines` / Vite fails to start | Node older than 22.12; upgrade (`nvm install 22`). |
-| `Cannot find module 'src/crypto/pkg/termoso_wasm'` | `npm run wasm` was not run (or `wasm32-unknown-unknown` target / `wasm-pack` is missing). |
+| `Cannot find module 'src/crypto/pkg/labterm_wasm'` | `npm run wasm` was not run (or `wasm32-unknown-unknown` target / `wasm-pack` is missing). |
 | Gradle: `SDK location not found` / `NDK not configured` | Export `ANDROID_HOME` (and `ANDROID_NDK_HOME` if the NDK is elsewhere); the required NDK is `27.2.12479018`. |
 | Gradle: `cargo ndk` not found | `cargo install cargo-ndk` and make sure `~/.cargo/bin` is on the `PATH` Gradle sees. |
 | `error: linking with cc failed` for an Android target | The Rust target is not installed: `rustup target add <triple>`. |

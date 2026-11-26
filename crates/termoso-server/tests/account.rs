@@ -8,19 +8,19 @@ use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use common::*;
 use reqwest::{Method, StatusCode};
-use termoso_crypto::aead::{self, Aad};
-use termoso_crypto::kdf::{Label, derive_key};
-use termoso_crypto::keys::{KeyPair, SymmetricKey};
-use termoso_crypto::opaque;
-use termoso_crypto::recovery::RecoveryKey;
-use termoso_proto::account::{ChangeEmailRequest, CodeRequest, SecurityEventList};
-use termoso_proto::auth::{
+use labterm_crypto::aead::{self, Aad};
+use labterm_crypto::kdf::{Label, derive_key};
+use labterm_crypto::keys::{KeyPair, SymmetricKey};
+use labterm_crypto::opaque;
+use labterm_crypto::recovery::RecoveryKey;
+use labterm_proto::account::{ChangeEmailRequest, CodeRequest, SecurityEventList};
+use labterm_proto::auth::{
     AuthResponse, DeviceApproveRequest, DeviceApproveResendRequest, DeviceList, MfaCredential,
     MfaMethod, MfaVerifyRequest, PasswordSetupFinishRequest, PasswordSetupStartRequest,
     PasswordSetupStartResponse, RecoveryRotate, RecoveryStartRequest, RecoveryStartResponse,
     Session, WebauthnChallengeRequest,
 };
-use termoso_proto::team::{CreateTeamRequest, Team};
+use labterm_proto::team::{CreateTeamRequest, Team};
 
 macro_rules! server_with_mail {
     () => {
@@ -766,7 +766,7 @@ async fn wait_for_new_code(s: &TestServer, to: &str, purpose: &str, before: u64)
     panic!("no new `{purpose}` email for {to}");
 }
 
-fn device_with_id(id: uuid::Uuid) -> termoso_proto::auth::DeviceInfo {
+fn device_with_id(id: uuid::Uuid) -> labterm_proto::auth::DeviceInfo {
     let mut d = device("known device");
     d.client_device_id = Some(id);
     d
@@ -826,7 +826,7 @@ async fn email_is_a_second_factor_once_another_is_enabled() {
     .await;
 
     // Enable TOTP so login stops at MFA.
-    let setup: termoso_proto::auth::TotpSetupResponse = s
+    let setup: labterm_proto::auth::TotpSetupResponse = s
         .json(
             Method::POST,
             "/account/mfa/totp/setup",
@@ -835,11 +835,11 @@ async fn email_is_a_second_factor_once_another_is_enabled() {
         )
         .await;
     let totp = totp_rs::Totp::from_url(&setup.otpauth_url).unwrap();
-    s.json::<_, termoso_proto::auth::BackupCodes>(
+    s.json::<_, labterm_proto::auth::BackupCodes>(
         Method::POST,
         "/account/mfa/totp/confirm",
         Some(u.token()),
-        Some(&termoso_proto::auth::TotpCodeRequest {
+        Some(&labterm_proto::auth::TotpCodeRequest {
             code: totp.generate_current().to_string(),
         }),
     )

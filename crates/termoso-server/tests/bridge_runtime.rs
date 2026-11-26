@@ -10,13 +10,13 @@ use common::*;
 use reqwest::{Method, StatusCode};
 use termoso_bridge::credentials::parse_credentials;
 use termoso_bridge::{Bridge, RestConfig, router};
-use termoso_crypto::aead::{self, Aad};
-use termoso_crypto::keys::KeyPair;
-use termoso_crypto::sealed;
-use termoso_proto::bridge::*;
-use termoso_proto::entities::payload::{Group, Host, Identity, SshConfig, SshKey, Tag};
-use termoso_proto::sync::{PullRequest, PullResponse};
-use termoso_proto::vault::{
+use labterm_crypto::aead::{self, Aad};
+use labterm_crypto::keys::KeyPair;
+use labterm_crypto::sealed;
+use labterm_proto::bridge::*;
+use labterm_proto::entities::payload::{Group, Host, Identity, SshConfig, SshKey, Tag};
+use labterm_proto::sync::{PullRequest, PullResponse};
+use labterm_proto::vault::{
     RotateVaultKeyRequest, RotateVaultKeyResponse, SealedKeyFor, VaultList,
 };
 use uuid::Uuid;
@@ -166,7 +166,7 @@ async fn rig_with(s: &TestServer, name: &str, rate_limit: u32) -> Rig {
         version: CREDENTIALS_VERSION,
         server: format!("http://{}", s.addr),
         bridge_id: created.bridge.id,
-        private_key: termoso_crypto::encoding::b64(&kp.secret_bytes()),
+        private_key: labterm_crypto::encoding::b64(&kp.secret_bytes()),
         token: created.token.clone(),
     })
     .unwrap();
@@ -444,8 +444,8 @@ async fn bridge_survives_concurrent_owner_edits() {
             .unwrap()
             .version
     };
-    let push = termoso_proto::sync::PushRequest {
-        changes: vec![termoso_proto::sync::EntityChange {
+    let push = labterm_proto::sync::PushRequest {
+        changes: vec![labterm_proto::sync::EntityChange {
             secret_rotated_at: None,
             id: host_id,
             kind: "host".into(),
@@ -462,7 +462,7 @@ async fn bridge_survives_concurrent_owner_edits() {
         }],
         deletes: vec![],
     };
-    let resp: termoso_proto::sync::PushResponse = s
+    let resp: labterm_proto::sync::PushResponse = s
         .json(
             Method::POST,
             "/sync/push",
@@ -472,7 +472,7 @@ async fn bridge_survives_concurrent_owner_edits() {
         .await;
     assert!(matches!(
         resp.results[0],
-        termoso_proto::sync::PushResult::Ok { .. }
+        labterm_proto::sync::PushResult::Ok { .. }
     ));
 
     // The bridge's mirror is stale; its next write must re-pull, rebase and
@@ -748,7 +748,7 @@ async fn rotation_pauses_writes_until_reseal() {
                 &e.data,
             )
             .unwrap();
-            termoso_proto::sync::EntityChange {
+            labterm_proto::sync::EntityChange {
                 secret_rotated_at: None,
                 id: e.id,
                 kind: e.kind.clone(),
@@ -762,12 +762,12 @@ async fn rotation_pauses_writes_until_reseal() {
             }
         })
         .collect();
-    let resp: termoso_proto::sync::PushResponse = s
+    let resp: labterm_proto::sync::PushResponse = s
         .json(
             Method::POST,
             "/sync/push",
             Some(r.user.token()),
-            Some(&termoso_proto::sync::PushRequest {
+            Some(&labterm_proto::sync::PushRequest {
                 changes,
                 deletes: vec![],
             }),
@@ -776,7 +776,7 @@ async fn rotation_pauses_writes_until_reseal() {
     assert!(
         resp.results
             .iter()
-            .all(|x| matches!(x, termoso_proto::sync::PushResult::Ok { .. })),
+            .all(|x| matches!(x, labterm_proto::sync::PushResult::Ok { .. })),
         "{:?}",
         resp.results
     );
@@ -794,7 +794,7 @@ async fn rotation_pauses_writes_until_reseal() {
     assert_eq!(list.as_array().unwrap().len(), 2);
 }
 
-type Bridge_ = termoso_proto::bridge::Bridge;
+type Bridge_ = labterm_proto::bridge::Bridge;
 
 #[tokio::test]
 async fn mcp_server_lists_hosts_and_gates_tools() {

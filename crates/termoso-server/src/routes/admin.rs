@@ -7,7 +7,7 @@ use super::paging::PageQuery;
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use sqlx::AssertSqlSafe;
-use termoso_proto::admin::*;
+use labterm_proto::admin::*;
 use uuid::Uuid;
 
 use crate::audit;

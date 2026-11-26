@@ -4,9 +4,9 @@
 mod common;
 use common::*;
 use reqwest::{Method, StatusCode};
-use termoso_proto::admin::{AdminTeamAuditList, AdminTeamMemberList};
-use termoso_proto::logs::LogListResponse;
-use termoso_proto::team::{InviteList, TeamMemberList};
+use labterm_proto::admin::{AdminTeamAuditList, AdminTeamMemberList};
+use labterm_proto::logs::LogListResponse;
+use labterm_proto::team::{InviteList, TeamMemberList};
 use uuid::Uuid;
 
 #[tokio::test]

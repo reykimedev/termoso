@@ -26,14 +26,14 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 use sqlx::Connection;
 use sqlx::postgres::PgConnection;
-use termoso_crypto::aead::{self, Aad};
-use termoso_crypto::kdf::{Label, derive_key};
-use termoso_crypto::keys::{KeyPair, SymmetricKey};
-use termoso_crypto::opaque;
-use termoso_crypto::recovery::RecoveryKey;
-use termoso_crypto::sealed;
-use termoso_proto::account::CodeRequest;
-use termoso_proto::auth::{
+use labterm_crypto::aead::{self, Aad};
+use labterm_crypto::kdf::{Label, derive_key};
+use labterm_crypto::keys::{KeyPair, SymmetricKey};
+use labterm_crypto::opaque;
+use labterm_crypto::recovery::RecoveryKey;
+use labterm_crypto::sealed;
+use labterm_proto::account::CodeRequest;
+use labterm_proto::auth::{
     AccountKeysUpload, AuthResponse, DeviceApproveRequest, DeviceInfo, LoginFinishRequest,
     LoginStartRequest, LoginStartResponse, Platform, RegisterFinishRequest, RegisterStartRequest,
     RegisterStartResponse, Session,

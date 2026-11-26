@@ -63,8 +63,8 @@ jobs:
       - if: env.HAS_KEY == 'true'
         uses: actions/setup-go@v6
         with:
-          go-version-file: crates/termoso-netbird/go/go.mod
-          cache-dependency-path: crates/termoso-netbird/go/go.sum
+          go-version-file: crates/labterm-netbird/go/go.mod
+          cache-dependency-path: crates/labterm-netbird/go/go.sum
       - name: Channel
         if: env.HAS_KEY == 'true'
         env:

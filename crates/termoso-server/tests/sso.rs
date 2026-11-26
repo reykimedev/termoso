@@ -7,8 +7,8 @@ mod common;
 use common::oidc::{self, Identity};
 use common::*;
 use reqwest::{Method, StatusCode, redirect::Policy};
-use termoso_proto::admin::{AdminUpdateUserRequest, AdminUser};
-use termoso_proto::auth::{AuthResponse, SsoKind, SsoProvider, SsoResult, SsoStartResponse};
+use labterm_proto::admin::{AdminUpdateUserRequest, AdminUser};
+use labterm_proto::auth::{AuthResponse, SsoKind, SsoProvider, SsoResult, SsoStartResponse};
 use termoso_server::config::{Config, SsoKindConfig, SsoProviderConfig};
 use termoso_server::saml::test_support as saml_support;
 use termoso_server::sso::SsoRegistry;
@@ -226,13 +226,13 @@ async fn sso_registers_then_logs_in_and_skips_device_approval() {
     // The SSO session can't be used for a different address...
     let other = unique_email("intruder");
     let (request, _) =
-        termoso_crypto::opaque::client_registration_start(b"pw-x-123456789").unwrap();
+        labterm_crypto::opaque::client_registration_start(b"pw-x-123456789").unwrap();
     let v = s
         .expect_status(
             Method::POST,
             "/auth/login/start",
             None,
-            Some(&termoso_proto::auth::LoginStartRequest {
+            Some(&labterm_proto::auth::LoginStartRequest {
                 email: other,
                 opaque_request: request,
                 device: device("sso device"),
@@ -258,12 +258,12 @@ async fn sso_registers_then_logs_in_and_skips_device_approval() {
     }
     // Spent.
     let (request, _) =
-        termoso_crypto::opaque::client_registration_start(b"pw-x-123456789").unwrap();
+        labterm_crypto::opaque::client_registration_start(b"pw-x-123456789").unwrap();
     s.expect_status(
         Method::POST,
         "/auth/login/start",
         None,
-        Some(&termoso_proto::auth::LoginStartRequest {
+        Some(&labterm_proto::auth::LoginStartRequest {
             email: email.clone(),
             opaque_request: request,
             device: device("sso device"),

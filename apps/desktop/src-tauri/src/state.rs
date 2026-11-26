@@ -7,10 +7,10 @@ use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
-use termoso_core::secrets::{self, MasterKeySource};
-use termoso_core::store::Store;
-use termoso_core::sync::ConflictPolicy;
-use termoso_core::terminal::MAX_SCROLLBACK_LINES;
+use labterm_core::secrets::{self, MasterKeySource};
+use labterm_core::store::Store;
+use labterm_core::sync::ConflictPolicy;
+use labterm_core::terminal::MAX_SCROLLBACK_LINES;
 
 use crate::account::AccountRuntime;
 use crate::edits::Edits;
@@ -128,7 +128,7 @@ impl AppState {
     /// Throwaway state over an in-memory store for unit tests.
     #[cfg(test)]
     pub fn in_memory(profile_dir: PathBuf) -> Self {
-        use termoso_core::termoso_crypto::keys::SymmetricKey;
+        use labterm_core::labterm_crypto::keys::SymmetricKey;
         std::fs::create_dir_all(profile_dir.join(LOGS_DIR)).expect("profile dir");
         Self {
             profile_dir,
@@ -644,7 +644,7 @@ impl Settings {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use termoso_core::model::Group;
+    use labterm_core::model::Group;
 
     fn state() -> (tempfile::TempDir, AppState) {
         let dir = tempfile::tempdir().unwrap();

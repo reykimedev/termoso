@@ -9,21 +9,21 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use tauri::ipc::{Channel, InvokeResponseBody};
 use tauri::{AppHandle, Emitter, Manager, Runtime};
-use termoso_core::error::CoreError;
-use termoso_core::fido2::{self, Fido2Error};
-use termoso_core::hostkey::KnownHosts;
-use termoso_core::live::Publisher;
-use termoso_core::model::{Entity, Identity, ResolvedHost, Snippet, SshConfig};
-use termoso_core::pty::{LocalShellOptions, LocalTerminal};
-use termoso_core::serial::SerialTerminal;
-use termoso_core::ssh::proxy::{ProxyConfig, ProxyKind};
-use termoso_core::ssh::{
+use labterm_core::error::CoreError;
+use labterm_core::fido2::{self, Fido2Error};
+use labterm_core::hostkey::KnownHosts;
+use labterm_core::live::Publisher;
+use labterm_core::model::{Entity, Identity, ResolvedHost, Snippet, SshConfig};
+use labterm_core::pty::{LocalShellOptions, LocalTerminal};
+use labterm_core::serial::SerialTerminal;
+use labterm_core::ssh::proxy::{ProxyConfig, ProxyKind};
+use labterm_core::ssh::{
     Algorithms, AuthMethod, ConnectOptions, ConnectPhase, ConnectProgress, IpVersion, LocalDisplay,
     SshClient, SshTarget, X11Forward,
 };
-use termoso_core::store::{ConnectionHistory, LocalVaultKind, LogMeta};
-use termoso_core::telnet::{TelnetOptions, TelnetTerminal};
-use termoso_core::terminal::{SharedTerminal, TermEvent, TermEvents, TermSize};
+use labterm_core::store::{ConnectionHistory, LocalVaultKind, LogMeta};
+use labterm_core::telnet::{TelnetOptions, TelnetTerminal};
+use labterm_core::terminal::{SharedTerminal, TermEvent, TermEvents, TermSize};
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
@@ -36,7 +36,7 @@ use crate::prompts::{PromptAnswer, PromptRequest, UiHostKeyPrompt, UiInteractive
 use crate::snippets;
 use crate::sshid;
 use crate::state::AppState;
-use termoso_core::ssh::totp::TotpResponder;
+use labterm_core::ssh::totp::TotpResponder;
 
 pub const SESSION_EVENT: &str = "session";
 const MAX_PASSWORD_ATTEMPTS: usize = 3;
@@ -179,7 +179,7 @@ pub(crate) fn hide_console_window(cmd: &mut std::process::Command) {
 /// Display name of the shell a local terminal runs.
 fn local_shell_name(argv: &[String]) -> Option<String> {
     match argv.first() {
-        None => termoso_core::pty::default_shell_name(),
+        None => labterm_core::pty::default_shell_name(),
         Some(program) => program
             .rsplit(['/', '\\'])
             .next()
@@ -938,7 +938,7 @@ async fn connect<R: Runtime>(
         }
         OpenTarget::Serial { path, line } => {
             let serial = line.clone().into_config(path.trim());
-            termoso_core::serial::validate(&serial)?;
+            labterm_core::serial::validate(&serial)?;
             let title = serial
                 .path
                 .rsplit(['/', '\\'])
@@ -949,7 +949,7 @@ async fn connect<R: Runtime>(
             let display = format!(
                 "{} · {}",
                 serial.path,
-                termoso_core::serial::describe(&serial)
+                labterm_core::serial::describe(&serial)
             );
             emit_connecting(app, id, "serial", &title, &display, None, None);
             let (term, events) = SerialTerminal::open(&serial)?;
@@ -1249,14 +1249,14 @@ fn detect_os_in_background<R: Runtime>(
     let app = app.clone();
     let host_id = resolved.host.id;
     tauri::async_runtime::spawn(async move {
-        let Some(os) = termoso_core::osdetect::detect(&client).await else {
+        let Some(os) = labterm_core::osdetect::detect(&client).await else {
             return;
         };
         let state = app.state::<AppState>();
         let saved = (|| -> Result<Uuid> {
             let mut host = state
                 .store()?
-                .require::<termoso_core::model::Host>(host_id)?;
+                .require::<labterm_core::model::Host>(host_id)?;
             if host.data.os_name.is_some() {
                 return Ok(host.vault_id);
             }
@@ -1290,7 +1290,7 @@ fn detect_shell_in_background<R: Runtime>(app: &AppHandle<R>, id: Uuid, client: 
     }
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
-        let Some(shell) = termoso_core::osdetect::detect_shell(&client).await else {
+        let Some(shell) = labterm_core::osdetect::detect_shell(&client).await else {
             return;
         };
         let state = app.state::<AppState>();
@@ -1368,13 +1368,13 @@ async fn connect_resolved<R: Runtime>(
     resolved: &ResolvedHost,
 ) -> Result<(Arc<SshClient>, Vec<Arc<SshClient>>)> {
     if resolved.chain.is_empty()
-        && termoso_core::policy::jump_required(
+        && labterm_core::policy::jump_required(
             &*app.state::<AppState>().store()?,
             resolved.host.vault_id,
         )
     {
         return Err(DesktopError::invalid(
-            termoso_core::policy::Denied::DirectConnection.message(),
+            labterm_core::policy::Denied::DirectConnection.message(),
         ));
     }
     ssh_connect(
@@ -1500,7 +1500,7 @@ async fn ssh_connect<R: Runtime>(
     session_id: Uuid,
     target: SshTarget,
     resolved: Option<&ResolvedHost>,
-    chain: &[Entity<termoso_core::model::Host>],
+    chain: &[Entity<labterm_core::model::Host>],
     jump: Option<Arc<SshClient>>,
     hop: Option<String>,
 ) -> Result<(Arc<SshClient>, Vec<Arc<SshClient>>)> {
@@ -1560,14 +1560,14 @@ async fn ssh_connect<R: Runtime>(
         .filter(|p| !p.is_empty())
         .map(Zeroizing::new);
     if let Some(p) = &password
-        && termoso_core::extsecret::is_reference(p)
+        && labterm_core::extsecret::is_reference(p)
     {
-        password = Some(termoso_core::extsecret::resolve(p).await?);
+        password = Some(labterm_core::extsecret::resolve(p).await?);
     }
     if let Some(p) = &passphrase
-        && termoso_core::extsecret::is_reference(p)
+        && labterm_core::extsecret::is_reference(p)
     {
-        passphrase = Some(termoso_core::extsecret::resolve(p).await?);
+        passphrase = Some(labterm_core::extsecret::resolve(p).await?);
     }
     let mut totp = identity
         .as_ref()
@@ -1595,16 +1595,16 @@ async fn ssh_connect<R: Runtime>(
     loop {
         let mut auth: Vec<AuthMethod> = Vec::new();
         // Team CA certificate first (hosts in a team vault; cached by the
-        // account sync, see `termoso_core::ca`).
+        // account sync, see `labterm_core::ca`).
         if let Some(m) = resolved
-            .and_then(|r| termoso_core::ca::auth_method(&*state.store().ok()?, r.host.vault_id))
+            .and_then(|r| labterm_core::ca::auth_method(&*state.store().ok()?, r.host.vault_id))
         {
             auth.push(m);
         }
         // OpenID key from the host's (or its group's) settings, before the
         // identity's credentials.
         let host_oidc = match resolved {
-            Some(r) => termoso_client::oidc::host_key(&*state.store()?, r)?,
+            Some(r) => labterm_client::oidc::host_key(&*state.store()?, r)?,
             None => None,
         };
         if let Some(k) = host_oidc.as_ref() {
@@ -1672,12 +1672,12 @@ async fn ssh_connect<R: Runtime>(
         let keys_only = resolved.is_some_and(|r| {
             state
                 .store()
-                .is_ok_and(|st| termoso_core::policy::keys_only(&st, r.host.vault_id))
+                .is_ok_and(|st| labterm_core::policy::keys_only(&st, r.host.vault_id))
         });
         if keys_only {
             if auth.is_empty() {
                 return Err(DesktopError::invalid(
-                    termoso_core::policy::Denied::PasswordAuth.message(),
+                    labterm_core::policy::Denied::PasswordAuth.message(),
                 ));
             }
         } else {
@@ -1687,13 +1687,13 @@ async fn ssh_connect<R: Runtime>(
             auth.push(AuthMethod::KeyboardInteractive);
         }
 
-        let ui_prompt: Arc<dyn termoso_core::ssh::InteractivePrompt> =
+        let ui_prompt: Arc<dyn labterm_core::ssh::InteractivePrompt> =
             Arc::new(UiInteractivePrompt {
                 app: app.clone(),
                 session_id,
                 target: display.clone(),
             });
-        let interactive: Option<Arc<dyn termoso_core::ssh::InteractivePrompt>> =
+        let interactive: Option<Arc<dyn labterm_core::ssh::InteractivePrompt>> =
             match (&totp, &password) {
                 (Some(t), _) => Some(Arc::new(TotpResponder::new(
                     t.clone(),
@@ -1885,7 +1885,7 @@ fn keepalive(state: &AppState, cfg: &SshConfig) -> Option<Duration> {
 
 pub(crate) fn proxy_config(
     state: &AppState,
-    p: &termoso_core::model::Proxy,
+    p: &labterm_core::model::Proxy,
 ) -> Result<ProxyConfig> {
     let kind = ProxyKind::parse(&p.kind)
         .ok_or_else(|| DesktopError::invalid(format!("unsupported proxy type {}", p.kind)))?;
@@ -1922,8 +1922,8 @@ struct IdentityLogin {
     identity: Entity<Identity>,
     password: Option<Zeroizing<String>>,
     passphrase: Option<Zeroizing<String>>,
-    key: Option<Entity<termoso_core::model::SshKey>>,
-    certificate: Option<Entity<termoso_core::model::SshCertificate>>,
+    key: Option<Entity<labterm_core::model::SshKey>>,
+    certificate: Option<Entity<labterm_core::model::SshCertificate>>,
 }
 
 /// Load identity `id` with its key and certificate, the way host resolution does.
@@ -1933,14 +1933,14 @@ async fn identity_login(state: &AppState, id: Uuid) -> Result<IdentityLogin> {
         let identity = store.require::<Identity>(id)?;
         let vault = identity.vault_id;
         let key = match identity.data.ssh_key_id {
-            Some(k) => store.get_in::<termoso_core::model::SshKey>(k, vault)?,
+            Some(k) => store.get_in::<labterm_core::model::SshKey>(k, vault)?,
             None => None,
         };
         let certificate = match identity.data.ssh_certificate_id {
-            Some(c) => store.get_in::<termoso_core::model::SshCertificate>(c, vault)?,
+            Some(c) => store.get_in::<labterm_core::model::SshCertificate>(c, vault)?,
             None => match &key {
                 Some(k) => store
-                    .list::<termoso_core::model::SshCertificate>(Some(vault))?
+                    .list::<labterm_core::model::SshCertificate>(Some(vault))?
                     .into_iter()
                     .find(|c| c.data.ssh_key_id == Some(k.id)),
                 None => None,
@@ -1960,14 +1960,14 @@ async fn identity_login(state: &AppState, id: Uuid) -> Result<IdentityLogin> {
         .filter(|p| !p.is_empty())
         .map(Zeroizing::new);
     if let Some(p) = &password
-        && termoso_core::extsecret::is_reference(p)
+        && labterm_core::extsecret::is_reference(p)
     {
-        password = Some(termoso_core::extsecret::resolve(p).await?);
+        password = Some(labterm_core::extsecret::resolve(p).await?);
     }
     if let Some(p) = &passphrase
-        && termoso_core::extsecret::is_reference(p)
+        && labterm_core::extsecret::is_reference(p)
     {
-        passphrase = Some(termoso_core::extsecret::resolve(p).await?);
+        passphrase = Some(labterm_core::extsecret::resolve(p).await?);
     }
     Ok(IdentityLogin {
         identity,
@@ -1984,7 +1984,7 @@ fn assign_identity(state: &AppState, resolved: &ResolvedHost, identity_id: Uuid)
     let Ok(store) = state.store() else {
         return;
     };
-    let result = (|| -> termoso_core::error::Result<()> {
+    let result = (|| -> labterm_core::error::Result<()> {
         if resolved.ssh.identity_id == Some(identity_id)
             && resolved.host.data.ssh_config_id.is_some()
         {
@@ -2030,7 +2030,7 @@ fn remember_on_identity(
     let Ok(store) = state.store() else {
         return;
     };
-    let result = (|| -> termoso_core::error::Result<()> {
+    let result = (|| -> labterm_core::error::Result<()> {
         if let Some(ident) = &resolved.identity {
             let mut data = ident.data.clone();
             edit(&mut data);
@@ -2094,12 +2094,12 @@ fn remember_username(state: &AppState, resolved: &ResolvedHost, username: &str) 
 /// Tunnel through the host's gateway (an API bridge in gateway mode), if it has one.
 async fn gateway_dial<R: Runtime>(
     app: &AppHandle<R>,
-    resolved: Option<&termoso_core::model::ResolvedHost>,
-) -> Option<termoso_core::gateway::GatewayDial> {
+    resolved: Option<&labterm_core::model::ResolvedHost>,
+) -> Option<labterm_core::gateway::GatewayDial> {
     let r = resolved?;
     let gateway_id = r.gateway_id?;
     let api = crate::account::api(app).await.ok()?;
-    Some(termoso_core::gateway::GatewayDial {
+    Some(labterm_core::gateway::GatewayDial {
         api,
         gateway_id,
         vault_id: r.host.vault_id,
@@ -2110,7 +2110,7 @@ async fn gateway_dial<R: Runtime>(
 /// Opens the OpenID provider's login page in the system browser.
 pub(crate) struct SystemBrowser;
 
-impl termoso_client::oidc::OpenBrowser for SystemBrowser {
+impl labterm_client::oidc::OpenBrowser for SystemBrowser {
     fn open(&self, url: &str) -> std::result::Result<(), String> {
         tauri_plugin_opener::open_url(url, None::<&str>).map_err(|e| e.to_string())
     }
@@ -2120,9 +2120,9 @@ impl termoso_client::oidc::OpenBrowser for SystemBrowser {
 /// device, or a fresh one through the browser. `None` for other keys.
 pub(crate) async fn oidc_auth(
     state: &AppState,
-    key: &termoso_core::model::Entity<termoso_core::model::SshKey>,
+    key: &labterm_core::model::Entity<labterm_core::model::SshKey>,
 ) -> Result<Option<AuthMethod>> {
-    use termoso_client::oidc::{self, PreConnect};
+    use labterm_client::oidc::{self, PreConnect};
     let prepared = oidc::prepare(&*state.store()?, key)?;
     match prepared {
         PreConnect::NotOidc => Ok(None),

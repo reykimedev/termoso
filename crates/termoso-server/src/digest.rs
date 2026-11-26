@@ -11,7 +11,7 @@ use axum::Json;
 use axum::extract::{Path, State};
 use chrono::{DateTime, Days, NaiveDate, TimeDelta, Utc};
 use sqlx::PgPool;
-use termoso_proto::team::{
+use labterm_proto::team::{
     DigestCadence, DigestSubscription, SendDigestRequest, SendDigestResponse, UpdateDigestRequest,
 };
 use uuid::Uuid;

@@ -6,8 +6,8 @@ use std::time::Duration;
 
 use serde::Serialize;
 use tauri::State;
-use termoso_core::autocomplete::{list_local_dir, parse_ls, remote_ls_command};
-use termoso_core::model::Identity;
+use labterm_core::autocomplete::{list_local_dir, parse_ls, remote_ls_command};
+use labterm_core::model::Identity;
 use uuid::Uuid;
 use zeroize::Zeroizing;
 
@@ -23,8 +23,8 @@ pub struct DirEntry {
     pub dir: bool,
 }
 
-impl From<termoso_core::autocomplete::DirEntry> for DirEntry {
-    fn from(e: termoso_core::autocomplete::DirEntry) -> Self {
+impl From<labterm_core::autocomplete::DirEntry> for DirEntry {
+    fn from(e: labterm_core::autocomplete::DirEntry) -> Self {
         Self {
             name: e.name,
             dir: e.dir,

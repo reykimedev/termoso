@@ -7,16 +7,16 @@ use std::time::Duration;
 use common::*;
 use futures::{SinkExt, StreamExt};
 use reqwest::{Method, StatusCode};
-use termoso_crypto::keys::SymmetricKey;
-use termoso_crypto::sealed;
-use termoso_proto::account::{PresenceVisibilityRequest, UserProfile};
-use termoso_proto::auth::AuthResponse;
-use termoso_proto::team::{
+use labterm_crypto::keys::SymmetricKey;
+use labterm_crypto::sealed;
+use labterm_proto::account::{PresenceVisibilityRequest, UserProfile};
+use labterm_proto::auth::AuthResponse;
+use labterm_proto::team::{
     CreateInviteRequest, CreateTeamRequest, PresenceSession, Team, TeamPresence, TeamRole,
     UpdateTeamRequest,
 };
-use termoso_proto::vault::{CreateVaultRequest, Vault, VaultMemberUpsert, VaultRole};
-use termoso_proto::ws::{ClientMessage, ServerMessage};
+use labterm_proto::vault::{CreateVaultRequest, Vault, VaultMemberUpsert, VaultRole};
+use labterm_proto::ws::{ClientMessage, ServerMessage};
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 use uuid::Uuid;
@@ -218,12 +218,12 @@ async fn presence_end_to_end() {
     let shared = team_vault(s, &team, &owner, &[&bob]).await;
     let private = team_vault(s, &team, &owner, &[]).await;
     let personal_vault = {
-        let v: termoso_proto::vault::VaultList = s
+        let v: labterm_proto::vault::VaultList = s
             .json(Method::GET, "/vaults", Some(owner.token()), NOBODY)
             .await;
         v.vaults
             .iter()
-            .find(|v| v.kind == termoso_proto::vault::VaultKind::Personal)
+            .find(|v| v.kind == labterm_proto::vault::VaultKind::Personal)
             .expect("personal vault")
             .id
     };

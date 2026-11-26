@@ -12,7 +12,7 @@ use chrono::{DateTime, Utc};
 use sha2::{Digest, Sha256};
 use std::net::IpAddr;
 use std::sync::{Arc, OnceLock};
-use termoso_proto::team::{
+use labterm_proto::team::{
     CreateWebhookRequest, UpdateWebhookRequest, WEBHOOK_KINDS, Webhook, WebhookDelivery,
     WebhookDeliveryList, WebhookList,
 };

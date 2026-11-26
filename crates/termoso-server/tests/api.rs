@@ -13,25 +13,25 @@ use std::time::Duration;
 use common::*;
 use futures::{SinkExt, StreamExt};
 use reqwest::{Method, StatusCode};
-use termoso_crypto::aead::{self, Aad};
-use termoso_crypto::keys::SymmetricKey;
-use termoso_crypto::sealed;
-use termoso_proto::account::ServerInfo;
-use termoso_proto::auth::AuthResponse;
-use termoso_proto::sync::{
+use labterm_crypto::aead::{self, Aad};
+use labterm_crypto::keys::SymmetricKey;
+use labterm_crypto::sealed;
+use labterm_proto::account::ServerInfo;
+use labterm_proto::auth::AuthResponse;
+use labterm_proto::sync::{
     EntityChange, EntityDelete, HistoryEntry, HistoryKind, HistoryPullResponse, HistoryPushRequest,
     PullRequest, PullResponse, PushRequest, PushResponse, PushResult,
 };
-use termoso_proto::team::{
+use labterm_proto::team::{
     AuditEventList, CreateInviteRequest, CreateTeamRequest, DigestCadence, DigestSubscription,
     SendDigestRequest, SendDigestResponse, Team, TeamMemberList, TeamRole, UpdateDigestRequest,
     UpdateTeamRequest,
 };
-use termoso_proto::vault::{
+use labterm_proto::vault::{
     CreateVaultRequest, ResealMyKeyRequest, Vault, VaultKind, VaultList, VaultMemberUpsert,
     VaultRole,
 };
-use termoso_proto::ws::{ClientMessage, ServerMessage};
+use labterm_proto::ws::{ClientMessage, ServerMessage};
 use tokio_tungstenite::tungstenite::Message;
 use uuid::Uuid;
 
@@ -311,12 +311,12 @@ async fn register_login_and_sessions() {
     assert_eq!(opened.as_bytes(), alice.personal_vault_key.as_bytes());
 
     // Duplicate registration is rejected.
-    let (req, _) = termoso_crypto::opaque::client_registration_start(b"whatever").expect("start");
+    let (req, _) = labterm_crypto::opaque::client_registration_start(b"whatever").expect("start");
     s.expect_status(
         Method::POST,
         "/auth/register/start",
         None,
-        Some(&termoso_proto::auth::RegisterStartRequest {
+        Some(&labterm_proto::auth::RegisterStartRequest {
             email: email.clone(),
             opaque_request: req,
             turnstile_token: None,
@@ -1092,7 +1092,7 @@ async fn history_push_pull_clear() {
         Method::POST,
         "/history/clear",
         Some(u.token()),
-        Some(&termoso_proto::sync::HistoryClearRequest {
+        Some(&labterm_proto::sync::HistoryClearRequest {
             kind: Some(HistoryKind::Command),
         }),
         StatusCode::NO_CONTENT,
@@ -2042,7 +2042,7 @@ async fn api_is_not_served_on_the_landing_origin() {
     // The landing needs `/server/info` (downloads, version) and the probes.
     let r = on_landing("/api/v1/server/info").await.unwrap();
     assert_eq!(r.status(), StatusCode::OK);
-    let info: termoso_proto::account::ServerInfo = r.json().await.unwrap();
+    let info: labterm_proto::account::ServerInfo = r.json().await.unwrap();
     assert!(info.landing_only);
     let r = on_landing("/healthz").await.unwrap();
     assert_eq!(r.status(), StatusCode::OK);

@@ -19,7 +19,7 @@ use openidconnect::{
     RedirectUrl, Scope, TokenResponse,
 };
 use serde::{Deserialize, Serialize};
-use termoso_proto::auth::{SsoIdentity, SsoKind, SsoProvider, SsoResult};
+use labterm_proto::auth::{SsoIdentity, SsoKind, SsoProvider, SsoResult};
 
 use crate::config::{Config, SsoKindConfig, SsoProviderConfig};
 use crate::error::{ApiResult, Error};

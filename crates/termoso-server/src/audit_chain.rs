@@ -50,7 +50,7 @@ async fn signing_key(state: &AppState) -> ApiResult<PrivateKey> {
             .map_err(|e| anyhow::anyhow!("audit signing key: {e}").into());
     }
     let mut seed = zeroize::Zeroizing::new([0u8; 32]);
-    termoso_crypto::random_bytes(&mut seed[..]);
+    labterm_crypto::random_bytes(&mut seed[..]);
     let mut key = PrivateKey::from(ssh_key::private::Ed25519Keypair::from_seed(&seed));
     key.set_comment("termoso-audit");
     let public = key

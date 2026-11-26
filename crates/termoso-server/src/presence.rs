@@ -13,7 +13,7 @@ use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use termoso_proto::team::{PresenceEntry, PresenceSession, TeamPresence};
+use labterm_proto::team::{PresenceEntry, PresenceSession, TeamPresence};
 use uuid::Uuid;
 
 use crate::error::ApiResult;

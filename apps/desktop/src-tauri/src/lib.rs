@@ -44,7 +44,7 @@ mod webdav;
 mod workspaces;
 mod zmodem;
 
-use termoso_client::{hosts, keychain};
+use labterm_client::{hosts, keychain};
 
 use tauri::Manager;
 
@@ -130,9 +130,9 @@ pub fn run() {
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async {
                 // Hardware-backed device keys are not implemented on desktop yet: say so.
-                let posture = termoso_core::posture::collect(Some(false)).await;
+                let posture = labterm_core::posture::collect(Some(false)).await;
                 tracing::debug!(?posture, "device posture");
-                termoso_core::posture::set_reported(posture);
+                labterm_core::posture::set_reported(posture);
             });
             tauri::async_runtime::spawn(security::inactivity_watcher(handle.clone()));
             tauri::async_runtime::spawn(automations::executor(handle.clone()));

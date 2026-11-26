@@ -4,7 +4,7 @@ mod common;
 
 use common::*;
 use reqwest::{Method, StatusCode};
-use termoso_proto::auth::AuthResponse;
+use labterm_proto::auth::AuthResponse;
 
 struct Scim {
     base: String,

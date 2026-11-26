@@ -5,7 +5,7 @@ use std::time::Duration;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
-use termoso_proto::auth::{DeviceInfo, Platform};
+use labterm_proto::auth::{DeviceInfo, Platform};
 use uuid::Uuid;
 
 use crate::error::{ApiResult, Error};

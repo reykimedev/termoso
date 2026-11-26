@@ -15,8 +15,8 @@ use chrono::{DateTime, Duration, Utc};
 use sqlx::PgExecutor;
 use ssh_key::certificate::{Builder, CertType};
 use ssh_key::{Algorithm, EcdsaCurve, HashAlg, LineEnding, PrivateKey, PublicKey};
-use termoso_proto::ca::*;
-use termoso_proto::sshid::SshIdKeyType;
+use labterm_proto::ca::*;
+use labterm_proto::sshid::SshIdKeyType;
 use uuid::Uuid;
 
 use crate::audit;
@@ -147,7 +147,7 @@ async fn view(state: &AppState, team_id: Uuid, ca: &Ca) -> ApiResult<TeamCa> {
 /// A fresh Ed25519 CA key: (`TrustedUserCAKeys` line, sealed private key PEM).
 fn generate_key(state: &AppState, team_id: Uuid) -> ApiResult<(String, Vec<u8>)> {
     let mut seed = zeroize::Zeroizing::new([0u8; 32]);
-    termoso_crypto::random_bytes(&mut seed[..]);
+    labterm_crypto::random_bytes(&mut seed[..]);
     let mut key = PrivateKey::from(ssh_key::private::Ed25519Keypair::from_seed(&seed));
     key.set_comment(format!("termoso-ca-{team_id}"));
     let public = key
@@ -590,7 +590,7 @@ fn sign(
     let pem = std::str::from_utf8(&pem).map_err(|_| anyhow::anyhow!("ca key is not utf-8"))?;
     let signing = PrivateKey::from_openssh(pem).map_err(|e| anyhow::anyhow!("ca key: {e}"))?;
     let mut nonce = [0u8; 32];
-    termoso_crypto::random_bytes(&mut nonce);
+    labterm_crypto::random_bytes(&mut nonce);
     let to_time = |t: DateTime<Utc>| {
         SystemTime::UNIX_EPOCH + StdDuration::from_secs(t.timestamp().max(0) as u64)
     };

@@ -10,7 +10,7 @@ use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use base64::Engine;
 use sha2::{Digest, Sha256};
-use termoso_proto::sshid::SshIdKeyType;
+use labterm_proto::sshid::SshIdKeyType;
 
 /// `true` when the client prefers HTML over plain text — i.e. a browser.
 pub fn wants_html(headers: &HeaderMap) -> bool {

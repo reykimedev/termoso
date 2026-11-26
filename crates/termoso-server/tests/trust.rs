@@ -3,8 +3,8 @@
 mod common;
 use common::*;
 use reqwest::{Method, StatusCode};
-use termoso_proto::auth::AuthResponse;
-use termoso_proto::team::{AuditEventList, TeamDeviceList};
+use labterm_proto::auth::AuthResponse;
+use labterm_proto::team::{AuditEventList, TeamDeviceList};
 use uuid::Uuid;
 
 /// Sign in and, when the server asks for the e-mail device approval, complete it
@@ -13,7 +13,7 @@ async fn signin(
     s: &TestServer,
     email: &str,
     pw: &str,
-    d: termoso_proto::auth::DeviceInfo,
+    d: labterm_proto::auth::DeviceInfo,
 ) -> Result<AuthResponse, String> {
     match login_raw(s, email, pw, d, None).await? {
         r @ AuthResponse::DeviceApprovalRequired { .. } => Ok(approve_device(s, email, r).await),
@@ -93,7 +93,7 @@ async fn ip_allowlist_and_admin_device_approval() {
         .expect_err("no posture → blocked");
     assert!(err.contains("device_posture"), "{err}");
     let mut plain = device("bob plain laptop");
-    plain.posture = Some(termoso_proto::auth::Posture {
+    plain.posture = Some(labterm_proto::auth::Posture {
         os_version: "Ubuntu 24.04".into(),
         disk_encryption: Some(false),
         ..Default::default()
@@ -103,7 +103,7 @@ async fn ip_allowlist_and_admin_device_approval() {
         .expect_err("unencrypted → blocked");
     assert!(err.contains("disk encryption"), "{err}");
     let mut luks = device("bob luks laptop");
-    luks.posture = Some(termoso_proto::auth::Posture {
+    luks.posture = Some(labterm_proto::auth::Posture {
         os_version: "Ubuntu 24.04".into(),
         disk_encryption: Some(true),
         screen_lock: Some(true),

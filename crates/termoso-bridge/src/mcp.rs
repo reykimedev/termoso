@@ -14,7 +14,7 @@ use std::time::Duration;
 
 use serde::Deserialize;
 use serde_json::{Value, json};
-use termoso_proto::entities::payload::{Group, Host, Identity, SshConfig, Tag};
+use labterm_proto::entities::payload::{Group, Host, Identity, SshConfig, Tag};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use uuid::Uuid;
 

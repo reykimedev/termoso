@@ -7,9 +7,9 @@ use axum::extract::{Form, Path, Query, RawQuery, State};
 use axum::http::header;
 use axum::response::{Html, IntoResponse, Redirect, Response};
 use serde::{Deserialize, Serialize};
-use termoso_crypto::encoding::{b64, unb64, unb64_array};
-use termoso_crypto::opaque;
-use termoso_proto::auth::*;
+use labterm_crypto::encoding::{b64, unb64, unb64_array};
+use labterm_crypto::opaque;
+use labterm_proto::auth::*;
 use uuid::Uuid;
 use webauthn_rs::prelude::{
     Passkey, PasskeyAuthentication, PublicKeyCredential, RequestChallengeResponse,
@@ -122,7 +122,7 @@ pub(crate) fn check_client_version(cfg: &crate::config::Config, d: &DeviceInfo) 
     if client < min {
         return Err(Error::new(
             axum::http::StatusCode::UPGRADE_REQUIRED,
-            termoso_proto::error::codes::CLIENT_UPDATE_REQUIRED,
+            labterm_proto::error::codes::CLIENT_UPDATE_REQUIRED,
             format!(
                 "This server requires Termoso {required} or newer; you are on {}. Please update the app.",
                 d.app_version
@@ -505,7 +505,7 @@ pub async fn login_start(
     {
         return Err(Error::new(
             axum::http::StatusCode::UNAUTHORIZED,
-            termoso_proto::error::codes::SSO_REQUIRED,
+            labterm_proto::error::codes::SSO_REQUIRED,
             "Your team requires signing in through its identity provider",
         )
         .with_details(serde_json::json!({ "provider": provider })));
@@ -1578,7 +1578,7 @@ mod client_version_tests {
     fn dev(v: &str) -> DeviceInfo {
         DeviceInfo {
             name: "t".into(),
-            platform: termoso_proto::auth::Platform::Windows,
+            platform: labterm_proto::auth::Platform::Windows,
             app_version: v.into(),
             client_device_id: None,
             posture: None,

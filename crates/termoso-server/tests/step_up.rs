@@ -6,18 +6,18 @@ mod common;
 
 use common::*;
 use reqwest::{Method, StatusCode};
-use termoso_crypto::opaque;
-use termoso_proto::account::{SecurityEventList, UserProfile};
-use termoso_proto::auth::{
+use labterm_crypto::opaque;
+use labterm_proto::account::{SecurityEventList, UserProfile};
+use labterm_proto::auth::{
     AuthResponse, BackupCodes, DeviceList, MfaCredential, MfaVerifyRequest,
     PasswordSetupStartResponse, ReauthFinishRequest, ReauthMethod, ReauthStartRequest,
     ReauthStartResponse, StartOverCancelRequest, StartOverConfirmRequest, StartOverFinishRequest,
     StartOverPasswordStartRequest, StartOverRequest, StartOverRequestResponse, StartOverScheduled,
     StartOverStatus, TotpCodeRequest, TotpSetupResponse,
 };
-use termoso_proto::error::codes;
-use termoso_proto::sync::{EntityChange, PullRequest, PullResponse, PushRequest, PushResponse};
-use termoso_proto::vault::VaultList;
+use labterm_proto::error::codes;
+use labterm_proto::sync::{EntityChange, PullRequest, PullResponse, PushRequest, PushResponse};
+use labterm_proto::vault::VaultList;
 use totp_rs::Totp;
 use uuid::Uuid;
 

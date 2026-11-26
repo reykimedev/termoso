@@ -2,9 +2,9 @@
 
 use std::path::Path;
 
-use termoso_crypto::encoding::unb64;
-use termoso_crypto::keys::KeyPair;
-use termoso_proto::bridge::{BridgeCredentials, CREDENTIALS_VERSION};
+use labterm_crypto::encoding::unb64;
+use labterm_crypto::keys::KeyPair;
+use labterm_proto::bridge::{BridgeCredentials, CREDENTIALS_VERSION};
 
 use crate::error::{BridgeError, Result};
 
@@ -56,7 +56,7 @@ pub fn parse_credentials(raw: &[u8]) -> Result<Credentials> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use termoso_crypto::encoding::b64;
+    use labterm_crypto::encoding::b64;
 
     fn file(version: u32, server: &str, key: &str, token: &str) -> Vec<u8> {
         serde_json::to_vec(&serde_json::json!({

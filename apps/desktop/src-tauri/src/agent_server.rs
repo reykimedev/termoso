@@ -7,9 +7,9 @@ use std::sync::Arc;
 
 use serde::Serialize;
 use tauri::{AppHandle, Manager, Runtime};
-use termoso_core::agent_server::{AgentPolicy, AgentServer, Peer, ServedKey};
-use termoso_core::model::SshKey;
-use termoso_core::ssh::load_private_key;
+use labterm_core::agent_server::{AgentPolicy, AgentServer, Peer, ServedKey};
+use labterm_core::model::SshKey;
+use labterm_core::ssh::load_private_key;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 

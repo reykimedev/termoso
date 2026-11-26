@@ -4562,6 +4562,261 @@ dependencies = [
 ]
 
 [[package]]
+name = "labterm-awslc-rsa"
+version = "0.12.1"
+dependencies = [
+ "aws-lc-rs",
+ "aws-lc-sys",
+ "rand_core 0.6.4",
+ "rsa 0.9.10",
+ "sha1 0.10.7",
+ "sha2 0.10.9",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "labterm-client"
+version = "0.12.1"
+dependencies = [
+ "chrono",
+ "labterm-core",
+ "labterm-oidc-cert",
+ "labterm-proto",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "url",
+ "uuid",
+ "zeroize",
+]
+
+[[package]]
+name = "labterm-core"
+version = "0.12.1"
+dependencies = [
+ "aes 0.8.4",
+ "aes 0.9.3",
+ "anyhow",
+ "async-trait",
+ "axum",
+ "base64 0.23.1",
+ "bytes",
+ "cbc 0.1.2",
+ "chrono",
+ "ciborium",
+ "ctap-hid-fido2",
+ "dav-server",
+ "dirs",
+ "ed25519-dalek 2.2.0",
+ "encoding_rs",
+ "flate2",
+ "futures",
+ "hex",
+ "hkdf 0.12.4",
+ "hmac 0.12.1",
+ "hyper",
+ "hyper-util",
+ "keyring",
+ "labterm-core",
+ "labterm-crypto",
+ "labterm-proto",
+ "md5",
+ "mdns-sd",
+ "ocb3",
+ "p256 0.13.2",
+ "percent-encoding",
+ "portable-pty",
+ "quick-xml 0.42.0",
+ "rand 0.10.3",
+ "rand_core 0.6.4",
+ "reqwest 0.12.28",
+ "rusqlite",
+ "russh",
+ "russh-sftp",
+ "rustls",
+ "rustls-pki-types",
+ "serde",
+ "serde_json",
+ "serialport",
+ "sha2 0.10.9",
+ "sqlx",
+ "tempfile",
+ "termoso-server",
+ "thiserror 2.0.21",
+ "tokio",
+ "tokio-rustls",
+ "tokio-tungstenite",
+ "tokio-util",
+ "totp-rs",
+ "tracing",
+ "url",
+ "uuid",
+ "zeroize",
+]
+
+[[package]]
+name = "labterm-crypto"
+version = "0.12.1"
+dependencies = [
+ "argon2 0.5.3",
+ "base64 0.23.1",
+ "bip39",
+ "blake3",
+ "chacha20poly1305",
+ "crypto_box",
+ "getrandom 0.2.17",
+ "hkdf 0.12.4",
+ "opaque-ke",
+ "rand_core 0.6.4",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "subtle",
+ "thiserror 2.0.21",
+ "zeroize",
+]
+
+[[package]]
+name = "labterm-desktop"
+version = "0.12.1"
+dependencies = [
+ "axum",
+ "base64 0.23.1",
+ "bytes",
+ "chrono",
+ "dunce",
+ "hostname",
+ "labterm-client",
+ "labterm-core",
+ "labterm-crypto",
+ "labterm-proto",
+ "notify",
+ "plist",
+ "serde",
+ "serde_json",
+ "similar",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-clipboard-manager",
+ "tauri-plugin-deep-link",
+ "tauri-plugin-dialog",
+ "tauri-plugin-notification",
+ "tauri-plugin-opener",
+ "tauri-plugin-single-instance",
+ "tauri-plugin-updater",
+ "tempfile",
+ "thiserror 2.0.21",
+ "time",
+ "tokio",
+ "tokio-util",
+ "toml 1.1.6+spec-1.1.0",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "uuid",
+ "windows 0.62.2",
+ "zeroize",
+ "zmodem2",
+]
+
+[[package]]
+name = "labterm-mobile"
+version = "0.12.1"
+dependencies = [
+ "alacritty_terminal",
+ "async-trait",
+ "bytes",
+ "chrono",
+ "encoding_rs",
+ "flate2",
+ "futures-util",
+ "labterm-client",
+ "labterm-core",
+ "labterm-crypto",
+ "labterm-netbird",
+ "labterm-proto",
+ "lzma-sys",
+ "rand 0.10.3",
+ "reqwest 0.12.28",
+ "russh",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tar",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "tracing-android",
+ "tracing-oslog",
+ "tracing-subscriber",
+ "uniffi",
+ "uuid",
+ "xz2",
+ "zeroize",
+]
+
+[[package]]
+name = "labterm-netbird"
+version = "0.12.1"
+dependencies = [
+ "labterm-core",
+ "labterm-proto",
+ "libc",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "uuid",
+ "zeroize",
+]
+
+[[package]]
+name = "labterm-oidc-cert"
+version = "0.12.1"
+dependencies = [
+ "base64 0.23.1",
+ "getrandom 0.4.3",
+ "p256 0.14.0",
+ "rand 0.10.3",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "sha3 0.11.0",
+ "ssh-key",
+ "thiserror 2.0.21",
+ "tokio",
+ "url",
+ "zeroize",
+]
+
+[[package]]
+name = "labterm-proto"
+version = "0.12.1"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "utoipa",
+ "uuid",
+]
+
+[[package]]
+name = "labterm-wasm"
+version = "0.12.1"
+dependencies = [
+ "js-sys",
+ "labterm-crypto",
+ "serde",
+ "serde-wasm-bindgen",
+ "wasm-bindgen",
+ "zeroize",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8979,19 +9234,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "termoso-awslc-rsa"
-version = "0.12.1"
-dependencies = [
- "aws-lc-rs",
- "aws-lc-sys",
- "rand_core 0.6.4",
- "rsa 0.9.10",
- "sha1 0.10.7",
- "sha2 0.10.9",
- "thiserror 2.0.21",
-]
-
-[[package]]
 name = "termoso-bridge"
 version = "0.12.1"
 dependencies = [
@@ -8999,13 +9241,13 @@ dependencies = [
  "bytes",
  "chrono",
  "futures",
+ "labterm-core",
+ "labterm-crypto",
+ "labterm-proto",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
  "subtle",
- "termoso-core",
- "termoso-crypto",
- "termoso-proto",
  "thiserror 2.0.21",
  "tokio",
  "tokio-tungstenite",
@@ -9015,236 +9257,6 @@ dependencies = [
  "url",
  "uuid",
  "zeroize",
-]
-
-[[package]]
-name = "termoso-client"
-version = "0.12.1"
-dependencies = [
- "chrono",
- "serde",
- "serde_json",
- "tempfile",
- "termoso-core",
- "termoso-oidc-cert",
- "termoso-proto",
- "tokio",
- "url",
- "uuid",
- "zeroize",
-]
-
-[[package]]
-name = "termoso-core"
-version = "0.12.1"
-dependencies = [
- "aes 0.8.4",
- "aes 0.9.3",
- "anyhow",
- "async-trait",
- "axum",
- "base64 0.23.1",
- "bytes",
- "cbc 0.1.2",
- "chrono",
- "ciborium",
- "ctap-hid-fido2",
- "dav-server",
- "dirs",
- "ed25519-dalek 2.2.0",
- "encoding_rs",
- "flate2",
- "futures",
- "hex",
- "hkdf 0.12.4",
- "hmac 0.12.1",
- "hyper",
- "hyper-util",
- "keyring",
- "md5",
- "mdns-sd",
- "ocb3",
- "p256 0.13.2",
- "percent-encoding",
- "portable-pty",
- "quick-xml 0.42.0",
- "rand 0.10.3",
- "rand_core 0.6.4",
- "reqwest 0.12.28",
- "rusqlite",
- "russh",
- "russh-sftp",
- "rustls",
- "rustls-pki-types",
- "serde",
- "serde_json",
- "serialport",
- "sha2 0.10.9",
- "sqlx",
- "tempfile",
- "termoso-core",
- "termoso-crypto",
- "termoso-proto",
- "termoso-server",
- "thiserror 2.0.21",
- "tokio",
- "tokio-rustls",
- "tokio-tungstenite",
- "tokio-util",
- "totp-rs",
- "tracing",
- "url",
- "uuid",
- "zeroize",
-]
-
-[[package]]
-name = "termoso-crypto"
-version = "0.12.1"
-dependencies = [
- "argon2 0.5.3",
- "base64 0.23.1",
- "bip39",
- "blake3",
- "chacha20poly1305",
- "crypto_box",
- "getrandom 0.2.17",
- "hkdf 0.12.4",
- "opaque-ke",
- "rand_core 0.6.4",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "subtle",
- "thiserror 2.0.21",
- "zeroize",
-]
-
-[[package]]
-name = "termoso-desktop"
-version = "0.12.1"
-dependencies = [
- "axum",
- "base64 0.23.1",
- "bytes",
- "chrono",
- "dunce",
- "hostname",
- "notify",
- "plist",
- "serde",
- "serde_json",
- "similar",
- "tauri",
- "tauri-build",
- "tauri-plugin-clipboard-manager",
- "tauri-plugin-deep-link",
- "tauri-plugin-dialog",
- "tauri-plugin-notification",
- "tauri-plugin-opener",
- "tauri-plugin-single-instance",
- "tauri-plugin-updater",
- "tempfile",
- "termoso-client",
- "termoso-core",
- "termoso-crypto",
- "termoso-proto",
- "thiserror 2.0.21",
- "time",
- "tokio",
- "tokio-util",
- "toml 1.1.6+spec-1.1.0",
- "tracing",
- "tracing-subscriber",
- "url",
- "uuid",
- "windows 0.62.2",
- "zeroize",
- "zmodem2",
-]
-
-[[package]]
-name = "termoso-mobile"
-version = "0.12.1"
-dependencies = [
- "alacritty_terminal",
- "async-trait",
- "bytes",
- "chrono",
- "encoding_rs",
- "flate2",
- "futures-util",
- "lzma-sys",
- "rand 0.10.3",
- "reqwest 0.12.28",
- "russh",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "tar",
- "tempfile",
- "termoso-client",
- "termoso-core",
- "termoso-crypto",
- "termoso-netbird",
- "termoso-proto",
- "thiserror 2.0.21",
- "tokio",
- "tokio-util",
- "tracing",
- "tracing-android",
- "tracing-oslog",
- "tracing-subscriber",
- "uniffi",
- "uuid",
- "xz2",
- "zeroize",
-]
-
-[[package]]
-name = "termoso-netbird"
-version = "0.12.1"
-dependencies = [
- "libc",
- "serde",
- "serde_json",
- "termoso-core",
- "termoso-proto",
- "tokio",
- "tracing",
- "uuid",
- "zeroize",
-]
-
-[[package]]
-name = "termoso-oidc-cert"
-version = "0.12.1"
-dependencies = [
- "base64 0.23.1",
- "getrandom 0.4.3",
- "p256 0.14.0",
- "rand 0.10.3",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "sha2 0.11.0",
- "sha3 0.11.0",
- "ssh-key",
- "thiserror 2.0.21",
- "tokio",
- "url",
- "zeroize",
-]
-
-[[package]]
-name = "termoso-proto"
-version = "0.12.1"
-dependencies = [
- "chrono",
- "serde",
- "serde_json",
- "utoipa",
- "uuid",
 ]
 
 [[package]]
@@ -9271,6 +9283,10 @@ dependencies = [
  "http",
  "http-body-util",
  "image",
+ "labterm-awslc-rsa",
+ "labterm-core",
+ "labterm-crypto",
+ "labterm-proto",
  "lettre",
  "metrics",
  "metrics-exporter-prometheus",
@@ -9292,11 +9308,7 @@ dependencies = [
  "sqlx",
  "ssh-key",
  "subtle",
- "termoso-awslc-rsa",
  "termoso-bridge",
- "termoso-core",
- "termoso-crypto",
- "termoso-proto",
  "termoso-server",
  "thiserror 2.0.21",
  "tokio",
@@ -9314,18 +9326,6 @@ dependencies = [
  "webauthn-rs",
  "webp",
  "x509-parser",
- "zeroize",
-]
-
-[[package]]
-name = "termoso-wasm"
-version = "0.12.1"
-dependencies = [
- "js-sys",
- "serde",
- "serde-wasm-bindgen",
- "termoso-crypto",
- "wasm-bindgen",
  "zeroize",
 ]
 

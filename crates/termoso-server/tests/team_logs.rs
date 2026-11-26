@@ -11,18 +11,18 @@ use base64::engine::general_purpose::STANDARD;
 use common::*;
 use futures::{SinkExt, StreamExt};
 use reqwest::{Method, StatusCode};
-use termoso_crypto::keys::SymmetricKey;
-use termoso_crypto::sealed;
-use termoso_proto::logs::{
+use labterm_crypto::keys::SymmetricKey;
+use labterm_crypto::sealed;
+use labterm_proto::logs::{
     CreateLogCommentRequest, CreateLogRequest, CreateLogResponse, DownloadLogResponse, LogComment,
     LogCommentList, LogListResponse, SessionLog, UpdateLogRequest,
 };
-use termoso_proto::team::{AuditEventList, CreateInviteRequest, CreateTeamRequest, Team, TeamRole};
-use termoso_proto::vault::{
+use labterm_proto::team::{AuditEventList, CreateInviteRequest, CreateTeamRequest, Team, TeamRole};
+use labterm_proto::vault::{
     CreateVaultRequest, UpdateVaultRequest, Vault, VaultKind, VaultList, VaultMemberUpsert,
     VaultRole,
 };
-use termoso_proto::ws::{ClientMessage, ServerMessage};
+use labterm_proto::ws::{ClientMessage, ServerMessage};
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 use uuid::Uuid;

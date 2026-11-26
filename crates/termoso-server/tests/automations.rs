@@ -5,10 +5,10 @@ mod common;
 
 use common::*;
 use reqwest::{Method, StatusCode};
-use termoso_crypto::keys::SymmetricKey;
-use termoso_crypto::sealed;
-use termoso_proto::automation::*;
-use termoso_proto::vault::{CreateVaultRequest, VaultMemberUpsert, VaultRole};
+use labterm_crypto::keys::SymmetricKey;
+use labterm_crypto::sealed;
+use labterm_proto::automation::*;
+use labterm_proto::vault::{CreateVaultRequest, VaultMemberUpsert, VaultRole};
 use uuid::Uuid;
 
 macro_rules! server {

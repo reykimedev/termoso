@@ -18,8 +18,8 @@ use axum::Json;
 use axum::extract::{Path, State};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use termoso_crypto::opaque;
-use termoso_proto::auth::*;
+use labterm_crypto::opaque;
+use labterm_proto::auth::*;
 use uuid::Uuid;
 
 use crate::codes;
@@ -328,7 +328,7 @@ async fn ready_user(state: &AppState, token: &str) -> ApiResult<UserRow> {
         Some(at) if Utc::now() >= at => Ok(user),
         Some(at) => Err(Error::new(
             axum::http::StatusCode::CONFLICT,
-            termoso_proto::error::codes::CONFLICT,
+            labterm_proto::error::codes::CONFLICT,
             format!(
                 "The reset can be completed after {} UTC",
                 at.format("%Y-%m-%d %H:%M")

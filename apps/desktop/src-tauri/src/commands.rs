@@ -1,17 +1,17 @@
-//! IPC surface. Every command is a thin adapter over `termoso-core`; the
+//! IPC surface. Every command is a thin adapter over `labterm-core`; the
 //! webview never sees keys, tokens or plaintext secrets it did not enter.
 
 use serde::Serialize;
 use tauri::ipc::{Channel, InvokeResponseBody};
 use tauri::{AppHandle, Runtime, State};
 use tauri_plugin_deep_link::DeepLinkExt;
-use termoso_core::model::AnyEntity;
-use termoso_core::secrets::MasterKeySource;
-use termoso_core::sftp::RemoteEntry;
-use termoso_core::store::{CommandHistory, HistoryItem, VaultConnection};
-use termoso_core::store::{EntityFilter, LocalVault};
-use termoso_core::terminal::TermSize;
-use termoso_proto::entities::is_known_kind;
+use labterm_core::model::AnyEntity;
+use labterm_core::secrets::MasterKeySource;
+use labterm_core::sftp::RemoteEntry;
+use labterm_core::store::{CommandHistory, HistoryItem, VaultConnection};
+use labterm_core::store::{EntityFilter, LocalVault};
+use labterm_core::terminal::TermSize;
+use labterm_proto::entities::is_known_kind;
 use uuid::Uuid;
 
 use crate::account;
@@ -208,7 +208,7 @@ pub async fn entity_move(state: State<'_, AppState>, id: Uuid, vault_id: Uuid) -
 /// Reject payloads that do not match the typed schema so a UI bug cannot
 /// write garbage into the vault.
 fn validate_payload(kind: &str, data: &serde_json::Value) -> Result<()> {
-    use termoso_core::model as m;
+    use labterm_core::model as m;
     macro_rules! check {
         ($($k:literal => $ty:ty),* $(,)?) => {
             match kind {
@@ -271,7 +271,7 @@ pub struct PemParts {
 
 #[tauri::command]
 pub async fn webdav_pem_file(path: String) -> Result<PemParts> {
-    let parts = termoso_core::webdav::split_client_pem(&std::fs::read_to_string(&path)?)?;
+    let parts = labterm_core::webdav::split_client_pem(&std::fs::read_to_string(&path)?)?;
     Ok(PemParts {
         certificate: parts.certificate,
         private_key: parts.private_key,
@@ -284,7 +284,7 @@ pub async fn webdav_client_identity_inspect(
     certificate: String,
     private_key: String,
 ) -> Result<String> {
-    Ok(termoso_core::webdav::ClientIdentity::from_pem(&certificate, &private_key)?.fingerprint())
+    Ok(labterm_core::webdav::ClientIdentity::from_pem(&certificate, &private_key)?.fingerprint())
 }
 
 #[tauri::command]
@@ -336,8 +336,8 @@ pub async fn hosts_copy_to_vault(
 
 /// Serial devices on this machine; enumeration is local only.
 #[tauri::command]
-pub async fn serial_ports() -> Result<Vec<termoso_core::serial::PortInfo>> {
-    tokio::task::spawn_blocking(termoso_core::serial::available_ports)
+pub async fn serial_ports() -> Result<Vec<labterm_core::serial::PortInfo>> {
+    tokio::task::spawn_blocking(labterm_core::serial::available_ports)
         .await
         .map_err(|e| DesktopError::new("internal", e.to_string()))
 }
@@ -487,14 +487,14 @@ pub async fn history_delete(state: State<'_, AppState>, id: Uuid) -> Result<()> 
 pub async fn history_clear_commands(state: State<'_, AppState>) -> Result<()> {
     Ok(state
         .store()?
-        .clear_history(Some(termoso_proto::sync::HistoryKind::Command))?)
+        .clear_history(Some(labterm_proto::sync::HistoryKind::Command))?)
 }
 
 #[tauri::command]
 pub async fn history_clear_connections(state: State<'_, AppState>) -> Result<()> {
     Ok(state
         .store()?
-        .clear_history(Some(termoso_proto::sync::HistoryKind::Connection))?)
+        .clear_history(Some(labterm_proto::sync::HistoryKind::Connection))?)
 }
 
 #[tauri::command]
@@ -612,8 +612,8 @@ pub fn file_cache_settings(state: State<'_, AppState>, host_id: Uuid) -> Result<
     let store = state.store()?;
     let cfg = store.file_cache_config(host_id)?;
     let allowed = store
-        .get::<termoso_proto::entities::payload::Host>(host_id)?
-        .is_none_or(|h| !termoso_core::policy::offline_cache_denied(&store, h.vault_id));
+        .get::<labterm_proto::entities::payload::Host>(host_id)?
+        .is_none_or(|h| !labterm_core::policy::offline_cache_denied(&store, h.vault_id));
     Ok(FileCacheSettings {
         allowed,
         enabled: cfg.enabled && allowed,
@@ -632,15 +632,15 @@ pub fn set_file_cache_settings(
 ) -> Result<()> {
     let store = state.store()?;
     if settings.enabled
-        && let Some(h) = store.get::<termoso_proto::entities::payload::Host>(host_id)?
-        && termoso_core::policy::offline_cache_denied(&store, h.vault_id)
+        && let Some(h) = store.get::<labterm_proto::entities::payload::Host>(host_id)?
+        && labterm_core::policy::offline_cache_denied(&store, h.vault_id)
     {
         return Err(DesktopError::invalid(
             "team policy forbids offline copies of files from this host",
         ));
     }
     let current = store.file_cache_config(host_id)?;
-    let cfg = termoso_core::store::FileCacheConfig {
+    let cfg = labterm_core::store::FileCacheConfig {
         enabled: settings.enabled,
         max_file_bytes: u64::from(settings.max_file_mib.max(1)) * MIB,
         max_total_bytes: u64::from(settings.max_total_mib.max(1)) * MIB,
@@ -675,7 +675,7 @@ pub fn file_cache_overview(state: State<'_, AppState>) -> Result<FileCacheOvervi
     let mut hosts = Vec::new();
     for (id, u) in store.file_cache_hosts()? {
         let label = store
-            .get::<termoso_proto::entities::payload::Host>(id)?
+            .get::<labterm_proto::entities::payload::Host>(id)?
             .map(|h| h.data.label.clone())
             .unwrap_or_default();
         hosts.push(FileCacheHost {

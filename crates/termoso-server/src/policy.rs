@@ -6,7 +6,7 @@
 use chrono::{DateTime, Utc};
 use sqlx::{PgExecutor, PgPool};
 use std::collections::HashMap;
-use termoso_proto::team::{EffectivePolicies, Team, TeamPolicies};
+use labterm_proto::team::{EffectivePolicies, Team, TeamPolicies};
 use uuid::Uuid;
 
 use crate::error::ApiResult;

@@ -9,8 +9,8 @@
 
 use serde::Deserialize;
 use tauri::{AppHandle, Manager, Runtime};
-use termoso_core::model::Host;
-use termoso_proto::ai::{AiCommandRequest, AiCommandResponse, AiStatus};
+use labterm_core::model::Host;
+use labterm_proto::ai::{AiCommandRequest, AiCommandResponse, AiStatus};
 use uuid::Uuid;
 
 use crate::error::{DesktopError, Result};

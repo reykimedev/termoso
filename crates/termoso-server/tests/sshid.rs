@@ -5,9 +5,9 @@ mod common;
 
 use common::*;
 use reqwest::{Method, StatusCode};
-use termoso_crypto::encoding::b64;
-use termoso_proto::auth::AuthResponse;
-use termoso_proto::sshid::*;
+use labterm_crypto::encoding::b64;
+use labterm_proto::auth::AuthResponse;
+use labterm_proto::sshid::*;
 
 macro_rules! server {
     () => {

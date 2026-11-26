@@ -10,9 +10,9 @@ use axum::extract::State;
 use chrono::{DateTime, Utc};
 use sqlx::AssertSqlSafe;
 use sqlx::{Postgres, Transaction};
-use termoso_crypto::encoding::unb64;
-use termoso_proto::entities::{SyncEntity, is_known_kind};
-use termoso_proto::sync::*;
+use labterm_crypto::encoding::unb64;
+use labterm_proto::entities::{SyncEntity, is_known_kind};
+use labterm_proto::sync::*;
 use uuid::Uuid;
 
 use crate::audit;

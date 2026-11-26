@@ -9,7 +9,7 @@
 use std::path::Path;
 
 use serde::Serialize;
-use termoso_core::model::ColorScheme;
+use labterm_core::model::ColorScheme;
 
 use crate::error::{DesktopError, Result};
 

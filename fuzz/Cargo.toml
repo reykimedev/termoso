@@ -15,8 +15,8 @@ chrono = "0.4"
 roxmltree = "0.21"
 rsa = "0.9"
 url = "2"
-termoso-core = { path = "../crates/termoso-core" }
-termoso-mobile = { path = "../crates/termoso-mobile" }
+labterm-core = { path = "../crates/labterm-core" }
+labterm-mobile = { path = "../crates/labterm-mobile" }
 termoso-server = { path = "../crates/termoso-server", features = ["saml-test-support"] }
 
 [[bin]]

@@ -6,12 +6,12 @@ mod common;
 
 use common::*;
 use reqwest::{Method, StatusCode};
-use termoso_core::fido2::Fido2Error;
-use termoso_core::fido2::ctap::Authenticator;
-use termoso_core::fido2::soft::{Config, SoftToken};
-use termoso_core::fido2::webauthn::{self, CreationOptions, RequestOptions};
-use termoso_proto::auth::WebauthnCredentialInfo;
-use termoso_proto::auth::{
+use labterm_core::fido2::Fido2Error;
+use labterm_core::fido2::ctap::Authenticator;
+use labterm_core::fido2::soft::{Config, SoftToken};
+use labterm_core::fido2::webauthn::{self, CreationOptions, RequestOptions};
+use labterm_proto::auth::WebauthnCredentialInfo;
+use labterm_proto::auth::{
     AuthResponse, BackupCodes, MfaCredential, MfaMethod, MfaStatus, MfaVerifyRequest,
     TotpCodeRequest, TotpSetupResponse, WebauthnChallengeRequest, WebauthnRegisterFinishRequest,
 };
@@ -637,7 +637,7 @@ async fn webauthn_boundaries_without_an_authenticator() {
 
 const SOFT_PIN: &str = "123456";
 
-fn soft_token() -> (SoftToken, Authenticator<termoso_core::fido2::soft::Direct>) {
+fn soft_token() -> (SoftToken, Authenticator<labterm_core::fido2::soft::Direct>) {
     let token = SoftToken::new(Config {
         pin: Some(SOFT_PIN.into()),
         ..Config::default()
@@ -674,7 +674,7 @@ async fn assertion_options(s: &TestServer, mfa_token: &str) -> RequestOptions {
 
 /// The whole security-key life cycle the way the mobile client drives it:
 /// a CTAP2 authenticator answers the server's WebAuthn challenges through
-/// `termoso_core::fido2::webauthn`, never through a browser.
+/// `labterm_core::fido2::webauthn`, never through a browser.
 #[tokio::test]
 async fn webauthn_security_key_register_login_and_delete() {
     let Some(s) = server().await else { return };
@@ -854,7 +854,7 @@ async fn webauthn_security_key_register_login_and_delete() {
 /// see their own status.
 #[tokio::test]
 async fn team_members_expose_mfa_status_to_admins_only() {
-    use termoso_proto::team::{
+    use labterm_proto::team::{
         CreateInviteRequest, CreateTeamRequest, Team, TeamMemberList, TeamRole,
     };
 
@@ -932,7 +932,7 @@ async fn team_members_expose_mfa_status_to_admins_only() {
         Method::PATCH,
         &format!("/teams/{}/members/{}", team.id, carol.id()),
         Some(owner.token()),
-        Some(&termoso_proto::team::UpdateTeamMemberRequest {
+        Some(&labterm_proto::team::UpdateTeamMemberRequest {
             role: TeamRole::Admin,
             role_id: None,
         }),

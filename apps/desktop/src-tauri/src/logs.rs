@@ -4,15 +4,15 @@
 
 use chrono::{DateTime, Duration, Utc};
 use serde::Serialize;
-use termoso_core::model::LogBookmark;
-use termoso_core::store::{LocalVault, LocalVaultKind, LogItem, Store};
-use termoso_core::termoso_proto::logs::MAX_NOTE_CHARS;
-use termoso_core::termoso_proto::vault::VaultRole;
+use labterm_core::model::LogBookmark;
+use labterm_core::store::{LocalVault, LocalVaultKind, LogItem, Store};
+use labterm_core::labterm_proto::logs::MAX_NOTE_CHARS;
+use labterm_core::labterm_proto::vault::VaultRole;
 use uuid::Uuid;
 
 use crate::error::{DesktopError, Result};
 
-pub use termoso_core::store::Recorder;
+pub use labterm_core::store::Recorder;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -241,7 +241,7 @@ pub fn prune(store: &Store, days: u32) -> Result<usize> {
 
 // ───────────────────────────── bookmarks ─────────────────────────────
 
-fn bookmark_card(e: termoso_core::model::Entity<LogBookmark>) -> BookmarkCard {
+fn bookmark_card(e: labterm_core::model::Entity<LogBookmark>) -> BookmarkCard {
     BookmarkCard {
         id: e.id,
         log_id: e.data.log_id,
@@ -292,8 +292,8 @@ pub fn delete_bookmark(store: &Store, id: Uuid) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use termoso_core::store::{LogMeta, MAX_CAPTURE_BYTES};
-    use termoso_core::termoso_crypto::keys::SymmetricKey;
+    use labterm_core::store::{LogMeta, MAX_CAPTURE_BYTES};
+    use labterm_core::labterm_crypto::keys::SymmetricKey;
 
     fn store() -> Store {
         Store::open_in_memory(SymmetricKey::generate()).expect("store")

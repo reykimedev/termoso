@@ -12,7 +12,7 @@ claim and will differ on other hardware, kernels and servers.
 | Host | Ubuntu 22.04, kernel 5.15, 8 vCPU (Intel Xeon Platinum 8559C), Docker 27.4 |
 | Server | OpenSSH 10.3p1 sshd in a Docker container (`pqssh`), `Subsystem sftp internal-sftp`, host port `2299` → container `22` |
 | File | `bench.bin`, 536 870 912 bytes, SHA-256 `f20966a9533b4514ec04eff84f395ab74bed67ba82d5c034ff227bc4b395928c` |
-| Termoso | desktop `0.1.1`, release build of this branch (`cargo build --release -p termoso-desktop`), Local vault, password auth |
+| Termoso | desktop `0.1.1`, release build of this branch (`cargo build --release -p labterm-desktop`), Local vault, password auth |
 | Termius | Linux desktop `10.0.0` (`Termius.deb`), password auth, same host entry `127.0.0.1:2299` |
 | OpenSSH client | `OpenSSH_8.9p1` `sftp` (reference only, not a GUI client) |
 | Network | LAN = Docker bridge on loopback (no added delay). WAN = `tc netem delay 40ms` on both the container `eth0` egress and the host-side veth egress → ≈ 80 ms RTT, no loss, no bandwidth cap |
@@ -115,7 +115,7 @@ what was measured), and the `russh` per-channel receive window was 2 MiB,
 which caps server→client bytes in flight. `Sftp::open` now configures the
 session with 256 KiB read/write packets and 32 requests in flight per file
 (8 MiB outstanding), and the SSH channel window is 8 MiB
-(`crates/termoso-core/src/sftp.rs`, `crates/termoso-core/src/ssh/mod.rs`).
+(`crates/labterm-core/src/sftp.rs`, `crates/labterm-core/src/ssh/mod.rs`).
 `russh-sftp` honours the server's `limits@openssh.com` reply, so packet
 sizes shrink automatically on servers with smaller limits.
 

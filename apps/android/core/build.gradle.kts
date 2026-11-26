@@ -17,7 +17,7 @@ val rustNdkHome: String? = System.getenv("ANDROID_NDK_HOME")
         ?.let { sdk -> File(sdk, "ndk").listFiles()?.filter { it.isDirectory }?.maxByOrNull { it.name }?.absolutePath }
 
 android {
-    namespace = "com.termoso.core"
+    namespace = "dev.labdex.labterm.core"
     compileSdk = 36
 
     defaultConfig {
@@ -35,7 +35,7 @@ android {
 }
 
 /**
- * `cargo ndk build` of crates/termoso-mobile for every ABI in `termoso.abis`.
+ * `cargo ndk build` of crates/labterm-mobile for every ABI in `termoso.abis`.
  * Always runs (cargo is incremental itself and tracks the whole workspace). An unstripped
  * copy of the first ABI's library is kept for uniffi-bindgen (it reads the UniFFI metadata
  * from the symbol table); the packaged libraries are stripped with the NDK's llvm-strip —
@@ -59,7 +59,7 @@ abstract class CargoNdkBuild @Inject constructor(private val exec: ExecOperation
     fun run() {
         val args = mutableListOf("cargo", "ndk")
         abis.get().forEach { args += listOf("-t", it) }
-        args += listOf("-o", outDir.get().asFile.absolutePath, "build", "-p", "termoso-mobile")
+        args += listOf("-o", outDir.get().asFile.absolutePath, "build", "-p", "labterm-mobile")
         // The workspace release profile strips the symbol table, which also drops the UniFFI metadata.
         if (release.get()) args += listOf("--release", "--config", "profile.release.strip=\"debuginfo\"")
         outDir.get().asFile.deleteRecursively()
@@ -83,8 +83,8 @@ abstract class CargoNdkBuild @Inject constructor(private val exec: ExecOperation
 }
 
 /**
- * The embedded NetBird client (crates/termoso-netbird/go) as `libtermoso_netbird.so` for every
- * ABI: Go's c-shared build with the NDK's clang. termoso-mobile loads it with dlopen the first
+ * The embedded NetBird client (crates/labterm-netbird/go) as `liblabterm_netbird.so` for every
+ * ABI: Go's c-shared build with the NDK's clang. labterm-mobile loads it with dlopen the first
  * time a host uses a NetBird network, so the Go runtime only starts when it is needed.
  * `-Ptermoso.netbird=false` leaves it out (hosts set to use NetBird then fail with a clear error).
  */
@@ -108,7 +108,7 @@ abstract class GoNetbirdBuild @Inject constructor(private val exec: ExecOperatio
                 "x86" -> "386" to "i686-linux-android26-clang"
                 else -> error("no Go target for ABI $abi")
             }
-            val out = File(outDir.get().asFile, "$abi/libtermoso_netbird.so")
+            val out = File(outDir.get().asFile, "$abi/liblabterm_netbird.so")
             exec.exec {
                 workingDir = goDir.get().asFile
                 environment("GOOS", "android")
@@ -124,12 +124,12 @@ abstract class GoNetbirdBuild @Inject constructor(private val exec: ExecOperatio
                 )
             }
             // cgo writes a C header next to the library; the APK only wants the .so.
-            File(out.parentFile, "libtermoso_netbird.h").delete()
+            File(out.parentFile, "liblabterm_netbird.h").delete()
         }
     }
 }
 
-/** Kotlin bindings from the compiled library's UniFFI metadata; crates/termoso-mobile/uniffi.toml sets the package. */
+/** Kotlin bindings from the compiled library's UniFFI metadata; crates/labterm-mobile/uniffi.toml sets the package. */
 abstract class UniffiBindgen @Inject constructor(private val exec: ExecOperations) : DefaultTask() {
     @get:Internal abstract val workspace: DirectoryProperty
     @get:InputFile @get:PathSensitive(PathSensitivity.NONE) abstract val library: RegularFileProperty
@@ -156,17 +156,17 @@ androidComponents {
         val cap = variant.name.replaceFirstChar { it.uppercase() }
         val cargo = tasks.register<CargoNdkBuild>("cargoNdkBuild$cap") {
             group = "rust"
-            description = "cargo ndk build of termoso-mobile (${variant.name})"
+            description = "cargo ndk build of labterm-mobile (${variant.name})"
             abis.set(rustAbis)
             release.set(isRelease)
             ndkHome.set(rustNdkHome)
             workspace.set(workspaceDir)
             outDir.set(layout.buildDirectory.dir("rust/${variant.name}/jniLibs"))
-            metaLibrary.set(layout.buildDirectory.file("rust/${variant.name}/meta/libtermoso_mobile.so"))
+            metaLibrary.set(layout.buildDirectory.file("rust/${variant.name}/meta/liblabterm_mobile.so"))
         }
         val bindgen = tasks.register<UniffiBindgen>("uniffiBindgen$cap") {
             group = "rust"
-            description = "Generate Kotlin bindings for termoso-mobile (${variant.name})"
+            description = "Generate Kotlin bindings for labterm-mobile (${variant.name})"
             workspace.set(workspaceDir)
             library.set(cargo.flatMap { it.metaLibrary })
             outDir.set(layout.buildDirectory.dir("rust/${variant.name}/kotlin"))
@@ -178,7 +178,7 @@ androidComponents {
                 description = "go build of the embedded NetBird client (${variant.name})"
                 abis.set(rustAbis)
                 ndkHome.set(rustNdkHome ?: error("set ANDROID_NDK_HOME (or -Ptermoso.netbird=false)"))
-                goDir.set(workspaceDir.resolve("crates/termoso-netbird/go"))
+                goDir.set(workspaceDir.resolve("crates/labterm-netbird/go"))
                 outDir.set(layout.buildDirectory.dir("go/${variant.name}/jniLibs"))
             }
             variant.sources.jniLibs?.addGeneratedSourceDirectory(netbird, GoNetbirdBuild::outDir)

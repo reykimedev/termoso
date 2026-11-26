@@ -3,8 +3,8 @@
 //! user (OpenSSH, PEM, PuTTY .ppk).
 
 use libfuzzer_sys::fuzz_target;
-use termoso_core::hostkey::parse_public_key;
-use termoso_core::keys::{
+use labterm_core::hostkey::parse_public_key;
+use labterm_core::keys::{
     certificate_matches, import, inspect, inspect_certificate, is_ppk, parse_public,
 };
 

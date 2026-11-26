@@ -3,11 +3,11 @@
 mod common;
 use common::*;
 use reqwest::{Method, StatusCode};
-use termoso_crypto::keys::SymmetricKey;
-use termoso_crypto::sealed;
-use termoso_proto::sync::{EntityChange, PushRequest, PushResponse, PushResult};
-use termoso_proto::team::{AuditEventList, RotationJob, RotationJobList, RotationOverview};
-use termoso_proto::vault::{CreateVaultRequest, Vault, VaultMemberUpsert, VaultRole};
+use labterm_crypto::keys::SymmetricKey;
+use labterm_crypto::sealed;
+use labterm_proto::sync::{EntityChange, PushRequest, PushResponse, PushResult};
+use labterm_proto::team::{AuditEventList, RotationJob, RotationJobList, RotationOverview};
+use labterm_proto::vault::{CreateVaultRequest, Vault, VaultMemberUpsert, VaultRole};
 use uuid::Uuid;
 
 fn upsert(key: &SymmetricKey, u: &User, role: VaultRole) -> VaultMemberUpsert {

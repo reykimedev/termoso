@@ -5,7 +5,7 @@ use axum::extract::{Extension, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::Serialize;
-use termoso_proto::account::{ServerFeatures, ServerInfo};
+use labterm_proto::account::{ServerFeatures, ServerInfo};
 
 use crate::error::{ApiResult, Error};
 use crate::state::{AppState, VERSION};
