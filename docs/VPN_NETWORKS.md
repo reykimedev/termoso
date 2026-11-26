@@ -1,4 +1,4 @@
-# NetBird networks (Android)
+# VPN networks (NetBird on Android; Tailscale and other clients planned)
 
 A host or group can be set to be reached through a [NetBird](https://netbird.io)
 network. The Android app then joins that network by itself, in userspace, for
