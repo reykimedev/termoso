@@ -3,7 +3,8 @@
 //! a plain `cargo test`.
 //!
 //! Env: `NB_E2E_LIB` (path to libtermoso_netbird.so), `NB_E2E_MANAGEMENT`,
-//! `NB_E2E_SETUP_KEY`, `NB_E2E_TARGET` (NetBird IP of an echo peer on 2222).
+//! `NB_E2E_SETUP_KEY`, `NB_E2E_TARGET` (NetBird IP of an echo peer on 2222),
+//! `NB_E2E_TARGET_NAME` (its NetBird DNS name).
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -83,8 +84,8 @@ async fn dial_through_embedded_netbird() {
     assert!(keys.load(&net.peer_slot()).is_some(), "peer key not saved");
     assert!(nb.is_running(id).await);
 
-    // Two streams share one peer.
-    echo(&nb, &keys, net.clone(), &target).await;
+    // Two streams share one peer; NetBird DNS names resolve in the network.
+    echo(&nb, &keys, net.clone(), &env("NB_E2E_TARGET_NAME")).await;
 
     // Idle: the peer stops after its last stream closed.
     tokio::time::sleep(Duration::from_secs(4)).await;

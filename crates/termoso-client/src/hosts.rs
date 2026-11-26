@@ -2642,7 +2642,10 @@ mod tests {
         let card = save(&s, &f).unwrap();
         // Inherited from the group, not set on the host itself.
         assert_eq!(form(&s, card.id).unwrap().transport_id, None);
-        assert_eq!(inherited(&s, Some(g.id)).unwrap().transport_id, Some(net.id));
+        assert_eq!(
+            inherited(&s, Some(g.id)).unwrap().transport_id,
+            Some(net.id)
+        );
         let r = s.resolve_host(card.id).unwrap();
         assert_eq!(r.transport.map(|t| t.id), Some(net.id));
 

@@ -46,6 +46,7 @@ func main() {
 		log.Fatal(err)
 	}
 	fmt.Println(strings.Split(st.LocalPeerState.IP, "/")[0])
+	fmt.Println(st.LocalPeerState.FQDN)
 	go func() {
 		for {
 			conn, err := ln.Accept()

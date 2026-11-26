@@ -137,6 +137,9 @@ struct Node {
     streams: AtomicUsize,
     /// Bumped on every stream open, so a stale idle timer does nothing.
     epoch: AtomicU64,
+    /// Runtime the node was started on; runs its idle timer even when the
+    /// last stream is dropped outside of it.
+    rt: tokio::runtime::Handle,
 }
 
 /// Starts, shares and stops the NetBird peers of this process.
@@ -277,6 +280,7 @@ impl Netbird {
             config: config.clone(),
             streams: AtomicUsize::new(0),
             epoch: AtomicU64::new(0),
+            rt: tokio::runtime::Handle::current(),
         });
         nodes.insert(config.id, node.clone());
         Ok(node)
@@ -320,9 +324,7 @@ impl Netbird {
     fn released(self: Arc<Self>, node: Arc<Node>) {
         let epoch = node.epoch.load(Ordering::SeqCst);
         let idle = self.idle;
-        let Ok(rt) = tokio::runtime::Handle::try_current() else {
-            return;
-        };
+        let rt = node.rt.clone();
         rt.spawn(async move {
             tokio::time::sleep(idle).await;
             let mut nodes = self.nodes.lock().await;

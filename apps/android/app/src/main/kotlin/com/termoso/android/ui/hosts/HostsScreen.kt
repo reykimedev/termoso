@@ -2,6 +2,7 @@ package com.termoso.android.ui.hosts
 
 import com.termoso.android.ui.keychain.AddKeyToHostFlow
 import com.termoso.android.ui.keychain.HostOidcKeyDialog
+import com.termoso.android.ui.netbird.TunnelDialog
 import com.termoso.android.ui.keychain.SetupOpksshForHostFlow
 import com.termoso.android.ui.components.distroVector
 import com.termoso.android.ui.components.IconCatalog
@@ -337,6 +338,7 @@ fun HostsScreen(
             onAddKey = { dialog = HostsDialog.AddKey(d.host) },
             onOpksshSetup = { dialog = HostsDialog.OpksshSetup(d.host) },
             onOidcKey = { dialog = HostsDialog.OidcKey(d.host) },
+            onTunnel = { dialog = HostsDialog.HostTunnel(d.host) },
             onDuplicate = { vm.duplicate(listOf(d.host.id)) },
             onMove = { dialog = HostsDialog.Move(listOf(d.host.id)) },
             onMoveVault = { dialog = HostsDialog.MoveVault(listOf(d.host.id)) },
@@ -348,6 +350,26 @@ fun HostsScreen(
         is HostsDialog.AddKey -> AddKeyToHostFlow(shell.repo, d.host, onNotify = shell::notify, onDismiss = { dialog = null })
         is HostsDialog.OpksshSetup -> SetupOpksshForHostFlow(shell.repo, d.host, onNotify = shell::notify, onDismiss = { dialog = null })
         is HostsDialog.OidcKey -> HostOidcKeyDialog(shell.repo, d.host, onNotify = shell::notify, onDismiss = { dialog = null })
+        is HostsDialog.HostTunnel -> TunnelDialog(
+            repo = shell.repo,
+            vaultId = d.host.vaultId,
+            title = stringResource(R.string.tunnel),
+            forGroup = false,
+            load = { shell.repo.read { hostTransport(d.host.id) } },
+            save = { t -> shell.repo.write { setHostTransport(d.host.id, t) } },
+            onNotify = shell::notify,
+            onDismiss = { dialog = null },
+        )
+        is HostsDialog.GroupTunnel -> TunnelDialog(
+            repo = shell.repo,
+            vaultId = d.group.vaultId,
+            title = stringResource(R.string.tunnel) + " · " + d.group.label,
+            forGroup = true,
+            load = { shell.repo.read { groupTransport(d.group.id) } },
+            save = { t -> shell.repo.write { setGroupTransport(d.group.id, t) } },
+            onNotify = shell::notify,
+            onDismiss = { dialog = null },
+        )
         is HostsDialog.Delete -> ConfirmDialog(
             title = if (d.ids.size == 1) stringResource(R.string.remove_host) else stringResource(R.string.remove_hosts, d.ids.size),
             text = stringResource(R.string.hosts_are_removed_from_this_vault_keys_in),
@@ -382,6 +404,7 @@ fun HostsScreen(
         is HostsDialog.GroupMenu -> GroupMenuDialog(
             group = d.group,
             onRename = { dialog = HostsDialog.RenameGroup(d.group) },
+            onTunnel = { dialog = HostsDialog.GroupTunnel(d.group) },
             onDelete = { vm.deleteGroup(d.group); dialog = null },
             onDismiss = { dialog = null },
         )
@@ -415,6 +438,8 @@ private sealed interface HostsDialog {
     data class AddKey(val host: HostItem) : HostsDialog
     data class OpksshSetup(val host: HostItem) : HostsDialog
     data class OidcKey(val host: HostItem) : HostsDialog
+    data class HostTunnel(val host: HostItem) : HostsDialog
+    data class GroupTunnel(val group: GroupItem) : HostsDialog
     data class Delete(val ids: List<String>) : HostsDialog
     data class Move(val ids: List<String>) : HostsDialog
     data class Copy(val ids: List<String>) : HostsDialog
@@ -729,7 +754,7 @@ private fun NameDialog(title: String, initial: String, onConfirm: (String) -> Un
 }
 
 @Composable
-private fun GroupMenuDialog(group: GroupItem, onRename: () -> Unit, onDelete: () -> Unit, onDismiss: () -> Unit) {
+private fun GroupMenuDialog(group: GroupItem, onRename: () -> Unit, onTunnel: () -> Unit, onDelete: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(group.label) },
@@ -745,6 +770,7 @@ private fun GroupMenuDialog(group: GroupItem, onRename: () -> Unit, onDelete: ()
         confirmButton = {
             Row {
                 TextButton(onClick = onRename) { Text(stringResource(R.string.rename)) }
+                TextButton(onClick = onTunnel) { Text(stringResource(R.string.tunnel)) }
                 TextButton(onClick = onDelete) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
             }
         },
