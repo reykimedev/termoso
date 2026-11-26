@@ -1830,6 +1830,13 @@
     <string name="debug_update_downloading">Downloading…</string>
     <string name="debug_update_current">Up to date (build %1$d)</string>
     <string name="debug_update_available_notice">Debug build %1$d is available: Settings → About</string>
+    <string name="debug_update_progress">%1$s of %2$s · %3$s/s · %4$d%%</string>
+    <string name="debug_update_progress_unknown">%1$s · %2$s/s</string>
+    <string name="debug_update_error_network">Could not reach the update server. Check the connection and try again.</string>
+    <string name="debug_update_error_feed">The update channel answered with something that is not an update description.</string>
+    <string name="debug_update_error_http">The update server answered HTTP %1$d.</string>
+    <string name="debug_update_error_download">The download broke off. Tap to try again.</string>
+    <string name="debug_update_error_checksum">The downloaded update does not match its checksum, so it was deleted.</string>
     <string name="debug_log">Debug log</string>
     <string name="debug_log_hint">Recent app and core logs, secrets removed. Copy or share them for a bug report.</string>
     <string name="openid_no_keys">No OpenID keys in this vault: create one in the keychain</string>
