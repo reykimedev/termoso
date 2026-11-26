@@ -37,6 +37,7 @@ export const KINDS = [
   "log_bookmark",
   "color_scheme",
   "oidc_provider",
+  "host_overlay",
 ];
 const KNOWN = new Set(KINDS);
 const NIL = "00000000-0000-0000-0000-000000000000";
