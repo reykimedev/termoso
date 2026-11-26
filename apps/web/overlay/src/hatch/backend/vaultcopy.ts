@@ -39,17 +39,26 @@ export function keyCopyToVault(id: Uuid, vaultId: Uuid, mv: boolean) {
   writableTarget(vaultId);
   const agent = e.data.key_type === "agent";
   // The very same key already there (brought along by a shared host, say): use it.
-  const existing = list<SshKey>("ssh_key", vaultId).find((k) =>
-    agent
-      ? k.data.key_type === "agent" && blob(k.data) !== "" && blob(k.data) === blob(e.data)
-      : k.data.private_key === e.data.private_key,
-  );
+  // OpenID keys hold no material to compare: each copy is its own key.
+  const opk = e.data.key_type === "opkssh";
+  const existing = opk
+    ? undefined
+    : list<SshKey>("ssh_key", vaultId).find((k) =>
+        agent
+          ? k.data.key_type === "agent" && blob(k.data) !== "" && blob(k.data) === blob(e.data)
+          : k.data.private_key === e.data.private_key,
+      );
   if (existing) {
     if (mv) keyDelete(id);
     return keyCard(existing.id);
   }
   const cert = certificateOf(e);
-  const copy = put<SshKey>("ssh_key", vaultId, null, { ...e.data });
+  // Providers are per vault: the copy uses the target vault's default.
+  const oidc = e.data.oidc as Record<string, unknown> | undefined;
+  const copy = put<SshKey>("ssh_key", vaultId, null, {
+    ...e.data,
+    ...(oidc ? { oidc: { ...oidc, provider_id: null } } : {}),
+  });
   if (cert)
     put<SshCertificate>("ssh_certificate", vaultId, null, {
       ...cert.data,

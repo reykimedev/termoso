@@ -371,27 +371,26 @@ function capped(chunks: Uint8Array[]): string {
   return `${dec.decode(all.subarray(0, QUIET_OUTPUT_CAP))}\n… [${all.length - QUIET_OUTPUT_CAP} more bytes dropped]`;
 }
 
-/** Runs `command` on one host over an exec channel, with the same checks as a terminal. */
-async function quietOne(hostId: Uuid, command: string): Promise<QuietHostResult> {
-  const started = performance.now();
-  const r: QuietHostResult = {
-    hostId,
-    label: st.get<HostRef>(hostId, "host")?.data.label ?? "",
-    target: "",
-    exitCode: null,
-    stdout: "",
-    stderr: "",
-    error: null,
-    ms: 0,
-  };
-  // Prompts (password, host key) go through the usual dialogs under a throw-away id.
+/** What a command on a host gave: output split by stream, and its exit code. */
+export interface ExecOutcome {
+  target: string;
+  exitCode: number | null;
+  stdout: Uint8Array[];
+  stderr: Uint8Array[];
+}
+
+/**
+ * Runs `command` on a saved host over an exec channel (no terminal), with the same host-key check,
+ * policies and sign-in as a terminal. Prompts go through the usual dialogs under a throw-away id.
+ * Rejects with the desktop's errors.
+ */
+export async function execOnHost(hostId: Uuid, command: string): Promise<ExecOutcome> {
   const id = crypto.randomUUID();
   let targetStr = () => "";
+  const r: ExecOutcome = { target: "", exitCode: null, stdout: [], stderr: [] };
   try {
     const p = await term.prepare(id, { kind: "host", host_id: hostId });
     targetStr = p.targetStr;
-    const out: Uint8Array[] = [];
-    const err: Uint8Array[] = [];
     let timer: ReturnType<typeof setTimeout> | undefined;
     await Promise.race([
       new Promise<void>((resolve, reject) => {
@@ -399,7 +398,7 @@ async function quietOne(hostId: Uuid, command: string): Promise<QuietHostResult>
         w.connect(
           { ...p.options, command },
           (e: { type: string; data?: Uint8Array; stderr?: boolean; code?: number | null }) => {
-            if (e.type === "data" && e.data) (e.stderr ? err : out).push(e.data);
+            if (e.type === "data" && e.data) (e.stderr ? r.stderr : r.stdout).push(e.data);
             else if (e.type === "exit") r.exitCode = e.code ?? null;
             else if (e.type === "closed") {
               session?.free();
@@ -420,15 +419,32 @@ async function quietOne(hostId: Uuid, command: string): Promise<QuietHostResult>
       }),
     ]).finally(() => clearTimeout(timer));
     r.target = targetStr();
-    r.stdout = capped(out);
-    r.stderr = capped(err);
+    return r;
   } catch (e) {
-    r.target = targetStr();
-    try {
-      await term.connectFailed(id, r.target, e);
-    } catch (mapped) {
-      r.error = asDesktopError(mapped).message;
-    }
+    return term.connectFailed(id, targetStr(), e);
+  }
+}
+
+async function quietOne(hostId: Uuid, command: string): Promise<QuietHostResult> {
+  const started = performance.now();
+  const r: QuietHostResult = {
+    hostId,
+    label: st.get<HostRef>(hostId, "host")?.data.label ?? "",
+    target: "",
+    exitCode: null,
+    stdout: "",
+    stderr: "",
+    error: null,
+    ms: 0,
+  };
+  try {
+    const out = await execOnHost(hostId, command);
+    r.target = out.target;
+    r.exitCode = out.exitCode;
+    r.stdout = capped(out.stdout);
+    r.stderr = capped(out.stderr);
+  } catch (e) {
+    r.error = asDesktopError(e).message;
   }
   r.ms = Math.round(performance.now() - started);
   return r;

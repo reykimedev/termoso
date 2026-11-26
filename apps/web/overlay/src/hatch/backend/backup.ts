@@ -36,6 +36,7 @@ export const KINDS = [
   "workspace_template",
   "log_bookmark",
   "color_scheme",
+  "oidc_provider",
 ];
 const KNOWN = new Set(KINDS);
 const NIL = "00000000-0000-0000-0000-000000000000";

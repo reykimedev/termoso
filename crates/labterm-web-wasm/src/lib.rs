@@ -82,8 +82,12 @@ enum AuthMethod {
     AskPassword,
     /// Prompts go to the `prompt` callback.
     KeyboardInteractive,
-    /// The opkssh certificate from this tab's Authentik sign-in.
-    Opkssh,
+    /// An opkssh certificate from a sign-in in this tab: the relay's (no slot) or an opkssh key's.
+    #[serde(rename_all = "camelCase")]
+    Opkssh {
+        #[serde(default)]
+        slot: String,
+    },
 }
 
 /// What `connect` rejects with, as a plain object for the UI.
@@ -385,8 +389,8 @@ async fn establish(
                 }
                 ("password", last)
             }
-            AuthMethod::Opkssh => {
-                let Some((key, cert)) = opk::current() else {
+            AuthMethod::Opkssh { slot } => {
+                let Some((key, cert)) = opk::current(slot) else {
                     continue;
                 };
                 emit(

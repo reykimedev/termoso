@@ -14,6 +14,7 @@ import * as history from "./backend/history";
 import { asDesktopError, fail } from "./backend/errors";
 import * as m from "./backend/model";
 import * as oidc from "./backend/oidc";
+import * as opkssh from "./backend/opkssh";
 import { defaultSettings } from "./backend/settings";
 import * as snippets from "./backend/snippets";
 import * as st from "./backend/state";
@@ -77,6 +78,7 @@ async function lockNow() {
   sftp.closeAll();
   account.stopSync();
   oidc.forget();
+  opkssh.forgetAll();
   await st.lock();
 }
 
@@ -241,6 +243,17 @@ const commands: Record<string, Handler> = {
   key_certificate: (a) => m.keyCertificate(a.id),
   key_set_certificate: (a) => m.keySetCertificate(a.id, a.certificate ?? null),
   key_remember_passphrase: (a) => m.keyRememberPassphrase(a.id, a.passphrase ?? null),
+  // OpenID (opkssh) keys and their providers
+  oidc_providers: (a) => opkssh.providers(a.vaultId ?? null),
+  oidc_provider_save: (a) => opkssh.saveProvider(a.vaultId, a.id ?? null, a.provider),
+  oidc_provider_delete: (a) => opkssh.deleteProvider(a.id),
+  key_create_opkssh: (a) => opkssh.createKey(a.form),
+  key_set_oidc: (a) => opkssh.setOptions(a.id, a.oidc ?? {}),
+  key_oidc_session: (a) => opkssh.session(a.id),
+  key_oidc_sign_in: (a) => opkssh.signIn(a.id),
+  key_oidc_sign_out: (a) => opkssh.forget(a.id),
+  key_setup_opkssh_on_host: (a) =>
+    opkssh.setupOnHost(a as Parameters<typeof opkssh.setupOnHost>[0]),
   key_inspect_file: notInBrowser("Reading key files from disk"),
   key_import_file: notInBrowser("Reading key files from disk"),
   key_export_file: notInBrowser("Saving files to disk"),
@@ -338,7 +351,7 @@ const commands: Record<string, Handler> = {
 
 /** Writes the user made: queue them for the next push to the Termoso server. */
 const WRITE =
-  /(_save|_delete|_duplicate|_move|_generate|_import|_rename|_set_|_remember_|_forget|_pin$|_unpin$|_to_vault$|^backup_restore$|^tag_|^tags_merge)/;
+  /(_save|_delete|_duplicate|_move|_generate|_import|_rename|_set_|_remember_|_forget|_pin$|_unpin$|_to_vault$|^backup_restore$|^key_create_opkssh$|^tag_|^tags_merge)/;
 
 mockWindows("main");
 mockIPC(
