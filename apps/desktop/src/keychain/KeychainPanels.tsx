@@ -61,7 +61,6 @@ import {
   type KeyAlgorithm,
   type KeyCard,
   type KeyPreview,
-  type OidcKeySettings,
   type SkAlgorithm,
   type SshIdKeyType,
   type Uuid,
@@ -180,7 +179,7 @@ function useFileDrop(onPaths: (paths: string[]) => void) {
   }, []);
 }
 
-function PanelMenuButton({ items }: { items: MenuAction[] }) {
+export function PanelMenuButton({ items }: { items: MenuAction[] }) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   if (items.length === 0) return null;
   return (
@@ -1237,10 +1236,6 @@ export function EditKeyPanel({
         )}
       </SectionCard>
 
-      {card.keyType === "ecdsa-sha2-nistp256" && !card.agentBacked && (
-        <OidcSignInCard keyId={card.id} readOnly={readOnly} />
-      )}
-
       <SectionCard title={tr("Key export")}>
         <Button
           variant="contained"
@@ -1257,108 +1252,6 @@ export function EditKeyPanel({
         </Typography>
       </SectionCard>
     </SidePanel>
-  );
-}
-
-/** Switches a P-256 key to OpenID sign-in: before connecting, a browser
- *  login yields an opkssh certificate for it. Stored on this device only. */
-function OidcSignInCard({ keyId, readOnly }: { keyId: string; readOnly: boolean }) {
-  const current = useQuery({
-    queryKey: ["keyOidcSettings", keyId],
-    queryFn: () => ipc.keyOidcSettings(keyId),
-  });
-  if (current.isPending) return null;
-  const s = current.data ?? null;
-  return (
-    <OidcSignInForm
-      key={JSON.stringify(s)}
-      keyId={keyId}
-      initial={s}
-      readOnly={readOnly}
-      onSaved={() => void current.refetch()}
-    />
-  );
-}
-
-function OidcSignInForm({
-  keyId,
-  initial,
-  readOnly,
-  onSaved,
-}: {
-  keyId: string;
-  initial: OidcKeySettings | null;
-  readOnly: boolean;
-  onSaved: () => void;
-}) {
-  const [enabled, setEnabled] = useState(initial !== null);
-  const [issuer, setIssuer] = useState(initial?.issuer ?? "");
-  const [clientId, setClientId] = useState(initial?.client_id ?? "");
-  const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
-
-  const save = async (on: boolean) => {
-    try {
-      await ipc.keySetOidcSettings(
-        keyId,
-        on ? { issuer: issuer.trim(), client_id: clientId.trim() } : null,
-      );
-      setStatus({ ok: true, text: on ? tr("OpenID sign-in saved") : tr("OpenID sign-in off") });
-      onSaved();
-    } catch (e) {
-      setStatus({ ok: false, text: String((e as { message?: string }).message ?? e) });
-    }
-  };
-
-  return (
-    <SectionCard title={tr("OpenID sign-in (opkssh)")}>
-      <FormControlLabel
-        control={
-          <Switch
-            checked={enabled}
-            disabled={readOnly}
-            onChange={(e) => {
-              setEnabled(e.target.checked);
-              if (!e.target.checked && initial) void save(false);
-            }}
-          />
-        }
-        label={tr("Get a certificate from my identity provider before connecting")}
-      />
-      {enabled && (
-        <>
-          <TextField
-            value={issuer}
-            onChange={(e) => setIssuer(e.target.value)}
-            placeholder="https://auth.example.com/application/o/opkssh/"
-            slotProps={{ htmlInput: { "aria-label": tr("Issuer URL"), readOnly, ...mono } }}
-            helperText={tr("Exactly as in the hosts' /etc/opk/providers")}
-          />
-          <TextField
-            value={clientId}
-            onChange={(e) => setClientId(e.target.value)}
-            placeholder={tr("Client ID")}
-            slotProps={{ htmlInput: { "aria-label": tr("Client ID"), readOnly, ...mono } }}
-          />
-          <Button
-            variant="outlined"
-            disabled={readOnly || !issuer.trim() || !clientId.trim()}
-            onClick={() => void save(true)}
-          >
-            {tr("Save")}
-          </Button>
-        </>
-      )}
-      {status && (
-        <Alert severity={status.ok ? "success" : "error"} variant="outlined">
-          {status.text}
-        </Alert>
-      )}
-      <Typography variant="caption" color="text.secondary">
-        {tr(
-          "Hosts accept it with opkssh verify. The key, password and other methods still work when sign-in fails.",
-        )}
-      </Typography>
-    </SectionCard>
   );
 }
 

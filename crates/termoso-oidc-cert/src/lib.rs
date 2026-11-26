@@ -36,6 +36,8 @@ pub mod loopback;
 pub use error::{Error, Result};
 pub use flow::{Discovery, LoginRequest, ProviderConfig};
 pub use pktoken::PkToken;
+/// The key and certificate types the API takes and returns.
+pub use ssh_key;
 pub use sshcert::{CertOptions, OPKSSH_WILDCARD_PRINCIPAL};
 
 /// Generate a fresh ECDSA P-256 key, the key type opkssh certifies by default.

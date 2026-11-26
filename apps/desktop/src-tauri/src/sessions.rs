@@ -1632,14 +1632,17 @@ async fn ssh_connect<R: Runtime>(
                     backend: Arc::new(fido2::UsbBackend::default()),
                     certificate,
                 });
-            } else {
-                // OpenID keys present a fresh opkssh certificate first; the
-                // plain key (and its own certificate) stays as the fallback.
-                if let Some(m) =
-                    oidc_certificate(&state, key, passphrase.as_ref().map(|p| p.as_str())).await
-                {
-                    auth.push(m);
+            } else if key.data.is_opkssh() {
+                // OpenID key: fresh key + certificate from a sign-in. A
+                // failed sign-in leaves the other methods to try.
+                match oidc_auth(&state, key).await {
+                    Ok(Some(m)) => auth.push(m),
+                    Ok(None) => {}
+                    Err(e) => {
+                        tracing::warn!(error = %e, "OpenID sign-in failed; trying the other methods")
+                    }
                 }
+            } else {
                 auth.push(AuthMethod::Key {
                     private_key: Zeroizing::new(key.data.private_key.clone()),
                     passphrase: passphrase.clone(),
@@ -2088,7 +2091,7 @@ async fn gateway_dial<R: Runtime>(
 }
 
 /// Opens the OpenID provider's login page in the system browser.
-struct SystemBrowser;
+pub(crate) struct SystemBrowser;
 
 impl termoso_client::oidc::OpenBrowser for SystemBrowser {
     fn open(&self, url: &str) -> std::result::Result<(), String> {
@@ -2096,45 +2099,24 @@ impl termoso_client::oidc::OpenBrowser for SystemBrowser {
     }
 }
 
-/// Pre-connect hook for keys with OpenID sign-in (opkssh certificates):
-/// the cached certificate, or a browser login for a fresh one. A failed
-/// login is logged and the connection goes on with the other methods.
-async fn oidc_certificate(
+/// Key + certificate of an OpenID (opkssh) key: the sign-in kept on this
+/// device, or a fresh one through the browser. `None` for other keys.
+pub(crate) async fn oidc_auth(
     state: &AppState,
     key: &termoso_core::model::Entity<termoso_core::model::SshKey>,
-    passphrase: Option<&str>,
-) -> Option<AuthMethod> {
+) -> Result<Option<AuthMethod>> {
     use termoso_client::oidc::{self, PreConnect};
-    let prepared = state
-        .store()
-        .ok()
-        .and_then(|st| oidc::prepare(&st, key.id).ok())?;
-    let certificate = match prepared {
-        PreConnect::NotOidc => return None,
-        PreConnect::Cached(c) => c,
+    let prepared = oidc::prepare(&*state.store()?, key)?;
+    match prepared {
+        PreConnect::NotOidc => Ok(None),
+        PreConnect::Cached(m) => Ok(Some(m)),
         PreConnect::Login(settings) => {
             // The store is not held while the browser login runs.
-            match oidc::login(&settings, &key.data.private_key, passphrase, &SystemBrowser).await {
-                Ok(fresh) => {
-                    if let Ok(st) = state.store()
-                        && let Err(e) = oidc::remember(&st, key.id, &settings, &fresh)
-                    {
-                        tracing::warn!(error = %e, "could not cache the OpenID certificate");
-                    }
-                    fresh.certificate
-                }
-                Err(e) => {
-                    tracing::warn!(error = %e, "OpenID sign-in failed; trying the other methods");
-                    return None;
-                }
-            }
+            let fresh = oidc::login(&settings, &SystemBrowser).await?;
+            oidc::remember(&*state.store()?, key.id, &settings, &fresh)?;
+            Ok(Some(fresh.auth_method()))
         }
-    };
-    Some(AuthMethod::Key {
-        private_key: Zeroizing::new(key.data.private_key.clone()),
-        passphrase: passphrase.map(|p| Zeroizing::new(p.to_owned())),
-        certificate: Some(certificate),
-    })
+    }
 }
 
 #[cfg(test)]

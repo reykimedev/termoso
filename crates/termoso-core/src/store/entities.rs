@@ -970,6 +970,7 @@ mod tests {
             .insert(
                 v,
                 &SshKey {
+                    oidc: None,
                     label: "k".into(),
                     key_type: "ed25519".into(),
                     ..Default::default()

@@ -945,6 +945,10 @@ export interface KeyCard {
   unreadable: boolean;
   /** Public half only: the system SSH agent holds the private key and signs. */
   agentBacked: boolean;
+  /** OpenID (opkssh) key: no key material in the vault; each device signs in for a fresh key + certificate. */
+  opkssh: boolean;
+  /** Provider choice and overrides of an opkssh key. */
+  oidc: OidcKeyOptions | null;
   usedBy: number;
   certificate: CertificateCard | null;
   certificateUnreadable: boolean;
@@ -954,14 +958,48 @@ export interface KeyCard {
   dirty: boolean;
 }
 
-/** Per-key OpenID sign-in (opkssh certificates); kept on this device only. */
-export interface OidcKeySettings {
+/** Which provider an OpenID (opkssh) key signs in with; empty fields fall back to the provider. */
+export interface OidcKeyOptions {
+  /** Provider in the key's vault; absent = the vault default. */
+  provider_id?: Uuid | null;
+  issuer?: string | null;
+  client_id?: string | null;
+  principals?: string[];
+}
+
+/** OpenID provider (vault entity `oidc_provider`), as hosts list it in /etc/opk/providers. */
+export interface OidcProvider {
+  label: string;
   issuer: string;
   client_id: string;
+  /** Only for providers that insist on one; browsers (Hatch) cannot use it. */
   client_secret?: string | null;
   scopes?: string[];
-  principals?: string[];
+  /** Used by keys of this vault that name no provider. */
+  default?: boolean;
   reuse_secs?: number | null;
+  /** Written to /etc/opk/providers by host setup: 12h, 24h, 48h, 1week, oidc, oidc-refreshed. */
+  expiration_policy?: string | null;
+}
+
+export interface OpksshKeyForm {
+  vaultId: Uuid;
+  label: string;
+  oidc: OidcKeyOptions;
+}
+
+/** Sign-in of an opkssh key on this device. */
+export interface OidcSession {
+  identity: string;
+  /** Unix seconds. */
+  useUntil: number;
+}
+
+export interface OpksshHostSetup {
+  hostLabel: string;
+  target: string;
+  principal: string;
+  identity: string;
 }
 
 export interface SkFlags {

@@ -990,6 +990,7 @@ fn import_key(
         // Cannot normalise without the passphrase; store as-is, the
         // connection prompts for it.
         SshKey {
+            oidc: None,
             external_id: None,
             label,
             private_key: text.trim().to_string(),
@@ -1002,6 +1003,7 @@ fn import_key(
     } else {
         let material = keys::import(&text, None)?;
         SshKey {
+            oidc: None,
             external_id: None,
             label,
             private_key: material.private_key.to_string(),

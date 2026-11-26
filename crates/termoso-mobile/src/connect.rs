@@ -577,7 +577,7 @@ fn remember_username(store: &Store, resolved: &ResolvedHost, username: &str) {
 
 /// Ask for the login name when the target has none; an empty answer asks
 /// again, backing out cancels the connection.
-async fn ask_username(
+pub(crate) async fn ask_username(
     conn: &Arc<Connector>,
     target: &SshTarget,
     resolved: Option<&ResolvedHost>,
@@ -759,12 +759,12 @@ async fn ssh_connect(
                     backend: Arc::new(crate::fido2::PhoneBackend::default()),
                     certificate,
                 });
-            } else {
-                // OpenID keys present a fresh opkssh certificate first; the
-                // plain key (and its own certificate) stays as the fallback.
-                if let Some(m) = crate::oidc::auth_method(store, key, passphrase.as_ref()).await {
+            } else if key.data.is_opkssh() {
+                // OpenID key: fresh key + certificate from a sign-in.
+                if let Some(m) = crate::oidc::auth_method(store, key).await {
                     auth.push(m);
                 }
+            } else {
                 auth.push(AuthMethod::Key {
                     private_key: Zeroizing::new(key.data.private_key.clone()),
                     passphrase: passphrase.clone(),

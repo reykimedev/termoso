@@ -311,6 +311,80 @@ export function ExportToHostDialog({
   );
 }
 
+/** "Set up opkssh on host": pick one saved host; Rust installs opkssh there
+ *  with the host's current credentials and allows the signed-in identity. */
+export function SetupOpksshDialog({
+  open,
+  card,
+  hosts,
+  busy,
+  onCancel,
+  onConfirm,
+}: Base & {
+  card: KeyCard;
+  hosts: HostCard[];
+  onConfirm: (host: HostCard, principal: string | null, identity: string | null) => void;
+}) {
+  const [host, setHost] = useState<HostCard | null>(null);
+  const [principal, setPrincipal] = useState("");
+  const [identity, setIdentity] = useState("");
+  const sshHosts = useMemo(
+    () => hosts.filter((h) => h.protocol === "ssh").sort((a, b) => a.label.localeCompare(b.label)),
+    [hosts],
+  );
+  return (
+    <Dialog open={open} onClose={busy ? undefined : onCancel} maxWidth="xs" fullWidth>
+      <DialogTitle>{tr("Set up opkssh on host")}</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} sx={{ mt: 0.5 }}>
+          <Typography variant="body2" color="text.secondary">
+            {trx(
+              "Installs opkssh if needed, adds the provider of {key} to {file} and allows your identity to log in. Uses the host's current credentials and needs root or passwordless sudo.",
+              { key: <b>{card.label}</b>, file: <Mono>/etc/opk/providers</Mono> },
+            )}
+          </Typography>
+          <Field label={tr("Host")}>
+            <Autocomplete
+              autoFocus
+              options={sshHosts}
+              value={host}
+              onChange={(_, v) => setHost(v)}
+              getOptionLabel={(h) => h.label}
+              isOptionEqualToValue={(a, b) => a.id === b.id}
+              noOptionsText={tr("No SSH hosts")}
+              renderInput={(params) => <TextField {...params} placeholder={tr("Choose a host")} />}
+            />
+          </Field>
+          <TextField
+            value={principal}
+            onChange={(e) => setPrincipal(e.target.value)}
+            label={tr("Unix user (optional)")}
+            helperText={tr("Default: the user Termoso logs in as on that host.")}
+          />
+          <TextField
+            value={identity}
+            onChange={(e) => setIdentity(e.target.value)}
+            label={tr("Email (optional)")}
+            helperText={tr("Default: the email you signed in with; signs in first if needed.")}
+          />
+        </Stack>
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        <Button onClick={onCancel} disabled={busy} color="inherit">
+          {tr("Cancel")}
+        </Button>
+        <Button
+          variant="contained"
+          disabled={host === null || busy}
+          onClick={() => host && onConfirm(host, principal.trim() || null, identity.trim() || null)}
+        >
+          {busy ? tr("Connecting…") : tr("Set up")}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
 /** ssh-copy-id from the host's side: pick a keychain key to authorize on
  *  this host. The host's own key (its identity) is preselected. */
 export function AddKeyToHostDialog({

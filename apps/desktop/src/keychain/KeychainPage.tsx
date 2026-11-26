@@ -69,7 +69,13 @@ import {
   type Uuid,
 } from "@/ipc/types";
 import { sizes } from "@/theme/theme";
-import { ExportKeyDialog, ExportToHostDialog, PassphraseDialog } from "./KeyDialogs";
+import {
+  ExportKeyDialog,
+  ExportToHostDialog,
+  PassphraseDialog,
+  SetupOpksshDialog,
+} from "./KeyDialogs";
+import { OidcProvidersPanel, OpksshEditPanel, OpksshKeyPanel } from "./OpksshPanels";
 import {
   AgentKeyPanel,
   EditKeyPanel,
@@ -97,13 +103,16 @@ type Panel =
   | { kind: "editKey"; id: string }
   | { kind: "identity"; id: string | null }
   | { kind: "fido2" }
-  | { kind: "agent" };
+  | { kind: "agent" }
+  | { kind: "opkssh" }
+  | { kind: "oidcProviders"; back?: Panel };
 
 type Dialog =
   | { kind: "none" }
   | { kind: "passphrase"; card: KeyCard }
   | { kind: "export"; card: KeyCard }
   | { kind: "exportToHost"; card: KeyCard }
+  | { kind: "setupOpkssh"; card: KeyCard }
   | { kind: "deleteKey"; card: KeyCard }
   | { kind: "deleteIdentity"; card: IdentityCard };
 
@@ -227,6 +236,7 @@ function KeychainBody({ vault }: { vault: ReturnType<typeof useActiveVault> }) {
   const shownIds = useMemo(() => filterIdentities(idList, query), [idList, query]);
   const editing =
     panel.kind === "editKey" ? (keyList.find((k) => k.id === panel.id) ?? null) : null;
+  const providersBack = panel.kind === "oidcProviders" ? panel.back : undefined;
   const editingIdentity =
     panel.kind === "identity" && panel.id !== null
       ? (idList.find((i) => i.id === panel.id) ?? null)
@@ -263,24 +273,35 @@ function KeychainBody({ vault }: { vault: ReturnType<typeof useActiveVault> }) {
             onClick: () => openPanel({ kind: "editKey", id: card.id }),
           },
         ]),
-    {
-      label: tr("Copy public key"),
-      icon: <ContentCopyRoundedIcon fontSize="small" />,
-      disabled: card.unreadable,
-      onClick: () =>
-        run(async () => {
-          await copy(await ipc.keyPublic(card.id));
-          return tr("Public key copied");
-        }),
-    },
-    {
-      label: tr("Export to host…"),
-      icon: <DnsRoundedIcon fontSize="small" />,
-      disabled: card.unreadable,
-      onClick: () => setDialog({ kind: "exportToHost", card }),
-      divider: card.agentBacked,
-    },
-    ...(card.agentBacked
+    ...(card.opkssh
+      ? [
+          {
+            label: tr("Set up opkssh on host…"),
+            icon: <DnsRoundedIcon fontSize="small" />,
+            onClick: () => setDialog({ kind: "setupOpkssh", card }),
+            divider: true,
+          },
+        ]
+      : [
+          {
+            label: tr("Copy public key"),
+            icon: <ContentCopyRoundedIcon fontSize="small" />,
+            disabled: card.unreadable,
+            onClick: () =>
+              run(async () => {
+                await copy(await ipc.keyPublic(card.id));
+                return tr("Public key copied");
+              }),
+          },
+          {
+            label: tr("Export to host…"),
+            icon: <DnsRoundedIcon fontSize="small" />,
+            disabled: card.unreadable,
+            onClick: () => setDialog({ kind: "exportToHost", card }),
+            divider: card.agentBacked,
+          },
+        ]),
+    ...(card.agentBacked || card.opkssh
       ? []
       : [
           {
@@ -481,6 +502,17 @@ function KeychainBody({ vault }: { vault: ReturnType<typeof useActiveVault> }) {
       label: tr("From SSH agent"),
       icon: <VpnKeyOutlinedIcon fontSize="small" />,
       onClick: () => openPanel({ kind: "agent" }),
+    },
+    {
+      label: tr("OpenID key (opkssh)"),
+      icon: <BadgeOutlinedIcon fontSize="small" />,
+      onClick: () => openPanel({ kind: "opkssh" }),
+    },
+    {
+      label: tr("OpenID providers"),
+      icon: <BadgeOutlinedIcon fontSize="small" />,
+      onClick: () => openPanel({ kind: "oidcProviders" }),
+      divider: true,
     },
     {
       label: tr("New identity"),
@@ -726,7 +758,62 @@ function KeychainBody({ vault }: { vault: ReturnType<typeof useActiveVault> }) {
           }}
         />
       )}
-      {panel.kind === "editKey" && editing && (
+      {vaultId && panel.kind === "opkssh" && (
+        <OpksshKeyPanel
+          vaultId={vaultId}
+          vaultName={vaultName}
+          busy={panelOp.isPending}
+          error={panelError}
+          onClose={closePanel}
+          onManageProviders={() => openPanel({ kind: "oidcProviders", back: panel })}
+          onCreate={(form) => {
+            if (!requirePerm(form.vaultId, "keys.generate")) return;
+            return runPanel(async () => {
+              const k = await ipc.keyCreateOpkssh(form);
+              return {
+                msg: tr("Created {label}", { label: k.label }),
+                next: { kind: "editKey", id: k.id },
+              };
+            });
+          }}
+        />
+      )}
+      {vaultId && panel.kind === "oidcProviders" && (
+        <OidcProvidersPanel
+          vaultId={vaultId}
+          vaultName={vaultName}
+          readOnly={readOnly}
+          onBack={providersBack ? () => openPanel(providersBack) : undefined}
+          onClose={closePanel}
+        />
+      )}
+      {panel.kind === "editKey" && editing?.opkssh && (
+        <OpksshEditPanel
+          key={editing.id}
+          card={editing}
+          vaultName={vaultName}
+          busy={panelOp.isPending || op.isPending}
+          readOnly={readOnly}
+          error={panelError}
+          menu={keyMenu(editing, true)}
+          onClose={closePanel}
+          onRename={(label) =>
+            runPanel(async () => {
+              await ipc.keyRename(editing.id, label);
+              return { msg: null, next: panel };
+            })
+          }
+          onSaveOidc={(oidc) =>
+            runPanel(async () => {
+              await ipc.keySetOidc(editing.id, oidc);
+              return { msg: tr("Saved"), next: panel };
+            })
+          }
+          onSetupHost={() => setDialog({ kind: "setupOpkssh", card: editing })}
+          onManageProviders={() => openPanel({ kind: "oidcProviders", back: panel })}
+        />
+      )}
+      {panel.kind === "editKey" && editing && !editing.opkssh && (
         <EditKeyPanel
           key={editing.id}
           card={editing}
@@ -859,6 +946,31 @@ function KeychainBody({ vault }: { vault: ReturnType<typeof useActiveVault> }) {
           onConfirm={(args) => {
             const card = dialog.card;
             run(() => exportKey(card, args));
+          }}
+        />
+      )}
+      {dialog.kind === "setupOpkssh" && (
+        <SetupOpksshDialog
+          open
+          card={dialog.card}
+          hosts={hosts.data ?? []}
+          busy={op.isPending}
+          onCancel={closeDialog}
+          onConfirm={(host, principal, identity) => {
+            const card = dialog.card;
+            run(async () => {
+              const r = await ipc.keySetupOpksshOnHost({
+                id: card.id,
+                hostId: host.id,
+                principal,
+                identity,
+              });
+              return tr("opkssh ready on {target}: {identity} may log in as {principal}", {
+                target: r.target,
+                identity: r.identity,
+                principal: r.principal,
+              });
+            });
           }}
         />
       )}

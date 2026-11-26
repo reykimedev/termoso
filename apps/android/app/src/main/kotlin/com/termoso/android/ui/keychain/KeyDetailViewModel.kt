@@ -7,7 +7,8 @@ import com.termoso.android.data.VaultRepository
 import com.termoso.android.data.userMessage
 import com.termoso.android.str
 import com.termoso.core.KeyItem
-import com.termoso.core.OidcSignIn
+import com.termoso.core.OidcKeyChoice
+import com.termoso.core.OidcSessionItem
 import com.termoso.core.SecurityKeyCard
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,8 +21,12 @@ data class KeyDetailState(
     val key: KeyItem? = null,
     val publicKey: String = "",
     val securityKey: SecurityKeyCard? = null,
-    /** OpenID sign-in (opkssh certificates); device-local, null when off. */
-    val oidc: OidcSignIn? = null,
+    /** Provider choice of an opkssh key; null for other keys. */
+    val oidc: OidcKeyChoice? = null,
+    /** This device's sign-in of an opkssh key, while its certificate is usable. */
+    val session: OidcSessionItem? = null,
+    /** Label of the provider the key resolves to (named or the vault default). */
+    val providerLabel: String? = null,
     val working: Boolean = false,
     val deleted: Boolean = false,
     val notice: String? = null,
@@ -49,10 +54,16 @@ class KeyDetailViewModel(private val repo: VaultRepository, private val id: Stri
                     key = key,
                     publicKey = runCatching { publicKey(id) }.getOrDefault(key.publicKey),
                     securityKey = if (key.keyType.startsWith("sk-")) runCatching { securityKeyInfo(id) }.getOrNull() else null,
-                    oidc = runCatching { keyOidcSignIn(id) }.getOrNull(),
-                )
+                    oidc = runCatching { keyOidcChoice(id) }.getOrNull(),
+                    session = runCatching { keyOidcSession(id) }.getOrNull(),
+                ).let { st ->
+                    val providers = if (st.oidc != null) runCatching { oidcProviders(key.vaultId) }.getOrDefault(emptyList()) else emptyList()
+                    val chosen = st.oidc?.providerId?.let { pid -> providers.firstOrNull { it.id == pid } }
+                        ?: providers.firstOrNull { it.isDefault } ?: providers.singleOrNull()
+                    st.copy(providerLabel = chosen?.label)
+                }
             }
-        }.onSuccess { l -> _state.update { it.copy(loading = false, key = l.key, publicKey = l.publicKey, securityKey = l.securityKey, oidc = l.oidc) } }
+        }.onSuccess { l -> _state.update { it.copy(loading = false, key = l.key, publicKey = l.publicKey, securityKey = l.securityKey, oidc = l.oidc, session = l.session, providerLabel = l.providerLabel) } }
             .onFailure { e -> _state.update { it.copy(loading = false, notice = e.userMessage()) } }
     }
 
@@ -62,7 +73,7 @@ class KeyDetailViewModel(private val repo: VaultRepository, private val id: Stri
         _state.update { it.copy(working = true) }
         viewModelScope.launch {
             runCatching { block() }
-                .onSuccess { _state.update { it.copy(working = false, notice = success) } }
+                .onSuccess { _state.update { it.copy(working = false, notice = success ?: it.notice) } }
                 .onFailure { e -> _state.update { it.copy(working = false, notice = e.userMessage()) } }
         }
     }
@@ -79,10 +90,16 @@ class KeyDetailViewModel(private val repo: VaultRepository, private val id: Stri
             repo.write { setKeyCertificate(id, text?.trim()?.takeIf { it.isNotEmpty() }) }
         }
 
-    fun setOidcSignIn(value: OidcSignIn?) =
-        mutate(if (value == null) str(R.string.openid_sign_in_turned_off) else str(R.string.openid_sign_in_turned_on)) {
-            repo.write { setKeyOidcSignIn(id, value) }
-        }
+    fun setOidcChoice(value: OidcKeyChoice) =
+        mutate(str(R.string.openid_provider_saved)) { repo.write { setKeyOidcChoice(id, value) } }
+
+    /** Opens the provider's sign-in page in the browser and waits for it. */
+    fun signIn() = mutate(null) {
+        val s = repo.write { keyOidcSignIn(id) }
+        _state.update { it.copy(notice = str(R.string.openid_signed_in_as, s.identity)) }
+    }
+
+    fun signOut() = mutate(str(R.string.openid_signed_out)) { repo.write { keyOidcSignOut(id) } }
 
     fun delete() {
         deleting = true

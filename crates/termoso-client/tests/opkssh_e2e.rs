@@ -13,15 +13,15 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use termoso_client::keychain::{self, GenerateForm};
-use termoso_client::oidc::{self, OidcKeySettings, OpenBrowser, PreConnect};
+use termoso_client::oidc::{self, OpenBrowser, PreConnect};
 use termoso_core::error::CoreError;
 use termoso_core::hostkey::{HostKeyDecision, HostKeyPrompt, HostKeyVerdict, KnownHosts};
 use termoso_core::keys::KeyAlgorithm;
+use termoso_core::model::{Entity, OidcKeyOptions, OidcProvider, SshKey};
 use termoso_core::ssh::{AuthMethod, ConnectOptions, SshClient, SshTarget};
 use termoso_core::store::Store;
 use termoso_core::termoso_crypto::keys::SymmetricKey;
 use termoso_oidc_cert::reqwest;
-use uuid::Uuid;
 use zeroize::Zeroizing;
 
 const ISSUER: &str = "http://localhost:9998/";
@@ -117,12 +117,36 @@ fn options(store: &Arc<Store>, user: &str, auth: AuthMethod) -> ConnectOptions {
     o
 }
 
-fn p256_key(store: &Store) -> (Uuid, String) {
+/// An opkssh key in the local vault, signing in with the test provider.
+fn opkssh_key(store: &Store) -> Entity<SshKey> {
+    let vault = store.local_vault().unwrap().id;
+    oidc::save_provider(
+        store,
+        vault,
+        None,
+        OidcProvider {
+            label: "test".into(),
+            issuer: ISSUER.into(),
+            client_id: CLIENT_ID.into(),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let id = store
+        .insert(
+            vault,
+            &oidc::opkssh_key("opkssh", OidcKeyOptions::default()),
+        )
+        .unwrap();
+    store.require::<SshKey>(id).unwrap()
+}
+
+fn p256_pem(store: &Store) -> String {
     let card = keychain::generate(
         store,
         &GenerateForm {
             vault_id: store.local_vault().unwrap().id,
-            label: "opkssh".into(),
+            label: "plain".into(),
             algorithm: KeyAlgorithm::EcdsaP256,
             comment: String::new(),
             passphrase: None,
@@ -130,13 +154,7 @@ fn p256_key(store: &Store) -> (Uuid, String) {
         },
     )
     .unwrap();
-    let pem = store
-        .get::<termoso_core::model::SshKey>(card.id)
-        .unwrap()
-        .unwrap()
-        .data
-        .private_key;
-    (card.id, pem)
+    store.require::<SshKey>(card.id).unwrap().data.private_key
 }
 
 #[tokio::test]
@@ -145,24 +163,14 @@ async fn opkssh_host_accepts_the_certificate() {
         return;
     }
     let store = Arc::new(Store::open_in_memory(SymmetricKey::generate()).unwrap());
-    let (key_id, pem) = p256_key(&store);
-    oidc::set_settings(
-        &store,
-        key_id,
-        Some(OidcKeySettings {
-            issuer: ISSUER.into(),
-            client_id: CLIENT_ID.into(),
-            ..Default::default()
-        }),
-    )
-    .unwrap();
+    let key = opkssh_key(&store);
     let browser = ScriptedBrowser {
         opened: AtomicUsize::new(0),
     };
 
-    // Without the certificate the bare key is not authorized anywhere.
+    // A P-256 key without a certificate is not authorized anywhere.
     let bare = AuthMethod::Key {
-        private_key: Zeroizing::new(pem.clone()),
+        private_key: Zeroizing::new(p256_pem(&store)),
         passphrase: None,
         certificate: None,
     };
@@ -171,11 +179,11 @@ async fn opkssh_host_accepts_the_certificate() {
         Err(CoreError::AuthFailed { .. })
     ));
 
-    // Pre-connect hook: browser login, certificate, then a normal key login.
-    let auth = oidc::pre_connect(&store, key_id, &pem, None, &browser)
+    // Pre-connect hook: fresh key, browser login, certificate, key login.
+    let auth = oidc::pre_connect(&store, &key, &browser)
         .await
         .unwrap()
-        .expect("an OpenID key yields an auth method");
+        .expect("an opkssh key yields an auth method");
     let AuthMethod::Key {
         certificate: Some(cert_text),
         ..
@@ -186,6 +194,10 @@ async fn opkssh_host_accepts_the_certificate() {
     let cert = termoso_core::keys::inspect_certificate(cert_text).unwrap();
     assert_eq!(cert.key_id, OP_EMAIL);
     assert_eq!(browser.opened.load(Ordering::SeqCst), 1);
+    assert_eq!(
+        oidc::session(&store, key.id).unwrap().unwrap().identity,
+        OP_EMAIL
+    );
 
     let client = SshClient::connect(options(&store, "test", auth))
         .await
@@ -194,12 +206,12 @@ async fn opkssh_host_accepts_the_certificate() {
     assert_eq!(String::from_utf8_lossy(&out.stdout).trim(), "test");
     drop(client);
 
-    // The next connection reuses the certificate: no second browser trip.
+    // The next connection reuses key + certificate: no second browser trip.
     assert!(matches!(
-        oidc::prepare(&store, key_id).unwrap(),
+        oidc::prepare(&store, &key).unwrap(),
         PreConnect::Cached(_)
     ));
-    let again = oidc::pre_connect(&store, key_id, &pem, None, &browser)
+    let again = oidc::pre_connect(&store, &key, &browser)
         .await
         .unwrap()
         .unwrap();
@@ -215,30 +227,24 @@ async fn opkssh_host_accepts_the_certificate() {
     ));
 }
 
-/// The test provider ignores nothing we send, so a certificate for one key
-/// must not work with another: swap the key under the certificate.
+/// A certificate for one key must not work with another: swap the key
+/// under the certificate.
 #[tokio::test]
 async fn certificate_is_bound_to_its_key() {
     if !enabled() {
         return;
     }
     let store = Arc::new(Store::open_in_memory(SymmetricKey::generate()).unwrap());
-    let (key_id, pem) = p256_key(&store);
-    let (_, other_pem) = p256_key(&store);
-    let settings = OidcKeySettings {
-        issuer: ISSUER.into(),
-        client_id: CLIENT_ID.into(),
-        ..Default::default()
-    };
+    let key = opkssh_key(&store);
+    let settings = oidc::resolve(&store, &key).unwrap().unwrap();
     let browser = ScriptedBrowser {
         opened: AtomicUsize::new(0),
     };
-    oidc::set_settings(&store, key_id, Some(settings.clone())).unwrap();
-    let fresh = oidc::login(&settings, &pem, None, &browser).await.unwrap();
+    let fresh = oidc::login(&settings, &browser).await.unwrap();
     // russh refuses to sign with a key that does not match the certificate,
     // so the swap fails on our side or on the host's; either way no login.
     let swapped = AuthMethod::Key {
-        private_key: Zeroizing::new(other_pem),
+        private_key: Zeroizing::new(p256_pem(&store)),
         passphrase: None,
         certificate: Some(fresh.certificate),
     };

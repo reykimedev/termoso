@@ -7,8 +7,9 @@ use termoso_proto::team as proto;
 use serde::Deserialize;
 
 use tauri::{AppHandle, Emitter, Manager, Runtime, State};
+use termoso_client::oidc;
 use termoso_client::trust::HostKeyPin;
-use termoso_core::model::SshKey;
+use termoso_core::model::{Entity, OidcKeyOptions, OidcProvider, SshKey};
 use termoso_core::secrets::MasterKeySource;
 use termoso_proto::account::{ServerInfo, UserProfile};
 use termoso_proto::ai::{AiCommandResponse, AiStatus};
@@ -251,23 +252,166 @@ pub async fn key_set_certificate_file(
     keychain::set_certificate(&*state.store()?, id, Some(text))
 }
 
-/// OpenID sign-in settings of a key (opkssh certificates), if switched on.
+// ───────────────────────── OpenID (opkssh) keys ─────────────────────────
+
+/// OpenID providers of a vault (all vaults with `None`), default first.
 #[tauri::command]
-pub async fn key_oidc_settings(
+pub async fn oidc_providers(
     state: State<'_, AppState>,
-    id: Uuid,
-) -> Result<Option<termoso_client::oidc::OidcKeySettings>> {
-    termoso_client::oidc::settings(&*state.store()?, id)
+    vault_id: Option<Uuid>,
+) -> Result<Vec<Entity<OidcProvider>>> {
+    oidc::providers(&*state.store()?, vault_id)
 }
 
-/// Switch OpenID sign-in on (`Some`) or off (`None`) for a P-256 key.
+/// Add (`id = None`) or update an OpenID provider of a vault.
 #[tauri::command]
-pub async fn key_set_oidc_settings(
+pub async fn oidc_provider_save(
+    state: State<'_, AppState>,
+    vault_id: Uuid,
+    id: Option<Uuid>,
+    provider: OidcProvider,
+) -> Result<Entity<OidcProvider>> {
+    oidc::save_provider(
+        &*state.store()?,
+        vault_id,
+        id,
+        provider,
+    )
+}
+
+/// Delete an OpenID provider; its keys fall back to the vault default.
+#[tauri::command]
+pub async fn oidc_provider_delete(state: State<'_, AppState>, id: Uuid) -> Result<()> {
+    oidc::delete_provider(&*state.store()?, id)
+}
+
+/// Create an OpenID (opkssh) key.
+#[tauri::command]
+pub async fn key_create_opkssh(
+    state: State<'_, AppState>,
+    form: keychain::OpksshKeyForm,
+) -> Result<KeyCard> {
+    keychain::create_opkssh(&*state.store()?, &form)
+}
+
+/// Change the provider and overrides of an OpenID key.
+#[tauri::command]
+pub async fn key_set_oidc(
     state: State<'_, AppState>,
     id: Uuid,
-    settings: Option<termoso_client::oidc::OidcKeySettings>,
-) -> Result<()> {
-    termoso_client::oidc::set_settings(&*state.store()?, id, settings)
+    oidc: OidcKeyOptions,
+) -> Result<KeyCard> {
+    keychain::set_oidc_options(&*state.store()?, id, oidc)
+}
+
+/// The sign-in of an OpenID key on this device, if still usable.
+#[tauri::command]
+pub async fn key_oidc_session(
+    state: State<'_, AppState>,
+    id: Uuid,
+) -> Result<Option<oidc::SessionInfo>> {
+    oidc::session(&*state.store()?, id)
+}
+
+/// Sign in now (browser) without connecting anywhere.
+#[tauri::command]
+pub async fn key_oidc_sign_in(state: State<'_, AppState>, id: Uuid) -> Result<oidc::SessionInfo> {
+    let key = state.store()?.require::<SshKey>(id)?;
+    oidc::sign_out(&*state.store()?, id)?;
+    sessions::oidc_auth(&state, &key)
+        .await?
+        .ok_or_else(|| DesktopError::invalid("not an OpenID key"))?;
+    oidc::session(&*state.store()?, id)?
+        .ok_or_else(|| DesktopError::invalid("the sign-in did not produce a usable certificate"))
+}
+
+/// Forget the key and certificate of an OpenID key on this device.
+#[tauri::command]
+pub async fn key_oidc_sign_out(state: State<'_, AppState>, id: Uuid) -> Result<()> {
+    oidc::sign_out(&*state.store()?, id)
+}
+
+/// Result of `key_setup_opkssh_on_host`.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OpksshHostSetup {
+    pub host_label: String,
+    /// `user@host:port` that was set up.
+    pub target: String,
+    /// Unix account the identity may log in as.
+    pub principal: String,
+    /// Email (or subject) allowed to log in.
+    pub identity: String,
+}
+
+/// Install opkssh on a saved host (with its current credentials, like
+/// `key_export_to_host`), add the key's provider and allow the signed-in
+/// identity to log in as `principal` (default: the user Termoso logs in as).
+/// Signs in first when the key has no sign-in on this device.
+#[tauri::command]
+pub async fn key_setup_opkssh_on_host<R: Runtime>(
+    app: AppHandle<R>,
+    state: State<'_, AppState>,
+    id: Uuid,
+    host_id: Uuid,
+    principal: Option<String>,
+    identity: Option<String>,
+) -> Result<OpksshHostSetup> {
+    let key = state.store()?.require::<SshKey>(id)?;
+    let settings = oidc::resolve(&*state.store()?, &key)?
+        .ok_or_else(|| DesktopError::invalid("not an OpenID key"))?;
+    let policy = oidc::provider_of(
+        &*state.store()?,
+        key.vault_id,
+        &key.data.oidc.clone().unwrap_or_default(),
+    )?
+    .and_then(|p| p.data.expiration_policy);
+    let identity = match identity
+        .map(|s| s.trim().to_owned())
+        .filter(|s| !s.is_empty())
+    {
+        Some(i) => i,
+        None => {
+            if oidc::session(&*state.store()?, id)?.is_none() {
+                sessions::oidc_auth(&state, &key).await?;
+            }
+            oidc::session(&*state.store()?, id)?
+                .map(|s| s.identity)
+                .ok_or_else(|| DesktopError::invalid("sign in with the key first"))?
+        }
+    };
+    let conn = sessions::connect_host(&app, Uuid::new_v4(), host_id, Some(key.vault_id)).await?;
+    let principal = principal
+        .map(|s| s.trim().to_owned())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| {
+            conn.display
+                .split_once('@')
+                .map(|(u, _)| u.to_owned())
+                .unwrap_or_default()
+        });
+    let script = match oidc::host_setup_script(&settings, policy.as_deref(), &principal, &identity)
+    {
+        Ok(s) => s,
+        Err(e) => {
+            conn.close().await;
+            return Err(e);
+        }
+    };
+    let out = conn
+        .client
+        .exec(oidc::HOST_SETUP_COMMAND, Some(bytes::Bytes::from(script)))
+        .await;
+    let (host_label, target) = (conn.label.clone(), conn.display.clone());
+    conn.close().await;
+    let out = out?;
+    oidc::host_setup_outcome(out.exit_code, &out.stdout, &out.stderr)?;
+    Ok(OpksshHostSetup {
+        host_label,
+        target,
+        principal,
+        identity,
+    })
 }
 
 /// Copy or move a key (with its certificate) into another vault.

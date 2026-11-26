@@ -1,15 +1,19 @@
-//! OpenID sign-in for vault keys (opkssh certificates), see
-//! [`termoso_client::oidc`]. The app registers a [`UrlOpener`] once; the
-//! connect path then logs in through the system browser when a key needs a
-//! fresh certificate.
+//! OpenID (opkssh) keys for the mobile apps, see [`termoso_client::oidc`]:
+//! vault providers, opkssh keys, the device-local sign-in and host setup.
+//! The app registers a [`UrlOpener`] once; signing in opens the provider's
+//! page in the system browser.
 
 use std::sync::{Arc, RwLock};
 
-use termoso_client::oidc::{self, OidcKeySettings, OpenBrowser};
-use termoso_core::model::{Entity, SshKey};
+use termoso_client::keychain;
+use termoso_client::oidc::{self, OpenBrowser};
+use termoso_core::model::{Entity, OidcKeyOptions, OidcProvider, SshKey};
 use termoso_core::ssh::AuthMethod;
 use termoso_core::store::Store;
-use zeroize::Zeroizing;
+use uuid::Uuid;
+
+use crate::dto::{KeyItem, parse_id};
+use crate::error::{MobileError, Result};
 
 /// Opens a URL in the system browser (an `ACTION_VIEW` intent on Android).
 #[uniffi::export(with_foreign)]
@@ -29,7 +33,7 @@ pub fn set_url_opener(opener: Arc<dyn UrlOpener>) {
 struct SystemBrowser;
 
 impl OpenBrowser for SystemBrowser {
-    fn open(&self, url: &str) -> Result<(), String> {
+    fn open(&self, url: &str) -> std::result::Result<(), String> {
         let opener = OPENER.read().expect("url opener poisoned").clone();
         match opener {
             Some(o) if o.open_url(url.to_owned()) => Ok(()),
@@ -39,55 +43,192 @@ impl OpenBrowser for SystemBrowser {
     }
 }
 
-/// OpenID sign-in settings of one key, as the key editor shows them.
+/// An OpenID provider of a vault (entity `oidc_provider`).
 #[derive(Debug, Clone, uniffi::Record)]
-pub struct OidcSignIn {
+pub struct OidcProviderItem {
+    /// `None` for a provider that is not stored yet.
+    pub id: Option<String>,
+    pub vault_id: String,
+    pub label: String,
     /// Issuer URL as hosts list it in `/etc/opk/providers`.
     pub issuer: String,
-    /// The client ID opkssh uses with this provider.
+    /// A public client with PKCE.
     pub client_id: String,
-    /// Only for providers that require one.
+    /// Only for providers that insist on one.
     pub client_secret: Option<String>,
+    /// Extra scopes; empty = `openid profile email`.
+    pub scopes: Vec<String>,
+    /// Used by keys of the vault that name no provider.
+    pub is_default: bool,
+    /// Reuse a sign-in this long; `None` = until the ID token expires.
+    pub reuse_secs: Option<u64>,
+    /// Written to `/etc/opk/providers` by host setup (`24h`, `oidc`, …).
+    pub expiration_policy: Option<String>,
 }
 
-impl OidcSignIn {
-    pub(crate) fn from_settings(s: OidcKeySettings) -> Self {
+impl From<Entity<OidcProvider>> for OidcProviderItem {
+    fn from(e: Entity<OidcProvider>) -> Self {
         Self {
-            issuer: s.issuer,
-            client_id: s.client_id,
-            client_secret: s.client_secret,
-        }
-    }
-
-    /// Fields the app does not edit keep their stored values.
-    pub(crate) fn into_settings(self, previous: Option<OidcKeySettings>) -> OidcKeySettings {
-        OidcKeySettings {
-            issuer: self.issuer.trim().to_owned(),
-            client_id: self.client_id.trim().to_owned(),
-            client_secret: self.client_secret.filter(|s| !s.trim().is_empty()),
-            ..previous.unwrap_or_default()
+            id: Some(e.id.to_string()),
+            vault_id: e.vault_id.to_string(),
+            label: e.data.label,
+            issuer: e.data.issuer,
+            client_id: e.data.client_id,
+            client_secret: e.data.client_secret,
+            scopes: e.data.scopes,
+            is_default: e.data.default,
+            reuse_secs: e.data.reuse_secs,
+            expiration_policy: e.data.expiration_policy,
         }
     }
 }
 
-/// Pre-connect hook: key + opkssh certificate for keys with OpenID
-/// sign-in, `None` for other keys. A failed login is logged and the
-/// connection goes on with the other methods.
-pub(crate) async fn auth_method(
+impl OidcProviderItem {
+    fn into_payload(self) -> OidcProvider {
+        OidcProvider {
+            label: self.label,
+            issuer: self.issuer,
+            client_id: self.client_id,
+            client_secret: self.client_secret,
+            scopes: self.scopes,
+            default: self.is_default,
+            reuse_secs: self.reuse_secs,
+            expiration_policy: self.expiration_policy,
+        }
+    }
+}
+
+/// Provider choice and overrides of an opkssh key.
+#[derive(Debug, Clone, Default, uniffi::Record)]
+pub struct OidcKeyChoice {
+    /// Provider in the key's vault; `None` = the vault default.
+    pub provider_id: Option<String>,
+    /// Overrides the provider's issuer.
+    pub issuer: Option<String>,
+    /// Overrides the provider's client ID.
+    pub client_id: Option<String>,
+    /// Certificate principals; empty = opkssh's default.
+    pub principals: Vec<String>,
+}
+
+impl OidcKeyChoice {
+    fn into_options(self) -> Result<OidcKeyOptions> {
+        Ok(OidcKeyOptions {
+            provider_id: match self.provider_id.filter(|s| !s.is_empty()) {
+                Some(id) => Some(parse_id(&id)?),
+                None => None,
+            },
+            issuer: self.issuer,
+            client_id: self.client_id,
+            principals: self.principals,
+        })
+    }
+}
+
+impl From<OidcKeyOptions> for OidcKeyChoice {
+    fn from(o: OidcKeyOptions) -> Self {
+        Self {
+            provider_id: o.provider_id.map(|id| id.to_string()),
+            issuer: o.issuer,
+            client_id: o.client_id,
+            principals: o.principals,
+        }
+    }
+}
+
+/// Sign-in of an opkssh key on this device.
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct OidcSessionItem {
+    /// The email (or subject) the provider vouched for.
+    pub identity: String,
+    /// Unix seconds until which the certificate is reused.
+    pub use_until: u64,
+}
+
+impl From<oidc::SessionInfo> for OidcSessionItem {
+    fn from(s: oidc::SessionInfo) -> Self {
+        Self {
+            identity: s.identity,
+            use_until: s.use_until,
+        }
+    }
+}
+
+pub(crate) fn providers(store: &Store, vault_id: Option<String>) -> Result<Vec<OidcProviderItem>> {
+    let vault = match vault_id {
+        Some(v) => Some(parse_id(&v)?),
+        None => None,
+    };
+    Ok(oidc::providers(store, vault)?
+        .into_iter()
+        .map(Into::into)
+        .collect())
+}
+
+pub(crate) fn save_provider(store: &Store, item: OidcProviderItem) -> Result<OidcProviderItem> {
+    let vault = parse_id(&item.vault_id)?;
+    let id = match item.id.as_deref().filter(|s| !s.is_empty()) {
+        Some(id) => Some(parse_id(id)?),
+        None => None,
+    };
+    Ok(oidc::save_provider(store, vault, id, item.into_payload())?.into())
+}
+
+pub(crate) fn delete_provider(store: &Store, id: &str) -> Result<()> {
+    Ok(oidc::delete_provider(store, parse_id(id)?)?)
+}
+
+pub(crate) fn create_key(
     store: &Store,
-    key: &Entity<SshKey>,
-    passphrase: Option<&Zeroizing<String>>,
-) -> Option<AuthMethod> {
-    let passphrase = passphrase.map(|p| p.as_str());
-    match oidc::pre_connect(
-        store,
-        key.id,
-        &key.data.private_key,
-        passphrase,
-        &SystemBrowser,
-    )
-    .await
-    {
+    vault_id: &str,
+    label: &str,
+    choice: OidcKeyChoice,
+) -> Result<KeyItem> {
+    let form = keychain::OpksshKeyForm {
+        vault_id: parse_id(vault_id)?,
+        label: label.to_owned(),
+        oidc: choice.into_options()?,
+    };
+    Ok(keychain::create_opkssh(store, &form)?.into())
+}
+
+pub(crate) fn key_choice(store: &Store, id: &str) -> Result<Option<OidcKeyChoice>> {
+    let key = store.require::<SshKey>(parse_id(id)?)?;
+    Ok(key
+        .data
+        .is_opkssh()
+        .then(|| key.data.oidc.unwrap_or_default().into()))
+}
+
+pub(crate) fn set_key_choice(store: &Store, id: &str, choice: OidcKeyChoice) -> Result<KeyItem> {
+    Ok(keychain::set_oidc_options(store, parse_id(id)?, choice.into_options()?)?.into())
+}
+
+pub(crate) fn session(store: &Store, id: &str) -> Result<Option<OidcSessionItem>> {
+    Ok(oidc::session(store, parse_id(id)?)?.map(Into::into))
+}
+
+pub(crate) fn sign_out(store: &Store, id: &str) -> Result<()> {
+    Ok(oidc::sign_out(store, parse_id(id)?)?)
+}
+
+/// Sign in now (browser), replacing any earlier sign-in of the key.
+pub(crate) async fn sign_in(store: &Store, key_id: Uuid) -> Result<OidcSessionItem> {
+    let key = store.require::<SshKey>(key_id)?;
+    oidc::sign_out(store, key_id)?;
+    oidc::pre_connect(store, &key, &SystemBrowser)
+        .await?
+        .ok_or_else(|| MobileError::invalid("not an OpenID key"))?;
+    oidc::session(store, key_id)?
+        .map(Into::into)
+        .ok_or_else(|| MobileError::invalid("the sign-in did not produce a usable certificate"))
+}
+
+/// Pre-connect hook: fresh key + certificate for opkssh keys, `None` for
+/// other keys. A failed sign-in is logged and the connection goes on with
+/// the other methods.
+pub(crate) async fn auth_method(store: &Store, key: &Entity<SshKey>) -> Option<AuthMethod> {
+    match oidc::pre_connect(store, key, &SystemBrowser).await {
         Ok(m) => m,
         Err(e) => {
             tracing::warn!(error = %e, "OpenID sign-in failed; trying the other methods");
@@ -96,31 +237,79 @@ pub(crate) async fn auth_method(
     }
 }
 
+/// What host setup needs besides the connection: settings, policy and the
+/// identity to allow (signing in first when none is known).
+pub(crate) async fn host_setup_inputs(
+    store: &Store,
+    key_id: Uuid,
+    identity: Option<String>,
+) -> Result<(oidc::OidcKeySettings, Option<String>, String)> {
+    let key = store.require::<SshKey>(key_id)?;
+    let settings =
+        oidc::resolve(store, &key)?.ok_or_else(|| MobileError::invalid("not an OpenID key"))?;
+    let policy = oidc::provider_of(
+        store,
+        key.vault_id,
+        &key.data.oidc.clone().unwrap_or_default(),
+    )?
+    .and_then(|p| p.data.expiration_policy);
+    let identity = match identity
+        .map(|s| s.trim().to_owned())
+        .filter(|s| !s.is_empty())
+    {
+        Some(i) => i,
+        None => match oidc::session(store, key_id)? {
+            Some(s) => s.identity,
+            None => sign_in(store, key_id).await?.identity,
+        },
+    };
+    Ok((settings, policy, identity))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use termoso_core::termoso_crypto::keys::SymmetricKey;
 
     #[test]
-    fn editing_keeps_the_fields_the_app_does_not_show() {
-        let stored = OidcKeySettings {
-            issuer: "https://old.example.com".into(),
-            client_id: "old".into(),
-            client_secret: Some("s".into()),
-            scopes: vec!["groups".into()],
-            principals: vec!["alice".into()],
-            reuse_secs: Some(86_400),
+    fn providers_and_keys_round_trip_through_the_records() {
+        let store = Store::open_in_memory(SymmetricKey::generate()).unwrap();
+        let vault = store.local_vault().unwrap().id.to_string();
+        let saved = save_provider(
+            &store,
+            OidcProviderItem {
+                id: None,
+                vault_id: vault.clone(),
+                label: "Authentik".into(),
+                issuer: "https://auth.example.com/".into(),
+                client_id: "opkssh".into(),
+                client_secret: None,
+                scopes: vec![],
+                is_default: true,
+                reuse_secs: None,
+                expiration_policy: Some("24h".into()),
+            },
+        )
+        .unwrap();
+        assert_eq!(providers(&store, Some(vault.clone())).unwrap().len(), 1);
+
+        let key = create_key(&store, &vault, "work", OidcKeyChoice::default()).unwrap();
+        assert_eq!(key.key_type, "opkssh");
+        let choice = OidcKeyChoice {
+            provider_id: saved.id.clone(),
+            ..Default::default()
         };
-        let edited = OidcSignIn {
-            issuer: " https://auth.example.com/ ".into(),
-            client_id: "termoso".into(),
-            client_secret: Some("  ".into()),
-        }
-        .into_settings(Some(stored));
-        assert_eq!(edited.issuer, "https://auth.example.com/");
-        assert_eq!(edited.client_id, "termoso");
-        assert_eq!(edited.client_secret, None);
-        assert_eq!(edited.scopes, vec!["groups".to_string()]);
-        assert_eq!(edited.principals, vec!["alice".to_string()]);
-        assert_eq!(edited.reuse_secs, Some(86_400));
+        set_key_choice(&store, &key.id, choice).unwrap();
+        assert_eq!(
+            key_choice(&store, &key.id).unwrap().unwrap().provider_id,
+            saved.id
+        );
+        assert!(session(&store, &key.id).unwrap().is_none());
+
+        delete_provider(&store, saved.id.as_deref().unwrap()).unwrap();
+        assert_eq!(
+            key_choice(&store, &key.id).unwrap().unwrap().provider_id,
+            None
+        );
     }
 }

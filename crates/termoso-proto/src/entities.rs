@@ -39,6 +39,7 @@ pub const KINDS: &[&str] = &[
     "workspace_template",
     "log_bookmark",
     "color_scheme",
+    "oidc_provider",
 ];
 
 /// Whether `kind` is a known entity kind.
@@ -62,10 +63,21 @@ pub fn is_credential_kind(kind: &str) -> bool {
 /// only the public line.
 pub const AGENT_KEY_TYPE: &str = "agent";
 
+/// `SshKey::key_type` of an OpenID (opkssh) key: the vault stores no key
+/// material, only which [`payload::OidcProvider`] to sign in with. Each
+/// device makes a fresh key at sign-in and keeps it with its short-lived
+/// certificate.
+pub const OPKSSH_KEY_TYPE: &str = "opkssh";
+
 impl payload::SshKey {
     /// The private half is not in the vault; an SSH agent signs.
     pub fn is_agent_backed(&self) -> bool {
         self.key_type == AGENT_KEY_TYPE
+    }
+
+    /// An OpenID (opkssh) key: no key material in the vault.
+    pub fn is_opkssh(&self) -> bool {
+        self.key_type == OPKSSH_KEY_TYPE
     }
 }
 
@@ -501,6 +513,62 @@ pub mod payload {
             /// so repeated syncs update instead of duplicating.
             #[serde(default, skip_serializing_if = "Option::is_none")]
             pub external_id: Option<String>,
+            /// OpenID sign-in of an [`OPKSSH_KEY_TYPE`] key.
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            pub oidc: Option<OidcKeyOptions>,
+        }
+    }
+
+    schema! {
+        /// Which provider an OpenID (opkssh) key signs in with. Empty fields
+        /// fall back to the provider, and no provider to the vault's default.
+        #[derive(Default, PartialEq, Eq)]
+        pub struct OidcKeyOptions {
+            /// [`OidcProvider`] in the key's vault; `None` = the vault default.
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            pub provider_id: Option<Uuid>,
+            /// Overrides the provider's issuer.
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            pub issuer: Option<String>,
+            /// Overrides the provider's client ID.
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            pub client_id: Option<String>,
+            /// Certificate principals; empty = opkssh's `opkssh-wildcard`.
+            #[serde(default, skip_serializing_if = "Vec::is_empty")]
+            pub principals: Vec<String>,
+        }
+    }
+
+    schema! {
+        /// OpenID provider that opkssh keys sign in with, as hosts list it
+        /// in `/etc/opk/providers`. Lives in a vault, so a team vault gives
+        /// the whole team the same provider.
+        #[derive(Default, PartialEq, Eq)]
+        pub struct OidcProvider {
+            /// Label.
+            pub label: String,
+            /// Issuer URL.
+            pub issuer: String,
+            /// Client ID (a public client with PKCE).
+            pub client_id: String,
+            /// Only for providers that insist on one; browsers cannot use it.
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            pub client_secret: Option<String>,
+            /// Extra scopes; empty = `openid profile email`.
+            #[serde(default, skip_serializing_if = "Vec::is_empty")]
+            pub scopes: Vec<String>,
+            /// Used by keys of this vault that name no provider.
+            #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+            pub default: bool,
+            /// Reuse a certificate this long after sign-in (match the hosts'
+            /// expiry policy, e.g. 86400 for `24h`); `None` = until the ID
+            /// token expires.
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            pub reuse_secs: Option<u64>,
+            /// Expiry policy written to `/etc/opk/providers` by host setup
+            /// (`12h`, `24h`, `48h`, `1week`, `oidc`, `oidc-refreshed`).
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            pub expiration_policy: Option<String>,
         }
     }
 
