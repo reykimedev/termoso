@@ -19,7 +19,7 @@ ENTRYPOINT ["/usr/local/bin/hatch-relay"]
 
 # The browser's wasm module (hatch-wasm with termoso-wasm from web/upstream).
 FROM rust:1.97.0-slim-bookworm AS wasm-build
-RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends clang git && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
 COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
 RUN v="$(awk '/^name = "wasm-bindgen"$/ { getline; gsub(/version = |"/, ""); print; exit }' Cargo.lock)" \
