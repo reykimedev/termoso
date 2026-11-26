@@ -1,30 +1,30 @@
 # Snap of the desktop app, built from the release .deb so the Store gets
 # exactly the binary that was signed for GitHub releases. The .deb is fetched
 # in override-pull: snapcraft does not expand variables inside `source`.
-name: termoso
+name: labterm
 base: core24
 version: "0.12.1"
 summary: SSH, SFTP and terminal client with an encrypted vault
 description: |
-  Termoso keeps hosts, keys and snippets in a vault encrypted on your device,
+  Labterm keeps hosts, keys and snippets in a vault encrypted on your device,
   syncs them to your own server (or none), and gives you a fast terminal, SFTP
   with resume and folder sync, port forwarding, Mosh, Telnet and serial consoles.
 grade: stable
 confinement: strict
 license: AGPL-3.0-only
-website: https://termoso.dev
-source-code: https://github.com/termoso/termoso
-issues: https://github.com/termoso/termoso/issues
+website: https://github.com/reykimedev/termoso
+source-code: https://github.com/reykimedev/termoso
+issues: https://github.com/reykimedev/termoso/issues
 
 platforms:
   amd64:
   arm64:
 
 apps:
-  termoso:
+  labterm:
     command: usr/bin/labterm-desktop
     extensions: [gnome]
-    desktop: usr/share/applications/Termoso.desktop
+    desktop: usr/share/applications/Labterm.desktop
     plugs:
       - network
       - network-bind
@@ -38,7 +38,7 @@ apps:
       WEBKIT_DISABLE_DMABUF_RENDERER: "1"
 
 parts:
-  termoso:
+  labterm:
     plugin: nil
     build-packages:
       - curl
@@ -47,9 +47,9 @@ parts:
       - libayatana-appindicator3-1
     override-pull: |
       version="$(craftctl get version)"
-      curl -fsSL -o termoso.deb \
-        "https://github.com/termoso/termoso/releases/download/v${version}/Termoso_${version}_${CRAFT_ARCH_BUILD_FOR}.deb"
+      curl -fsSL -o labterm.deb \
+        "https://github.com/reykimedev/termoso/releases/download/v${version}/Labterm_${version}_${CRAFT_ARCH_BUILD_FOR}.deb"
     override-build: |
-      dpkg -x termoso.deb "$CRAFT_PART_INSTALL"
+      dpkg -x labterm.deb "$CRAFT_PART_INSTALL"
       sed -i 's|^Icon=.*|Icon=${SNAP}/usr/share/icons/hicolor/128x128/apps/labterm-desktop.png|' \
-        "$CRAFT_PART_INSTALL/usr/share/applications/Termoso.desktop"
+        "$CRAFT_PART_INSTALL/usr/share/applications/Labterm.desktop"
