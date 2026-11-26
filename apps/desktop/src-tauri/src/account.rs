@@ -281,7 +281,7 @@ impl AccountRuntime {
     }
 }
 
-fn device_name() -> String {
+pub(crate) fn device_name() -> String {
     hostname::get()
         .ok()
         .and_then(|h| h.into_string().ok())
@@ -851,6 +851,8 @@ pub async fn sign_out<R: Runtime>(app: &AppHandle<R>) -> Result<()> {
         },
     };
     core::sign_out(&api, &*state.store()?).await?;
+    // This device's VPN peers belong to the account's vaults.
+    crate::vpn::forget(&*state.store()?).await;
     crate::avatars::clear_cache(&state);
     if let Ok(store) = state.store() {
         let _ = store.clear_file_cache(None);

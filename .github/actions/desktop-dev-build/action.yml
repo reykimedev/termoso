@@ -38,6 +38,17 @@ runs:
     - shell: bash
       working-directory: apps/desktop
       run: npm ci --no-audit --no-fund
+    # The embedded VPN client (crates/labterm-netbird/go), bundled next to the app.
+    # No Windows build of it yet.
+    - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+      if: runner.os != 'Windows'
+      with:
+        go-version-file: crates/labterm-netbird/go/go.mod
+        cache-dependency-path: crates/labterm-netbird/go/go.sum
+    - name: VPN client library
+      if: runner.os != 'Windows'
+      shell: bash
+      run: apps/desktop/src-tauri/vpn/build.sh
 
     - name: Build
       shell: bash

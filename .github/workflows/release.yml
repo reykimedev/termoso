@@ -34,6 +34,8 @@ on:
       - .github/workflows/release.yml
       - apps/desktop/src-tauri/tauri.conf.json
       - apps/desktop/src-tauri/tauri.macos.conf.json
+      - apps/desktop/src-tauri/tauri.linux.conf.json
+      - apps/desktop/src-tauri/vpn/**
       - apps/desktop/src-tauri/capabilities/**
       - apps/desktop/src-tauri/icons/**
       - apps/desktop/src-tauri/Cargo.toml
@@ -203,6 +205,19 @@ jobs:
           cache-dependency-path: apps/desktop/package-lock.json
       - run: npm ci --no-audit --no-fund
         working-directory: apps/desktop
+
+      # The embedded VPN client (crates/labterm-netbird/go), bundled next to the app.
+      # No Windows build of it yet.
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        if: runner.os != 'Windows'
+        with:
+          go-version-file: crates/labterm-netbird/go/go.mod
+          cache-dependency-path: crates/labterm-netbird/go/go.sum
+      - name: VPN client library
+        if: runner.os != 'Windows'
+        env:
+          TARGET: ${{ matrix.target }}
+        run: apps/desktop/src-tauri/vpn/build.sh "$TARGET"
 
       # Tauri reads the APPLE_* variables only when they are set, and an empty
       # APPLE_SIGNING_IDENTITY would override the ad-hoc identity from

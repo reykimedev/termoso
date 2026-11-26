@@ -55,6 +55,11 @@ zmodem2 = "0.7"
 tempfile = "3"
 axum = { workspace = true }
 
+# The embedded VPN client (a Go library, see crates/labterm-netbird) has no
+# Windows build yet.
+[target.'cfg(unix)'.dependencies]
+labterm-client = { workspace = true, features = ["fido2", "oidc-cert", "vpn"] }
+
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.62", features = [
   "Win32_Foundation",

@@ -43,6 +43,8 @@ export interface SshConfig {
   host_chain_id?: Uuid | null;
   proxy_id?: Uuid | null;
   gateway_id?: Uuid | null;
+  /** VPN network (`transport` entity) to dial through. */
+  transport_id?: Uuid | null;
   port_knocking_id?: Uuid | null;
   charset?: string | null;
   color_scheme?: string | null;
@@ -113,6 +115,7 @@ function mergeSsh(into: SshConfig, from: SshConfig) {
     "identity_id",
     "host_chain_id",
     "proxy_id",
+    "transport_id",
     "port_knocking_id",
     "charset",
     "color_scheme",
@@ -367,6 +370,7 @@ export function hostForm(id: Uuid) {
     hostChainId: ssh?.host_chain_id ?? null,
     proxyId: ssh?.proxy_id ?? null,
     gatewayId: ssh?.gateway_id ?? null,
+    transportId: ssh?.transport_id ?? null,
     macAddress: h.data.mac_address ?? null,
     telnet: null,
     webdav: null,
@@ -458,6 +462,7 @@ export function hostSave(f: HostFormIn) {
       host_chain_id: f.hostChainId,
       proxy_id: f.proxyId,
       gateway_id: f.gatewayId,
+      transport_id: f.transportId,
       agent_forwarding: f.agentForwarding,
       forward_x11: f.forwardX11,
       use_mosh: f.useMosh,
@@ -614,6 +619,7 @@ function loadDefaults(sshConfigId: Uuid | null | undefined) {
     keepAliveInterval: ssh?.keep_alive_interval ?? null,
     timeout: ssh?.timeout ?? null,
     oidcKeyId: (ssh?.oidc_key_id as Uuid | null | undefined) ?? null,
+    transportId: ssh?.transport_id ?? null,
   };
 }
 
@@ -653,6 +659,7 @@ function saveDefaults(
     keep_alive_interval: f.keepAliveInterval,
     timeout: f.timeout,
     oidc_key_id: oidcKeyId,
+    transport_id: f.transportId,
   };
   const empty =
     !ssh.port &&
@@ -664,6 +671,7 @@ function saveDefaults(
     !ssh.timeout &&
     !ssh.host_chain_id &&
     !ssh.proxy_id &&
+    !ssh.transport_id &&
     !oidcKeyId;
   if (empty) {
     if (prevSsh) remove(prevSsh.id);
@@ -736,6 +744,7 @@ export function inherited(groupId: Uuid | null, vaultId: Uuid | null = null, tag
     forwardX11: false,
     hostChainId: null as Uuid | null,
     proxyId: null as Uuid | null,
+    transportId: null as Uuid | null,
     keepAliveInterval: null as number | null,
     timeout: null as number | null,
     envVariables: [] as [string, string][],
@@ -766,6 +775,7 @@ export function inherited(groupId: Uuid | null, vaultId: Uuid | null = null, tag
     forwardX11: !!ssh.forward_x11,
     hostChainId: ssh.host_chain_id ?? null,
     proxyId: ssh.proxy_id ?? null,
+    transportId: ssh.transport_id ?? null,
     keepAliveInterval: ssh.keep_alive_interval ?? null,
     timeout: ssh.timeout ?? null,
     envVariables: ssh.env_variables ?? [],

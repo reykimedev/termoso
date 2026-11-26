@@ -164,6 +164,14 @@ export const COMMANDS: Command[] = [
     run: () => goToSection("oidcProviders"),
   },
   {
+    id: "nav.vpnNetworks",
+    title: msg("Go to VPN Networks"),
+    group: "Navigation",
+    keywords: "netbird vpn tunnel overlay",
+    keys: [],
+    run: () => goToSection("vpnNetworks"),
+  },
+  {
     id: "nav.logs",
     title: msg("Go to Session logs"),
     group: "Navigation",

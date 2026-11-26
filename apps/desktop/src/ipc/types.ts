@@ -510,6 +510,8 @@ export interface HostForm {
   timeout: number | null;
   /** OpenID (opkssh) key tried before the credentials above. */
   oidcKeyId: Uuid | null;
+  /** VPN network (NetBird) to reach the host through; null = direct. */
+  transportId: Uuid | null;
   /** Terminal colour scheme id; null follows the app setting. */
   colorScheme: string | null;
   /** Connect with Mosh (mosh-client bootstrapped over this SSH section). */
@@ -805,6 +807,7 @@ export function emptyHostForm(vaultId: Uuid, groupId: Uuid | null): HostForm {
     keepAliveInterval: null,
     timeout: null,
     oidcKeyId: null,
+    transportId: null,
     colorScheme: null,
     useMosh: false,
     moshServerCommand: null,
@@ -851,6 +854,8 @@ export interface SshDefaultsForm {
   timeout: number | null;
   /** OpenID (opkssh) key hosts of the group try first. */
   oidcKeyId: Uuid | null;
+  /** VPN network hosts of the group are reached through; null = direct. */
+  transportId: Uuid | null;
 }
 
 export interface GroupForm extends SshDefaultsForm {
@@ -893,6 +898,7 @@ export function emptySshDefaults(): SshDefaultsForm {
     keepAliveInterval: null,
     timeout: null,
     oidcKeyId: null,
+    transportId: null,
   };
 }
 
@@ -929,6 +935,7 @@ export interface Inherited {
   keepAliveInterval: number | null;
   timeout: number | null;
   oidcKeyId: Uuid | null;
+  transportId: Uuid | null;
   envVariables: [string, string][];
 }
 
@@ -3050,4 +3057,30 @@ export interface AutomationRun {
 
 export interface AutomationRunList {
   runs: AutomationRun[];
+}
+
+/** A VPN network of a vault (the `transport` entity) as this device sees it. */
+export interface VpnNetwork {
+  id: Uuid;
+  vaultId: Uuid;
+  label: string;
+  /** `netbird`. */
+  provider: string;
+  /** null = the provider's cloud. */
+  managementUrl: string | null;
+  hasSetupKey: boolean;
+  /** Team vault: no setup key, each member signs in themselves. */
+  team: boolean;
+  /** This device has joined (signed in or registered with a key). */
+  signedIn: boolean;
+  /** The account this device signs in as (kept on this device only). */
+  account: string | null;
+}
+
+/** What the network editor saves; `setupKey: null` keeps the stored key. */
+export interface VpnNetworkForm {
+  label: string;
+  provider?: string;
+  managementUrl: string | null;
+  setupKey: string | null;
 }

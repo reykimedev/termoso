@@ -43,6 +43,7 @@ const MENU: { label: string; entries: Entry[] }[] = [
       "nav.snippets",
       "nav.knownHosts",
       "nav.oidcProviders",
+      "nav.vpnNetworks",
       "nav.logs",
       null,
       "term.zoomIn",

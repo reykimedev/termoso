@@ -36,6 +36,7 @@ import { WebDavAuthFields } from "./WebDavAuthFields";
 import { ServerKeyField } from "./ServerKeyField";
 import { MyCredentialsSection } from "./MyCredentialsSection";
 import { OidcKeyField } from "./OidcKeyField";
+import { VpnNetworkField } from "@/vpn/VpnNetworkField";
 import {
   Field,
   Loading,
@@ -893,6 +894,12 @@ function HostEditor({
                         ))}
                     </TextField>
                   </Field>
+                  <VpnNetworkField
+                    vaultId={vaultId}
+                    value={form.transportId ?? null}
+                    inheritedId={inh?.transportId}
+                    onChange={(id) => set("transportId", id)}
+                  />
                   <Field
                     label={tr("Environment Variables")}
                     hint={
