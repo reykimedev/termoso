@@ -5,9 +5,13 @@ import * as ipc from "@/ipc/commands";
 import type { UpdateInfo } from "@/ipc/types";
 import { errorMessage } from "@/ipc/types";
 import { createStore, useStore } from "@/lib/store";
+import { useAppInfo } from "@/ipc/hooks";
 
-/** Off in Labterm builds until it has its own signing key and feed (see update.rs). */
-export const UPDATES_ENABLED = false as boolean;
+/**
+ * Rust decides (update.rs): updates are on only in a build that carries
+ * Labterm's own signing key. Off while unknown, and in Labterm Web.
+ */
+export const useUpdatesEnabled = () => useAppInfo().data?.updatesEnabled === true;
 
 export type UpdatePhase =
   | { kind: "idle" }

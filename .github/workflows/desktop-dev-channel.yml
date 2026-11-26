@@ -1,0 +1,251 @@
+# Desktop dev channel: every push to main builds "Labterm Dev" for Linux x86_64 (AppImage, deb),
+# Windows x86_64 (NSIS) and macOS Apple Silicon (dmg) and publishes it to the rolling
+# prerelease `desktop-dev`, with the updater manifest latest.json those builds read.
+#
+# Labterm Dev is its own app (id dev.labdex.labterm.dev, own profile, own feed) and trusts
+# only the dev updater key in apps/desktop/src-tauri/channels/dev.json, never the stable one.
+#
+# The build jobs never see the key. They build unsigned bundles; the `publish` job, the only
+# one in the `desktop-dev` environment, signs the updater artifacts and publishes them.
+# macOS runners are often slow to start, so macOS publishes on its own afterwards and
+# Linux and Windows never wait for it.
+#
+# Secrets of the GitHub environment `desktop-dev` (deployments limited to main), see docs/RELEASING.md:
+#   TAURI_SIGNING_PRIVATE_KEY           dev updater key (`tauri signer generate`), not the stable one
+#   TAURI_SIGNING_PRIVATE_KEY_PASSWORD  its password
+# Until channels/dev.json carries the dev public key, every job is skipped.
+name: Desktop dev channel
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-dev-channel
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CHANNEL_TAG: desktop-dev
+
+jobs:
+  plan:
+    name: version + key check
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    outputs:
+      ready: ${{ steps.p.outputs.ready }}
+      version: ${{ steps.p.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: p
+        env:
+          RUN: ${{ github.run_number }}
+        run: |
+          conf=apps/desktop/src-tauri/channels/dev.json
+          if ! jq -e '.plugins.updater.pubkey | strings | length > 0' "$conf" > /dev/null; then
+            echo "::notice::$conf has no dev updater public key yet; skipping the desktop dev channel"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Next patch version with a numeric dev suffix: newer than the last release and
+          # ordered by run number, so the updater always sees the newest build as newer.
+          v=$(node -p "require('./apps/desktop/package.json').version")
+          IFS=. read -r major minor patch <<< "${v%%-*}"
+          version="$major.$minor.$((patch + 1))-dev.$RUN"
+          echo "dev version $version"
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: ${{ matrix.name }}
+    needs: plan
+    if: needs.plan.outputs.ready == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux x86_64 (AppImage, deb)
+            os: ubuntu-22.04
+            bundles: appimage,deb
+            artifact: linux-x86_64
+          - name: windows x86_64 (nsis)
+            os: windows-latest
+            bundles: nsis
+            artifact: windows-x86_64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/desktop-dev-build
+        with:
+          bundles: ${{ matrix.bundles }}
+          artifact: ${{ matrix.artifact }}
+          version: ${{ needs.plan.outputs.version }}
+
+  # Its own job, not a matrix leg: macOS runners here are often slow to start, and a job
+  # waits for every leg of a matrix it needs. Linux and Windows publish without it.
+  build-macos:
+    name: macos Apple Silicon (app, dmg)
+    needs: plan
+    if: needs.plan.outputs.ready == 'true'
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/desktop-dev-build
+        with:
+          bundles: app,dmg
+          artifact: macos-aarch64
+          version: ${{ needs.plan.outputs.version }}
+
+  # Linux and Windows: sign, write latest.json and publish. macOS joins later (below).
+  publish:
+    name: sign + publish (Linux, Windows)
+    needs: [plan, build]
+    runs-on: ubuntu-latest
+    environment: desktop-dev
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    env:
+      VERSION: ${{ needs.plan.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: desktop-dev-*
+          path: out
+          merge-multiple: true
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      # Only the Tauri CLI is needed here; --ignore-scripts keeps third-party install
+      # scripts away from the job that holds the key, and the lockfile pins every byte.
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: apps/desktop
+      - name: Sign updater artifacts
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          [ -n "$TAURI_SIGNING_PRIVATE_KEY" ] || { echo "::error::TAURI_SIGNING_PRIVATE_KEY is not set in the desktop-dev environment"; exit 1; }
+          test -f out/Labterm-Dev_amd64.AppImage || { echo "::error::the Linux build produced no AppImage"; exit 1; }
+          test -f out/Labterm-Dev_x64-setup.exe || { echo "::error::the Windows build produced no installer"; exit 1; }
+          for f in out/Labterm-Dev_amd64.AppImage out/Labterm-Dev_x64-setup.exe; do
+            apps/desktop/node_modules/.bin/tauri signer sign "$f" > /dev/null
+            test -s "$f.sig"
+          done
+      - name: Write latest.json and SHA256SUMS
+        env:
+          REPO: ${{ github.repository }}
+          COMMIT: ${{ github.sha }}
+          BUILD: ${{ github.run_number }}
+        run: |
+          base="https://github.com/$REPO/releases/download/$CHANNEL_TAG"
+          jq -n --arg v "$VERSION" --arg notes "Dev build $BUILD from $COMMIT" \
+            --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg base "$base" \
+            --rawfile linux out/Labterm-Dev_amd64.AppImage.sig --rawfile win out/Labterm-Dev_x64-setup.exe.sig '
+            {version: $v, notes: $notes, pub_date: $date, platforms: {
+              "linux-x86_64":          {url: "\($base)/Labterm-Dev_amd64.AppImage", signature: $linux},
+              "linux-x86_64-appimage": {url: "\($base)/Labterm-Dev_amd64.AppImage", signature: $linux},
+              "windows-x86_64":        {url: "\($base)/Labterm-Dev_x64-setup.exe", signature: $win},
+              "windows-x86_64-nsis":   {url: "\($base)/Labterm-Dev_x64-setup.exe", signature: $win}
+            }}' > out/latest.json
+          jq '.platforms | map_values(.url)' out/latest.json
+          (cd out && sha256sum -- *.AppImage *.deb *.exe > SHA256SUMS.txt && cat SHA256SUMS.txt)
+      - name: Build provenance attestations
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            out/*.AppImage
+            out/*.deb
+            out/*.exe
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMIT: ${{ github.sha }}
+          BUILD: ${{ github.run_number }}
+        run: |
+          title="Labterm Dev (rolling, $CHANNEL_TAG)"
+          if ! gh release view "$CHANNEL_TAG" > /dev/null 2>&1; then
+            gh release create "$CHANNEL_TAG" --prerelease --latest=false --target "$COMMIT" \
+              --title "$title" --notes "Dev builds from main; Labterm Dev updates itself from here."
+          fi
+          # The macOS files of the previous build would not match this latest.json; drop them
+          # until the macOS job of this run adds its own.
+          for a in Labterm-Dev_aarch64.app.tar.gz Labterm-Dev_aarch64.app.tar.gz.sig Labterm-Dev_aarch64.dmg; do
+            gh release delete-asset "$CHANNEL_TAG" "$a" --yes 2> /dev/null || true
+          done
+          gh release upload "$CHANNEL_TAG" --clobber out/*.AppImage out/*.AppImage.sig out/*.deb \
+            out/*.exe out/*.exe.sig out/SHA256SUMS.txt
+          # The manifest last, so it never names a file that is not there yet.
+          gh release upload "$CHANNEL_TAG" --clobber out/latest.json
+          {
+            echo "Labterm Dev $VERSION, build $BUILD from commit \`$COMMIT\`."
+            echo
+            echo "Installs next to Labterm with its own profile and updates itself from this release."
+            echo "Not for production use. Verify a download with \`sha256sum -c SHA256SUMS.txt\` and"
+            echo "\`gh attestation verify <file> -R $GITHUB_REPOSITORY\`."
+            echo
+            echo '```'
+            cat out/SHA256SUMS.txt
+            echo '```'
+          } > notes.md
+          gh release edit "$CHANNEL_TAG" --title "$title" --notes-file notes.md
+
+  publish-macos:
+    name: sign + publish (macOS)
+    needs: [plan, build-macos, publish]
+    runs-on: ubuntu-latest
+    environment: desktop-dev
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    env:
+      VERSION: ${{ needs.plan.outputs.version }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: desktop-dev-macos-aarch64
+          path: out
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: apps/desktop
+      - name: Sign
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          apps/desktop/node_modules/.bin/tauri signer sign out/Labterm-Dev_aarch64.app.tar.gz > /dev/null
+          test -s out/Labterm-Dev_aarch64.app.tar.gz.sig
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            out/*.dmg
+            out/*.app.tar.gz
+      - name: Add macOS to the release and latest.json
+        env:
+          REPO: ${{ github.repository }}
+        run: |
+          gh release download "$CHANNEL_TAG" -p latest.json -p SHA256SUMS.txt -D feed
+          # A newer run may have published meanwhile; its own macOS job brings its files.
+          [ "$(jq -r .version feed/latest.json)" = "$VERSION" ] || { echo "::notice::a newer dev build is published; skipping"; exit 0; }
+          url="https://github.com/$REPO/releases/download/$CHANNEL_TAG/Labterm-Dev_aarch64.app.tar.gz"
+          jq --arg url "$url" --rawfile sig out/Labterm-Dev_aarch64.app.tar.gz.sig \
+            '.platforms["darwin-aarch64"] = {url: $url, signature: $sig}
+             | .platforms["darwin-aarch64-app"] = {url: $url, signature: $sig}' feed/latest.json > out/latest.json
+          (cd out && sha256sum -- *.dmg *.app.tar.gz) >> feed/SHA256SUMS.txt
+          cp feed/SHA256SUMS.txt out/SHA256SUMS.txt
+          gh release upload "$CHANNEL_TAG" --clobber out/*.dmg out/*.app.tar.gz out/*.app.tar.gz.sig out/SHA256SUMS.txt
+          gh release upload "$CHANNEL_TAG" --clobber out/latest.json

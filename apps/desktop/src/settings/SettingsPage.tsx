@@ -40,7 +40,7 @@ import { useSnackbar } from "@/components/Snackbar";
 import { Loading, Mono, SectionCard, SettingRow } from "@/components/ui";
 import * as ipc from "@/ipc/commands";
 import { useAppInfo, useSaveSettings, useSettings } from "@/ipc/hooks";
-import { UPDATES_ENABLED } from "@/update/store";
+import { useUpdatesEnabled } from "@/update/store";
 import { UpdatesCard } from "@/update/UpdatesCard";
 import { FontPicker, FontPreview } from "./FontPicker";
 import { KeyboardPage } from "./KeyboardPage";
@@ -80,10 +80,10 @@ const ALL_PAGES: { id: PageId; label: string; icon: ReactNode }[] = [
   { id: "updates", label: msg("Updates"), icon: <SystemUpdateAltRoundedIcon /> },
   { id: "about", label: msg("About"), icon: <InfoOutlinedIcon /> },
 ];
-const PAGES = ALL_PAGES.filter((p) => UPDATES_ENABLED || p.id !== "updates");
-
 export function SettingsPage() {
   const page = useNav((s) => s.settingsPage);
+  const updatesEnabled = useUpdatesEnabled();
+  const pages = ALL_PAGES.filter((p) => updatesEnabled || p.id !== "updates");
   return (
     <Box sx={{ flex: 1, minHeight: 0, display: "flex" }}>
       <Box
@@ -98,7 +98,7 @@ export function SettingsPage() {
         }}
       >
         <List dense disablePadding>
-          {PAGES.map((p) => (
+          {pages.map((p) => (
             <ListItemButton
               key={p.id}
               selected={page === p.id}
@@ -133,6 +133,8 @@ function PreferencesPage({
   const settings = useSettings();
   const save = useSaveSettings();
 
+  const updatesEnabled = useUpdatesEnabled();
+
   const update = (patch: Partial<Settings>) => {
     if (!settings.data) return;
     save.mutate(
@@ -157,7 +159,7 @@ function PreferencesPage({
         {page === "keyboard" && <KeyboardPage s={s} update={update} />}
         {page === "sftp" && <SftpPage s={s} update={update} />}
         {page === "logs" && <Logs s={s} update={update} />}
-        {UPDATES_ENABLED && page === "updates" && <UpdatesCard settings={s} onChange={update} />}
+        {updatesEnabled && page === "updates" && <UpdatesCard settings={s} onChange={update} />}
         {page === "about" && <About />}
       </Box>
     </PageBody>
@@ -955,7 +957,20 @@ function About() {
   return (
     <>
       <SectionCard title={tr("Labterm")}>
-        <SettingRow label={tr("Version")} control={<Value>{d ? d.version : "…"}</Value>} />
+        <SettingRow
+          label={tr("Version")}
+          control={
+            <Value>
+              {d ? d.version : "…"}
+              {d?.commit && (
+                <>
+                  {" "}
+                  <Mono secondary>{d.commit}</Mono>
+                </>
+              )}
+            </Value>
+          }
+        />
         <SettingRow label={tr("Platform")} control={<Value>{d?.platform ?? "…"}</Value>} />
         <SettingRow
           label={tr("Profile")}

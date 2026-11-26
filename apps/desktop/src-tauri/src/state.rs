@@ -23,7 +23,13 @@ use crate::sftp::SftpSessions;
 use crate::sync::Syncs;
 
 pub const PROFILE_ENV: &str = "TERMOSO_PROFILE_DIR";
-pub const PROFILE_NAME: &str = "default";
+/// Dev-channel builds keep their own profile (data and keychain entry), so a
+/// build from `main` never migrates or locks the stable app's vault.
+pub const PROFILE_NAME: &str = if crate::update::CHANNEL.is_some() {
+    "dev"
+} else {
+    "default"
+};
 const DB_FILE: &str = "vault.db";
 const LOGS_DIR: &str = "logs";
 const SETTINGS_META: &str = "desktop.settings";

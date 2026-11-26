@@ -6,9 +6,7 @@ import type { Settings, UpdateCheck } from "@/ipc/types";
 import { formatSize } from "@/sftp/format";
 import { checkForUpdates, installUpdate, restartToUpdate, useUpdate } from "./store";
 import { tr } from "@/i18n";
-
-export const DEFAULT_FEED =
-  "https://github.com/termoso/termoso/releases/latest/download/latest.json";
+import { useAppInfo } from "@/ipc/hooks";
 
 export function UpdatesCard({
   settings,
@@ -18,6 +16,7 @@ export function UpdatesCard({
   onChange: (patch: Partial<Settings>) => void;
 }) {
   const phase = useUpdate((s) => s.phase);
+  const appInfo = useAppInfo();
   const [feed, setFeed] = useState<string | null>(null);
   const busy = phase.kind === "checking" || phase.kind === "downloading";
 
@@ -75,7 +74,7 @@ export function UpdatesCard({
         last
         control={
           <TextField
-            placeholder={DEFAULT_FEED}
+            placeholder={appInfo.data?.updateFeed}
             value={feed ?? settings.updateUrl}
             onChange={(e) => setFeed(e.target.value)}
             onBlur={commitFeed}

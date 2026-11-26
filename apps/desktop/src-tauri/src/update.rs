@@ -16,14 +16,39 @@ use crate::state::AppState;
 
 pub const UPDATE_EVENT: &str = "update";
 
-/// Off in Labterm builds: the baked-in key and default feed are upstream
-/// Termoso's, so an "update" would replace Labterm with Termoso. Turn back on
-/// once Labterm has its own signing key and release feed.
-pub const ENABLED: bool = false;
+/// Release channel, set at build time: unset for stable releases, `dev` for
+/// the rolling builds from `main` (`.github/workflows/desktop-dev-channel.yml`).
+/// Each channel has its own feed and its own signing key.
+pub const CHANNEL: Option<&str> = option_env!("LABTERM_CHANNEL");
 
-/// Release feed used when `Settings::update_url` is empty.
-pub const DEFAULT_FEED: &str =
-    "https://github.com/termoso/termoso/releases/latest/download/latest.json";
+/// Release feed used when `Settings::update_url` is empty. Dev builds bake in
+/// the dev feed, so they never offer a stable build and stable never a dev one.
+pub const DEFAULT_FEED: &str = match option_env!("LABTERM_UPDATE_FEED") {
+    Some(feed) => feed,
+    None => "https://github.com/reykimedev/termoso/releases/latest/download/latest.json",
+};
+
+/// Upstream Termoso's updater key. A binary that still trusts it would accept
+/// Termoso's releases as updates and replace Labterm with Termoso, so the
+/// updater stays off in such a build.
+const UPSTREAM_PUBKEY: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENDMjE2QzA2NTRBQUEzQjgKUldTNG82cFVCbXdoelBNRER5bFBWcy82cWdWYUhwdk5sN3MzUXF5WU5YRnY4TUl5S0NxMHJUY2YK";
+
+/// Whether an updater public key from the config is one Labterm may trust.
+fn trusted_pubkey(pubkey: Option<&str>) -> bool {
+    matches!(pubkey.map(str::trim), Some(k) if !k.is_empty() && k != UPSTREAM_PUBKEY)
+}
+
+/// In-app updates work only when the binary carries Labterm's own key.
+pub fn enabled<R: Runtime>(app: &AppHandle<R>) -> bool {
+    let pubkey = app
+        .config()
+        .plugins
+        .0
+        .get("updater")
+        .and_then(|u| u.get("pubkey"))
+        .and_then(|k| k.as_str());
+    trusted_pubkey(pubkey)
+}
 
 /// Pending update found by the last check; kept in Rust so the webview only
 /// ever sees metadata.
@@ -89,7 +114,7 @@ fn emit<R: Runtime>(app: &AppHandle<R>, ev: UpdateEvent) {
 
 /// Contact the configured feed once and remember the result.
 pub async fn check<R: Runtime>(app: &AppHandle<R>) -> Result<Option<UpdateInfo>> {
-    if !ENABLED {
+    if !enabled(app) {
         return Err(DesktopError::new(
             "update",
             "in-app updates are turned off in this build",
@@ -248,6 +273,22 @@ mod tests {
         let u =
             feed_url("https://updates.example.org/termoso/{{target}}/{{current_version}}").unwrap();
         assert_eq!(u.host_str(), Some("updates.example.org"));
+    }
+
+    #[test]
+    fn upstream_or_missing_key_keeps_the_updater_off() {
+        assert!(!trusted_pubkey(None));
+        assert!(!trusted_pubkey(Some("")));
+        assert!(!trusted_pubkey(Some(UPSTREAM_PUBKEY)));
+        assert!(trusted_pubkey(Some(
+            "dW50cnVzdGVkIGNvbW1lbnQ6IG90aGVyIGtleQ=="
+        )));
+    }
+
+    #[test]
+    fn default_feed_is_labterms_own() {
+        assert!(!DEFAULT_FEED.contains("termoso/termoso"));
+        assert!(DEFAULT_FEED.starts_with("https://"));
     }
 
     #[test]
