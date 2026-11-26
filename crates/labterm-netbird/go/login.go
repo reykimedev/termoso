@@ -50,6 +50,9 @@ type loginOptions struct {
 	// The identity provider account to sign in as (mke-adm rather than
 	// mke); empty = whoever signs in.
 	Account string `json:"account"`
+	// Where the browser goes once it handed over the code (an app link
+	// that brings Labterm back to the front); empty shows a page instead.
+	ReturnURL string `json:"return_url,omitempty"`
 }
 
 type loginBegin struct {
@@ -327,20 +330,27 @@ func beginLogin(o loginOptions) (*pendingLogin, string, error) {
 		case q.Get("code") == "":
 			err = errors.New("sign-in failed: no code")
 		}
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		back := func(msg string) {
+			if o.ReturnURL != "" {
+				http.Redirect(w, r, o.ReturnURL, http.StatusFound)
+				return
+			}
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			fmt.Fprint(w, page(msg))
+		}
 		if err != nil {
 			select {
 			case p.errs <- err:
 			default:
 			}
-			fmt.Fprint(w, page("Sign-in failed. Go back to Labterm and try again."))
+			back("Sign-in failed. Go back to Labterm and try again.")
 			return
 		}
 		select {
 		case p.codes <- q.Get("code"):
 		default:
 		}
-		fmt.Fprint(w, page("Signed in. You can go back to Labterm."))
+		back("Signed in. You can go back to Labterm.")
 	})
 	p.server = &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 	if l6, err := net.Listen("tcp", net.JoinHostPort("::1", listenerPort(listener))); err == nil {

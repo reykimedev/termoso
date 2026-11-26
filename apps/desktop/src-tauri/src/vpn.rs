@@ -99,7 +99,12 @@ mod client {
     pub fn account(_: &Store, _: Uuid) -> Option<String> {
         None
     }
-    pub async fn sign_in_begin(_: &Arc<Store>, _: Uuid, _: Option<String>) -> Result<String> {
+    pub async fn sign_in_begin(
+        _: &Arc<Store>,
+        _: Uuid,
+        _: Option<String>,
+        _: Option<&str>,
+    ) -> Result<String> {
         Err(unavailable())
     }
     pub async fn sign_in_finish(_: &Arc<Store>, _: Uuid) -> Result<Option<String>> {
@@ -193,7 +198,8 @@ pub async fn ensure_signed_in(store: &Arc<Store>, resolved: Option<&ResolvedHost
 }
 
 async fn sign_in(store: &Arc<Store>, id: Uuid, account: Option<String>) -> Result<Option<String>> {
-    let url = client::sign_in_begin(store, id, account).await?;
+    // The desktop browser shows the "signed in" page; the user switches back.
+    let url = client::sign_in_begin(store, id, account, None).await?;
     if let Err(e) = tauri_plugin_opener::open_url(&url, None::<&str>) {
         client::sign_in_cancel(id);
         return Err(DesktopError::invalid(format!(

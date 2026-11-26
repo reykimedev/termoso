@@ -121,6 +121,11 @@ class MainActivity : FragmentActivity() {
             else -> return
         }
         val link = intent.dataString ?: return
+        if (intent.data?.scheme == "labterm" && intent.data?.host == "vpn-signed-in") {
+            // Only brings the app to the front; the sign-in dialog finishes on its own.
+            intent.action = Intent.ACTION_MAIN
+            return
+        }
         parseSsoLink(link)?.let {
             container.offerSso(it)
             // Consumed: a rotation must not replay the callback.
