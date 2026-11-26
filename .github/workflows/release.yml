@@ -195,8 +195,6 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           key: release-${{ matrix.artifact }}
-          # A PR's cache only serves that PR and evicts main's.
-          save-if: ${{ github.event_name != 'pull_request' }}
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -340,8 +338,6 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           key: android-release
-          # A PR's cache only serves that PR and evicts main's.
-          save-if: ${{ github.event_name != 'pull_request' }}
       - uses: taiki-e/cache-cargo-install-action@9ee83daaa7b96a6fab930949ecf1122bba04a389 # v3.0.8
         with:
           tool: cargo-ndk@4.1.2
@@ -419,8 +415,6 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           key: ios-release
-          # A PR's cache only serves that PR and evicts main's.
-          save-if: ${{ github.event_name != 'pull_request' }}
       - run: brew install xcodegen
       - run: sudo xcode-select -s "$(ls -d /Applications/Xcode_16*.app | sort -V | tail -1)"
       - name: Rust core (device, release) + Swift bindings + xcframework
