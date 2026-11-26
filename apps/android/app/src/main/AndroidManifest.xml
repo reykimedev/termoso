@@ -89,6 +89,14 @@
                 <data android:scheme="labterm" android:host="join" />
                 <data android:scheme="termoso" android:host="join" /> <!-- links from before the rename, rename:keep -->
             </intent-filter>
+            <!-- VPN sign-in done: the localhost callback sends the browser tab here, which brings
+                 the app back to the front (singleTask closes the tab above it). Carries no data. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="labterm" android:host="vpn-signed-in" />
+            </intent-filter>
             <!-- Single sign-on callback: the browser comes back with termoso://sso?flow=<id> only. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />

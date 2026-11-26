@@ -35,7 +35,7 @@ jobs:
       LABTERM_TEST_REQUIRE_SERVICES: "1"
       LABTERM_TEST_PG_DUMP: "1"
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: PostgreSQL 18 client
         run: |
           sudo install -d /usr/share/postgresql-common/pgdg
@@ -46,6 +46,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends postgresql-client-18 libudev-dev
           pg_dump --version
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - run: cargo test -p labterm-server --locked --test backup --test jobs -- --nocapture

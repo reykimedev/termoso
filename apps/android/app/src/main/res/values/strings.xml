@@ -36,6 +36,7 @@
         <item quantity="one">%d file connection</item>
         <item quantity="other">%d file connections</item>
     </plurals>
+    <string name="notif_vpn_sign_in">Signing in to %1$s</string>
     <plurals name="notif_tunnels">
         <item quantity="one">%d tunnel</item>
         <item quantity="other">%d tunnels</item>
