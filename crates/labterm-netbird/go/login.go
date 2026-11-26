@@ -10,6 +10,8 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -21,6 +23,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/netbirdio/netbird/client/iface/netstack"
@@ -71,6 +74,9 @@ type pendingLogin struct {
 	codes     chan string
 	errs      chan error
 	once      sync.Once
+	// Set while tnb_login_finish waits; otherwise a cancel closes the
+	// listener itself, so an abandoned sign-in never keeps its port.
+	finishing atomic.Bool
 }
 
 // Sign-ins in progress by handle. A map rather than cgo.Handle so a late
@@ -137,7 +143,39 @@ func mgmClient(ctx context.Context, o loginOptions, key wgtypes.Key) (*mgm.GrpcC
 	if err != nil {
 		return nil, fmt.Errorf("management URL: %w", err)
 	}
+	if err := probe(ctx, addr, tls); err != nil {
+		return nil, err
+	}
 	return mgm.NewClient(ctx, addr, key, tls)
+}
+
+// probe checks the management address the way gRPC will use it. NetBird's
+// client dials with retries until a deadline and then only says "context
+// deadline exceeded"; this names the step that fails (name, port, TLS,
+// HTTP/2) so a wrong URL or proxy setup is visible.
+func probe(ctx context.Context, addr string, useTLS bool) error {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	var d net.Dialer
+	conn, err := d.DialContext(ctx, "tcp", addr)
+	if err != nil {
+		return fmt.Errorf("cannot reach the management server at %s: %w", addr, err)
+	}
+	defer conn.Close()
+	if !useTLS {
+		return nil
+	}
+	host, _, _ := net.SplitHostPort(addr)
+	roots, _ := x509.SystemCertPool()
+	tc := tls.Client(conn, &tls.Config{ServerName: host, RootCAs: roots, NextProtos: []string{"h2"}})
+	if err := tc.HandshakeContext(ctx); err != nil {
+		return fmt.Errorf("TLS with the management server at %s failed: %w", addr, err)
+	}
+	if p := tc.ConnectionState().NegotiatedProtocol; p != "h2" {
+		return fmt.Errorf("the server at %s does not offer HTTP/2, which NetBird's gRPC needs: "+
+			"check the management URL and port, or that the reverse proxy passes gRPC through", addr)
+	}
+	return nil
 }
 
 func beginLogin(o loginOptions) (*pendingLogin, string, error) {
@@ -170,6 +208,7 @@ func beginLogin(o loginOptions) (*pendingLogin, string, error) {
 	// The first redirect URL whose localhost port is free, as NetBird does.
 	var listener net.Listener
 	var redirect string
+	var busy []string
 	for _, r := range cfg.GetRedirectURLs() {
 		u, err := url.Parse(r)
 		if err != nil || u.Port() == "" {
@@ -180,13 +219,20 @@ func beginLogin(o loginOptions) (*pendingLogin, string, error) {
 		}
 		l, err := net.Listen("tcp", net.JoinHostPort("127.0.0.1", u.Port()))
 		if err != nil {
+			busy = append(busy, u.Port())
 			continue
 		}
 		listener, redirect = l, r
 		break
 	}
 	if listener == nil {
-		return nil, "", errors.New("no free localhost port among the server's redirect URLs")
+		if len(busy) > 0 {
+			return nil, "", fmt.Errorf("localhost port %s for the sign-in is in use on this phone "+
+				"(another app, or an unfinished sign-in): close it or restart Labterm", strings.Join(busy, ", "))
+		}
+		return nil, "", fmt.Errorf("the NetBird server lists no http://localhost:<port> redirect URL "+
+			"for sign-in (it sent: %q); add http://localhost:53000 to its PKCE settings",
+			cfg.GetRedirectURLs())
 	}
 
 	state, err := randomHex(24)
@@ -433,6 +479,7 @@ func tnb_login_finish(h C.uintptr_t, timeoutMs C.int, ok *C.int) *C.char {
 		return cstr("no sign-in")
 	}
 	defer takeLogin(h, true)
+	p.finishing.Store(true)
 	timeout := time.Duration(timeoutMs) * time.Millisecond
 	if timeout <= 0 {
 		timeout = 5 * time.Minute
@@ -450,10 +497,16 @@ func tnb_login_finish(h C.uintptr_t, timeoutMs C.int, ok *C.int) *C.char {
 //
 //export tnb_login_cancel
 func tnb_login_cancel(h C.uintptr_t) {
-	if p := takeLogin(h, false); p != nil {
-		select {
-		case p.errs <- errors.New("sign-in cancelled"):
-		default:
-		}
+	p := takeLogin(h, false)
+	if p == nil {
+		return
+	}
+	select {
+	case p.errs <- errors.New("sign-in cancelled"):
+	default:
+	}
+	if !p.finishing.Load() {
+		takeLogin(h, true)
+		p.close()
 	}
 }

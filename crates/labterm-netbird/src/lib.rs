@@ -257,6 +257,22 @@ impl Netbird {
         })
     }
 
+    /// Join `config`'s network now, without a connection to a host (the
+    /// network list's "connect"). The peer stops after the idle time unless
+    /// a connection uses it.
+    pub async fn connect(
+        self: &Arc<Self>,
+        config: &NetworkConfig,
+        device_name: &str,
+        keys: &dyn PeerKeys,
+    ) -> Result<()> {
+        let node = self.node(config, device_name, keys).await?;
+        if node.streams.load(Ordering::SeqCst) == 0 {
+            self.clone().released(node);
+        }
+        Ok(())
+    }
+
     /// Whether a peer for `network` is running.
     pub async fn is_running(&self, network: Uuid) -> bool {
         self.nodes.lock().await.contains_key(&network)
@@ -301,7 +317,7 @@ impl Netbird {
         let slot = config.peer_slot();
         let saved = keys.load(&slot);
         if saved.is_none() && config.setup_key.is_none() {
-            return Err(CoreError::Ssh(format!(
+            return Err(CoreError::Transport(format!(
                 "{SIGN_IN_NEEDED} for \"{}\"",
                 config.label
             )));
@@ -328,16 +344,16 @@ impl Netbird {
             lib.start(&options)
         })
         .await
-        .map_err(|e| CoreError::Ssh(format!("netbird: {e}")))?
+        .map_err(|e| CoreError::Transport(format!("netbird: {e}")))?
         .map_err(|e| {
             if config.setup_key.is_none() && login_refused(&e) {
-                CoreError::Ssh(format!("{SIGN_IN_NEEDED} for \"{label}\": {e}"))
+                CoreError::Transport(format!("{SIGN_IN_NEEDED} for \"{label}\": {e}"))
             } else {
-                CoreError::Ssh(format!("NetBird \"{label}\": {e}"))
+                CoreError::Transport(format!("NetBird \"{label}\": {e}"))
             }
         })?;
         let result: StartResult = serde_json::from_str(&result)
-            .map_err(|e| CoreError::Ssh(format!("netbird: bad start result: {e}")))?;
+            .map_err(|e| CoreError::Transport(format!("netbird: bad start result: {e}")))?;
         let result_key = Zeroizing::new(result.private_key);
         if saved.as_deref() != Some(&*result_key) && !result_key.is_empty() {
             keys.save(&slot, &result_key);
@@ -393,14 +409,14 @@ impl Netbird {
             lib.login_begin(&options)
         })
         .await
-        .map_err(|e| CoreError::Ssh(format!("netbird: {e}")))?
-        .map_err(|e| CoreError::Ssh(format!("NetBird \"{label}\": {e}")))?;
+        .map_err(|e| CoreError::Transport(format!("netbird: {e}")))?
+        .map_err(|e| CoreError::Transport(format!("NetBird \"{label}\": {e}")))?;
         #[derive(Deserialize)]
         struct Begin {
             auth_url: String,
         }
         let begin: Begin = serde_json::from_str(&out)
-            .map_err(|e| CoreError::Ssh(format!("netbird: bad sign-in result: {e}")))?;
+            .map_err(|e| CoreError::Transport(format!("netbird: bad sign-in result: {e}")))?;
         Ok(SignIn {
             auth_url: begin.auth_url,
             handle,
@@ -425,11 +441,11 @@ impl Netbird {
                 lib.login_finish(handle, ms)
             })
             .await
-            .map_err(|e| CoreError::Ssh(format!("netbird: {e}")))?
-            .map_err(|e| CoreError::Ssh(format!("NetBird \"{}\": {e}", config.label)))?,
+            .map_err(|e| CoreError::Transport(format!("netbird: {e}")))?
+            .map_err(|e| CoreError::Transport(format!("NetBird \"{}\": {e}", config.label)))?,
         );
         let result: LoginResult = serde_json::from_str(&out)
-            .map_err(|e| CoreError::Ssh(format!("netbird: bad sign-in result: {e}")))?;
+            .map_err(|e| CoreError::Transport(format!("netbird: bad sign-in result: {e}")))?;
         let key = Zeroizing::new(result.private_key);
         keys.save(&config.peer_slot(), &key);
         // A peer that kept running on the old authorization starts afresh.
@@ -466,9 +482,9 @@ impl Netbird {
             lib.dial(handle, &host_owned, port, 20_000)
         })
         .await
-        .map_err(|e| CoreError::Ssh(format!("netbird: {e}")))?
+        .map_err(|e| CoreError::Transport(format!("netbird: {e}")))?
         .map_err(|e| {
-            CoreError::Ssh(format!(
+            CoreError::Transport(format!(
                 "{host}:{port} via NetBird \"{}\": {e}",
                 config.label
             ))

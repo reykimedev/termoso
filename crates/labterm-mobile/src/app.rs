@@ -986,6 +986,17 @@ impl LabtermApp {
         RUNTIME.block_on(crate::netbird::sign_in_finish(&self.store, &transport_id))
     }
 
+    /// Join a NetBird network now, without connecting to a host. Needs a
+    /// sign-in first when `transport_sign_in_needed`-style checks say so.
+    pub fn transport_connect(&self, transport_id: String) -> Result<()> {
+        RUNTIME.block_on(crate::netbird::connect(&self.store, &transport_id))
+    }
+
+    /// Whether the app has joined this network right now.
+    pub fn transport_running(&self, transport_id: String) -> bool {
+        RUNTIME.block_on(crate::netbird::is_running(&transport_id))
+    }
+
     /// Give up a sign-in in progress.
     pub fn transport_sign_in_cancel(&self, transport_id: String) {
         crate::netbird::sign_in_cancel(&transport_id);

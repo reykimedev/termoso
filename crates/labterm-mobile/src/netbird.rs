@@ -264,6 +264,25 @@ pub(crate) async fn sign_in_finish(store: &Arc<Store>, network_id: &str) -> Resu
     Ok(done.email)
 }
 
+/// Join a network now (signed in or with a setup key); it stops again when
+/// no connection uses it for a while.
+pub(crate) async fn connect(store: &Arc<Store>, network_id: &str) -> Result<()> {
+    let (id, c) = network(store, network_id)?;
+    NETBIRD
+        .connect(&c, &device_name(), &StoreKeys(store.clone()))
+        .await
+        .inspect_err(|e| tracing::warn!(network = %id, "netbird: connect failed: {e}"))?;
+    Ok(())
+}
+
+/// Whether this app has joined the network right now.
+pub(crate) async fn is_running(network_id: &str) -> bool {
+    match parse_id(network_id) {
+        Ok(id) => NETBIRD.is_running(id).await,
+        Err(_) => false,
+    }
+}
+
 /// Give up a sign-in (the user closed the browser).
 pub(crate) fn sign_in_cancel(network_id: &str) {
     let Ok(id) = parse_id(network_id) else { return };
