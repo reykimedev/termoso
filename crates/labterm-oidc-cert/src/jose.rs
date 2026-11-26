@@ -142,6 +142,9 @@ pub struct IdTokenClaims {
     /// Becomes the certificate's key id, as in opkssh.
     #[serde(default)]
     pub email: Option<String>,
+    /// The user name at the provider (Authentik: the username).
+    #[serde(default)]
+    pub preferred_username: Option<String>,
 }
 
 /// Decode the payload of a compact JWS. The signature is not checked here:

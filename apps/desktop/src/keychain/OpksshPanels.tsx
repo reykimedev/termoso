@@ -116,6 +116,18 @@ function OidcOptionsFields({
           ))}
         </TextField>
       )}
+      <TextField
+        value={value.account ?? ""}
+        onChange={(e) =>
+          onChange({ ...value, account: e.target.value.trim() ? e.target.value : null })
+        }
+        placeholder="alice-admin"
+        label={tr("Account")}
+        helperText={tr(
+          "Sign in as this user, e.g. your admin account. Keys with different accounts sign in separately. Empty: whoever signs in.",
+        )}
+        slotProps={{ htmlInput: { readOnly, ...mono } }}
+      />
       <FormControlLabel
         control={
           <Switch

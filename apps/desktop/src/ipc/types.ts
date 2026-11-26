@@ -998,6 +998,8 @@ export interface OidcKeyOptions {
   issuer?: string | null;
   client_id?: string | null;
   principals?: string[];
+  /** Provider account to sign in as (e.g. an admin account); absent = anyone. */
+  account?: string | null;
 }
 
 /** OpenID provider (vault entity `oidc_provider`), as hosts list it in /etc/opk/providers. */

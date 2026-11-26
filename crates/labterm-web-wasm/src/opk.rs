@@ -54,12 +54,14 @@ impl OidcLogin {
         authorization_endpoint: &str,
         token_endpoint: &str,
         redirect_uri: &str,
+        account: Option<String>,
     ) -> Result<OidcLogin, JsValue> {
         let cfg = ProviderConfig {
             issuer: issuer.to_string(),
             client_id: client_id.to_string(),
             client_secret: None,
             scopes: scopes.split_whitespace().map(str::to_string).collect(),
+            account,
         };
         let discovery = Discovery {
             issuer: issuer.to_string(),

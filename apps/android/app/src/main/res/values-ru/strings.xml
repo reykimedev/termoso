@@ -1909,6 +1909,10 @@
     <string name="netbird_reopen_browser">Открыть браузер снова</string>
     <string name="netbird_no_browser">Нет браузера для входа</string>
     <string name="netbird_signed_in_as">Вход в NetBird: %1$s</string>
+    <string name="openid_account">Учётная запись (необязательно)</string>
+    <string name="openid_account_hint">Входить под этим пользователем, например под учётной записью администратора. Ключи с разными учётными записями входят отдельно. Пусто: любой пользователь.</string>
+    <string name="netbird_account">Учётная запись (необязательно)</string>
+    <string name="netbird_account_hint">Входить под этим пользователем. Labterm отклонит вход под другим. Запоминается только на этом устройстве.</string>
 
     <!-- Own credentials on team hosts (personal overlays) -->
     <string name="overlay_title">Мои учётные данные</string>

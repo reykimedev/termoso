@@ -51,6 +51,10 @@ pub struct OidcKeySettings {
     /// token expires, which every host policy accepts.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reuse_secs: Option<u64>,
+    /// The account to sign in as; part of the settings, so sign-ins of
+    /// different accounts at one provider stay apart.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account: Option<String>,
 }
 
 impl OidcKeySettings {
@@ -60,6 +64,7 @@ impl OidcKeySettings {
             client_id: self.client_id.trim().to_owned(),
             client_secret: self.client_secret.clone().filter(|s| !s.is_empty()),
             scopes: self.scopes.clone(),
+            account: self.account.clone(),
         }
     }
 
@@ -115,6 +120,7 @@ pub fn normalize_provider(mut p: OidcProvider) -> Result<OidcProvider> {
         client_id: p.client_id.clone(),
         client_secret: None,
         scopes: Vec::new(),
+        account: None,
     }
     .validate()
     .map_err(|e| ClientError::invalid(e.to_string()))?;
@@ -213,6 +219,7 @@ pub fn resolve(store: &Store, key: &Entity<SshKey>) -> Result<Option<OidcKeySett
         scopes: provider.scopes,
         principals: options.principals,
         reuse_secs: provider.reuse_secs,
+        account: trimmed(&options.account),
     }))
 }
 
@@ -224,6 +231,7 @@ pub fn opkssh_key(label: &str, options: OidcKeyOptions) -> SshKey {
         oidc: Some(OidcKeyOptions {
             issuer: trimmed(&options.issuer),
             client_id: trimmed(&options.client_id),
+            account: trimmed(&options.account),
             principals: options
                 .principals
                 .into_iter()
@@ -748,6 +756,53 @@ mod tests {
 
         sign_out(&store, b).unwrap();
         assert_eq!(session(&store, a).unwrap(), None);
+    }
+
+    #[test]
+    fn accounts_at_one_provider_sign_in_apart() {
+        let store = Store::open_in_memory(SymmetricKey::generate()).unwrap();
+        let vault = store.local_vault().unwrap().id;
+        save_provider(&store, vault, None, provider("https://a.example.com", true)).unwrap();
+        let mke = store
+            .insert(vault, &opkssh_key("mke", OidcKeyOptions::default()))
+            .unwrap();
+        let adm = store
+            .insert(
+                vault,
+                &opkssh_key(
+                    "adm",
+                    OidcKeyOptions {
+                        account: Some(" mke-adm ".into()),
+                        ..Default::default()
+                    },
+                ),
+            )
+            .unwrap();
+        let key_mke = store.require::<SshKey>(mke).unwrap();
+        let key_adm = store.require::<SshKey>(adm).unwrap();
+        assert_eq!(
+            key_adm.data.oidc.as_ref().unwrap().account.as_deref(),
+            Some("mke-adm")
+        );
+        let s_mke = resolve(&store, &key_mke).unwrap().unwrap();
+        let s_adm = resolve(&store, &key_adm).unwrap().unwrap();
+        assert_eq!(s_adm.provider().account(), Some("mke-adm"));
+
+        remember(&store, mke, &s_mke, &fresh(now() + 3600)).unwrap();
+        assert!(matches!(
+            prepare(&store, &key_adm).unwrap(),
+            PreConnect::Login(_)
+        ));
+        remember(&store, adm, &s_adm, &fresh(now() + 3600)).unwrap();
+        assert!(matches!(
+            prepare(&store, &key_adm).unwrap(),
+            PreConnect::Cached(_)
+        ));
+
+        // Signing out one account keeps the other.
+        sign_out(&store, mke).unwrap();
+        assert_eq!(session(&store, mke).unwrap(), None);
+        assert!(session(&store, adm).unwrap().is_some());
     }
 
     #[test]

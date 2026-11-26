@@ -115,8 +115,17 @@ async fn dial_through_embedded_netbird() {
 
 /// Signs in like the phone does, with `tests/sso-login.py` as the browser.
 async fn sign_in(nb: &Arc<Netbird>, keys: &Arc<MemKeys>, net: &NetworkConfig) -> Option<String> {
+    sign_in_as(nb, keys, net, None).await.expect("sign-in")
+}
+
+async fn sign_in_as(
+    nb: &Arc<Netbird>,
+    keys: &Arc<MemKeys>,
+    net: &NetworkConfig,
+    account: Option<&str>,
+) -> Result<Option<String>, String> {
     let pending = nb
-        .sign_in(net, "labterm-e2e-sso", keys.as_ref())
+        .sign_in(net, "labterm-e2e-sso", account, keys.as_ref())
         .await
         .expect("sign-in start");
     assert!(
@@ -136,10 +145,9 @@ async fn sign_in(nb: &Arc<Netbird>, keys: &Arc<MemKeys>, net: &NetworkConfig) ->
     });
     let done = nb
         .finish_sign_in(pending, net, keys.as_ref(), Duration::from_secs(60))
-        .await
-        .expect("sign-in");
+        .await;
     assert!(browser.await.unwrap().success(), "browser step failed");
-    done.email
+    done.map(|d| d.email).map_err(|e| e.to_string())
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -175,5 +183,31 @@ async fn sign_in_joins_as_own_peer() {
     sign_in(&nb, &keys, &net).await;
     assert_eq!(*keys.load(&net.peer_slot()).unwrap(), *first);
     echo(&nb, &keys, net.clone(), &env("NB_E2E_TARGET_NAME")).await;
+    nb.stop_all().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a NetBird server; run tests/e2e.sh"]
+async fn sign_in_checks_the_account() {
+    let lib = Some(env("NB_E2E_LIB"));
+    let user = env("NB_E2E_SSO_USER");
+    let nb = Netbird::with_options(lib, Duration::from_secs(2));
+    let net = network(Uuid::new_v4(), None);
+
+    // Signing in as someone other than the network's account joins nothing.
+    let keys = Arc::new(MemKeys::default());
+    let err = sign_in_as(&nb, &keys, &net, Some("mke-adm"))
+        .await
+        .expect_err("signed in as the wrong account");
+    assert!(err.contains("mke-adm"), "{err}");
+    assert!(!nb.has_peer(&net, keys.as_ref()));
+
+    // The email's local part names the account too.
+    let local = user.split_once('@').map_or(user.as_str(), |(l, _)| l);
+    let email = sign_in_as(&nb, &keys, &net, Some(local))
+        .await
+        .expect("sign-in as the account");
+    assert_eq!(email.as_deref(), Some(user.as_str()));
+    assert!(nb.has_peer(&net, keys.as_ref()));
     nb.stop_all().await;
 }

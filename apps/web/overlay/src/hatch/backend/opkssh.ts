@@ -32,6 +32,7 @@ export interface OidcKeyOptions {
   issuer?: string | null;
   client_id?: string | null;
   principals?: string[];
+  account?: string | null;
 }
 
 /** What a key signs in with, provider and overrides merged. */
@@ -42,6 +43,7 @@ interface Settings {
   scopes: string[];
   principals: string[];
   reuseSecs: number | null;
+  account: string | null;
 }
 
 const now = () => Math.floor(Date.now() / 1000);
@@ -142,6 +144,7 @@ function resolve(k: Ent<SshKey>): Settings {
     scopes: p?.scopes ?? [],
     principals: o.principals ?? [],
     reuseSecs: p?.reuse_secs ?? null,
+    account: tidy(o.account),
   };
 }
 
@@ -153,6 +156,7 @@ function checkOptions(vaultId: Uuid, o: OidcKeyOptions): OidcKeyOptions {
     issuer: tidy(o.issuer),
     client_id: tidy(o.client_id),
     principals: (o.principals ?? []).map((p) => p.trim()).filter(Boolean),
+    account: tidy(o.account),
   };
   if (out.provider_id) {
     const p = st.get(out.provider_id, "oidc_provider");
@@ -224,7 +228,12 @@ export async function signIn(id: Uuid) {
       "This OpenID provider needs a client secret, which the web app cannot keep. Use a public client with PKCE.",
     );
   forget(id);
-  const p: Provider = { issuer: s.issuer, clientId: s.clientId, scopes: s.scopes };
+  const p: Provider = {
+    issuer: s.issuer,
+    clientId: s.clientId,
+    scopes: s.scopes,
+    account: s.account,
+  };
   const { result } = await popupLogin(
     p,
     (login, idToken) =>

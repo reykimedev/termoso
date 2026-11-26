@@ -94,6 +94,7 @@ fun NetbirdNetworksScreen(shell: ShellViewModel, onBack: () -> Unit) {
             hasSetupKey = false,
             team = signInOnly,
             signedIn = false,
+            account = null,
         )
     }
 
@@ -273,6 +274,7 @@ fun NetbirdSignInDialog(
     val scope = rememberCoroutineScope()
     var waiting by remember { mutableStateOf(false) }
     var url by remember { mutableStateOf<String?>(null) }
+    var account by remember { mutableStateOf(network.account.orEmpty()) }
 
     fun cancel() {
         if (waiting) scope.launch(NonCancellable) { repo.read { transportSignInCancel(id) } }
@@ -285,7 +287,12 @@ fun NetbirdSignInDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(stringResource(if (waiting) R.string.netbird_sign_in_waiting else R.string.netbird_sign_in_hint))
-                if (waiting) CircularProgressIndicator(Modifier.size(20.dp))
+                if (waiting) {
+                    CircularProgressIndicator(Modifier.size(20.dp))
+                } else {
+                    FormField(account, { account = it }, stringResource(R.string.netbird_account), placeholder = "alice-admin")
+                    Text(stringResource(R.string.netbird_account_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         },
         confirmButton = {
@@ -295,7 +302,7 @@ fun NetbirdSignInDialog(
                 TextButton(onClick = {
                     scope.launch {
                         try {
-                            val u = repo.read { transportSignInBegin(id) }
+                            val u = repo.read { transportSignInBegin(id, account.trim().ifEmpty { null }) }
                             url = u
                             if (!openBrowser(context, u)) {
                                 repo.read { transportSignInCancel(id) }
