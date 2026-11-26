@@ -12,11 +12,10 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 # Termoso's own browser crypto (OPAQUE, account and vault keys, entity encryption) at the pinned
-# release, built into the same module so there is one wasm file and one wasm-bindgen version.
+# commit, built into the same module so there is one wasm file and one wasm-bindgen version.
 termoso-wasm = { path = "../../web/upstream/crates/termoso-wasm" }
-# opkssh certificates from the Authentik sign-in. Lives in the Termoso fork until it is upstream;
-# pinned to a commit. Only the core: the browser does the HTTP itself.
-termoso-oidc-cert = { git = "https://github.com/reykimedev/termoso", rev = "f77dc6bb9a791b71efbaf1988ccfdb5d04e39610", default-features = false }
+# opkssh certificates, from the pinned fork. Only the core: the browser does the HTTP itself.
+termoso-oidc-cert = { path = "../../web/upstream/crates/termoso-oidc-cert", default-features = false }
 # The .termoso backup format: same Argon2id and XChaCha20-Poly1305 as the Termoso apps.
 termoso-crypto = { path = "../../web/upstream/crates/termoso-crypto", features = ["wasm"] }
 serde_json = { workspace = true }
