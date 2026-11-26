@@ -1718,6 +1718,8 @@ async fn ssh_connect<R: Runtime>(
             proxy: proxy.clone(),
             proxy_command: proxy_command.clone(),
             gateway: gateway_dial(app, resolved).await,
+            // Overlay networks (NetBird) are only built into the Android app so far.
+            transport: None,
             env: ssh_cfg.env_variables.clone(),
             agent_forwarding: ssh_cfg.agent_forwarding,
             x11: (ssh_cfg.forward_x11 && hop.is_none())

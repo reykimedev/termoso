@@ -388,6 +388,11 @@ jobs:
       - uses: android-actions/setup-android@v4
         with:
           packages: platform-tools platforms;android-36 build-tools;36.0.0 ndk;27.2.12479018
+      # The embedded NetBird client (crates/labterm-netbird/go) is a Go library in the APK.
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: crates/labterm-netbird/go/go.mod
+          cache-dependency-path: crates/labterm-netbird/go/go.sum
       - uses: gradle/actions/setup-gradle@v6
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
@@ -401,6 +406,24 @@ jobs:
           name: termoso-android-debug
           path: apps/android/app/build/outputs/apk/debug/*.apk
           retention-days: 7
+
+  # Embedded NetBird client against a real NetBird server (management, signal and relay
+  # built from the same release), a far-end peer and the Rust crate, all on loopback.
+  netbird:
+    name: netbird (embedded client e2e)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: netbird
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: crates/labterm-netbird/go/go.mod
+          cache-dependency-path: crates/labterm-netbird/go/go.sum
+      - run: cd crates/labterm-netbird/go && go vet ./...
+      - run: crates/labterm-netbird/tests/e2e.sh
 
   # Supply chain: RustSec advisories, license allow-list, banned crates and
   # registry sources for the whole workspace (deny.toml), plus the npm

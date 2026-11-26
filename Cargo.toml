@@ -11,6 +11,7 @@ members = [
     "crates/termoso-server",
     "crates/termoso-bridge",
     "crates/labterm-oidc-cert",
+    "crates/labterm-netbird",
     "crates/labterm-wasm",
     "crates/labterm-relay-proto",
     "crates/labterm-relay",
@@ -37,6 +38,7 @@ labterm-client = { path = "crates/labterm-client", default-features = false }
 termoso-bridge = { path = "crates/termoso-bridge" }
 labterm-awslc-rsa = { path = "crates/labterm-awslc-rsa" }
 labterm-oidc-cert = { path = "crates/labterm-oidc-cert", default-features = false }
+labterm-netbird = { path = "crates/labterm-netbird" }
 labterm-relay-proto = { path = "crates/labterm-relay-proto" }
 
 # mobile bindings

@@ -4799,6 +4799,7 @@ dependencies = [
  "labterm-client",
  "labterm-core",
  "labterm-crypto",
+ "labterm-netbird",
  "labterm-proto",
  "lzma-sys",
  "rand 0.10.3",
@@ -4819,6 +4820,21 @@ dependencies = [
  "uniffi",
  "uuid",
  "xz2",
+ "zeroize",
+]
+
+[[package]]
+name = "labterm-netbird"
+version = "0.12.1"
+dependencies = [
+ "labterm-core",
+ "labterm-proto",
+ "libc",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "uuid",
  "zeroize",
 ]
 

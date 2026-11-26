@@ -13,6 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Badge
+import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.CloudQueue
@@ -88,6 +89,7 @@ fun VaultScreen(
     onOpenSnippets: () -> Unit,
     onOpenKnownHosts: () -> Unit,
     onOpenOidcProviders: () -> Unit,
+    onOpenNetbird: () -> Unit,
     onOpenHistory: () -> Unit,
     onOpenLogs: () -> Unit,
 ) {
@@ -190,6 +192,13 @@ fun VaultScreen(
                     subtitle = stringResource(R.string.openid_providers_hint),
                     leading = { IconTile(Icons.Filled.Badge) },
                     modifier = Modifier.clickable(onClick = onOpenOidcProviders),
+                )
+                RowDivider()
+                ChevronRow(
+                    title = stringResource(R.string.netbird_networks),
+                    subtitle = stringResource(R.string.netbird_networks_subtitle),
+                    leading = { IconTile(Icons.Filled.Hub) },
+                    modifier = Modifier.clickable(onClick = onOpenNetbird),
                 )
             }
             Spacer(Modifier.height(24.dp))
