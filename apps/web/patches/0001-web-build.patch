@@ -1,0 +1,292 @@
+diff --git a/apps/desktop/index.html b/apps/desktop/index.html
+index ab13500..8150484 100644
+--- a/apps/desktop/index.html
++++ b/apps/desktop/index.html
+@@ -10,6 +10,6 @@
+   </head>
+   <body>
+     <div id="root"></div>
+-    <script type="module" src="/src/main.tsx"></script>
++    <script type="module" src="/src/hatch/main.tsx"></script>
+   </body>
+ </html>
+diff --git a/apps/desktop/src/app/AppShell.tsx b/apps/desktop/src/app/AppShell.tsx
+index 1dd5fac..dce26c0 100644
+--- a/apps/desktop/src/app/AppShell.tsx
++++ b/apps/desktop/src/app/AppShell.tsx
+@@ -45,6 +45,7 @@ import { applyShortcutOverrides } from "./shortcuts";
+ import { CommandPalette } from "./CommandPalette";
+ import { startDeepLinks } from "./deepLinks";
+ import { startNotifications } from "./notifications";
++import { PhoneKeyBar, PhoneNav, usePhone } from "@/hatch/phone";
+ import { startTray } from "./tray";
+ import { tr } from "@/i18n";
+ import { usePermsSync } from "@/team/perms";
+@@ -113,6 +114,7 @@ function UnlockedShell() {
+   const serial = isSerialTab(activeTabId);
+   const account = useAccount();
+   const settings = useSettings();
++  const phone = usePhone();
+ 
+   useSyncNotices();
+   useCloudSyncEvents();
+@@ -158,7 +160,7 @@ function UnlockedShell() {
+     >
+       <TopBar />
+       <Box sx={{ flex: 1, minHeight: 0, display: "flex" }}>
+-        {(home || sftp) && <Sidebar />}
++        {(home || sftp) && !phone && <Sidebar />}
+         <Box
+           sx={{
+             flex: 1,
+@@ -213,6 +215,8 @@ function UnlockedShell() {
+           </Box>
+         </Box>
+       </Box>
++      {phone && (home || sftp) && <PhoneNav />}
++      {phone && !home && !sftp && !newTab && !serial && <PhoneKeyBar />}
+       <TerminalOverlays />
+       <PaneLayer />
+       <DockPreviewLayer />
+diff --git a/apps/desktop/src/app/TopBar.tsx b/apps/desktop/src/app/TopBar.tsx
+index 78f1d26..434a9a4 100644
+--- a/apps/desktop/src/app/TopBar.tsx
++++ b/apps/desktop/src/app/TopBar.tsx
+@@ -1,4 +1,5 @@
+ import { Box, Divider, IconButton, Tooltip, Typography, alpha, keyframes } from "@mui/material";
++import { usePhone } from "@/hatch/phone";
+ import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
+ import AddRoundedIcon from "@mui/icons-material/AddRounded";
+ import AddBoxRoundedIcon from "@mui/icons-material/AddBoxRounded";
+@@ -68,7 +69,7 @@ import { AppMenuButton } from "./AppMenu";
+ import { TeamBlock } from "./TeamBlock";
+ import { WindowControls } from "./WindowControls";
+ import { VaultMenu, useActiveVault } from "./vault";
+-import { IS_MAC, MAC_TRAFFIC_LIGHTS_WIDTH } from "@/lib/platform";
++import { IS_MAC, IS_WEB, MAC_TRAFFIC_LIGHTS_WIDTH } from "@/lib/platform";
+ import { withHint } from "./shortcuts";
+ import { useEffect, useState } from "react";
+ import { tr, trn } from "@/i18n";
+@@ -131,6 +132,7 @@ export function TopBar() {
+   const vault = useActiveVault();
+   const [vaultMenu, setVaultMenu] = useState<HTMLElement | null>(null);
+   const multiVault = vault.vaults.length > 1;
++  const phone = usePhone();
+ 
+   return (
+     <Box
+@@ -143,7 +145,7 @@ export function TopBar() {
+         bgcolor: "surface.lowest",
+         borderBottom: 1,
+         borderColor: "border.light",
+-        pl: IS_MAC ? `${MAC_TRAFFIC_LIGHTS_WIDTH}px` : 1,
++        pl: IS_MAC && !IS_WEB ? `${MAC_TRAFFIC_LIGHTS_WIDTH}px` : 1,
+         userSelect: "none",
+       }}
+     >
+@@ -185,12 +187,12 @@ export function TopBar() {
+         }
+       />
+       <VaultMenu anchor={vaultMenu} onClose={() => setVaultMenu(null)} />
+-      <TopTab
++      {!phone && <TopTab
+         active={activeTabId === SFTP_TAB}
+         onClick={goToSftp}
+         icon={<FolderCopyRoundedIcon sx={{ fontSize: 16 }} />}
+         label={sftpCount > 0 ? tr("SFTP ({sftpCount})", { sftpCount }) : "SFTP"}
+-      />
++      />}
+       {tabs.length > 0 && <Divider orientation="vertical" flexItem sx={{ my: 1.25, mx: 0.5 }} />}
+       <Box
+         data-tauri-drag-region
+@@ -278,12 +280,14 @@ export function TopBar() {
+           </Tooltip>
+         </Box>
+       </Box>
+-      {active && <PaneTools tab={active} />}
+-      <Box sx={{ display: "flex", alignItems: "center", pl: 0.5, pr: 1 }}>
+-        {active && <Divider orientation="vertical" flexItem sx={{ my: 1.25, mr: 1 }} />}
+-        <TeamBlock />
+-      </Box>
+-      {!IS_MAC && <WindowControls />}
++      {active && !phone && <PaneTools tab={active} />}
++      {!phone && (
++        <Box sx={{ display: "flex", alignItems: "center", pl: 0.5, pr: 1 }}>
++          {active && <Divider orientation="vertical" flexItem sx={{ my: 1.25, mr: 1 }} />}
++          <TeamBlock />
++        </Box>
++      )}
++      {(!IS_MAC || IS_WEB) && <WindowControls />}
+     </Box>
+   );
+ }
+diff --git a/apps/desktop/src/app/WindowControls.tsx b/apps/desktop/src/app/WindowControls.tsx
+index c040919..e83669a 100644
+--- a/apps/desktop/src/app/WindowControls.tsx
++++ b/apps/desktop/src/app/WindowControls.tsx
+@@ -6,11 +6,17 @@ import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
+ import { getCurrentWindow } from "@tauri-apps/api/window";
+ import { useEffect, useState, type ReactNode } from "react";
+ import { tr } from "@/i18n";
++import { IS_WEB } from "@/lib/platform";
++import { WebControls } from "@/hatch/WebControls";
+ 
+ const win = getCurrentWindow();
+ 
+ /** Minimize / maximize / close for the undecorated main window. */
+ export function WindowControls() {
++  return IS_WEB ? <WebControls /> : <DesktopWindowControls />;
++}
++
++function DesktopWindowControls() {
+   const [maximized, setMaximized] = useState(false);
+ 
+   useEffect(() => {
+diff --git a/apps/desktop/src/components/ui.tsx b/apps/desktop/src/components/ui.tsx
+index 6bfa803..c7f13f8 100644
+--- a/apps/desktop/src/components/ui.tsx
++++ b/apps/desktop/src/components/ui.tsx
+@@ -38,6 +38,7 @@ import {
+ } from "react";
+ import { monoFontFamily, sizes } from "@/theme/theme";
+ import { tr } from "@/i18n";
++import { usePhone } from "@/hatch/phone";
+ 
+ /** Normalises an optional `sx` prop so it can be spread after base styles. */
+ type SxItem = Exclude<SxProps<Theme>, readonly unknown[]>;
+@@ -864,6 +865,7 @@ export function SidePanel({
+   width?: number;
+ }) {
+   const narrow = useNarrowWindow();
++  const phone = usePhone();
+   return (
+     <Box
+       component="aside"
+@@ -885,6 +887,7 @@ export function SidePanel({
+           maxWidth: "calc(100% - 48px)",
+           boxShadow: 8,
+         }),
++        ...(phone && { width: "100%", maxWidth: "100%", borderLeft: 0, boxShadow: 0 }),
+       }}
+     >
+       <Box
+diff --git a/apps/desktop/src/hosts/HostsPage.tsx b/apps/desktop/src/hosts/HostsPage.tsx
+index 6c61a9e..8be735f 100644
+--- a/apps/desktop/src/hosts/HostsPage.tsx
++++ b/apps/desktop/src/hosts/HostsPage.tsx
+@@ -132,7 +132,7 @@ import { TeamSteps } from "@/team/TeamSteps";
+ import { TagChip, tagColorMap } from "./TagChip";
+ import { connectActions } from "./ConnectSplit";
+ import { useHostDnd } from "./dnd";
+-import { IS_MAC } from "@/lib/platform";
++import { IS_MAC, IS_WEB } from "@/lib/platform";
+ import {
+   hostLink,
+   looksLikeTarget,
+@@ -1071,16 +1071,21 @@ export function HostsPage() {
+               })),
+             ]}
+           />
+-          <Button
+-            variant="tonal"
+-            startIcon={<TerminalRoundedIcon />}
+-            onClick={() => openTerminal({ kind: "local" })}
+-          >
+-            {tr("Terminal")}
+-          </Button>
+-          <Button variant="tonal" startIcon={<UsbRoundedIcon />} onClick={goToSerial}>
+-            {tr("Serial")}
+-          </Button>
++          {/* No local shell or serial port in the browser. */}
++          {!IS_WEB && (
++            <>
++              <Button
++                variant="tonal"
++                startIcon={<TerminalRoundedIcon />}
++                onClick={() => openTerminal({ kind: "local" })}
++              >
++                {tr("Terminal")}
++              </Button>
++              <Button variant="tonal" startIcon={<UsbRoundedIcon />} onClick={goToSerial}>
++                {tr("Serial")}
++              </Button>
++            </>
++          )}
+           {readOnly && <ViewOnlyChip sx={{ ml: 1 }} />}
+         </Toolbar>
+ 
+diff --git a/apps/desktop/src/lib/platform.ts b/apps/desktop/src/lib/platform.ts
+index a24b6bc..94f00ed 100644
+--- a/apps/desktop/src/lib/platform.ts
++++ b/apps/desktop/src/lib/platform.ts
+@@ -6,3 +6,6 @@ export const IS_MAC: boolean =
+ 
+ /** Width the native traffic lights occupy at the top-left on macOS. */
+ export const MAC_TRAFFIC_LIGHTS_WIDTH = 78;
++
++/** The browser build (Hatch): no Tauri, SSH in wasm through the relay. */
++export const IS_WEB: boolean = import.meta.env.VITE_TERMOSO_WEB === "1";
+diff --git a/apps/desktop/src/prompts/PromptHost.tsx b/apps/desktop/src/prompts/PromptHost.tsx
+index e93d4f3..ceb552f 100644
+--- a/apps/desktop/src/prompts/PromptHost.tsx
++++ b/apps/desktop/src/prompts/PromptHost.tsx
+@@ -20,6 +20,7 @@ import { useTerminal } from "@/terminal/store";
+ import { Field } from "@/components/ui";
+ import { answerPrompt, usePrompts } from "./store";
+ import { tr, trn, trx } from "@/i18n";
++import { IS_WEB } from "@/lib/platform";
+ 
+ /**
+  * Shows prompts as dialogs — except those of a terminal pane that is still on
+@@ -317,6 +318,51 @@ function HostKeyPrompt({
+   const [verified, setVerified] = useState(false);
+   const decide = (decision: "reject" | "accept_once" | "accept_and_save") =>
+     onAnswer({ kind: "host_key", decision });
++  // Web build: the relay could answer in the host's place, so a key that isn't
++  // already in the synced known hosts is never trusted from the browser.
++  if (IS_WEB)
++    return (
++      <PromptFrame
++        inline={inline}
++        title={changed ? tr("Host key has changed") : tr("Unknown host")}
++        onClose={() => decide("reject")}
++        maxWidth="sm"
++        actions={
++          <>
++            <Box sx={{ flex: 1 }} />
++            <Button variant="contained" color="inherit" autoFocus onClick={() => decide("reject")}>
++              {tr("Close")}
++            </Button>
++          </>
++        }
++      >
++        <Stack spacing={1.5}>
++          <Alert severity={changed ? "error" : "warning"} variant="outlined">
++            {changed
++              ? trx(
++                  "{target} answered with a different key than the one in your known hosts. Someone may be intercepting the connection, including the relay, or the server was reinstalled. Nothing was sent.",
++                  { target: <b>{prompt.target}</b> },
++                )
++              : trx(
++                  "{target} is not in your known hosts. The web app never trusts a key on first use, because the relay could be the one answering.",
++                  { target: <b>{prompt.target}</b> },
++                )}
++          </Alert>
++          {v.status === "unknown" && <KeyBlock info={v.key} />}
++          {v.status === "changed" && (
++            <>
++              <KeyBlock info={v.old} tone="old" />
++              <KeyBlock info={v.new} tone="new" />
++            </>
++          )}
++          <Typography variant="body2" color="text.secondary">
++            {tr(
++              "Check the fingerprint on the server's console. If it is right, trust it in Termoso on your desktop or phone; it syncs here.",
++            )}
++          </Typography>
++        </Stack>
++      </PromptFrame>
++    );
+   return (
+     <PromptFrame
+       inline={inline}

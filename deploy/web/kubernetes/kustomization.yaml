@@ -1,0 +1,24 @@
+# Example manifests for a BitsAndBricks cluster (handbook: blocks/kubernetes.md). Copy this folder to
+# the cluster repo's apps tier; ${CLUSTER_ISSUER} comes from cluster-vars via Flux postBuild.
+# Change the host names (routes.yaml, config.json, relay.yaml) and pin both images to a sha-<7> tag or digest from the Images workflow.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: hatch
+resources:
+  - namespace.yaml
+  - web.yaml
+  - relay.yaml
+  - routes.yaml
+  - networkpolicies.yaml
+configMapGenerator:
+  - name: hatch-relay-allowlist
+    files:
+      - allowlist.yaml
+  - name: hatch-web-config
+    files:
+      - config.json
+images:
+  - name: ghcr.io/bitsandbricks-ch/hatch-web
+    newTag: sha-0000000 # TODO: the sha-<7> tag the Images workflow printed
+  - name: ghcr.io/bitsandbricks-ch/hatch-relay
+    newTag: sha-0000000 # TODO: same commit as the web image

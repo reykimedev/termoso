@@ -1,0 +1,39 @@
+# Hatch for Termoso
+
+Hatch is [Termoso](https://github.com/termoso/termoso) in the browser, for a computer where you
+can't install software. The browser is a full Termoso device: it signs in to your Termoso
+server, unlocks your vault and runs SSH itself (russh compiled to WebAssembly), so keys and
+plaintext never leave the tab. A small relay only pipes the encrypted SSH stream from a
+WebSocket to TCP. The UI is Termoso's own desktop frontend, from the Termoso fork at a pinned commit.
+
+Hatch is an independent project and not part of Termoso.
+
+> **Status:** early. The web app signs in to a Termoso server, unlocks and syncs vaults, and runs
+> SSH and SFTP through the relay ([architecture](docs/architecture.md)). There is no demo mode:
+> it needs a Termoso server, an OpenID Connect provider and a relay ([deploy](docs/deploy.md)).
+
+<!-- TODO: screenshot (example data only) -->
+
+## Run it
+
+```sh
+git submodule update --init      # the Termoso fork at the pinned commit, in web/upstream
+./web/build.sh                   # the web app, in web/dist
+cargo test                       # ticket format and relay checks
+HATCH_RELAY_ALLOWLIST_FILE=deploy/kubernetes/allowlist.yaml cargo run -p hatch-relay
+```
+
+## Where things are
+
+| Path | What |
+| --- | --- |
+| `crates/hatch-proto` | Relay ticket format, shared by the relay and the browser |
+| `crates/hatch-relay` | The relay: allowlist, tickets, limits, audit log, `/healthz`, `/metrics` |
+| `web/upstream` | The Termoso fork at the pinned commit (submodule, never edited; [0011](docs/decisions/0011-upstream-is-the-fork.md)) |
+| `web/patches`, `web/overlay` | The changes to Termoso's frontend for the browser, and the web-only screens |
+| `deploy/` | Web server config and example Kubernetes manifests ([deploying](docs/deploy.md)) |
+| `docs/` | Architecture, [threat model](docs/threat-model.md), [decisions](docs/decisions/) |
+
+## Licence
+
+[AGPL-3.0](LICENSE), like Termoso, whose frontend it ships.
