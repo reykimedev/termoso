@@ -28,22 +28,22 @@ sed -i "s/^version: \"$old\"/version: \"$new\"/" packaging/snap/snapcraft.yaml
 node - "$new" <<'JS'
 const fs = require("fs");
 const v = process.argv[2];
-const p = "packaging/scoop/termoso.json";
+const p = "packaging/scoop/labterm.json";
 const m = JSON.parse(fs.readFileSync(p, "utf8"));
 m.version = v;
 for (const [arch, suffix] of [["64bit", "x64"], ["arm64", "arm64"]]) {
-  m.architecture[arch].url = `https://github.com/termoso/termoso/releases/download/v${v}/Labterm_${v}_${suffix}-setup.exe#/dl.7z`;
+  m.architecture[arch].url = `https://github.com/reykimedev/termoso/releases/download/v${v}/Labterm_${v}_${suffix}-setup.exe#/dl.7z`;
   m.architecture[arch].hash = "REPLACE_WITH_SHA256_FROM_RELEASE_SHA256SUMS";
 }
 fs.writeFileSync(p, JSON.stringify(m, null, 2) + "\n");
 JS
-(cd apps/desktop && npx --no prettier --write ../../packaging/scoop/termoso.json >/dev/null)
+(cd apps/desktop && npx --no prettier --write ../../packaging/scoop/labterm.json >/dev/null)
 
-f=packaging/flatpak/dev.termoso.Termoso.yml
+f=packaging/flatpak/dev.labdex.labterm.yml
 sed -i "s|/archive/refs/tags/v$old\.tar\.gz|/archive/refs/tags/v$new.tar.gz|; s|^\(        sha256: \).*|\1REPLACE_WITH_RELEASE_TARBALL_SHA256|" "$f"
-sed -i "s|raw.githubusercontent.com/termoso/termoso/v$old/|raw.githubusercontent.com/termoso/termoso/v$new/|g; s|  <releases>|  <releases>\n    <release version=\"$new\" date=\"$today\" />|" packaging/flatpak/dev.termoso.Termoso.metainfo.xml
+sed -i "s|raw.githubusercontent.com/reykimedev/termoso/v$old/|raw.githubusercontent.com/reykimedev/termoso/v$new/|g; s|  <releases>|  <releases>\n    <release version=\"$new\" date=\"$today\" />|" packaging/flatpak/dev.labdex.labterm.metainfo.xml
 
-f=packaging/fdroid/com.termoso.android.yml
+f=packaging/fdroid/dev.labdex.labterm.yml
 python3 - "$f" "$old" "$new" "$code" <<'PY'
 import re, sys
 path, old, new, code = sys.argv[1:]

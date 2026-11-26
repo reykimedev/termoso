@@ -77,22 +77,22 @@ jobs:
           # Store manifests and the Helm chart carry the version too.
           chart=$(sed -n 's/^appVersion: "\(.*\)"/\1/p' deploy/helm/labterm/Chart.yaml)
           snap=$(sed -n 's/^version: "\(.*\)"/\1/p' packaging/snap/snapcraft.yaml)
-          scoop=$(node -p "require('./packaging/scoop/termoso.json').version")
-          fdroid=$(sed -n 's/^CurrentVersion: \(.*\)/\1/p' packaging/fdroid/com.termoso.android.yml)
-          flatpak=$(sed -n 's|.*/archive/refs/tags/v\(.*\)\.tar\.gz|\1|p' packaging/flatpak/dev.termoso.Termoso.yml)
-          for pair in "deploy/helm/labterm/Chart.yaml=$chart" "packaging/snap/snapcraft.yaml=$snap" "packaging/scoop/termoso.json=$scoop" "packaging/fdroid/com.termoso.android.yml=$fdroid" "packaging/flatpak/dev.termoso.Termoso.yml=$flatpak"; do
+          scoop=$(node -p "require('./packaging/scoop/labterm.json').version")
+          fdroid=$(sed -n 's/^CurrentVersion: \(.*\)/\1/p' packaging/fdroid/dev.labdex.labterm.yml)
+          flatpak=$(sed -n 's|.*/archive/refs/tags/v\(.*\)\.tar\.gz|\1|p' packaging/flatpak/dev.labdex.labterm.yml)
+          for pair in "deploy/helm/labterm/Chart.yaml=$chart" "packaging/snap/snapcraft.yaml=$snap" "packaging/scoop/labterm.json=$scoop" "packaging/fdroid/dev.labdex.labterm.yml=$fdroid" "packaging/flatpak/dev.labdex.labterm.yml=$flatpak"; do
             [ "${pair#*=}" = "$ws" ] || { echo "::error::${pair%%=*} carries version ${pair#*=}, Cargo.toml has $ws"; exit 1; }
           done
           # The version field alone is not enough: download URLs, the F-Droid
           # build list and the AppStream release list carry it too.
-          grep -q "releases/download/v$ws/Labterm_${ws}_x64-setup.exe" packaging/scoop/termoso.json \
-            || { echo "::error::packaging/scoop/termoso.json download URLs are not at $ws"; exit 1; }
-          grep -q "^  - versionName: $ws\$" packaging/fdroid/com.termoso.android.yml \
-            || { echo "::error::packaging/fdroid/com.termoso.android.yml has no Builds entry for $ws"; exit 1; }
-          grep -q "<release version=\"$ws\"" packaging/flatpak/dev.termoso.Termoso.metainfo.xml \
+          grep -q "releases/download/v$ws/Labterm_${ws}_x64-setup.exe" packaging/scoop/labterm.json \
+            || { echo "::error::packaging/scoop/labterm.json download URLs are not at $ws"; exit 1; }
+          grep -q "^  - versionName: $ws\$" packaging/fdroid/dev.labdex.labterm.yml \
+            || { echo "::error::packaging/fdroid/dev.labdex.labterm.yml has no Builds entry for $ws"; exit 1; }
+          grep -q "<release version=\"$ws\"" packaging/flatpak/dev.labdex.labterm.metainfo.xml \
             || { echo "::error::metainfo.xml has no <release> for $ws"; exit 1; }
           lic=$(sed -n 's/^license = "\(.*\)"/\1/p' Cargo.toml | head -1)
-          for f in packaging/snap/snapcraft.yaml packaging/scoop/termoso.json packaging/fdroid/com.termoso.android.yml packaging/flatpak/dev.termoso.Termoso.metainfo.xml; do
+          for f in packaging/snap/snapcraft.yaml packaging/scoop/labterm.json packaging/fdroid/dev.labdex.labterm.yml packaging/flatpak/dev.labdex.labterm.metainfo.xml; do
             grep -q "$lic" "$f" || { echo "::error::$f does not carry the $lic license"; exit 1; }
           done
           if [ "$GITHUB_REF_TYPE" = tag ]; then
