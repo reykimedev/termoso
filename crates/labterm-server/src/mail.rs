@@ -374,7 +374,7 @@ mod tests {
     /// sample emails there for eyeballing in a browser / mail client.
     #[test]
     fn dump_samples() {
-        let Ok(dir) = std::env::var("LABTERM_MAIL_DUMP") else {
+        let Ok(dir) = labterm_proto::setting("LABTERM_MAIL_DUMP") else {
             return;
         };
         let name = "Termoso Cloud";

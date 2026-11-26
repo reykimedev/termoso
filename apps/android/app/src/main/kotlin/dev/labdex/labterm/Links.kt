@@ -3,6 +3,9 @@ package dev.labdex.labterm
 import java.net.URI
 import java.net.URISyntaxException
 
+/** App link schemes: termoso:// links from before the rename still open, and upstream servers send termoso://sso. rename:keep */
+private val APP_SCHEMES = setOf("labterm", "termoso") // rename:keep
+
 /** What an incoming `ACTION_VIEW` link asks the app to do. */
 enum class LinkKind { Invite, Join, Host, Action, Other }
 
@@ -12,7 +15,7 @@ enum class QuickAction { NewConnection, LocalTerminal, Sftp }
 /** The quick action a `labterm://` link asks for, or null. */
 fun quickAction(link: String): QuickAction? {
     val uri = runCatching { URI(link.trim()) }.getOrNull() ?: return null
-    if (uri.scheme?.lowercase() != "labterm" || !uri.rawPath.isNullOrEmpty() && uri.rawPath != "/") return null
+    if (uri.scheme?.lowercase() !in APP_SCHEMES || !uri.rawPath.isNullOrEmpty() && uri.rawPath != "/") return null
     return when (uri.host?.lowercase()) {
         "new" -> QuickAction.NewConnection
         "local" -> QuickAction.LocalTerminal
@@ -24,7 +27,7 @@ fun quickAction(link: String): QuickAction? {
 /** Host id from a `labterm://host/<id>` link, or null. */
 fun hostLinkId(link: String): String? {
     val uri = runCatching { URI(link.trim()) }.getOrNull() ?: return null
-    if (uri.scheme?.lowercase() != "labterm" || uri.host?.lowercase() != "host") return null
+    if (uri.scheme?.lowercase() !in APP_SCHEMES || uri.host?.lowercase() != "host") return null
     return uri.rawPath.orEmpty().split('/').filter { it.isNotEmpty() }.singleOrNull()
 }
 
@@ -49,7 +52,7 @@ fun classifyLink(link: String): LinkKind {
     }
     val segments = uri.rawPath.orEmpty().split('/').filter { it.isNotEmpty() }
     return when (uri.scheme?.lowercase()) {
-        "labterm" -> when {
+        in APP_SCHEMES -> when {
             segments.isEmpty() && quickAction(link) != null -> LinkKind.Action
             segments.size != 1 -> LinkKind.Other
             uri.host == "invite" -> LinkKind.Invite
@@ -83,7 +86,7 @@ fun parseSsoLink(link: String): String? {
     } catch (_: URISyntaxException) {
         return null
     }
-    if (uri.scheme?.lowercase() != "labterm" || uri.host?.lowercase() != "sso") return null
+    if (uri.scheme?.lowercase() !in APP_SCHEMES || uri.host?.lowercase() != "sso") return null
     if (uri.rawPath.orEmpty().trimEnd('/').isNotEmpty() || uri.rawFragment != null) return null
     if (uri.rawUserInfo != null || uri.port != -1) return null
     val query = uri.rawQuery ?: return null

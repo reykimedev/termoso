@@ -401,9 +401,11 @@ impl Config {
     pub fn load() -> Result<Self> {
         let mut figment =
             Figment::from(figment::providers::Serialized::defaults(Config::default()));
-        if let Ok(path) = std::env::var("LABTERM_CONFIG") {
+        if let Ok(path) = labterm_proto::setting("LABTERM_CONFIG") {
             figment = figment.merge(Toml::file(path));
         }
+        // Settings from before the rename, so existing deployments keep working.
+        figment = figment.merge(Env::prefixed("TERMOSO_").split("__").lowercase(true)); // rename:keep
         figment = figment.merge(Env::prefixed("LABTERM_").split("__").lowercase(true));
         let cfg: Config = figment.extract().context("invalid configuration")?;
         cfg.validate()?;

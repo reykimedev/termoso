@@ -35,6 +35,8 @@ use crate::terminal::{SharedTerminal, TermEvent, TermEvents, TermSize, TerminalS
 
 /// URL scheme of invitation links.
 pub const SCHEME: &str = "labterm";
+/// Scheme of links made before the rename; they still open.
+const OLD_SCHEME: &str = "termoso"; // rename:keep
 const PING_EVERY: Duration = Duration::from_secs(25);
 /// Output kept for late joiners.
 const REPLAY_BYTES: usize = 128 * 1024;
@@ -71,7 +73,9 @@ impl LiveLink {
     /// Is `s` a multiplayer link?
     pub fn looks_like(s: &str) -> bool {
         let s = s.trim();
-        if s.starts_with(&format!("{SCHEME}://join/")) || s.starts_with(&format!("{SCHEME}:join/"))
+        if [SCHEME, OLD_SCHEME]
+            .iter()
+            .any(|k| s.starts_with(&format!("{k}://join/")) || s.starts_with(&format!("{k}:join/")))
         {
             return true;
         }
@@ -85,24 +89,25 @@ impl LiveLink {
     /// Parse a link; the secret is validated (length) but nothing is contacted.
     pub fn parse(s: &str) -> Result<Self> {
         let u = Url::parse(s.trim()).map_err(|_| CoreError::Invalid("not a link".into()))?;
-        let (id, origin) = if u.scheme() == SCHEME && u.host_str() == Some("join") {
-            let id = u
-                .path_segments()
-                .and_then(|mut p| p.next().map(str::to_owned));
-            (id, None)
-        } else if u.scheme() == "https" || u.scheme() == "http" {
-            let path = u.path().trim_end_matches('/');
-            let Some((base, id)) = path.rsplit_once("/join/") else {
+        let (id, origin) =
+            if (u.scheme() == SCHEME || u.scheme() == OLD_SCHEME) && u.host_str() == Some("join") {
+                let id = u
+                    .path_segments()
+                    .and_then(|mut p| p.next().map(str::to_owned));
+                (id, None)
+            } else if u.scheme() == "https" || u.scheme() == "http" {
+                let path = u.path().trim_end_matches('/');
+                let Some((base, id)) = path.rsplit_once("/join/") else {
+                    return Err(CoreError::Invalid("not a multiplayer link".into()));
+                };
+                let mut origin = u.clone();
+                origin.set_query(None);
+                origin.set_fragment(None);
+                origin.set_path(&format!("{base}/"));
+                (Some(id.to_owned()), Some(origin))
+            } else {
                 return Err(CoreError::Invalid("not a multiplayer link".into()));
             };
-            let mut origin = u.clone();
-            origin.set_query(None);
-            origin.set_fragment(None);
-            origin.set_path(&format!("{base}/"));
-            (Some(id.to_owned()), Some(origin))
-        } else {
-            return Err(CoreError::Invalid("not a multiplayer link".into()));
-        };
         let id = id.ok_or_else(|| CoreError::Invalid("link has no session id".into()))?;
         let session_id =
             Uuid::parse_str(&id).map_err(|_| CoreError::Invalid("bad session id".into()))?;
@@ -1011,6 +1016,11 @@ mod tests {
             parsed.server.as_ref().map(Url::as_str),
             Some("https://cloud.example.org/")
         );
+
+        // Links shared before the rename still open.
+        let old = app.replacen(SCHEME, OLD_SCHEME, 1);
+        assert!(LiveLink::looks_like(&old));
+        assert_eq!(LiveLink::parse(&old).unwrap().session_id, link.session_id);
     }
 
     #[test]

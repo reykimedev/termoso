@@ -71,9 +71,10 @@ impl Ctx {
         Ok(Self {
             database_url: cfg.database_url.clone(),
             master_key_fingerprint: fingerprint(&key.to_b64()),
-            pg_dump: std::env::var("LABTERM_PG_DUMP").unwrap_or_else(|_| "pg_dump".into()),
-            pg_restore: std::env::var("LABTERM_PG_RESTORE").unwrap_or_else(|_| "pg_restore".into()),
-            age: std::env::var("LABTERM_AGE").unwrap_or_else(|_| "age".into()),
+            pg_dump: labterm_proto::setting("LABTERM_PG_DUMP").unwrap_or_else(|_| "pg_dump".into()),
+            pg_restore: labterm_proto::setting("LABTERM_PG_RESTORE")
+                .unwrap_or_else(|_| "pg_restore".into()),
+            age: labterm_proto::setting("LABTERM_AGE").unwrap_or_else(|_| "age".into()),
         })
     }
 }
@@ -485,7 +486,7 @@ pub async fn run_cli(cfg: &Config, args: &[String]) -> anyhow::Result<()> {
             let out = flag(args, "--out").ok_or_else(|| anyhow::anyhow!("backup --out <dir>"))?;
             let recipient = flag(args, "--age-recipient")
                 .map(str::to_string)
-                .or_else(|| std::env::var("LABTERM_BACKUP_AGE_RECIPIENT").ok());
+                .or_else(|| labterm_proto::setting("LABTERM_BACKUP_AGE_RECIPIENT").ok());
             let path = backup(&ctx, Path::new(out), recipient.as_deref()).await?;
             let m = read_manifest(&path).await?;
             println!("{}", path.display());

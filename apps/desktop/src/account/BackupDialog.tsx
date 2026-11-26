@@ -79,7 +79,8 @@ export async function pickBackupFile(): Promise<string | null> {
   const path = await openFile({
     title: tr("Open Labterm backup"),
     multiple: false,
-    filters: [{ name: "Labterm backup", extensions: [EXT] }],
+    // Backups made before the rename end in .termoso. rename:keep
+    filters: [{ name: "Labterm backup", extensions: [EXT, "termoso"] }], // rename:keep
   });
   return typeof path === "string" ? path : null;
 }

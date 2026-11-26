@@ -752,7 +752,7 @@ fn is_safe_redirect_for(web_url: &str, public_url: &str, r: &str) -> bool {
         return false;
     };
     match u.scheme() {
-        "labterm" => true,
+        "labterm" | "termoso" => true, // termoso://sso is what clients from before the rename send, rename:keep
         "http" | "https" => {
             let origin = u.origin();
             if !origin.is_tuple() || !u.username().is_empty() || u.password().is_some() {

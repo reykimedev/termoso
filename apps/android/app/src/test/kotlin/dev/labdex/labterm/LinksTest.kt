@@ -23,6 +23,7 @@ class LinksTest {
     fun joinLinks() {
         assertEquals(LinkKind.Join, classifyLink("labterm://join/$id?s=https%3A%2F%2Fapi.test%2F#$secret"))
         assertEquals(LinkKind.Join, classifyLink("labterm://join/$id"))
+        assertEquals(LinkKind.Join, classifyLink("termoso://join/$id")) // made before the rename, rename:keep
         assertEquals(LinkKind.Join, classifyLink("https://app.termoso.dev/join/$id#$secret"))
         assertEquals(LinkKind.Join, classifyLink("https://host.example/labterm/join/$id/#$secret"))
         assertEquals(LinkKind.Other, classifyLink("labterm://join/$id/extra#$secret"))

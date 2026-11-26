@@ -191,16 +191,16 @@ export type LinkTarget =
   | { kind: "unsupported"; url: string };
 
 /** Is this a multiplayer invitation link? */
-export const isLiveLink = (s: string) =>
-  /^(?:labterm:\/\/join\/|https?:\/\/[^\s?#]+\/join\/)[0-9a-f-]{36}(?:[/?][^#]*)?#[A-Za-z0-9_-]{40,}$/i.test(
-    s.trim(),
-  );
+// termoso:// links from before the rename still open. rename:keep
+const LIVE_LINK =
+  /^(?:(?:labterm|termoso):\/\/join\/|https?:\/\/[^\s?#]+\/join\/)[0-9a-f-]{36}(?:[/?][^#]*)?#[A-Za-z0-9_-]{40,}$/i; // rename:keep
+export const isLiveLink = (s: string) => LIVE_LINK.test(s.trim());
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Resolve an incoming `labterm://`, `ssh://` or `telnet://` URL. */
 export function parseLink(url: string): LinkTarget {
-  const s = url.trim();
+  const s = url.trim().replace(/^termoso:\/\//i, "labterm://"); // links from before the rename, rename:keep
   if (isLiveLink(s)) return { kind: "live", link: s };
   const a = /^labterm:\/\/(new|local|sftp)\/?(?:\?([^#]*))?(?:#.*)?$/i.exec(s);
   if (a?.[1]) {
