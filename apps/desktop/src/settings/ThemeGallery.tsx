@@ -24,6 +24,7 @@ import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
 import { SectionCard } from "@/components/ui";
 import {
   AUTO_THEME,
+  canonicalThemeId,
   customTheme,
   resolveTerminalTheme,
   terminalThemes,
@@ -86,7 +87,7 @@ export function ThemeGallery({
             key={t.id}
             theme={t}
             label={t.name}
-            selected={value === t.id}
+            selected={canonicalThemeId(value) === t.id}
             onClick={() => onChange(t.id)}
           />
         ))}

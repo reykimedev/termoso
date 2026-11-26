@@ -204,7 +204,7 @@ KEEP_EVERYWHERE = [
     r"com\.termoso\.ios[A-Za-z.]*",  # iOS keychain
     r'"termoso\.master(?:\.auth)?"',  # Android keystore aliases
     r'\?: "termoso(?:-debug)?"',  # signing key alias defaults
-    r"termoso-(?:dark|light)\b",  # saved terminal theme ids
+    r"termoso-(?:dark|light)\b",  # old terminal scheme ids, still mapped to the Labterm pair
     r'"termoso\.(?:theme|language|activeVault|teamSteps\.hidden|suggestPausedUntil|unlocked|device|session|sso\.next|session_ended)"',
     r"termoso://sso[A-Za-z/]*",  # the callback upstream servers accept
     r"TERMOSO_REPO_(?:DEPLOY|GPG)_KEY",  # GitHub secrets of upstream's package repo

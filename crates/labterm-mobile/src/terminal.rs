@@ -46,12 +46,12 @@ impl TerminalPalette {
     /// Labterm Dark.
     pub fn labterm_dark() -> Self {
         Self {
-            foreground: 0xF1F3F8,
-            background: 0x141826,
-            cursor: 0x2BB884,
+            foreground: 0xECECEA,
+            background: 0x0B0B0A,
+            cursor: 0xF59A23,
             ansi: vec![
-                0x1A1E2B, 0xF25E61, 0x2BB884, 0xF2C94C, 0x5AA9E6, 0xC58AF9, 0x4FD1C5, 0xC9CDDA,
-                0x5A6076, 0xFF8285, 0x5FD0A4, 0xFFDB7A, 0x8CC5F0, 0xDBB3FF, 0x84E7DD, 0xF2F4FA,
+                0x1E1E1C, 0xF2555A, 0x3ECF8E, 0xF5C84C, 0x5AA9FF, 0xE879F9, 0x4FD1C5, 0xC9C9C4,
+                0x5F5F5C, 0xFF7B7F, 0x6EE0AB, 0xFFDB7A, 0x8CC5FF, 0xF0A6FB, 0x84E7DD, 0xF2F2EF,
             ],
         }
     }

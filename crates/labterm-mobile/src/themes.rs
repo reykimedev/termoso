@@ -18,8 +18,17 @@ pub struct TerminalTheme {
     pub palette: TerminalPalette,
 }
 
-pub const LABTERM_DARK: &str = "termoso-dark";
-pub const LABTERM_LIGHT: &str = "termoso-light";
+pub const LABTERM_DARK: &str = "labterm-dark";
+pub const LABTERM_LIGHT: &str = "labterm-light";
+
+/// The current id for one saved before the rename (settings, synced hosts).
+pub(crate) fn canonical_id(key: &str) -> &str {
+    match key {
+        "termoso-dark" => LABTERM_DARK,   // rename:keep
+        "termoso-light" => LABTERM_LIGHT, // rename:keep
+        k => k,
+    }
+}
 
 fn luminance(rgb: u32) -> f32 {
     let r = ((rgb >> 16) & 255) as f32;
@@ -58,7 +67,7 @@ pub fn terminal_themes() -> Vec<TerminalTheme> {
 /// Look a scheme up by id or display name.
 #[uniffi::export]
 pub fn terminal_theme(key: String) -> Option<TerminalTheme> {
-    let key = key.trim();
+    let key = canonical_id(key.trim());
     all().into_iter().find(|t| t.id == key || t.name == key)
 }
 
@@ -130,13 +139,14 @@ pub(crate) fn resolve(store: &Store, key: &str) -> Option<TerminalTheme> {
 #[rustfmt::skip]
 fn all() -> Vec<TerminalTheme> {
     vec![
-    t("termoso-dark", "Labterm Dark", 0x141826, 0xF1F3F8, 0x2BB884, [
-        0x1A1E2B, 0xF25E61, 0x2BB884, 0xF2C94C, 0x5AA9E6, 0xC58AF9, 0x4FD1C5, 0xC9CDDA,
-        0x5A6076, 0xFF8285, 0x5FD0A4, 0xFFDB7A, 0x8CC5F0, 0xDBB3FF, 0x84E7DD, 0xF2F4FA,
+    // labdex's Blueprint palette, the same values as the desktop pair (apps/desktop/src/terminal/themes.ts).
+    t(LABTERM_DARK, "Labterm Dark", 0x0B0B0A, 0xECECEA, 0xF59A23, [
+        0x1E1E1C, 0xF2555A, 0x3ECF8E, 0xF5C84C, 0x5AA9FF, 0xE879F9, 0x4FD1C5, 0xC9C9C4,
+        0x5F5F5C, 0xFF7B7F, 0x6EE0AB, 0xFFDB7A, 0x8CC5FF, 0xF0A6FB, 0x84E7DD, 0xF2F2EF,
     ]),
-    t("termoso-light", "Labterm Light", 0xFFFFFF, 0x171B26, 0x1F8F66, [
-        0x171B26, 0xC93B3E, 0x1F8F66, 0xB08A12, 0x2C6B9C, 0x8A4FCF, 0x1C8C82, 0x9AA3B2,
-        0x5F6B7C, 0xF25E61, 0x2BB884, 0xD6A81C, 0x3D86BF, 0xA66BE8, 0x28A89C, 0xCBD2DC,
+    t(LABTERM_LIGHT, "Labterm Light", 0xFFFFFF, 0x1A1A19, 0xE8870E, [
+        0x1A1A19, 0xC2410C, 0x15803D, 0xA16207, 0x2563EB, 0xA21CAF, 0x0F766E, 0x8F8F8A,
+        0x5F5F5C, 0xDC5A1F, 0x1F9D50, 0xCA8A04, 0x3B82F6, 0xC026D3, 0x14958A, 0xD3D3CF,
     ]),
     t("flexoki-dark", "Flexoki Dark", 0x100F0F, 0xCECDC3, 0xCECDC3, [
         0x100F0F, 0xAF3029, 0x66800B, 0xAD8301, 0x205EA6, 0xA02F6F, 0x24837B, 0x878580,
@@ -403,6 +413,11 @@ mod tests {
         assert_eq!(themes[0].id, LABTERM_DARK);
         assert!(themes[0].dark);
         assert!(!terminal_theme("Labterm Light".into()).unwrap().dark);
+        // Ids saved before the rename still find the pair.
+        assert_eq!(
+            terminal_theme("termoso-light".into()).unwrap().id,
+            LABTERM_LIGHT
+        ); // rename:keep
         assert_eq!(
             terminal_theme(LABTERM_LIGHT.into()).unwrap().name,
             "Labterm Light"
