@@ -968,8 +968,16 @@ impl LabtermApp {
 
     /// Start signing in to a NetBird network: open the returned URL in a
     /// browser (Custom Tab), then call `transport_sign_in_finish`.
-    pub fn transport_sign_in_begin(&self, transport_id: String) -> Result<String> {
-        RUNTIME.block_on(crate::netbird::sign_in_begin(&self.store, &transport_id))
+    pub fn transport_sign_in_begin(
+        &self,
+        transport_id: String,
+        account: Option<String>,
+    ) -> Result<String> {
+        RUNTIME.block_on(crate::netbird::sign_in_begin(
+            &self.store,
+            &transport_id,
+            account,
+        ))
     }
 
     /// Wait (up to 5 minutes) for the browser to come back and join the

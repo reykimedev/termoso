@@ -2936,5 +2936,6 @@
   "ZOC Terminal": "ZOC Terminal",
   "Zoom": "Zoom",
   "Zoom in": "Zoom in",
-  "Zoom out": "Zoom out"
+  "Zoom out": "Zoom out",
+  "Sign in as this user, e.g. your admin account. Keys with different accounts sign in separately. Empty: whoever signs in.": "Sign in as this user, e.g. your admin account. Keys with different accounts sign in separately. Empty: whoever signs in."
 }

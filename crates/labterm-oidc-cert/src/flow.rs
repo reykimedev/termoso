@@ -35,6 +35,10 @@ pub struct ProviderConfig {
     /// Scopes; empty means `openid profile email`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub scopes: Vec<String>,
+    /// The account to sign in as (e.g. `mke-adm`): sent as `login_hint`
+    /// with `prompt=login`, and the ID token must name this user.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account: Option<String>,
 }
 
 impl ProviderConfig {
@@ -59,6 +63,36 @@ impl ProviderConfig {
         } else {
             format!("openid {}", self.scopes.join(" "))
         }
+    }
+
+    /// The account, trimmed; `None` when empty.
+    pub fn account(&self) -> Option<&str> {
+        self.account
+            .as_deref()
+            .map(str::trim)
+            .filter(|a| !a.is_empty())
+    }
+
+    /// Whether the ID token claims are for [`Self::account`] (always true
+    /// without one): its `preferred_username` or `email`, or the email's
+    /// local part, case-insensitive.
+    pub fn is_account(&self, claims: &crate::jose::IdTokenClaims) -> bool {
+        let Some(want) = self.account() else {
+            return true;
+        };
+        let want = want.to_lowercase();
+        let email = claims.email.as_deref().map(str::to_lowercase);
+        claims
+            .preferred_username
+            .as_deref()
+            .map(str::to_lowercase)
+            .as_deref()
+            == Some(&want)
+            || email.as_deref() == Some(&want)
+            || email
+                .as_deref()
+                .and_then(|e| e.split_once('@'))
+                .is_some_and(|(local, _)| local == want)
     }
 
     /// Where discovery lives.
@@ -156,6 +190,12 @@ impl LoginRequest {
             .append_pair("nonce", &cic.nonce())
             .append_pair("code_challenge", &pkce.challenge)
             .append_pair("code_challenge_method", "S256");
+        if let Some(account) = cfg.account() {
+            // Ask for this user, not whoever the browser is signed in as.
+            url.query_pairs_mut()
+                .append_pair("login_hint", account)
+                .append_pair("prompt", "login");
+        }
         Ok(Self {
             authorize_url: url,
             redirect_uri: redirect_uri.to_owned(),
@@ -253,6 +293,17 @@ impl LoginRequest {
         }
         if claims.exp.is_some_and(|exp| exp <= now_unix) {
             return Err(Error::IdToken("already expired".into()));
+        }
+        if !cfg.is_account(&claims) {
+            return Err(Error::IdToken(format!(
+                "signed in as {}, but this key uses the account {}",
+                claims
+                    .preferred_username
+                    .as_deref()
+                    .or(claims.email.as_deref())
+                    .unwrap_or(&claims.sub),
+                cfg.account().unwrap_or_default()
+            )));
         }
         let cic_token = self.cic.sign(key, id_token)?;
         PkToken::new(id_token.trim().to_owned(), cic_token)
@@ -370,6 +421,80 @@ mod tests {
         .unwrap();
         let e = req.code_from_redirect(&denied).unwrap_err().to_string();
         assert!(e.contains("access_denied: no"), "{e}");
+    }
+
+    #[test]
+    fn account_asks_for_that_user() {
+        let key = crate::generate_key().unwrap();
+        let plain = LoginRequest::new(&cfg(), &disc(), &key, "http://localhost:3000/cb").unwrap();
+        assert_eq!(param(&plain.authorize_url, "login_hint"), None);
+        assert_eq!(param(&plain.authorize_url, "prompt"), None);
+
+        let adm = ProviderConfig {
+            account: Some(" mke-adm ".into()),
+            ..cfg()
+        };
+        let req = LoginRequest::new(&adm, &disc(), &key, "http://localhost:3000/cb").unwrap();
+        assert_eq!(
+            param(&req.authorize_url, "login_hint").as_deref(),
+            Some("mke-adm")
+        );
+        assert_eq!(
+            param(&req.authorize_url, "prompt").as_deref(),
+            Some("login")
+        );
+        let blank = ProviderConfig {
+            account: Some("  ".into()),
+            ..cfg()
+        };
+        assert_eq!(blank.account(), None);
+    }
+
+    #[test]
+    fn finish_checks_the_account() {
+        let key = crate::generate_key().unwrap();
+        let adm = ProviderConfig {
+            account: Some("mke-adm".into()),
+            ..cfg()
+        };
+        let req = LoginRequest::new(&adm, &disc(), &key, "http://localhost:3000/cb").unwrap();
+        let claims = |extra: serde_json::Value| {
+            let mut c = serde_json::json!({
+                "iss": cfg().issuer, "sub": "u1", "aud": ["opkssh"],
+                "iat": 1000, "exp": 2000, "nonce": req.nonce(),
+            });
+            c.as_object_mut()
+                .unwrap()
+                .extend(extra.as_object().unwrap().clone());
+            id_token(c)
+        };
+        for ok in [
+            serde_json::json!({"preferred_username": "MKE-adm"}),
+            serde_json::json!({"email": "mke-adm@example.com"}),
+            serde_json::json!({"preferred_username": "x", "email": "Mke-Adm@example.com"}),
+        ] {
+            assert!(
+                req.finish(&adm, &key, &claims(ok.clone()), 1500).is_ok(),
+                "{ok}"
+            );
+        }
+        for bad in [
+            serde_json::json!({"preferred_username": "mke", "email": "mke@example.com"}),
+            serde_json::json!({"email": "mke-adm.example.com"}),
+            serde_json::json!({}),
+        ] {
+            let err = req
+                .finish(&adm, &key, &claims(bad.clone()), 1500)
+                .unwrap_err();
+            assert!(err.to_string().contains("mke-adm"), "{bad}: {err}");
+        }
+        // No account: anyone may sign in.
+        let any = LoginRequest::new(&cfg(), &disc(), &key, "http://localhost:3000/cb").unwrap();
+        let c = serde_json::json!({
+            "iss": cfg().issuer, "sub": "u1", "aud": ["opkssh"],
+            "iat": 1000, "exp": 2000, "nonce": any.nonce(), "preferred_username": "mke",
+        });
+        assert!(any.finish(&cfg(), &key, &id_token(c), 1500).is_ok());
     }
 
     #[test]

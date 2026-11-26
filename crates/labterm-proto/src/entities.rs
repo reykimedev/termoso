@@ -556,6 +556,11 @@ pub mod payload {
             /// Certificate principals; empty = opkssh's `opkssh-wildcard`.
             #[serde(default, skip_serializing_if = "Vec::is_empty")]
             pub principals: Vec<String>,
+            /// The provider account to sign in as (e.g. `mke-adm`); `None` =
+            /// whoever signs in. Keys with different accounts never share
+            /// a sign-in.
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            pub account: Option<String>,
         }
     }
 

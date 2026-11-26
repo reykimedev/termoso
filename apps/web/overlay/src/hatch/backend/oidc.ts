@@ -118,6 +118,8 @@ export interface Provider {
   clientId: string;
   /** Besides openid, profile and email. */
   scopes: string[];
+  /** Sign in as this user (login_hint); the ID token must name it. */
+  account?: string | null;
 }
 
 /** One pop-up sign-in; `finish` checks the ID token against the login's key and keeps the key. */
@@ -135,6 +137,7 @@ export async function popupLogin<T>(
     d.authorization_endpoint,
     d.token_endpoint,
     redirectUri(),
+    p.account ?? undefined,
   );
   const popup = window.open(login.authorizeUrl, "hatch-oidc", "popup,width=520,height=720");
   if (!popup) {

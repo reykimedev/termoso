@@ -130,6 +130,8 @@ pub struct OidcKeyChoice {
     pub client_id: Option<String>,
     /// Certificate principals; empty = opkssh's default.
     pub principals: Vec<String>,
+    /// Provider account to sign in as (e.g. `mke-adm`); `None` = anyone.
+    pub account: Option<String>,
 }
 
 impl OidcKeyChoice {
@@ -142,6 +144,7 @@ impl OidcKeyChoice {
             issuer: self.issuer,
             client_id: self.client_id,
             principals: self.principals,
+            account: self.account,
         })
     }
 }
@@ -153,6 +156,7 @@ impl From<OidcKeyOptions> for OidcKeyChoice {
             issuer: o.issuer,
             client_id: o.client_id,
             principals: o.principals,
+            account: o.account,
         }
     }
 }

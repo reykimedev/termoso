@@ -42,6 +42,18 @@ WireGuard key for the signed-in user; it is not stored. Later connections log
 in with that key alone until the server's peer login expiry runs out; then
 connecting asks to sign in again, which keeps the same peer.
 
+### Choosing the account
+
+People with more than one account at the identity provider (say `alice`
+and `alice-admin`, where only the admin account is in the NetBird group
+that reaches production) can type the account in the sign-in dialog. The
+app then asks the provider for that user (`login_hint` and `prompt=login`,
+so a browser already signed in as `alice` asks again), and refuses the
+sign-in before the peer registers when the ID token names anyone else. It
+matches `preferred_username`, `email` or the email's local part, ignoring
+case. The account is remembered on this phone only and never synced: it
+names one person, not the team.
+
 For Authentik, the NetBird application's provider needs the redirect URIs
 `http://localhost:53000/` and `http://localhost:54000/`, as in NetBird's
 Authentik guide; nothing app specific is needed.

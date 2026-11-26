@@ -167,6 +167,8 @@ struct LoginOptions<'a> {
     management_url: &'a str,
     private_key: &'a str,
     device_name: &'a str,
+    /// Identity provider account to sign in as; empty = anyone.
+    account: &'a str,
 }
 
 #[derive(Deserialize)]
@@ -364,11 +366,14 @@ impl Netbird {
 
     /// Start an SSO sign-in to `config`'s network. Open
     /// [`SignIn::auth_url`] in a browser, then call [`Self::finish_sign_in`].
-    /// Signing in again keeps this device's peer (the saved key).
+    /// Signing in again keeps this device's peer (the saved key). With an
+    /// `account` the provider is asked for that user, and a sign-in as
+    /// anyone else is refused before the peer registers.
     pub async fn sign_in(
         &self,
         config: &NetworkConfig,
         device_name: &str,
+        account: Option<&str>,
         keys: &dyn PeerKeys,
     ) -> Result<SignIn> {
         let saved = keys.load(&config.peer_slot());
@@ -377,6 +382,7 @@ impl Netbird {
                 management_url: &config.management_url,
                 private_key: saved.as_deref().map(String::as_str).unwrap_or(""),
                 device_name,
+                account: account.map(str::trim).unwrap_or(""),
             })
             .map_err(|e| CoreError::Invalid(e.to_string()))?,
         );

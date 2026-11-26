@@ -38,9 +38,13 @@ pub struct TransportItem {
     pub team: bool,
     /// This device has joined the network (signed in or registered).
     pub signed_in: bool,
+    /// The account this device signs in as (remembered on this device
+    /// only); `None` = whoever signs in.
+    pub account: Option<String>,
 }
 
 fn to_item(store: &Arc<Store>, e: Entity<Transport>) -> TransportItem {
+    let id = e.id;
     let team = !transports::setup_key_allowed(store, e.vault_id).unwrap_or(false);
     let signed_in = NetworkConfig::from_entity(&e)
         .is_some_and(|c| NETBIRD.has_peer(&c, &StoreKeys(store.clone())));
@@ -50,7 +54,30 @@ fn to_item(store: &Arc<Store>, e: Entity<Transport>) -> TransportItem {
         item.has_setup_key = false;
     }
     item.signed_in = signed_in;
+    item.account = account(store, id);
     item
+}
+
+/// Device-local: which account this device signs in to a network as. Kept
+/// off the synced entity because it names one person, not the team.
+const ACCOUNT_META: &str = "transport.netbird.account.";
+
+fn account(store: &Store, network: Uuid) -> Option<String> {
+    store
+        .meta(&format!("{ACCOUNT_META}{network}"))
+        .ok()
+        .flatten()
+}
+
+fn remember_account(store: &Store, network: Uuid, account: Option<&str>) {
+    let key = format!("{ACCOUNT_META}{network}");
+    let r = match account {
+        Some(a) => store.set_meta(&key, a),
+        None => store.delete_meta(&key),
+    };
+    if let Err(e) = r {
+        tracing::warn!("netbird: could not remember the account: {e}");
+    }
 }
 
 impl From<Entity<Transport>> for TransportItem {
@@ -65,6 +92,7 @@ impl From<Entity<Transport>> for TransportItem {
             has_setup_key: e.data.setup_key.is_some(),
             team: false,
             signed_in: false,
+            account: None,
         }
     }
 }
@@ -101,7 +129,10 @@ pub(crate) fn save(store: &Arc<Store>, item: TransportItem) -> Result<TransportI
 }
 
 pub(crate) fn delete(store: &Store, id: &str) -> Result<()> {
-    Ok(transports::delete(store, parse_id(id)?)?)
+    let id = parse_id(id)?;
+    transports::delete(store, id)?;
+    remember_account(store, id, None);
+    Ok(())
 }
 
 /// The process's NetBird peers (one per network in use).
@@ -181,11 +212,25 @@ fn network(store: &Store, id: &str) -> Result<(Uuid, NetworkConfig)> {
     Ok((id, c))
 }
 
-/// Start signing in to a network: returns the URL to open in a browser.
-pub(crate) async fn sign_in_begin(store: &Arc<Store>, network_id: &str) -> Result<String> {
+/// Start signing in to a network as `account` (`None` = anyone): returns
+/// the URL to open in a browser. The account is remembered on this device.
+pub(crate) async fn sign_in_begin(
+    store: &Arc<Store>,
+    network_id: &str,
+    account: Option<String>,
+) -> Result<String> {
     let (id, c) = network(store, network_id)?;
+    let account = account
+        .map(|a| a.trim().to_owned())
+        .filter(|a| !a.is_empty());
+    remember_account(store, id, account.as_deref());
     let pending = NETBIRD
-        .sign_in(&c, &device_name(), &StoreKeys(store.clone()))
+        .sign_in(
+            &c,
+            &device_name(),
+            account.as_deref(),
+            &StoreKeys(store.clone()),
+        )
         .await?;
     let url = pending.auth_url.clone();
     if let Some(old) = SIGN_INS

@@ -42,6 +42,9 @@ type loginOptions struct {
 	// peer. Signing in again with the same key keeps one peer per phone.
 	PrivateKey string `json:"private_key"`
 	DeviceName string `json:"device_name"`
+	// The identity provider account to sign in as (mke-adm rather than
+	// mke); empty = whoever signs in.
+	Account string `json:"account"`
 }
 
 type loginBegin struct {
@@ -207,6 +210,12 @@ func beginLogin(o loginOptions) (*pendingLogin, string, error) {
 	if a := cfg.GetAudience(); a != "" {
 		params = append(params, oauth2.SetAuthURLParam("audience", a))
 	}
+	if a := strings.TrimSpace(o.Account); a != "" {
+		// Ask for this user, not whoever the browser is signed in as.
+		params = append(params,
+			oauth2.SetAuthURLParam("login_hint", a),
+			oauth2.SetAuthURLParam("prompt", "login"))
+	}
 	authURL := p.oauth.AuthCodeURL(state, params...)
 
 	cbPath := "/"
@@ -273,6 +282,19 @@ func finishLogin(p *pendingLogin, timeout time.Duration) (loginResult, error) {
 	if err != nil {
 		return loginResult{}, fmt.Errorf("sign-in: %w", err)
 	}
+	claims := idClaims(tok)
+	if !isAccount(p.opts.Account, claims) {
+		// Checked before Register so the wrong user never gets this peer.
+		who := claims.PreferredUsername
+		if who == "" {
+			who = claims.Email
+		}
+		if who == "" {
+			who = "someone else"
+		}
+		return loginResult{}, fmt.Errorf("signed in as %s, but this network uses the account %s",
+			who, strings.TrimSpace(p.opts.Account))
+	}
 	jwt := tok.AccessToken
 	if p.useID {
 		id, _ := tok.Extra("id_token").(string)
@@ -294,26 +316,46 @@ func finishLogin(p *pendingLogin, timeout time.Duration) (loginResult, error) {
 	if _, err := client.Register("", jwt, info, nil, nil); err != nil {
 		return loginResult{}, fmt.Errorf("netbird: %w", err)
 	}
-	return loginResult{PrivateKey: p.key.String(), Email: emailOf(tok)}, nil
+	return loginResult{PrivateKey: p.key.String(), Email: claims.Email}, nil
 }
 
-// emailOf reads the email claim of the ID token for display only; nothing
-// trusts it.
-func emailOf(tok *oauth2.Token) string {
+type tokenClaims struct {
+	Email             string `json:"email"`
+	PreferredUsername string `json:"preferred_username"`
+}
+
+// idClaims reads the ID token that came straight from the token endpoint.
+// Its signature is not checked here: the management server checks the
+// token it is given, and these claims only show who signed in and catch
+// the wrong account before registering.
+func idClaims(tok *oauth2.Token) tokenClaims {
+	var claims tokenClaims
 	id, _ := tok.Extra("id_token").(string)
 	parts := strings.Split(id, ".")
 	if len(parts) != 3 {
-		return ""
+		return claims
 	}
 	raw, err := base64.RawURLEncoding.DecodeString(parts[1])
 	if err != nil {
-		return ""
-	}
-	var claims struct {
-		Email string `json:"email"`
+		return claims
 	}
 	_ = json.Unmarshal(raw, &claims)
-	return claims.Email
+	return claims
+}
+
+// isAccount is the rule of labterm-oidc-cert's ProviderConfig::is_account:
+// preferred_username, email, or the email's local part, ignoring case.
+func isAccount(account string, c tokenClaims) bool {
+	want := strings.ToLower(strings.TrimSpace(account))
+	if want == "" {
+		return true
+	}
+	email := strings.ToLower(c.Email)
+	if strings.ToLower(c.PreferredUsername) == want || email == want {
+		return true
+	}
+	local, _, found := strings.Cut(email, "@")
+	return found && local == want
 }
 
 // tnb_login_begin starts an SSO sign-in. On success it stores the handle in

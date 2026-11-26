@@ -1869,4 +1869,8 @@
     <string name="netbird_reopen_browser">Open browser again</string>
     <string name="netbird_no_browser">No browser to sign in with</string>
     <string name="netbird_signed_in_as">Signed in to NetBird as %1$s</string>
+    <string name="openid_account">Account (optional)</string>
+    <string name="openid_account_hint">Sign in as this user, for example your admin account. Keys with different accounts sign in separately. Empty: whoever signs in.</string>
+    <string name="netbird_account">Account (optional)</string>
+    <string name="netbird_account_hint">Sign in as this user. Labterm refuses a sign-in as anyone else. Remembered on this device only.</string>
 </resources>

@@ -119,7 +119,7 @@ fun NewOpksshKeyDialog(
             TextButton(enabled = !busy && label.isNotBlank(), onClick = {
                 busy = true
                 scope.launch {
-                    runCatching { repo.write { createOpksshKey(vaultId, label.trim(), OidcKeyChoice(provider, null, null, emptyList())) } }
+                    runCatching { repo.write { createOpksshKey(vaultId, label.trim(), OidcKeyChoice(provider, null, null, emptyList(), null)) } }
                         .onSuccess { onCreated(it.id) }
                         .onFailure { busy = false; onNotify(it.userMessage()) }
                 }
@@ -143,6 +143,7 @@ fun OidcKeyChoiceDialog(
     var issuer by remember { mutableStateOf(current?.issuer.orEmpty()) }
     var clientId by remember { mutableStateOf(current?.clientId.orEmpty()) }
     var principals by remember { mutableStateOf(current?.principals.orEmpty().joinToString(", ")) }
+    var account by remember { mutableStateOf(current?.account.orEmpty()) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.openid_provider)) },
@@ -153,6 +154,8 @@ fun OidcKeyChoiceDialog(
                 FormField(issuer, { issuer = it }, stringResource(R.string.openid_issuer))
                 FormField(clientId, { clientId = it }, stringResource(R.string.openid_client_id))
                 FormField(principals, { principals = it }, stringResource(R.string.openid_principals))
+                FormField(account, { account = it }, stringResource(R.string.openid_account), placeholder = "alice-admin")
+                Text(stringResource(R.string.openid_account_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         },
         confirmButton = {
@@ -163,6 +166,7 @@ fun OidcKeyChoiceDialog(
                         issuer.trim().ifEmpty { null },
                         clientId.trim().ifEmpty { null },
                         words(principals),
+                        account.trim().ifEmpty { null },
                     ),
                 )
             }) { Text(stringResource(R.string.save)) }

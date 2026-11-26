@@ -2880,5 +2880,6 @@
   "Settings on a tag (username, key, port…) apply to its hosts below their own and their groups' settings.": "Настройки тега (имя пользователя, ключ, порт…) действуют на его хосты с меньшим приоритетом, чем настройки самих хостов и их групп.",
   "Tag": "Тег",
   "tag “{label}”": "тег «{label}»",
-  "Tag saved": "Тег сохранён"
+  "Tag saved": "Тег сохранён",
+  "Sign in as this user, e.g. your admin account. Keys with different accounts sign in separately. Empty: whoever signs in.": "Входить под этим пользователем, например под учётной записью администратора. Ключи с разными учётными записями входят отдельно. Пусто: любой пользователь."
 }
