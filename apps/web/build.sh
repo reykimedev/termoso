@@ -32,7 +32,8 @@ cd "$work/apps/desktop"
 npm ci --no-audit --no-fund
 export VITE_HATCH_VERSION="${HATCH_VERSION:-$(git -C "$here/.." describe --tags --always 2>/dev/null || echo dev)}"
 export VITE_HATCH_COMMIT="${HATCH_COMMIT:-$(git -C "$here/.." rev-parse HEAD 2>/dev/null || echo dev)}"
-export VITE_TERMOSO_VERSION="$(git -C "$up" describe --tags 2>/dev/null | sed 's/^v//' || echo unknown)"
+VITE_TERMOSO_VERSION="$(git -C "$up" describe --tags 2>/dev/null | sed 's/^v//' || echo unknown)"
+export VITE_TERMOSO_VERSION
 # Hatch's own code meets upstream's lint and format rules; the type check covers everything.
 npx eslint src/hatch src/loader --ignore-pattern 'src/hatch/pkg/**'
 npx prettier --check "src/hatch/**/*.{ts,tsx}" "src/loader/*.js" "!src/hatch/pkg/**"
