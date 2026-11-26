@@ -30,6 +30,8 @@ What Hatch protects, from whom, and where it stops. Update it when a new way in 
 | A compromised build or a tampered server | Ship code that leaks keys | Reproducible builds, a release manifest signed with a key held by the release environment, SRI, a loader and service worker that check every file |
 | Someone with the unlocked laptop | Use open sessions | Idle lock after the user's Termoso setting; a lock button that closes sessions and forgets the vault key |
 | Someone with a copy of the browser profile | Read the vault from IndexedDB | Sealed with AES-GCM under the lock password (Argon2id, 64 MiB); the opkssh key is never stored |
+| Another member of a team vault, or the Termoso server | Pin a key for a host they don't own, or hand a new device a personal vault of their own making | Pins count only from the host's own vault, this browser's vault and a personal vault sealed with the account key; a personal key the server could have sealed is never opened ([0010](decisions/0010-who-vouches-for-a-host-key.md)) |
+| A team vault's policy | Is ignored by a client | Hatch enforces `auth = keys_only`, `jump_host_required` and `export = deny` like the Termoso apps; hosts behind a jump host or proxy don't open until Hatch can follow the chain |
 | Whoever can change `config.json` on the server | Point the app at another relay, identity provider or Termoso server | Not signed (it is deployment data). Another relay still only sees ciphertext and fails the host-key check; another identity provider shows its own address in the sign-in pop-up |
 
 ## What Hatch does not protect against

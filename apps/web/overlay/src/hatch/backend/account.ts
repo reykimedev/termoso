@@ -6,6 +6,7 @@ import { ApiError, call, normalizeServer } from "./api";
 import { fail } from "./errors";
 import { w, loadWasm } from "./wasm";
 import * as db from "./db";
+import * as policy from "./policy";
 import {
   type Account,
   type Ent,
@@ -308,6 +309,7 @@ export async function signOut(): Promise<null> {
   if (a) await call(a.serverUrl, "POST", "auth/logout", undefined, a.token).catch(() => undefined);
   const st = s();
   st.account = null;
+  policy.clear();
   const keep = new Set(st.vaults.filter((v) => v.kind === "local").map((v) => v.id));
   st.vaults = st.vaults.filter((v) => keep.has(v.id));
   if (st.vaults.length === 0) st.vaults.push(localVault());
@@ -352,29 +354,59 @@ export async function refreshVaults(): Promise<void> {
   if (!a) return;
   const list = await authed<{ vaults: ServerVault[] } | ServerVault[]>("GET", "vaults");
   const vaults = Array.isArray(list) ? list : list.vaults;
+  // Team policies travel with the vault list; a failed fetch keeps the last copy.
+  await authed<{ teams: { id: Uuid; policies?: policy.TeamPolicies | null }[] }>("GET", "teams")
+    .then((r) => policy.remember(r.teams))
+    .catch(() => undefined);
   const st = s();
   const old = new Map(st.vaults.map((v) => [v.id, v]));
   const next: VaultRec[] = st.vaults.filter((v) => v.kind === "local");
+  let refusedPersonal = false;
   for (const v of vaults) {
-    let key: string | null = null;
+    let offered: string | null = null;
+    let offeredSelf = false;
     if (v.sealed_key) {
       try {
-        key = w.open_vault_key(a.privateKey, v.sealed_key);
+        offered = w.open_vault_key(a.privateKey, v.sealed_key);
+        offeredSelf = w.sealed_key_is_self(a.privateKey, v.sealed_key);
       } catch {
-        key = null;
+        offered = null;
       }
     }
     const prev = old.get(v.id);
+    const personal = v.kind === "personal";
+    // A personal vault key the server could have made up (an anonymous box to our public key) is
+    // never used, not even on a new device: everything in that vault would be the server's
+    // choice, its pinned host keys too. Termoso seals personal keys with the account key.
+    if (personal && offered && !offeredSelf) {
+      offered = null;
+      refusedPersonal = true;
+    }
+    const held =
+      prev?.key && (!personal || prev.key_self)
+        ? { key: prev.key, version: prev.key_version }
+        : null;
+    // As termoso-core's account.rs: a key we hold is replaced only by a newer version; the
+    // server offering another key for the same version, or an older one, is ignored.
+    let key = held?.key ?? offered;
+    let keyVersion = held?.version ?? v.key_version;
+    let keySelf = held ? (prev?.key_self ?? false) : offeredSelf;
+    if (held && offered && v.key_version > held.version) {
+      key = offered;
+      keyVersion = v.key_version;
+      keySelf = offeredSelf;
+    }
     next.push({
       id: v.id,
       kind: v.kind,
       name: v.kind === "personal" ? "Personal" : v.name,
       team_id: v.team_id,
       role: v.my_role,
-      key_version: v.key_version,
+      key_version: keyVersion,
       key,
+      key_self: keySelf,
       // A rotated key means a full pull, so everything is read with the new one.
-      cursor: prev?.key_version === v.key_version ? prev.cursor : 0,
+      cursor: prev?.key_version === keyVersion ? prev.cursor : 0,
       is_default: v.kind === "personal",
       session_logging: v.session_logging,
     });
@@ -385,6 +417,12 @@ export async function refreshVaults(): Promise<void> {
     for (const v of next) if (v.kind === "local") v.is_default = false;
   st.vaults = next;
   changed();
+  if (refusedPersonal)
+    setStatus({
+      state: "error",
+      lastError:
+        "The server offered a personal vault key that your account did not seal, so Hatch did not open it. Open Termoso on a device you trust and sync, then try again.",
+    });
   void emit("sync", { kind: "vaultsChanged" });
 }
 

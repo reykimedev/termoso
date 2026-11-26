@@ -6,6 +6,7 @@ import { config } from "./config";
 import { asDesktopError, fail } from "./errors";
 import { tr } from "@/i18n";
 import * as oidc from "./oidc";
+import * as policy from "./policy";
 import { type Resolved, pins, resolve } from "./model";
 import { type Uuid, changed, s } from "./state";
 import { loadWasm, w } from "./wasm";
@@ -89,6 +90,8 @@ export function promptAnswer(id: string, answer: Record<string, unknown>): boole
 
 interface Plan {
   hostId: Uuid | null;
+  /** Vault of the host entity; its pins count for this host (model.ts `trustedPinVaults`). */
+  vaultId: Uuid | null;
   label: string;
   address: string;
   port: number;
@@ -97,6 +100,8 @@ interface Plan {
   env: [string, string][];
   colorScheme: string | null;
   keepAlive: number;
+  /** Team policy `auth = keys_only`: no password or keyboard-interactive sign-in. */
+  keysOnly?: boolean;
 }
 
 function planFor(target: Target): Plan {
@@ -105,6 +110,7 @@ function planFor(target: Target): Plan {
     const t = target as { address: string; username?: string | null; port?: number | null };
     return {
       hostId: null,
+      vaultId: null,
       label: t.address,
       address: t.address,
       port: t.port ?? 22,
@@ -118,6 +124,16 @@ function planFor(target: Target): Plan {
   if (target.kind !== "host")
     fail("unsupported", "The web app connects to SSH hosts only (no local shell, serial or Mosh).");
   const r: Resolved = resolve((target as { host_id: Uuid }).host_id);
+  // Going around a configured jump host or proxy would reach the host by another path than the
+  // one its owner set up, so such hosts don't open here until Hatch can follow the chain.
+  if (r.ssh.host_chain_id || r.ssh.proxy_id)
+    fail(
+      "unsupported",
+      "This host connects through a jump host or proxy, which the web app does not support yet.",
+    );
+  if (policy.jumpHostRequired(r.host.vaultId))
+    fail("forbidden", "team policy requires a jump host for this host; add one to its chain");
+  const keysOnly = policy.keysOnly(r.host.vaultId);
   const auth: Record<string, unknown>[] = [];
   if (r.key) {
     auth.push({
@@ -130,6 +146,7 @@ function planFor(target: Target): Plan {
   }
   return {
     hostId: r.host.id,
+    vaultId: r.host.vaultId,
     label: r.host.data.label,
     address: r.host.data.address,
     port: r.ssh.port ?? 22,
@@ -138,7 +155,8 @@ function planFor(target: Target): Plan {
     env: r.ssh.env_variables ?? [],
     colorScheme: r.ssh.color_scheme ?? null,
     keepAlive: r.ssh.keep_alive_interval ?? keepAlive,
-    ...(r.identity?.data.password ? { password: r.identity.data.password } : {}),
+    keysOnly,
+    ...(r.identity?.data.password && !keysOnly ? { password: r.identity.data.password } : {}),
   };
 }
 
@@ -186,8 +204,10 @@ async function run(id: Uuid, sess: Sess, target: Target, cols: number, rows: num
   const url = await ticket(plan.address, plan.port);
   const auth = [...plan.auth];
   if (oidc.certificate()) auth.push({ type: "opkssh" });
-  if (plan.password) auth.push({ type: "password", password: plan.password });
-  auth.push({ type: "keyboardInteractive" }, { type: "askPassword" });
+  if (!plan.keysOnly) {
+    if (plan.password) auth.push({ type: "password", password: plan.password });
+    auth.push({ type: "keyboardInteractive" }, { type: "askPassword" });
+  }
 
   const onEvent = (e: {
     type: string;
@@ -254,7 +274,7 @@ async function run(id: Uuid, sess: Sess, target: Target, cols: number, rows: num
         host: plan.address,
         port: plan.port,
         username: plan.username,
-        knownHosts: pins(),
+        knownHosts: pins(plan.vaultId),
         auth,
         term:
           typeof s().settings.termType === "string"
