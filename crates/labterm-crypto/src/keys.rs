@@ -7,7 +7,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 use crate::CryptoError;
 use crate::encoding::{b64, unb64_array};
 
-/// Length of every symmetric key in Termoso.
+/// Length of every symmetric key in Labterm.
 pub const KEY_LEN: usize = 32;
 
 /// A 256-bit symmetric key that is zeroed when dropped.

@@ -5,7 +5,7 @@ libproot.so, libproot-loader.so
   Build with Android patches from Termux: https://github.com/termux/termux-packages/tree/master/packages/proot
   License: GNU General Public License v2.0 (GPL-2.0-only). Full text: https://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
   Source for this exact build: the Termux package above (version 5.1.107-96). PRoot is run as a separate
-  process; Termoso itself is not linked against it.
+  process; Labterm itself is not linked against it.
 
 libtalloc.so
   talloc 2.5.0 — https://talloc.samba.org/

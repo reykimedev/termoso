@@ -3,7 +3,7 @@ title: Team SSH certificate authority
 description: Short-lived SSH certificates for every member's device, trusted by hosts through one TrustedUserCAKeys line.
 ---
 
-A team can run its own SSH certificate authority on the Termoso server. Instead of putting every member's public key into `authorized_keys` on every host, hosts trust one CA key, and the server hands each member's device a short-lived user certificate (8 hours by default). Removing a member or a device stops new certificates; nothing on the hosts has to change.
+A team can run its own SSH certificate authority on the Labterm server. Instead of putting every member's public key into `authorized_keys` on every host, hosts trust one CA key, and the server hands each member's device a short-lived user certificate (8 hours by default). Removing a member or a device stops new certificates; nothing on the hosts has to change.
 
 ## How it works
 
@@ -12,8 +12,8 @@ A team can run its own SSH certificate authority on the Termoso server. Instead 
 3. Every host of the team gets one line in `sshd_config`:
 
    ```sh
-   curl -fsS https://app.example.com/ca/<team-id> | sudo tee /etc/ssh/termoso_ca.pub >/dev/null
-   echo 'TrustedUserCAKeys /etc/ssh/termoso_ca.pub' | sudo tee -a /etc/ssh/sshd_config >/dev/null
+   curl -fsS https://app.example.com/ca/<team-id> | sudo tee /etc/ssh/labterm_ca.pub >/dev/null
+   echo 'TrustedUserCAKeys /etc/ssh/labterm_ca.pub' | sudo tee -a /etc/ssh/sshd_config >/dev/null
    sudo systemctl reload ssh
    ```
 
@@ -35,7 +35,7 @@ Teams that require admin approval of devices only issue certificates to approved
 ## Rotation and revocation
 
 - **Rotate** generates a new CA key. The previous key stays in the public trusted-keys text for a grace period (24 hours by default) so hosts that re-fetch it keep accepting unexpired certificates. Hosts that fetched the file once need to fetch it again — a cron entry that re-runs the `curl` line keeps them current.
-- **Revoke** marks a certificate as revoked and it is no longer renewed. Because sshd does not consult the server, a revoked but unexpired certificate still works on hosts that do not enforce a key revocation list. Keep lifetimes short, or export `GET /api/v1/teams/{id}/ca/revoked` (a KRL specification) and turn it into a KRL with `ssh-keygen -k -f /etc/ssh/revoked.krl -s termoso_ca.pub spec.txt`, referenced from `sshd_config` as `RevokedKeys`.
+- **Revoke** marks a certificate as revoked and it is no longer renewed. Because sshd does not consult the server, a revoked but unexpired certificate still works on hosts that do not enforce a key revocation list. Keep lifetimes short, or export `GET /api/v1/teams/{id}/ca/revoked` (a KRL specification) and turn it into a KRL with `ssh-keygen -k -f /etc/ssh/revoked.krl -s labterm_ca.pub spec.txt`, referenced from `sshd_config` as `RevokedKeys`.
 - Revoking a device or removing a member revokes their live certificates immediately.
 
 ## Audit

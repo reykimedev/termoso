@@ -287,7 +287,7 @@ fn config(opts: &ConnectOptions) -> Arc<Config> {
     }
     Arc::new(Config {
         client_id: russh::SshId::Standard(
-            format!("SSH-2.0-termoso_{}", crate::CLIENT_VERSION).into(),
+            format!("SSH-2.0-labterm_{}", crate::CLIENT_VERSION).into(),
         ),
         inactivity_timeout: None,
         keepalive_interval: opts.keepalive,

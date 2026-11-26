@@ -1,0 +1,28 @@
+# RustFS: S3-compatible storage for encrypted session logs. Clients upload and
+# download through pre-signed URLs, so port 9000 has to be reachable through
+# your reverse proxy at LABTERM_S3__PUBLIC_ENDPOINT.
+[Unit]
+Description=Labterm RustFS
+
+[Container]
+ContainerName=labterm-rustfs
+Image=docker.io/rustfs/rustfs:1.0.0
+Network=labterm.network
+Volume=labterm-rustfs.volume:/data
+EnvironmentFile=/etc/labterm/stack.env
+Environment=RUSTFS_CONSOLE_ENABLE=true
+PublishPort=127.0.0.1:9000:9000
+PublishPort=127.0.0.1:9001:9001
+NoNewPrivileges=true
+HealthCmd=curl -fsS http://127.0.0.1:9000/health
+HealthInterval=5s
+HealthTimeout=5s
+HealthRetries=20
+Notify=healthy
+
+[Service]
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

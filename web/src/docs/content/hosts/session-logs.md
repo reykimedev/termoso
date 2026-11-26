@@ -31,7 +31,7 @@ Below the recordings, the history lists every connection — saved hosts and qui
 
 Recordings are encrypted with your master key and stay on the device that made them; nothing is uploaded by default.
 
-On servers with object storage configured (`TERMOSO_S3__*`, see [Self-hosting](/docs/self-hosting/configuration)) the apps can keep session logs on the server too — encrypted on the device before upload, so the server only stores an opaque file and the metadata needed to list it. Team vault recordings uploaded this way are readable by the vault's members, which turns them into a shared audit trail of who did what on shared hosts.
+On servers with object storage configured (`LABTERM_S3__*`, see [Self-hosting](/docs/self-hosting/configuration)) the apps can keep session logs on the server too — encrypted on the device before upload, so the server only stores an opaque file and the metadata needed to list it. Team vault recordings uploaded this way are readable by the vault's members, which turns them into a shared audit trail of who did what on shared hosts.
 
 ## Android
 

@@ -1,0 +1,5 @@
+[Unit]
+Description=Labterm redis data
+
+[Volume]
+VolumeName=labterm-redis

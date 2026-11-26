@@ -1,4 +1,4 @@
-//! Termoso desktop: Tauri 2 shell. Rust owns state, storage, transport and
+//! Labterm desktop: Tauri 2 shell. Rust owns state, storage, transport and
 //! sessions; the webview only renders and forwards user input.
 
 mod account;
@@ -71,7 +71,7 @@ pub fn run() {
     }
     tracing_subscriber::fmt()
         .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_env("TERMOSO_LOG")
+            tracing_subscriber::EnvFilter::try_from_env("LABTERM_LOG")
                 .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("warn")),
         )
         .with_writer(std::io::stderr)
@@ -511,7 +511,7 @@ pub fn run() {
             commands_tools::update_restart,
         ])
         .build(context)
-        .expect("error while building Termoso")
+        .expect("error while building Labterm")
         .run(|app, event| match event {
             tauri::RunEvent::Exit => app.state::<AppState>().edits.close_all(),
             #[cfg(target_os = "macos")]

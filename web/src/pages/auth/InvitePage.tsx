@@ -104,7 +104,7 @@ export function InvitePage() {
         ) : (
           <>
             <Typography variant="body2" color="text.secondary">
-              {trx("Create a Termoso account for {email} to join the team.", { email: inv.email })}
+              {trx("Create a Labterm account for {email} to join the team.", { email: inv.email })}
             </Typography>
             <Button
               variant="contained"
@@ -132,7 +132,7 @@ export function InvitePage() {
           endIcon={<OpenInNewRoundedIcon />}
           data-testid="open-in-app"
         >
-          {tr("Open in the Termoso app")}
+          {tr("Open in the Labterm app")}
         </Button>
       </Stack>
     </>

@@ -40,7 +40,7 @@ The provider credentials are kept only in this device's encrypted local storage:
 
 ### Export
 
-**New host ▾ → Export CSV** writes the hosts of the current vault (or the selection) in the same CSV layout Termius uses, so a Termoso export imports into either client. Passwords and keys are not exported.
+**New host ▾ → Export CSV** writes the hosts of the current vault (or the selection) in the same CSV layout Termius uses, so a Labterm export imports into either client. Passwords and keys are not exported.
 
 ## Android
 
@@ -56,7 +56,7 @@ QR decoding runs on the device and the camera is only requested when you open th
 
 ## Import from Tailscale, NetBird or ZeroTier
 
-On the desktop, **New host ▾ → Import from Tailscale / NetBird…** lists the machines your overlay-network client knows about. Termoso only asks the client that is already installed and signed in on this computer (`tailscale status --json`, `netbird status --json`, `zerotier-cli -j listnetworks`); nothing is sent anywhere and nothing is stored until you click **Add**.
+On the desktop, **New host ▾ → Import from Tailscale / NetBird…** lists the machines your overlay-network client knows about. Labterm only asks the client that is already installed and signed in on this computer (`tailscale status --json`, `netbird status --json`, `zerotier-cli -j listnetworks`); nothing is sent anywhere and nothing is stored until you click **Add**.
 
 - Pick the devices to import, choose whether hosts connect by **DNS name** (MagicDNS / NetBird FQDN — survives address changes) or by **IP address**, and set an optional username, group and vault.
 - Devices already present in the vault (same name or address) are shown but skipped, so re-importing never creates duplicates. Offline peers are listed greyed out and can still be imported.

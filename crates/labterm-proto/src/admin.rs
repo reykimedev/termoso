@@ -345,19 +345,19 @@ schema! {
         pub started_at: OffsetDateTime,
         /// Seconds since start.
         pub uptime_secs: u64,
-        /// Display name (`TERMOSO_SERVER_NAME`).
+        /// Display name (`LABTERM_SERVER_NAME`).
         pub name: String,
-        /// API base URL as seen by clients (`TERMOSO_PUBLIC_URL`).
+        /// API base URL as seen by clients (`LABTERM_PUBLIC_URL`).
         pub public_url: String,
-        /// Cabinet URL (`TERMOSO_WEB_URL`).
+        /// Cabinet URL (`LABTERM_WEB_URL`).
         pub web_url: String,
-        /// Listen address (`TERMOSO_BIND`).
+        /// Listen address (`LABTERM_BIND`).
         pub bind: String,
-        /// Client IPs taken from `X-Forwarded-For` (`TERMOSO_TRUST_PROXY`).
+        /// Client IPs taken from `X-Forwarded-For` (`LABTERM_TRUST_PROXY`).
         pub trust_proxy: bool,
         /// Extra CORS origins.
         pub cors_origins: Vec<String>,
-        /// Log filter (`TERMOSO_LOG`).
+        /// Log filter (`LABTERM_LOG`).
         pub log: String,
         /// `text` | `json`.
         pub log_format: String,
@@ -365,7 +365,7 @@ schema! {
         pub data_region: Option<String>,
         /// Oldest client allowed to sign in.
         pub min_client_version: String,
-        /// `true` when `TERMOSO_MIN_CLIENT_VERSION` overrides the default (= server version).
+        /// `true` when `LABTERM_MIN_CLIENT_VERSION` overrides the default (= server version).
         pub min_client_version_overridden: bool,
         /// Delay before a start-over (account reset) completes.
         pub start_over_delay_secs: u64,
@@ -393,9 +393,9 @@ schema! {
         pub webhooks_syslog_ca: bool,
         /// Cloudflare Turnstile protects sign-up.
         pub turnstile: bool,
-        /// Bootstrap administrators (`TERMOSO_ADMIN_EMAILS`).
+        /// Bootstrap administrators (`LABTERM_ADMIN_EMAILS`).
         pub admin_emails: Vec<String>,
-        /// Fixed owner (`TERMOSO_OWNER_EMAIL`); `None` = first registered account.
+        /// Fixed owner (`LABTERM_OWNER_EMAIL`); `None` = first registered account.
         pub owner_email: Option<String>,
     }
 }

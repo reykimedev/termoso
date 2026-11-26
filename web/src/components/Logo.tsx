@@ -26,7 +26,7 @@ export function Logo({ size = 32, showName = true }: { size?: number; showName?:
           component="span"
           sx={{ fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1 }}
         >
-          {tr("Termoso")}
+          {tr("Labterm")}
         </Typography>
       )}
     </Box>

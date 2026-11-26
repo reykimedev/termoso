@@ -51,7 +51,7 @@ function BackupCard() {
       <SettingRow
         label={tr("Export encrypted backup")}
         hint={tr(
-          "All unlocked vaults in one password-protected .termoso file. Works offline, no account needed.",
+          "All unlocked vaults in one password-protected .labterm file. Works offline, no account needed.",
         )}
         control={
           <Button
@@ -65,7 +65,7 @@ function BackupCard() {
       />
       <SettingRow
         label={tr("Restore from backup")}
-        hint={tr("Merges a .termoso file into a vault of this device; nothing is deleted.")}
+        hint={tr("Merges a .labterm file into a vault of this device; nothing is deleted.")}
         last
         control={
           <Button
@@ -339,7 +339,7 @@ function SignedIn({
           <Typography variant="body2" color="text.secondary">
             {trx(
               "This server has no AI provider configured. Self-hosted: set {key} (your own Chutes key or any OpenAI-compatible endpoint via {url}).",
-              { key: <Mono>TERMOSO_AI__API_KEY</Mono>, url: <Mono>TERMOSO_AI__URL</Mono> },
+              { key: <Mono>LABTERM_AI__API_KEY</Mono>, url: <Mono>LABTERM_AI__URL</Mono> },
             )}
           </Typography>
         ) : (

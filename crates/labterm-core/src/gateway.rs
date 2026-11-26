@@ -1,5 +1,5 @@
 //! Client side of gateways: an SSH transport tunnelled through the server to
-//! an API bridge running `termoso-bridge gateway` on the host's network.
+//! an API bridge running `labterm-bridge gateway` on the host's network.
 //!
 //! The host is named by vault id + entity id; the gateway resolves the
 //! address from the vault it holds, so the server relays ciphertext between

@@ -14,20 +14,20 @@
 # Labterm
 
 Labterm is the SSH client of the [labdex](https://github.com/labdex-app/labdex) family
-(<https://term.labdex.dev>). It is a fork of [Termoso](https://github.com/termoso/termoso)
+(<https://term.labdex.dev>). It is a fork of [Labterm](https://github.com/termoso/termoso)
 by the Termoso contributors, licensed under the same [AGPL-3.0](LICENSE), and keeps
-Termoso's sync protocol: it signs in to Termoso Cloud or any self-hosted Termoso server.
+Labterm's sync protocol: it signs in to Termoso Cloud or any self-hosted Labterm server.
 
-What the fork adds or changes on top of Termoso:
+What the fork adds or changes on top of Labterm:
 
 * labdex look: the lantern mark and labdex's colours.
 * TODO(Mike): list the fork's features (opkssh certificates, NetBird transport, …) as they land.
 
-Internal names (crates, modules, the `termoso://` link scheme, app ids, the
-`TERMOSO_*` settings) still say Termoso, so syncing with upstream stays easy.
-Everything below is Termoso's own README and applies to Labterm as well.
+Internal names (crates, modules, the `labterm://` link scheme, app ids, the
+`LABTERM_*` settings) still say Labterm, so syncing with upstream stays easy.
+Everything below is Labterm's own README and applies to Labterm as well.
 
-## About Termoso
+## About Labterm
 
 A free, open-source, self-hostable SSH / SFTP / WebDAV / S3 / Mosh / Telnet / Serial
 workstation in the spirit of Termius: one Rust core, native clients for Linux,
@@ -35,7 +35,7 @@ Windows, macOS, Android and iOS, a web cabinet for accounts and teams, and an
 optional sync server you can run yourself. Every feature is available to every
 user — there are no tiers, seats or paywalls.
 
-Termoso follows one rule: **software reports to you, not on you**. There is no
+Labterm follows one rule: **software reports to you, not on you**. There is no
 telemetry, no analytics, no crash reporting and no "phone home". Clients talk
 only to the server you point them at (or to nothing at all in offline mode);
 the server's only metrics are opt-in Prometheus counters on a private listener.
@@ -78,8 +78,8 @@ is knowingly missing.
 | **Android** (`apps/android`, Kotlin + Compose, minSdk 26) | arm64-v8a, armeabi-v7a, x86_64 | The same core over UniFFI/JNI: SSH / Mosh / Telnet and local-shell terminal with a Termius-style key panel, autocomplete, session recording, foreground service; SFTP, WebDAV and S3 with transfer queue and pause/resume, and every SSH, WebDAV or S3 host exposed to the system Files app and document pickers (Storage Access Framework); port forwarding; keychain incl. FIDO2 over USB and NFC; snippets; account sync, teams, presence, multiplayer (host and viewer), SSH ID, security-key MFA; Material You dynamic colour; app lock (biometric / device credential); Android App Links for invite/join URLs | Serial, workspaces, import from other clients |
 | **iOS** (`apps/ios`, SwiftUI, iOS 17+) | iPhone (sideloaded — see below) | Encrypted local vault (key in the Keychain), hosts/groups/tags and host editor, SSH terminal with extra-key panel, host-key/password/passphrase prompts, session tabs, autocomplete | Account sync, SFTP, port forwarding, keychain, snippets, biometric lock, iPad layout |
 | **Web cabinet** (`web`) | any browser | Sign-up/sign-in (OPAQUE in WASM, no password ever leaves the browser), MFA (TOTP, passkeys, e-mail, backup codes), device approval, recovery key, devices, security events, teams and roles, team vaults and key rotation, API bridges, admin pages, invitation and join landing pages | Vault contents are never shown in the browser by design — hosts live in the clients |
-| **Server** (`crates/termoso-server`, Axum) | Linux container (`ghcr.io/termoso/termoso-server`, amd64 + arm64) | Accounts, devices, MFA, teams, sealed vault keys, encrypted sync with conflicts and tombstones, realtime WebSocket, session-log storage (S3 or local disk), presence, multiplayer relay, audit log and e-mail digests, SSO (OpenID Connect, SAML 2.0 with Single Logout), SSH ID, team policies (MFA, SSO-only, device approval, IP allow-list, keys-only auth, mandatory jump host, export ban, port-forward allow-list, device posture: disk encryption / screen lock / hardware key), team SSH CA (short-lived user certificates), passwords/passphrases by reference from 1Password, Bitwarden, pass or the environment, scheduled automations (snippets on host groups with per-host results and alerts), AI proxy, admin API, OpenAPI 3.1 | IdP-initiated SAML sign-in (unsolicited responses are rejected by design) |
-| **API Bridge** (`crates/termoso-bridge`) | Linux container (`ghcr.io/termoso/termoso-bridge`, amd64 + arm64) | Headless client that exposes a Termius-compatible REST API for hosts/groups and pushes only ciphertext to the server — [docs/API_BRIDGE.md](docs/API_BRIDGE.md) | Snippets, keys and identities over the bridge (hosts and groups only) |
+| **Server** (`crates/labterm-server`, Axum) | Linux container (`ghcr.io/reykimedev/labterm-server`, amd64 + arm64) | Accounts, devices, MFA, teams, sealed vault keys, encrypted sync with conflicts and tombstones, realtime WebSocket, session-log storage (S3 or local disk), presence, multiplayer relay, audit log and e-mail digests, SSO (OpenID Connect, SAML 2.0 with Single Logout), SSH ID, team policies (MFA, SSO-only, device approval, IP allow-list, keys-only auth, mandatory jump host, export ban, port-forward allow-list, device posture: disk encryption / screen lock / hardware key), team SSH CA (short-lived user certificates), passwords/passphrases by reference from 1Password, Bitwarden, pass or the environment, scheduled automations (snippets on host groups with per-host results and alerts), AI proxy, admin API, OpenAPI 3.1 | IdP-initiated SAML sign-in (unsolicited responses are rejected by design) |
+| **API Bridge** (`crates/labterm-bridge`) | Linux container (`ghcr.io/reykimedev/labterm-bridge`, amd64 + arm64) | Headless client that exposes a Termius-compatible REST API for hosts/groups and pushes only ciphertext to the server — [docs/API_BRIDGE.md](docs/API_BRIDGE.md) | Snippets, keys and identities over the bridge (hosts and groups only) |
 
 Distribution notes:
 
@@ -88,7 +88,7 @@ Distribution notes:
   `xattr -cr /Applications/Labterm.app`). Details in
   [docs/RELEASING.md](docs/RELEASING.md#macos-signing-and-gatekeeper).
 * **iOS** has no App Store listing. Every release ships an unsigned `.ipa` and
-  an AltStore/SideStore source (`termoso-altstore.json`); the store app signs
+  an AltStore/SideStore source (`labterm-altstore.json`); the store app signs
   it with your own Apple ID and refreshes the 7-day profile —
   [docs/IOS_SIDELOAD.md](docs/IOS_SIDELOAD.md).
 * **Android** APKs are signed with the project key and carry no Play Services
@@ -101,12 +101,12 @@ Cargo.toml              Rust workspace (edition 2024, rust-version 1.94)
 crates/
   labterm-crypto        OPAQUE, Argon2id, XChaCha20-Poly1305, X25519 sealed boxes, BIP39-style recovery key
   labterm-proto         API request/response types shared by server and clients
-  termoso-server        API server: axum + PostgreSQL (sqlx) + Redis + S3-compatible storage
+  labterm-server        API server: axum + PostgreSQL (sqlx) + Redis + S3-compatible storage
   labterm-core          client engine: encrypted SQLite store, SSH/SFTP/WebDAV/S3/Mosh/Telnet/Serial/PTY,
                         port forwarding, SSH agent, FIDO2 (CTAP2 over HID/NFC), account + sync client
   labterm-client        higher-level client modules shared by desktop and mobile (keychain, snippets, …)
   labterm-mobile        UniFFI façade over labterm-core for Android (JNI) and iOS (Swift)
-  termoso-bridge        API Bridge: headless client with a Termius-compatible REST API and an MCP server
+  labterm-bridge        API Bridge: headless client with a Termius-compatible REST API and an MCP server
   labterm-wasm          labterm-crypto compiled to WebAssembly for the web cabinet
 apps/
   desktop/              Tauri 2 app: Rust owns state, storage and sessions; React + MUI renders
@@ -129,7 +129,7 @@ scripts/check.sh        runs the same checks as CI, per component
 
 ```
  ┌────────────── clients ──────────────┐        ┌──────────── server ────────────┐
- │ desktop (Tauri)   React/MUI webview │        │ termoso-server (axum)          │
+ │ desktop (Tauri)   React/MUI webview │        │ labterm-server (axum)          │
  │   └─ labterm-core ──────────────────┼─ HTTPS ┼─► /api/v1  REST + WebSocket    │
  │ android (Compose) ─ labterm-mobile  │  + WS  │   PostgreSQL  accounts, teams, │
  │ ios (SwiftUI) ───── labterm-mobile  │        │               ciphertext, logs │
@@ -187,7 +187,7 @@ lives in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 * **MFA**: TOTP, WebAuthn / passkeys / security keys, e-mail codes, backup
   codes. New-device sign-in approval by e-mail.
 * Server-side secrets (OPAQUE server setup, TOTP secrets) are encrypted at rest
-  with `TERMOSO_MASTER_KEY`.
+  with `LABTERM_MASTER_KEY`.
 * **Session logs** are encrypted client-side and uploaded through pre-signed
   URLs to S3-compatible storage; the server never handles the plaintext.
 * **Team features** (shared vaults, presence, multiplayer terminals, activity
@@ -216,9 +216,9 @@ session logs), and — recommended — an SMTP account. PostgreSQL 18, Redis 8
 and RustFS are part of the stack.
 
 ```bash
-git clone https://github.com/termoso/termoso.git && cd termoso
+git clone https://github.com/termoso/termoso.git && cd labterm
 cp deploy/.env.example deploy/.env
-$EDITOR deploy/.env                 # TERMOSO_MASTER_KEY, passwords, public URLs
+$EDITOR deploy/.env                 # LABTERM_MASTER_KEY, passwords, public URLs
 docker compose -f deploy/docker-compose.yml up -d --wait
 ```
 
@@ -226,28 +226,28 @@ This starts the server on `127.0.0.1:8080`, PostgreSQL, Redis and RustFS. The
 image bundles the web cabinet: the API lives under `/api/v1` and everything
 else on the same origin serves the cabinet, so **one hostname is enough**
 (the landing on `/` can be switched off or moved to its own domain with
-`TERMOSO_LANDING` / `TERMOSO_LANDING_URL`). Put
+`LABTERM_LANDING` / `LABTERM_LANDING_URL`). Put
 a TLS-terminating reverse proxy in front of the server and — for pre-signed
 log uploads — in front of RustFS (`--profile proxy` ships a ready Caddy with
-automatic certificates), and set `TERMOSO_PUBLIC_URL` and
-`TERMOSO_S3__PUBLIC_ENDPOINT` accordingly. Migrations run automatically on
+automatic certificates), and set `LABTERM_PUBLIC_URL` and
+`LABTERM_S3__PUBLIC_ENDPOINT` accordingly. Migrations run automatically on
 start; the API is stateless and can be scaled by running more replicas behind
 one proxy.
 
 * `GET /healthz` liveness, `GET /readyz` readiness (checks PostgreSQL and Redis);
-  the image ships `termoso-server --healthcheck` for container probes.
+  the image ships `labterm-server --healthcheck` for container probes.
 * `GET /api/openapi.json` (OpenAPI 3.1) and `GET /docs` (Swagger UI) while
-  `TERMOSO_SWAGGER_UI=true` (default; the example `.env` turns it off).
+  `LABTERM_SWAGGER_UI=true` (default; the example `.env` turns it off).
 * Optional: `--profile bridge` also starts the API Bridge.
 
 Podman users get the same stack as systemd units:
 
 ```bash
-sudo install -d -m 0750 /etc/termoso
-sudo install -m 0600 deploy/.env /etc/termoso/env
-sudo install -m 0600 deploy/quadlet/stack.env.example /etc/termoso/stack.env   # then edit
+sudo install -d -m 0750 /etc/labterm
+sudo install -m 0600 deploy/.env /etc/labterm/env
+sudo install -m 0600 deploy/quadlet/stack.env.example /etc/labterm/stack.env   # then edit
 sudo cp deploy/quadlet/*.{container,network,volume} /etc/containers/systemd/
-sudo systemctl daemon-reload && sudo systemctl start termoso-api
+sudo systemctl daemon-reload && sudo systemctl start labterm-api
 ```
 
 Reverse proxies, backups and restore, upgrades, rootless Podman, horizontal
@@ -256,49 +256,49 @@ are documented in [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md).
 
 ## Configuration
 
-The server reads `TERMOSO_*` environment variables (nested sections use `__`,
-e.g. `TERMOSO_S3__BUCKET`), optionally layered over a TOML file pointed to by
-`TERMOSO_CONFIG`. [`deploy/.env.example`](deploy/.env.example) is the annotated
+The server reads `LABTERM_*` environment variables (nested sections use `__`,
+e.g. `LABTERM_S3__BUCKET`), optionally layered over a TOML file pointed to by
+`LABTERM_CONFIG`. [`deploy/.env.example`](deploy/.env.example) is the annotated
 list; the source of truth is
-[`crates/termoso-server/src/config.rs`](crates/termoso-server/src/config.rs).
+[`crates/labterm-server/src/config.rs`](crates/labterm-server/src/config.rs).
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `TERMOSO_MASTER_KEY` | — | **required**; 32 random bytes, base64 (`openssl rand -base64 32`). Losing it makes server-side secrets unreadable |
-| `TERMOSO_PUBLIC_URL` | `http://localhost:8080` | origin of the server (API + cabinet); used in e-mails and OAuth redirects |
-| `TERMOSO_WEB_URL` | = public URL | origin of the web cabinet, when it differs from the public URL |
-| `TERMOSO_LANDING` | `true` | `false` hides the landing page: `/` goes straight to `/login` |
-| `TERMOSO_LANDING_URL` | unset | serve the landing on its own origin (`https://example.com`) while cabinet + API stay on `TERMOSO_PUBLIC_URL` (`https://app.example.com`); every non-landing path on that host redirects to the cabinet |
-| `TERMOSO_SSHID_URL` | unset | dedicated origin for SSH ID handles (`https://sshid.example.com/<handle>[/<type>]`); `<public URL>/sshid/<handle>` always works |
-| `TERMOSO_WEB_DIR` | unset (image: `/app/web`) | directory with the built cabinet to serve on `/`; unset = API only |
-| `TERMOSO_BIND` | `0.0.0.0:8080` | listen address |
-| `TERMOSO_DATABASE_URL` | `postgres://termoso:termoso@localhost:5432/termoso` | PostgreSQL |
-| `TERMOSO_DATABASE_MAX_CONNECTIONS` | `20` | pool size per replica |
-| `TERMOSO_REDIS_URL` / `TERMOSO_REDIS_PREFIX` | `redis://127.0.0.1:6379` / `termoso:` | Redis; the prefix lets deployments share one instance |
-| `TERMOSO_ADMIN_EMAILS` | empty | comma-separated e-mails granted the admin role on sign-up / sign-in |
-| `TERMOSO_OWNER_EMAIL` | empty | the server owner — the only account that can grant or revoke admin and cannot be disabled, demoted or deleted; empty = the first registered account |
-| `TERMOSO_TURNSTILE__SITE_KEY` / `TERMOSO_TURNSTILE__SECRET_KEY` | empty | Cloudflare Turnstile; when both are set a captcha is required on sign-up, start over, account recovery and on login after 3 failed attempts from one IP. Unset = no captcha |
-| `TERMOSO_SERVER_NAME` | `Termoso` | name shown in e-mails and server info |
-| `TERMOSO_CORS_ORIGINS` | empty | extra browser origins allowed to call the API |
-| `TERMOSO_TRUST_PROXY` | `false` | honour `X-Forwarded-For` / `X-Real-IP` (set behind a reverse proxy) |
-| `TERMOSO_S3__{BUCKET,ENDPOINT,PUBLIC_ENDPOINT,REGION,ACCESS_KEY,SECRET_KEY,FORCE_PATH_STYLE,PRESIGN_SECS}` | unset | S3-compatible storage for session logs; unset = feature off |
-| `TERMOSO_LOGS_DIR` | unset | keep session logs on local disk instead of S3 (clients fetch through short-lived tokens on `/api/v1/logs/blob`); set either this or `TERMOSO_S3__*` |
-| `TERMOSO_SMTP__{HOST,PORT,USERNAME,PASSWORD,SECURITY,FROM}` | unset | outgoing e-mail (`starttls` / `tls` / `none`); unset = e-mail features off |
-| `TERMOSO_WEBAUTHN__{RP_ID,ORIGINS,RP_NAME}` | unset | passkeys / security keys as MFA |
-| `TERMOSO_SSO__<slug>__{NAME,KIND,ISSUER,CLIENT_ID,CLIENT_SECRET,SCOPES,ALLOWED_DOMAINS}` | none | OIDC providers (`google`, `github`, `microsoft` presets or any discovery URL) |
-| `TERMOSO_SSO__<slug>__{SAML_METADATA,SAML_IDP_ENTITY_ID,SAML_SP_ENTITY_ID,SAML_SP_CERTIFICATE,SAML_SP_PRIVATE_KEY,SAML_SIGN_REQUESTS,SAML_ALLOW_SHA1,SAML_EMAIL_ATTRIBUTE,SAML_NAME_ATTRIBUTE,SAML_CLOCK_SKEW_SECS}` | none | SAML 2.0 providers (`KIND=saml`): IdP metadata as URL/path/XML, optional SP certificate + key for signed requests and encrypted assertions; SP metadata at `/api/v1/auth/sso/<slug>/saml/metadata` — see [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md) |
-| `TERMOSO_AI__{API_KEY,URL,MODEL,PROVIDER,CONFIDENTIAL,DAILY_QUOTA,MAX_PROMPT_CHARS,TIMEOUT_SECS}` | unset | AI command suggestions via any OpenAI-compatible endpoint; `API_KEY` alone enables it with the defaults |
-| `TERMOSO_ANDROID_APP_LINKS` | empty | `<package>=<SHA-256 cert fingerprint>` pairs published at `/.well-known/assetlinks.json` |
-| `TERMOSO_METRICS__ENABLED` / `TERMOSO_METRICS__BIND` | `false` / `127.0.0.1:9090` | opt-in Prometheus metrics on a separate listener |
-| `TERMOSO_LOG` / `TERMOSO_LOG_FORMAT` | `info,sqlx=warn,…` / `text` | tracing filter and `text` or `json` output |
-| `TERMOSO_SWAGGER_UI` | `true` | serve Swagger UI at `/api/docs` and the OpenAPI document at `/api/openapi.json` |
-| `TERMOSO_DOCS` | `true` | serve the documentation at `/docs` |
-| `TERMOSO_DOCS_URL` | – | dedicated origin for the documentation (`https://docs.example.com`); `/docs` on the other origins redirects there |
-| `TERMOSO_BRIDGES` | `true` | offer API bridges (cabinet page, bridge tokens); `false` hides the page and rejects bridge tokens. The hosted cloud at `app.termoso.dev` runs with it on |
-| `TERMOSO_START_OVER_DELAY_SECS` | `86400` | waiting period of the *Start over* account reset |
+| `LABTERM_MASTER_KEY` | — | **required**; 32 random bytes, base64 (`openssl rand -base64 32`). Losing it makes server-side secrets unreadable |
+| `LABTERM_PUBLIC_URL` | `http://localhost:8080` | origin of the server (API + cabinet); used in e-mails and OAuth redirects |
+| `LABTERM_WEB_URL` | = public URL | origin of the web cabinet, when it differs from the public URL |
+| `LABTERM_LANDING` | `true` | `false` hides the landing page: `/` goes straight to `/login` |
+| `LABTERM_LANDING_URL` | unset | serve the landing on its own origin (`https://example.com`) while cabinet + API stay on `LABTERM_PUBLIC_URL` (`https://app.example.com`); every non-landing path on that host redirects to the cabinet |
+| `LABTERM_SSHID_URL` | unset | dedicated origin for SSH ID handles (`https://sshid.example.com/<handle>[/<type>]`); `<public URL>/sshid/<handle>` always works |
+| `LABTERM_WEB_DIR` | unset (image: `/app/web`) | directory with the built cabinet to serve on `/`; unset = API only |
+| `LABTERM_BIND` | `0.0.0.0:8080` | listen address |
+| `LABTERM_DATABASE_URL` | `postgres://labterm:labterm@localhost:5432/labterm` | PostgreSQL |
+| `LABTERM_DATABASE_MAX_CONNECTIONS` | `20` | pool size per replica |
+| `LABTERM_REDIS_URL` / `LABTERM_REDIS_PREFIX` | `redis://127.0.0.1:6379` / `labterm:` | Redis; the prefix lets deployments share one instance |
+| `LABTERM_ADMIN_EMAILS` | empty | comma-separated e-mails granted the admin role on sign-up / sign-in |
+| `LABTERM_OWNER_EMAIL` | empty | the server owner — the only account that can grant or revoke admin and cannot be disabled, demoted or deleted; empty = the first registered account |
+| `LABTERM_TURNSTILE__SITE_KEY` / `LABTERM_TURNSTILE__SECRET_KEY` | empty | Cloudflare Turnstile; when both are set a captcha is required on sign-up, start over, account recovery and on login after 3 failed attempts from one IP. Unset = no captcha |
+| `LABTERM_SERVER_NAME` | `Labterm` | name shown in e-mails and server info |
+| `LABTERM_CORS_ORIGINS` | empty | extra browser origins allowed to call the API |
+| `LABTERM_TRUST_PROXY` | `false` | honour `X-Forwarded-For` / `X-Real-IP` (set behind a reverse proxy) |
+| `LABTERM_S3__{BUCKET,ENDPOINT,PUBLIC_ENDPOINT,REGION,ACCESS_KEY,SECRET_KEY,FORCE_PATH_STYLE,PRESIGN_SECS}` | unset | S3-compatible storage for session logs; unset = feature off |
+| `LABTERM_LOGS_DIR` | unset | keep session logs on local disk instead of S3 (clients fetch through short-lived tokens on `/api/v1/logs/blob`); set either this or `LABTERM_S3__*` |
+| `LABTERM_SMTP__{HOST,PORT,USERNAME,PASSWORD,SECURITY,FROM}` | unset | outgoing e-mail (`starttls` / `tls` / `none`); unset = e-mail features off |
+| `LABTERM_WEBAUTHN__{RP_ID,ORIGINS,RP_NAME}` | unset | passkeys / security keys as MFA |
+| `LABTERM_SSO__<slug>__{NAME,KIND,ISSUER,CLIENT_ID,CLIENT_SECRET,SCOPES,ALLOWED_DOMAINS}` | none | OIDC providers (`google`, `github`, `microsoft` presets or any discovery URL) |
+| `LABTERM_SSO__<slug>__{SAML_METADATA,SAML_IDP_ENTITY_ID,SAML_SP_ENTITY_ID,SAML_SP_CERTIFICATE,SAML_SP_PRIVATE_KEY,SAML_SIGN_REQUESTS,SAML_ALLOW_SHA1,SAML_EMAIL_ATTRIBUTE,SAML_NAME_ATTRIBUTE,SAML_CLOCK_SKEW_SECS}` | none | SAML 2.0 providers (`KIND=saml`): IdP metadata as URL/path/XML, optional SP certificate + key for signed requests and encrypted assertions; SP metadata at `/api/v1/auth/sso/<slug>/saml/metadata` — see [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md) |
+| `LABTERM_AI__{API_KEY,URL,MODEL,PROVIDER,CONFIDENTIAL,DAILY_QUOTA,MAX_PROMPT_CHARS,TIMEOUT_SECS}` | unset | AI command suggestions via any OpenAI-compatible endpoint; `API_KEY` alone enables it with the defaults |
+| `LABTERM_ANDROID_APP_LINKS` | empty | `<package>=<SHA-256 cert fingerprint>` pairs published at `/.well-known/assetlinks.json` |
+| `LABTERM_METRICS__ENABLED` / `LABTERM_METRICS__BIND` | `false` / `127.0.0.1:9090` | opt-in Prometheus metrics on a separate listener |
+| `LABTERM_LOG` / `LABTERM_LOG_FORMAT` | `info,sqlx=warn,…` / `text` | tracing filter and `text` or `json` output |
+| `LABTERM_SWAGGER_UI` | `true` | serve Swagger UI at `/api/docs` and the OpenAPI document at `/api/openapi.json` |
+| `LABTERM_DOCS` | `true` | serve the documentation at `/docs` |
+| `LABTERM_DOCS_URL` | – | dedicated origin for the documentation (`https://docs.example.com`); `/docs` on the other origins redirects there |
+| `LABTERM_BRIDGES` | `true` | offer API bridges (cabinet page, bridge tokens); `false` hides the page and rejects bridge tokens. The hosted cloud at `app.termoso.dev` runs with it on |
+| `LABTERM_START_OVER_DELAY_SECS` | `86400` | waiting period of the *Start over* account reset |
 
-Client-side settings live in the apps. Desktop honours `TERMOSO_PROFILE_DIR`
-(profile location) and `TERMOSO_LOG` (stderr filter).
+Client-side settings live in the apps. Desktop honours `LABTERM_PROFILE_DIR`
+(profile location) and `LABTERM_LOG` (stderr filter).
 
 ## Local development
 
@@ -320,14 +320,14 @@ Prerequisites per component (all optional — work on what you touch):
 
 ```bash
 docker compose -f deploy/docker-compose.dev.yml up -d --wait   # postgres, redis, rustfs, mailpit
-export TERMOSO_MASTER_KEY=$(openssl rand -base64 32)
-cargo run -p termoso-server
+export LABTERM_MASTER_KEY=$(openssl rand -base64 32)
+cargo run -p labterm-server
 # → http://localhost:8080/api/docs   (Mailpit UI: http://localhost:8025)
 ```
 
-The defaults connect to `postgres://termoso:termoso@localhost:5432/termoso`
+The defaults connect to `postgres://labterm:labterm@localhost:5432/labterm`
 and `redis://127.0.0.1:6379`. To also serve the cabinet, build it once (below)
-and run with `TERMOSO_WEB_DIR=web/dist`.
+and run with `LABTERM_WEB_DIR=web/dist`.
 
 ### Web cabinet
 
@@ -353,8 +353,8 @@ npm run tauri build        # .deb / .rpm / .AppImage, NSIS / MSI, .app / .dmg
 ```
 
 The profile (encrypted SQLite store, settings) lives in the OS data directory
-(`~/.local/share/termoso/default` on Linux, `%APPDATA%\termoso\default` on
-Windows, `~/Library/Application Support/termoso/default` on macOS). The store
+(`~/.local/share/labterm/default` on Linux, `%APPDATA%\labterm\default` on
+Windows, `~/Library/Application Support/labterm/default` on macOS). The store
 key sits in the OS keychain (Secret Service / Credential Manager / Keychain)
 with an owner-only file fallback; an optional **master password** (Settings →
 Security) wraps it instead and turns on App Lock — locked at start, *Lock now*,
@@ -378,8 +378,8 @@ a current Mesa (linked against a newer libwayland than 22.04 ships) then cannot 
 (`EGL_BAD_PARAMETER`, WebKitWebProcess aborts, the window stays blank —
 [tauri-apps/tauri#15665](https://github.com/tauri-apps/tauri/issues/15665)).
 Releases up to 0.6.1 did bundle it; on Arch/Fedora and other rolling distros
-either upgrade or run `./Termoso.AppImage --appimage-extract && rm squashfs-root/usr/lib/libwayland-*.so* && squashfs-root/AppRun`.
-On Wayland the AppImage runs natively; `GDK_BACKEND=x11 ./Termoso.AppImage`
+either upgrade or run `./Labterm.AppImage --appimage-extract && rm squashfs-root/usr/lib/libwayland-*.so* && squashfs-root/AppRun`.
+On Wayland the AppImage runs natively; `GDK_BACKEND=x11 ./Labterm.AppImage`
 puts it through XWayland instead if the compositor misbehaves. The `.deb`/`.rpm` use the distribution's WebKitGTK and are
 not affected.
 
@@ -393,11 +393,11 @@ cd apps/android
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-`gradle.properties` → `termoso.abis` controls which Rust targets are built
-(default `arm64-v8a,x86_64`; CI passes `-Ptermoso.abis=arm64-v8a`).
-`termoso.appLinkHost` is the server whose `https://…/invite/…` and `/join/…`
+`gradle.properties` → `labterm.abis` controls which Rust targets are built
+(default `arm64-v8a,x86_64`; CI passes `-Plabterm.abis=arm64-v8a`).
+`labterm.appLinkHost` is the server whose `https://…/invite/…` and `/join/…`
 links open in the app — change it for a self-hosted build and publish the
-signing certificate through `TERMOSO_ANDROID_APP_LINKS`.
+signing certificate through `LABTERM_ANDROID_APP_LINKS`.
 
 ### iOS
 
@@ -425,21 +425,21 @@ scripts/check.sh android         # gradle assembleDebug + unit tests + lint
 scripts/check.sh compose         # docker compose config for both stacks
 ```
 
-The Rust integration suite (`crates/termoso-server/tests`) boots a real server
+The Rust integration suite (`crates/labterm-server/tests`) boots a real server
 against PostgreSQL and Redis, creating a throw-away database per run. RustFS
 (session logs) and Mailpit (every e-mail flow) are picked up when reachable;
 SSO runs against an in-process mock OpenID Connect provider. Tests needing an
-unavailable service are skipped with a notice; `TERMOSO_TEST_REQUIRE_SERVICES=1`
-turns that into a failure (CI sets it). `TERMOSO_TEST_DATABASE_URL`,
-`TERMOSO_TEST_REDIS_URL`, `TERMOSO_TEST_S3_ENDPOINT`, `TERMOSO_TEST_SMTP_ADDR`
-and `TERMOSO_TEST_MAILPIT_URL` override the defaults.
+unavailable service are skipped with a notice; `LABTERM_TEST_REQUIRE_SERVICES=1`
+turns that into a failure (CI sets it). `LABTERM_TEST_DATABASE_URL`,
+`LABTERM_TEST_REDIS_URL`, `LABTERM_TEST_S3_ENDPOINT`, `LABTERM_TEST_SMTP_ADDR`
+and `LABTERM_TEST_MAILPIT_URL` override the defaults.
 
 CI (`.github/workflows/ci.yml`) additionally builds the macOS app and runs a
 runtime smoke on a Mac runner, builds the iOS app and runs XCTest/XCUITest in
 the simulator, and builds both Docker images (pushed to GHCR on `main`).
 
 A load generator that exercises the real client crypto paths is available as a
-Rust example: `cargo run -p termoso-server --release --example loadtest -- --url
+Rust example: `cargo run -p labterm-server --release --example loadtest -- --url
 http://127.0.0.1:8080 --users 20 --duration 30`.
 
 ## Releases
@@ -447,12 +447,12 @@ http://127.0.0.1:8080 --users 20 --duration 30`.
 Every `v*` tag triggers `.github/workflows/release.yml`: Linux, Windows and
 macOS bundles (minisign-signed, with `latest.json` for the built-in updater),
 signed Android APKs per ABI, the unsigned iOS `.ipa` with its AltStore source,
-`SHA256SUMS.txt`, and the `ghcr.io/termoso/termoso-server:<version>` and
-`termoso-bridge:<version>` images; stable releases are then pushed to the
+`SHA256SUMS.txt`, and the `ghcr.io/reykimedev/labterm-server:<version>` and
+`labterm-bridge:<version>` images; stable releases are then pushed to the
 apt/dnf repositories (`pkg.termoso.dev`), the Homebrew tap
-(`brew install --cask termoso/termoso/termoso`) and winget (`Termoso.Termoso`);
+(`brew install --cask labterm/labterm/labterm`) and winget (`Labterm.Labterm`);
 manifests for Flathub, Snap, Scoop and F-Droid live in [`packaging/`](packaging/)
-and a Helm chart in [`deploy/helm/termoso`](deploy/helm/termoso/).
+and a Helm chart in [`deploy/helm/labterm`](deploy/helm/labterm/).
 The version must match in the workspace
 `Cargo.toml`, `apps/desktop/package.json`, `apps/ios/project.yml`, the Helm
 chart's `appVersion` and the `packaging/` manifests (the release workflow checks). Process,
@@ -464,14 +464,14 @@ building the same artifacts on your own machine, with your own signing keys:
 
 All routes live under `/api/v1`; authenticated routes take
 `Authorization: Bearer <token>`. The complete, generated reference is
-`GET /api/openapi.json` on a server running with `TERMOSO_SWAGGER_UI=true`
+`GET /api/openapi.json` on a server running with `LABTERM_SWAGGER_UI=true`
 (the development default).
 
 | Area | Routes |
 |---|---|
 | auth | OPAQUE `register/{start,finish}`, `login/{start,finish}`, `password/{start,finish}`, recovery-key login, MFA step, device approval, step-up `reauth/{start,finish}`, `start-over/*`, SSO (`sso/providers`, `sso/{provider}/start`, callback), `logout` |
 | account | profile and avatar, e-mail change/verification, devices, key material, recovery-key rotation, security events, deletion; `account/mfa` (TOTP, WebAuthn, backup codes); `account/sshid` (handle, device and FIDO2 public keys); `account/ai` (opt-in); `account/bridges` (API bridges with sealed vault keys) |
-| teams | teams, members and roles, invites, settings (presence, multiplayer), owner-side member account deletion, access reviews (periodic keep/remove of memberships and vault access), break-glass (sealed one-time secret that makes a designated member a time-boxed admin, loudly), gateways (`termoso-bridge gateway`: outbound-only relay to hosts behind NAT, named by id so the server never sees addresses), export to `ssh_config` / Ansible inventory, Wake-on-LAN, SFTP as root via sudo, session logs on local disk (`TERMOSO_LOGS_DIR`) without S3, tamper-evident activity log (`/teams/{id}/audit`: per-team SHA-256 hash chain, signed checkpoints, `/audit/verify`), e-mail digest (`/teams/{id}/digest`) |
+| teams | teams, members and roles, invites, settings (presence, multiplayer), owner-side member account deletion, access reviews (periodic keep/remove of memberships and vault access), break-glass (sealed one-time secret that makes a designated member a time-boxed admin, loudly), gateways (`labterm-bridge gateway`: outbound-only relay to hosts behind NAT, named by id so the server never sees addresses), export to `ssh_config` / Ansible inventory, Wake-on-LAN, SFTP as root via sudo, session logs on local disk (`LABTERM_LOGS_DIR`) without S3, tamper-evident activity log (`/teams/{id}/audit`: per-team SHA-256 hash chain, signed checkpoints, `/audit/verify`), e-mail digest (`/teams/{id}/digest`) |
 | vaults | personal and team vaults, members, sealed vault keys, key rotation, pending keys |
 | sync | `push` / `pull` of encrypted entities with per-vault cursors, version conflicts and tombstones |
 | history, logs | encrypted command/connection history; session-log upload via pre-signed multipart URLs, listing, deletion |
@@ -483,7 +483,7 @@ All routes live under `/api/v1`; authenticated routes take
 
 ## Sponsoring
 
-Termoso has no paid tier. Development is funded by the people and companies
+Labterm has no paid tier. Development is funded by the people and companies
 who rely on it: one-off or monthly sponsorship, and support agreements for
 organisations running their own server (deployment, SLA-backed support,
 SSO / SCIM / SIEM integration work). Details and wallets are on
@@ -492,7 +492,7 @@ SSO / SCIM / SIEM integration work). Details and wallets are on
 
 ## Open source
 
-Termoso stands on other people's work. The parts a user actually touches:
+Labterm stands on other people's work. The parts a user actually touches:
 
 | Area | Projects |
 | --- | --- |
@@ -521,9 +521,9 @@ English is the source language and new strings appear there after every push
 to `main`. Translate in the browser, Weblate sends the result back as a pull
 request; no git needed.
 
-Termoso is licensed under the [GNU AGPL v3](LICENSE): run it, change it, host
+Labterm is licensed under the [GNU AGPL v3](LICENSE): run it, change it, host
 it — and keep it free for whoever you host it for.
 
-Termius is a trademark of Termius Corporation. Termoso is an independent
+Termius is a trademark of Termius Corporation. Labterm is an independent
 project, not affiliated with or endorsed by Termius; the name is used only to
 describe compatibility and comparison.

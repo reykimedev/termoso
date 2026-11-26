@@ -5,7 +5,7 @@ a CDN or a TLS-terminating proxy you don't run in front of it ([threat model](th
 
 Besides the cluster, Labterm Web needs:
 
-- **A Termoso server.** A self-hosted one must list the app's origin in `TERMOSO_CORS_ORIGINS`
+- **A Labterm server.** A self-hosted one must list the app's origin in `LABTERM_CORS_ORIGINS`
   (`https://labterm.example.com`). The official cloud only works if it allows that origin.
 - **An Authentik application** (any OpenID Connect provider works): a public client (no secret)
   with PKCE, the redirect URI `https://labterm.example.com/oidc-callback.html`, and an asymmetric
@@ -41,7 +41,7 @@ allowlist, `HATCH_RELAY_OIDC_ISSUER`, `HATCH_RELAY_OIDC_AUDIENCE` and
 `HATCH_RELAY_ALLOWED_ORIGINS`. It refuses to start without a valid allowlist.
 
 The web app reads `config.json` next to `index.html`: the relay, the Authentik issuer and client
-id, and the Termoso server ([format](relay.md#the-web-apps-configjson)). The manifests mount it
+id, and the Labterm server ([format](relay.md#the-web-apps-configjson)). The manifests mount it
 from a ConfigMap.
 
 ## Kubernetes
@@ -53,13 +53,13 @@ NetworkPolicies.
 1. Copy the folder into the cluster repo's apps tier.
 2. Set the two host names in `routes.yaml`, `config.json` and the relay's
    `HATCH_RELAY_ALLOWED_ORIGINS`; your Authentik issuer and client id in `config.json` and
-   `relay.yaml`; your Termoso server in `config.json`; and your home ranges in `allowlist.yaml`
+   `relay.yaml`; your Labterm server in `config.json`; and your home ranges in `allowlist.yaml`
    and in the relay's egress rules in `networkpolicies.yaml`, next to your Authentik's address.
 3. Set both image tags in `kustomization.yaml` to the `sha-<7>` the Images workflow printed.
 4. Check the label of your public Traefik pods in `networkpolicies.yaml`.
 5. `flux build kustomization` and your cluster checks, then merge. Flux applies it.
 6. Check: `curl https://relay.labterm.example.com/healthz` answers `ok`, both hosts serve your
-   certificate (not Traefik's default), and from the work PC the app signs in to the Termoso server,
+   certificate (not Traefik's default), and from the work PC the app signs in to the Labterm server,
    unlocks the vault and connects to a host whose key is in your known hosts.
 
 The relay keeps WebSockets open for hours. Traefik's entry point needs a read timeout above the

@@ -8,7 +8,7 @@ import dev.labdex.labterm.core.AiStatusCard
 import dev.labdex.labterm.core.AiTarget
 import dev.labdex.labterm.core.MobileException
 
-/** Server-side limit on the request text (`TERMOSO_AI__MAX_PROMPT_CHARS` default). */
+/** Server-side limit on the request text (`LABTERM_AI__MAX_PROMPT_CHARS` default). */
 const val AI_MAX_PROMPT_CHARS = 500
 
 /** What the user sees for a failed request and whether trying again makes sense. */

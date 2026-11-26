@@ -21,10 +21,10 @@ swiftc -O -o "$out/window" "$here/window.swift"
 
 # zsh is what a Mac user gets by default, whatever the runner account uses.
 SHELL=/bin/zsh \
-  TERMOSO_PROFILE_DIR="$out/profile" \
-  TERMOSO_SMOKE_SCRIPT="$here/desktop.js" \
-  TERMOSO_SMOKE_REPORT="$report" \
-  TERMOSO_LOG=info \
+  LABTERM_PROFILE_DIR="$out/profile" \
+  LABTERM_SMOKE_SCRIPT="$here/desktop.js" \
+  LABTERM_SMOKE_REPORT="$report" \
+  LABTERM_LOG=info \
   "$exe" >"$out/app.log" 2>&1 &
 pid=$!
 echo "launched $exe (pid $pid)"

@@ -7,11 +7,11 @@ plugins {
 
 // Cargo workspace root: apps/android/core -> ../../..
 val workspaceDir: File = rootDir.parentFile.parentFile
-val rustAbis: List<String> = (findProperty("termoso.abis") as String)
+val rustAbis: List<String> = (findProperty("labterm.abis") as String)
     .split(',')
     .map { it.trim() }
     .filter { it.isNotEmpty() }
-val ndkVersionPinned: String = findProperty("termoso.ndkVersion") as String
+val ndkVersionPinned: String = findProperty("labterm.ndkVersion") as String
 // Prefer the pinned NDK under the SDK, so the Rust/Go builds use the same one AGP strips with.
 val rustNdkHome: String? = System.getenv("ANDROID_NDK_HOME")
     ?: System.getenv("ANDROID_NDK_ROOT")
@@ -43,7 +43,7 @@ android {
 }
 
 /**
- * `cargo ndk build` of crates/labterm-mobile for every ABI in `termoso.abis`.
+ * `cargo ndk build` of crates/labterm-mobile for every ABI in `labterm.abis`.
  * Always runs (cargo is incremental itself and tracks the whole workspace). An unstripped
  * copy of the first ABI's library is kept for uniffi-bindgen (it reads the UniFFI metadata
  * from the symbol table); the packaged libraries are stripped with the NDK's llvm-strip —
@@ -94,7 +94,7 @@ abstract class CargoNdkBuild @Inject constructor(private val exec: ExecOperation
  * The embedded NetBird client (crates/labterm-netbird/go) as `liblabterm_netbird.so` for every
  * ABI: Go's c-shared build with the NDK's clang. labterm-mobile loads it with dlopen the first
  * time a host uses a NetBird network, so the Go runtime only starts when it is needed.
- * `-Ptermoso.netbird=false` leaves it out (hosts set to use NetBird then fail with a clear error).
+ * `-Plabterm.netbird=false` leaves it out (hosts set to use NetBird then fail with a clear error).
  */
 abstract class GoNetbirdBuild @Inject constructor(private val exec: ExecOperations) : DefaultTask() {
     @get:Input abstract val abis: ListProperty<String>
@@ -180,12 +180,12 @@ androidComponents {
             outDir.set(layout.buildDirectory.dir("rust/${variant.name}/kotlin"))
         }
         variant.sources.jniLibs?.addGeneratedSourceDirectory(cargo, CargoNdkBuild::outDir)
-        if ((findProperty("termoso.netbird") as String?)?.toBoolean() != false) {
+        if ((findProperty("labterm.netbird") as String?)?.toBoolean() != false) {
             val netbird = tasks.register<GoNetbirdBuild>("goNetbirdBuild$cap") {
                 group = "rust"
                 description = "go build of the embedded NetBird client (${variant.name})"
                 abis.set(rustAbis)
-                ndkHome.set(rustNdkHome ?: error("set ANDROID_NDK_HOME (or -Ptermoso.netbird=false)"))
+                ndkHome.set(rustNdkHome ?: error("set ANDROID_NDK_HOME (or -Plabterm.netbird=false)"))
                 goDir.set(workspaceDir.resolve("crates/labterm-netbird/go"))
                 outDir.set(layout.buildDirectory.dir("go/${variant.name}/jniLibs"))
             }

@@ -870,7 +870,7 @@ function HostEditor({
                         set("gatewayId", e.target.value === "" ? null : e.target.value)
                       }
                       helperText={tr(
-                        "Tunnel through an API bridge running `termoso-bridge gateway` next to the host — for hosts without a public address.",
+                        "Tunnel through an API bridge running `labterm-bridge gateway` next to the host — for hosts without a public address.",
                       )}
                     >
                       <MenuItem value="">

@@ -43,7 +43,7 @@ export function JoinPage() {
       <AuthTitle
         title={tr("Join a shared terminal")}
         subtitle={tr(
-          "Somebody is sharing a live terminal with you. It opens in the Termoso app, end-to-end encrypted — the server only relays ciphertext.",
+          "Somebody is sharing a live terminal with you. It opens in the Labterm app, end-to-end encrypted — the server only relays ciphertext.",
         )}
       />
       <Stack spacing={2}>
@@ -54,17 +54,17 @@ export function JoinPage() {
           endIcon={<OpenInNewRoundedIcon />}
           data-testid="open-in-app"
         >
-          {tr("Open in Termoso")}
+          {tr("Open in Labterm")}
         </Button>
         <Typography variant="body2" color="text.secondary">
           {trx(
-            "Nothing happened? Paste this link into Termoso —  {v1} on Android, or the search field on desktop.",
+            "Nothing happened? Paste this link into Labterm —  {v1} on Android, or the search field on desktop.",
             { v1: <i>{tr("Connections → Join shared terminal")}</i> },
           )}
         </Typography>
         <CopyField label={tr("Sharing link")} value={webLink} />
         <Typography variant="body2" color="text.secondary">
-          {trx("No Termoso yet?  {v1} {t2}", {
+          {trx("No Labterm yet?  {v1} {t2}", {
             v1: (
               <Link href={RELEASES} target="_blank" rel="noreferrer">
                 {tr("Download the desktop or Android app")}

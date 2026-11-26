@@ -7,7 +7,7 @@ Terminal sharing (multiplayer) lets other people watch — or type into — one 
 
 ## Sharing a session
 
-Open the session's menu and choose **Share this terminal**. Termoso creates a link like
+Open the session's menu and choose **Share this terminal**. Labterm creates a link like
 
 ```
 https://app.termoso.dev/join/<id>#<secret>

@@ -123,7 +123,7 @@ schema! {
 }
 
 schema! {
-    /// Credentials file (`termoso-bridge.json`) written by the cabinet and
+    /// Credentials file (`labterm-bridge.json`) written by the cabinet and
     /// mounted into the bridge container.
     pub struct BridgeCredentials {
         /// File format version.

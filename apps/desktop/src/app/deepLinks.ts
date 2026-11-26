@@ -78,7 +78,7 @@ async function openLink(url: string) {
   }
 }
 
-/** `termoso sftp <host>`: the SFTP browser on a saved host named by label or address. */
+/** `labterm sftp <host>`: the SFTP browser on a saved host named by label or address. */
 async function openSftpByName(name: string) {
   const needle = name.trim().toLowerCase();
   try {
@@ -97,7 +97,7 @@ async function openSftpByName(name: string) {
   }
 }
 
-/** `termoso ssh …` / `termoso open …`: a saved host if one matches, else ad hoc. */
+/** `labterm ssh …` / `labterm open …`: a saved host if one matches, else ad hoc. */
 async function openConnect(link: Extract<ReturnType<typeof parseLink>, { kind: "connect" }>) {
   const hosts = await hostsList(null).catch((e: unknown) => {
     toast(errorMessage(e), "error");
@@ -146,7 +146,7 @@ export function openFilePath(path: string) {
 }
 
 /**
- * Open `termoso://host/<id>`, `termoso://sso?flow=…`, `ssh://…` and `telnet://…` links handed to the app —
+ * Open `labterm://host/<id>`, `termoso://sso?flow=…`, `ssh://…` and `telnet://…` links handed to the app —
  * at launch (`getCurrent`) and while running (second instance forwards its argv).
  */
 export function startDeepLinks(): () => void {
@@ -177,7 +177,7 @@ export function startDeepLinks(): () => void {
   void listen<string[]>("files-opened", (e) => e.payload.forEach(openFilePath))
     .then((un) => (stopped ? un() : stops.push(un)))
     .catch(() => undefined);
-  // macOS Dock menu picks arrive as termoso:// links from Rust.
+  // macOS Dock menu picks arrive as labterm:// links from Rust.
   void listen<string>("quick-action", (e) => void openLink(e.payload))
     .then((un) => (stopped ? un() : stops.push(un)))
     .catch(() => undefined);

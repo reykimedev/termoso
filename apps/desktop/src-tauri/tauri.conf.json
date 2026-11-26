@@ -73,10 +73,10 @@
     "linux": {
       "deb": {
         "depends": ["libwebkit2gtk-4.1-0", "libgtk-3-0"],
-        "desktopTemplate": "templates/termoso.desktop"
+        "desktopTemplate": "templates/labterm.desktop"
       },
       "rpm": {
-        "desktopTemplate": "templates/termoso.desktop"
+        "desktopTemplate": "templates/labterm.desktop"
       }
     },
     "windows": {
@@ -96,7 +96,7 @@
     },
     "deep-link": {
       "desktop": {
-        "schemes": ["termoso", "ssh", "telnet"]
+        "schemes": ["labterm", "ssh", "telnet"]
       }
     }
   }

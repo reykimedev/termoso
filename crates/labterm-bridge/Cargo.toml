@@ -1,0 +1,42 @@
+[package]
+name = "labterm-bridge"
+description = "Labterm API Bridge: a self-hosted REST endpoint that encrypts hosts, groups and credentials locally and syncs them into your vaults"
+version.workspace = true
+edition.workspace = true
+publish = false
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "labterm-bridge"
+path = "src/main.rs"
+
+[dependencies]
+labterm-core = { workspace = true }
+labterm-crypto = { workspace = true }
+labterm-proto = { workspace = true }
+zeroize = { workspace = true }
+
+tokio = { workspace = true }
+futures = { workspace = true }
+bytes = { workspace = true }
+tokio-tungstenite = { version = "0.29", features = ["rustls-tls-webpki-roots"] }
+axum = { workspace = true }
+tower-http = { workspace = true }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+url = { workspace = true }
+
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+time = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+subtle = { workspace = true }

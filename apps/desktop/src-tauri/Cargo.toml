@@ -1,6 +1,6 @@
 [package]
 name = "labterm-desktop"
-description = "Termoso desktop client (Tauri 2 shell over labterm-core)"
+description = "Labterm desktop client (Tauri 2 shell over labterm-core)"
 version.workspace = true
 edition.workspace = true
 publish = false

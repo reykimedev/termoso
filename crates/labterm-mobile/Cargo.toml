@@ -1,6 +1,6 @@
 [package]
 name = "labterm-mobile"
-description = "Termoso mobile façade: UniFFI bindings over labterm-core for the Android and iOS clients"
+description = "Labterm mobile façade: UniFFI bindings over labterm-core for the Android and iOS clients"
 version.workspace = true
 edition.workspace = true
 publish = false

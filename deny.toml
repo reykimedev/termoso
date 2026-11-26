@@ -1,4 +1,4 @@
-# cargo-deny policy for the Termoso workspace.
+# cargo-deny policy for the Labterm workspace.
 #
 #   cargo deny check advisories   # RustSEC advisories against Cargo.lock
 #   cargo deny check licenses     # every dependency licence is on the allow list
@@ -16,7 +16,7 @@ version = 2
 yanked = "deny"
 ignore = [
   # RSA "Marvin" timing side channel (private-key operations). No fixed release
-  # exists (0.10 is still an rc with the same status). termoso-server performs
+  # exists (0.10 is still an rc with the same status). labterm-server performs
   # no private-key operation with this crate: the SAML SP key (signing
   # AuthnRequests, unwrapping EncryptedAssertion key transport — the one
   # remotely drivable private-key path, via the ACS) runs in AWS-LC
@@ -29,7 +29,7 @@ ignore = [
   # fixed rsa release exists.
   { id = "RUSTSEC-2023-0071", reason = "no upstream fix; server does public-key ops only (SAML private ops run in AWS-LC); residual: local SSH RSA userauth signing in russh" },
   # Unmaintained transitive crates without a known vulnerability: pulled in by
-  # Tauri/tera/gtk tooling, not by Termoso code.
+  # Tauri/tera/gtk tooling, not by Labterm code.
   { id = "RUSTSEC-2024-0370", reason = "proc-macro-error via tauri build tooling; compile-time only" },
   { id = "RUSTSEC-2025-0075", reason = "unic-* via tera (uniffi-bindgen templates); compile-time only" },
   { id = "RUSTSEC-2025-0080", reason = "unic-* via tera (uniffi-bindgen templates); compile-time only" },

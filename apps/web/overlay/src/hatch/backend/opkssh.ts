@@ -284,7 +284,7 @@ export function hostSetupScript(k: Ent<SshKey>, principal: string, identity: str
   const email = word("email", identity);
   return `set -e
 if [ "$(id -u)" = 0 ]; then SUDO=; elif sudo -n true 2>/dev/null; then SUDO="sudo -n"; else
-  echo "termoso: needs root or passwordless sudo" >&2; exit 3; fi
+  echo "labterm: needs root or passwordless sudo" >&2; exit 3; fi
 if ! command -v opkssh >/dev/null 2>&1; then
   tmp=$(mktemp)
   url=https://raw.githubusercontent.com/openpubkey/opkssh/${OPKSSH_VERSION}/scripts/install-linux.sh
@@ -297,14 +297,14 @@ if ! $SUDO grep -qsF "${s.issuer.trim()} ${s.clientId.trim()} " /etc/opk/provide
   echo "$line" | $SUDO tee -a /etc/opk/providers >/dev/null
 fi
 $SUDO opkssh add ${user} ${email} ${issuer}
-echo "termoso: opkssh ready"
+echo "labterm: opkssh ready"
 `;
 }
 
 /** What the setup run reported. */
 export function hostSetupOutcome(code: number | null, stdout: string, stderr: string) {
   const detail = stderr.trim();
-  if (code === 0 && stdout.includes("termoso: opkssh ready")) return;
+  if (code === 0 && stdout.includes("labterm: opkssh ready")) return;
   if (code === 3) fail("invalid", "setting up opkssh needs root or passwordless sudo on the host");
   fail("invalid", "opkssh setup failed (exit {code}): {detail}", {
     code: code ?? "?",

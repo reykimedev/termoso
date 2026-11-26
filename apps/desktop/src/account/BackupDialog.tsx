@@ -36,7 +36,7 @@ import { tr, trn, trx, msg } from "@/i18n";
 export type BackupMode = "export" | { kind: "restore"; path: string };
 
 const MIN_PASSWORD = 8;
-const EXT = "termoso";
+const EXT = "labterm";
 
 const KIND_LABEL: Record<string, [string, string]> = {
   host: [msg("{count} host"), msg("{count} hosts")],
@@ -74,7 +74,7 @@ function fileStamp() {
   return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
 }
 
-/** Native picker for a `.termoso` file; `null` when the user cancels. */
+/** Native picker for a `.labterm` file; `null` when the user cancels. */
 export async function pickBackupFile(): Promise<string | null> {
   const path = await openFile({
     title: tr("Open Labterm backup"),
@@ -84,7 +84,7 @@ export async function pickBackupFile(): Promise<string | null> {
   return typeof path === "string" ? path : null;
 }
 
-/** Encrypted `.termoso` backup: export unlocked vaults or restore one into a vault of this device. */
+/** Encrypted `.labterm` backup: export unlocked vaults or restore one into a vault of this device. */
 export function BackupDialog({ mode, onClose }: { mode: BackupMode | null; onClose: () => void }) {
   return (
     <Dialog open={mode !== null} onClose={onClose} maxWidth="sm" fullWidth>
@@ -198,7 +198,7 @@ function ExportBody({ onClose }: { onClose: () => void }) {
   const run = async () => {
     const path = await saveFile({
       title: tr("Save encrypted backup"),
-      defaultPath: `termoso-backup-${fileStamp()}.${EXT}`,
+      defaultPath: `labterm-backup-${fileStamp()}.${EXT}`,
       filters: [{ name: "Labterm backup", extensions: [EXT] }],
     });
     if (!path) return;

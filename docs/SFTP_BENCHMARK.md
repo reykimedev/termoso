@@ -1,4 +1,4 @@
-# SFTP throughput: Termoso vs Termius vs OpenSSH
+# SFTP throughput: Labterm vs Termius vs OpenSSH
 
 Single-file transfers of the same 512 MiB file, same sshd, same port, same
 emulated network path, measured with an external filesystem timer. Numbers
@@ -12,7 +12,7 @@ claim and will differ on other hardware, kernels and servers.
 | Host | Ubuntu 22.04, kernel 5.15, 8 vCPU (Intel Xeon Platinum 8559C), Docker 27.4 |
 | Server | OpenSSH 10.3p1 sshd in a Docker container (`pqssh`), `Subsystem sftp internal-sftp`, host port `2299` → container `22` |
 | File | `bench.bin`, 536 870 912 bytes, SHA-256 `f20966a9533b4514ec04eff84f395ab74bed67ba82d5c034ff227bc4b395928c` |
-| Termoso | desktop `0.1.1`, release build of this branch (`cargo build --release -p labterm-desktop`), Local vault, password auth |
+| Labterm | desktop `0.1.1`, release build of this branch (`cargo build --release -p labterm-desktop`), Local vault, password auth |
 | Termius | Linux desktop `10.0.0` (`Termius.deb`), password auth, same host entry `127.0.0.1:2299` |
 | OpenSSH client | `OpenSSH_8.9p1` `sftp` (reference only, not a GUI client) |
 | Network | LAN = Docker bridge on loopback (no added delay). WAN = `tc netem delay 40ms` on both the container `eth0` egress and the host-side veth egress → ≈ 80 ms RTT, no loss, no bandwidth cap |
@@ -90,9 +90,9 @@ armed on the destination.
 |---|---|---|
 | OpenSSH `sftp` (reference, 2 runs) | 24.1 / 24.1 | 23.6 / 23.7 |
 | Termius 10.0.0 | 17.8 (28.71 s) | 21.1 (24.26 s) |
-| Termoso — before tuning (16 × 32 KiB writes, 2 MiB SSH window) | 12.4 (41.31 s) | 5.2 (97.83 s) |
-| Termoso — 64 in flight × 256 KiB, 16 MiB window | 30.7 (16.70 s) | 23.3 (21.93 s) |
-| **Termoso — this branch** (32 in flight × 256 KiB, 8 MiB window) | **31.8 (16.08 s)** | **23.3 (22.00 s)** |
+| Labterm — before tuning (16 × 32 KiB writes, 2 MiB SSH window) | 12.4 (41.31 s) | 5.2 (97.83 s) |
+| Labterm — 64 in flight × 256 KiB, 16 MiB window | 30.7 (16.70 s) | 23.3 (21.93 s) |
+| **Labterm — this branch** (32 in flight × 256 KiB, 8 MiB window) | **31.8 (16.08 s)** | **23.3 (22.00 s)** |
 
 ### LAN (loopback bridge, no added delay)
 
@@ -100,14 +100,14 @@ armed on the destination.
 |---|---|---|
 | OpenSSH `sftp` (reference, 2 runs) | 225.4 / 155.5 | 188.2 / 301.3 |
 | Termius 10.0.0 | 91.0 (5.63 s; UI showed ≈ 78 MB/s) | 156.6 (3.27 s) |
-| Termoso — before tuning | 439.1 (1.17 s) | 347.9 (1.47 s) |
-| Termoso — 64 × 256 KiB, 16 MiB window (2 runs) | 273.5 / 276.8 | 212.1 / 229.7 |
-| **Termoso — this branch** (32 × 256 KiB, 8 MiB window) | **253.8 (2.02 s)** | **206.4 (2.48 s)** |
+| Labterm — before tuning | 439.1 (1.17 s) | 347.9 (1.47 s) |
+| Labterm — 64 × 256 KiB, 16 MiB window (2 runs) | 273.5 / 276.8 | 212.1 / 229.7 |
+| **Labterm — this branch** (32 × 256 KiB, 8 MiB window) | **253.8 (2.02 s)** | **206.4 (2.48 s)** |
 
 All 24 destination files hashed to the source SHA-256. No transfer failed or
 had to be retried.
 
-## What changed in Termoso and why
+## What changed in Labterm and why
 
 Before tuning, `russh-sftp` defaults were used: writes were 32 KiB packets
 with 16 in flight (512 KiB outstanding → ≈ 6 MiB/s at 80 ms RTT, which is
@@ -130,7 +130,7 @@ sizes shrink automatically on servers with smaller limits.
   between two runs); treat differences under ~30 % as noise there.
 * Termius' UI shows a moving-average rate that is lower than the external
   timer (e.g. 78 MB/s shown vs 91 MiB/s measured on LAN download).
-* Single file, single stream. Termoso's transfer queue runs up to 3 jobs in
+* Single file, single stream. Labterm's transfer queue runs up to 3 jobs in
   parallel; that was not measured and would change multi-file results.
 * Emulated delay only — no packet loss, jitter or bandwidth shaping.
 * Termius was measured with its default settings; it exposes no SFTP

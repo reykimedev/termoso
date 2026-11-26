@@ -1,4 +1,4 @@
-//! Terminal colour schemes: the Termoso pair plus the community set, in
+//! Terminal colour schemes: the Labterm pair plus the community set, in
 //! xterm's 16-colour order. Mirrors the desktop registry so a vault synced
 //! between devices renders the same. Settings store a scheme by `id`; names
 //! are accepted too for profiles written before ids existed.
@@ -18,8 +18,8 @@ pub struct TerminalTheme {
     pub palette: TerminalPalette,
 }
 
-pub const TERMOSO_DARK: &str = "termoso-dark";
-pub const TERMOSO_LIGHT: &str = "termoso-light";
+pub const LABTERM_DARK: &str = "termoso-dark";
+pub const LABTERM_LIGHT: &str = "termoso-light";
 
 fn luminance(rgb: u32) -> f32 {
     let r = ((rgb >> 16) & 255) as f32;
@@ -49,7 +49,7 @@ fn t(
     }
 }
 
-/// Every bundled scheme, Termoso pair first.
+/// Every bundled scheme, Labterm pair first.
 #[uniffi::export]
 pub fn terminal_themes() -> Vec<TerminalTheme> {
     all()
@@ -63,11 +63,11 @@ pub fn terminal_theme(key: String) -> Option<TerminalTheme> {
 }
 
 /// Palette for a settings key: built-in scheme by id/name, else a user
-/// scheme stored in the vault by entity id; unknown keys fall back to Termoso Dark.
+/// scheme stored in the vault by entity id; unknown keys fall back to Labterm Dark.
 pub(crate) fn palette_for_in(store: &Store, key: &str) -> TerminalPalette {
     resolve(store, key)
         .map(|t| t.palette)
-        .unwrap_or_else(TerminalPalette::termoso_dark)
+        .unwrap_or_else(TerminalPalette::labterm_dark)
 }
 
 fn hex_u32(s: &str) -> Option<u32> {
@@ -130,11 +130,11 @@ pub(crate) fn resolve(store: &Store, key: &str) -> Option<TerminalTheme> {
 #[rustfmt::skip]
 fn all() -> Vec<TerminalTheme> {
     vec![
-    t("termoso-dark", "Termoso Dark", 0x141826, 0xF1F3F8, 0x2BB884, [
+    t("termoso-dark", "Labterm Dark", 0x141826, 0xF1F3F8, 0x2BB884, [
         0x1A1E2B, 0xF25E61, 0x2BB884, 0xF2C94C, 0x5AA9E6, 0xC58AF9, 0x4FD1C5, 0xC9CDDA,
         0x5A6076, 0xFF8285, 0x5FD0A4, 0xFFDB7A, 0x8CC5F0, 0xDBB3FF, 0x84E7DD, 0xF2F4FA,
     ]),
-    t("termoso-light", "Termoso Light", 0xFFFFFF, 0x171B26, 0x1F8F66, [
+    t("termoso-light", "Labterm Light", 0xFFFFFF, 0x171B26, 0x1F8F66, [
         0x171B26, 0xC93B3E, 0x1F8F66, 0xB08A12, 0x2C6B9C, 0x8A4FCF, 0x1C8C82, 0x9AA3B2,
         0x5F6B7C, 0xF25E61, 0x2BB884, 0xD6A81C, 0x3D86BF, 0xA66BE8, 0x28A89C, 0xCBD2DC,
     ]),
@@ -400,12 +400,12 @@ mod tests {
         ids.sort_unstable();
         ids.dedup();
         assert_eq!(ids.len(), themes.len());
-        assert_eq!(themes[0].id, TERMOSO_DARK);
+        assert_eq!(themes[0].id, LABTERM_DARK);
         assert!(themes[0].dark);
-        assert!(!terminal_theme("Termoso Light".into()).unwrap().dark);
+        assert!(!terminal_theme("Labterm Light".into()).unwrap().dark);
         assert_eq!(
-            terminal_theme(TERMOSO_LIGHT.into()).unwrap().name,
-            "Termoso Light"
+            terminal_theme(LABTERM_LIGHT.into()).unwrap().name,
+            "Labterm Light"
         );
         assert!(terminal_theme("nope".into()).is_none());
         assert!(themes.iter().all(|t| t.palette.ansi.len() == 16));

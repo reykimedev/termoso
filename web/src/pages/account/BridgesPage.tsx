@@ -53,7 +53,7 @@ import { generateKeyPair, loadCrypto } from "@/crypto";
 import { bridgeEligible, sealVaultKeysFor } from "@/vaults/keys";
 
 const DOCS_URL = "https://github.com/termoso/termoso/blob/main/docs/API_BRIDGE.md";
-const IMAGE = "ghcr.io/termoso/termoso-bridge:latest";
+const IMAGE = "ghcr.io/reykimedev/labterm-bridge:latest";
 const MAX_NAME = 100;
 
 function credentialsFileName(bridge: Bridge): string {
@@ -61,15 +61,15 @@ function credentialsFileName(bridge: Bridge): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
-  return `termoso-bridge-${slug || bridge.id.slice(0, 8)}.json`;
+  return `labterm-bridge-${slug || bridge.id.slice(0, 8)}.json`;
 }
 
 function dockerSnippet(file: string): string {
   return [
-    "docker run -d --name termoso-bridge --restart unless-stopped \\",
+    "docker run -d --name labterm-bridge --restart unless-stopped \\",
     "  -p 127.0.0.1:8080:8080 \\",
-    `  -v "$PWD/${file}:/etc/termoso/bridge.json:ro" \\`,
-    '  -e TERMOSO_BRIDGE_API_KEY="$(openssl rand -hex 32)" \\',
+    `  -v "$PWD/${file}:/etc/labterm/bridge.json:ro" \\`,
+    '  -e LABTERM_BRIDGE_API_KEY="$(openssl rand -hex 32)" \\',
     `  ${IMAGE}`,
   ].join("\n");
 }
@@ -291,7 +291,7 @@ function CredentialsDialog({
               {trx(
                 "Keep the port bound to localhost or set {v1}; callers then send it as {v2}. Full REST reference in the  {v3} .",
                 {
-                  v1: <code>{tr("TERMOSO_BRIDGE_API_KEY")}</code>,
+                  v1: <code>{tr("LABTERM_BRIDGE_API_KEY")}</code>,
                   v2: <code>{tr("Authorization: Bearer")}</code>,
                   v3: (
                     <Link href={DOCS_URL} target="_blank" rel="noreferrer">
@@ -585,7 +585,7 @@ export function BridgesPage() {
             <li>
               {trx(
                 "The credentials file (private key + token) is downloaded once and mounted into the  {v1} container.",
-                { v1: <code>{tr("termoso-bridge")}</code> },
+                { v1: <code>{tr("labterm-bridge")}</code> },
               )}
             </li>
             <li>

@@ -1,8 +1,8 @@
 # Compliance map
 
-What Termoso implements for the controls that SOC 2 (Trust Services
+What Labterm implements for the controls that SOC 2 (Trust Services
 Criteria), ISO/IEC 27001 Annex A and GDPR auditors ask about, and where each
-lives in the code and the product. This is a map, not a certificate: Termoso
+lives in the code and the product. This is a map, not a certificate: Labterm
 the project is not SOC 2 attested; a company running it can use this document
 as the system description for its own audit of the self-hosted deployment.
 
@@ -16,8 +16,8 @@ Android, iOS or web cabinet.
 | --- | --- |
 | Data encrypted at rest, client side | Vault contents (hosts, identities, keys, snippets, session recordings) are encrypted on the client with a per-vault key; the server stores ciphertext only (`crates/labterm-crypto`, `docs/ARCHITECTURE.md`). Backups and the object store inherit this. |
 | Key distribution | Vault keys exist on the server only sealed to members' account public keys. Team membership and JIT grants create *pending* memberships; a manager's client seals the key. The server never holds a vault key. |
-| Password never reaches the server | OPAQUE password-authenticated key exchange (`crates/termoso-server/src/routes/auth.rs`). |
-| Server-side secrets | IdP client secrets, webhook secrets, SCIM tokens are encrypted with the server master key (`TERMOSO_MASTER_KEY`); backups record its fingerprint (`backup.rs`). |
+| Password never reaches the server | OPAQUE password-authenticated key exchange (`crates/labterm-server/src/routes/auth.rs`). |
+| Server-side secrets | IdP client secrets, webhook secrets, SCIM tokens are encrypted with the server master key (`LABTERM_MASTER_KEY`); backups record its fingerprint (`backup.rs`). |
 | Transport | TLS terminated by your reverse proxy; HSTS and CSP are set by the server (`routes/mod.rs`). |
 | Credential rotation | Team policy `key_max_age_days` / `password_max_age_days`; overdue report and rotation jobs (`routes/rotation.rs`); daily `rotation.due` reminder to webhooks. |
 
@@ -38,8 +38,8 @@ Android, iOS or web cabinet.
 
 | Control | Implementation |
 | --- | --- |
-| Team audit log | Every security-relevant team action is recorded with actor, device, target and details (`audit.rs`; ~80 action types). Retention per team (`audit_retention_days`, server cap `TERMOSO_AUDIT_RETENTION_DAYS_MAX`). |
-| Export to SIEM | Webhooks (HTTPS JSON, syslog/TLS) with HMAC signatures and delivery log (`webhooks.rs`); CSV/JSONL export; optional JSON-lines sink to stdout (`TERMOSO_AUDIT_SINK`). |
+| Team audit log | Every security-relevant team action is recorded with actor, device, target and details (`audit.rs`; ~80 action types). Retention per team (`audit_retention_days`, server cap `LABTERM_AUDIT_RETENTION_DAYS_MAX`). |
+| Export to SIEM | Webhooks (HTTPS JSON, syslog/TLS) with HMAC signatures and delivery log (`webhooks.rs`); CSV/JSONL export; optional JSON-lines sink to stdout (`LABTERM_AUDIT_SINK`). |
 | Session recordings | Server-side storage of encrypted recordings; team policy `session_recording = required` forces recording on all team vaults and restricts deletion to `logs.delete`; `log_retention_days`; team-wide listing and NDJSON export (`routes/logs.rs`). |
 | Account security events | Per-user security log (sign-ins, device approvals, MFA changes) in the cabinet. |
 | Operational health | `/healthz`, `/readyz`, Prometheus metrics, job locks with last-run timestamps (`jobs.rs`). |
@@ -50,10 +50,10 @@ Android, iOS or web cabinet.
 | --- | --- |
 | Data inventory | See `docs/ARCHITECTURE.md` ("What the server stores"). Personal data held: e-mail, display name, avatar, device metadata, IP in security/audit events; everything else is ciphertext. |
 | Access / portability | `GET /teams/{id}/export` — complete team export as one JSON document (members, roles, policies, vaults, entity ciphertext, recording metadata and download links, audit, webhooks, ACL, requests, rotation jobs, IdP settings). Account export for individuals is on the roadmap. |
-| Erasure | Account deletion (self-service and admin); team deletion with a cancellable grace period (`TERMOSO_TEAM_DELETION_GRACE_DAYS`, default 7) that purges rows and stored recordings; SCIM deprovisioning with retention delete. |
+| Erasure | Account deletion (self-service and admin); team deletion with a cancellable grace period (`LABTERM_TEAM_DELETION_GRACE_DAYS`, default 7) that purges rows and stored recordings; SCIM deprovisioning with retention delete. |
 | Retention | Audit retention per team, recording retention per team, SCIM retention, session limits — all enforced by server jobs. |
-| Residency | `TERMOSO_DATA_REGION` labels the installation; it is advertised in `/server/info`, stamped on teams at creation and shown at `GET /teams/{id}/data`. Self-hosting keeps all data in your region by construction. |
-| Client currency | `TERMOSO_MIN_CLIENT_VERSION` — oldest client version allowed to sign in (semver). Default: the server's own version — clients older than the server get `client_update_required` and must update. |
+| Residency | `LABTERM_DATA_REGION` labels the installation; it is advertised in `/server/info`, stamped on teams at creation and shown at `GET /teams/{id}/data`. Self-hosting keeps all data in your region by construction. |
+| Client currency | `LABTERM_MIN_CLIENT_VERSION` — oldest client version allowed to sign in (semver). Default: the server's own version — clients older than the server get `client_update_required` and must update. |
 | Processing records | Audit log + webhooks give Art. 30 evidence of who did what to team data. |
 
 ## 5. Change management and supply chain (CC8.1, A.8.25–A.8.32)
@@ -71,12 +71,12 @@ Android, iOS or web cabinet.
 | Control | Implementation |
 | --- | --- |
 | HA | Stateless server replicas behind a load balancer, managed PostgreSQL/Redis, S3-compatible object store (`docs/HA.md`). |
-| Backup / restore | `termoso-server backup` / `restore` with manifest, schema version and master-key fingerprint checks; weekly restore test in CI (`restore-test.yml`). |
+| Backup / restore | `labterm-server backup` / `restore` with manifest, schema version and master-key fingerprint checks; weekly restore test in CI (`restore-test.yml`). |
 | Jobs | Retention, expiry and reminder jobs take a database lock so only one replica runs them (`jobs.rs`). |
 
 ## 7. What is *not* covered
 
-* Termoso has no third-party attestation (SOC 2 report, ISO certificate).
+* Labterm has no third-party attestation (SOC 2 report, ISO certificate).
   The hosted cloud at app.termoso.dev is run by the maintainers without one.
 * The server is trusted for freshness and membership (see "Threat model" in
   `SECURITY.md`): it cannot read vault data, but it can withhold updates or
@@ -88,12 +88,12 @@ Android, iOS or web cabinet.
 
 1. Pin a release and record `gh attestation verify` output and the cosign
    verification of `SHA256SUMS.txt` in your change ticket.
-2. Set `TERMOSO_DATA_REGION`, `TERMOSO_AUDIT_RETENTION_DAYS_MAX`,
-   `TERMOSO_TEAM_DELETION_GRACE_DAYS` to your policy values.
+2. Set `LABTERM_DATA_REGION`, `LABTERM_AUDIT_RETENTION_DAYS_MAX`,
+   `LABTERM_TEAM_DELETION_GRACE_DAYS` to your policy values.
 3. In each team: `mfa = passkey` or `any`, `device_approval = true`,
    `sso_only` with your domains, `session_recording = required` where
    regulated, retention values, `key_max_age_days` / `password_max_age_days`.
 4. Point a webhook at your SIEM and keep delivery failures alerting.
-5. Schedule `termoso-server backup` and keep a restore drill log.
+5. Schedule `labterm-server backup` and keep a restore drill log.
 6. Export the team (`/teams/{id}/export`) once per audit period as evidence
    of scope.

@@ -159,7 +159,7 @@ class ShellViewModel(
             .onFailure { notify(it.userMessage()) }
             .getOrNull()
 
-    /** Join a `termoso://join/…` share as a viewer; the link is validated in Rust. */
+    /** Join a `labterm://join/…` share as a viewer; the link is validated in Rust. */
     suspend fun joinLive(link: String): TerminalSession? =
         runCatching { sessions.joinLive(link.trim()) }
             .onFailure { notify(it.userMessage()) }

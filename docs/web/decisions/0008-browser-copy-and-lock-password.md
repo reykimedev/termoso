@@ -1,6 +1,6 @@
 # 0008 The browser keeps an encrypted copy, unlocked by a lock password
 
-**Context:** On the desktop, Termoso's master password protects a local database. The browser has
+**Context:** On the desktop, Labterm's master password protects a local database. The browser has
 IndexedDB, which other code on the same origin and anyone with the profile on disk can read.
 
 **Decision:** Hatch keeps the account session, vault keys and synced entities in one state, sealed
@@ -11,5 +11,5 @@ the user's setting, and the lock button all drop the state and close sessions. A
 password resets the browser; whatever was synced comes back after signing in again.
 
 **Consequences:** Entries in the local "This browser" vault are lost on a reset. The device is
-"web" to the Termoso server and is approved like any new device (an emailed code once the
+"web" to the Labterm server and is approved like any new device (an emailed code once the
 account's address is verified).

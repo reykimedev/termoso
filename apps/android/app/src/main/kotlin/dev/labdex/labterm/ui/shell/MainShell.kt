@@ -291,7 +291,7 @@ fun MainShell(
         }
     }
 
-    // A termoso://join link: needs an account, then becomes a viewer terminal.
+    // A labterm://join link: needs an account, then becomes a viewer terminal.
     val pendingJoin by container.pendingJoin.collectAsStateWithLifecycle()
     val pendingSerial by container.pendingSerial.collectAsStateWithLifecycle()
     val restoring by account.restoring.collectAsStateWithLifecycle()
@@ -308,7 +308,7 @@ fun MainShell(
         shell.launch { if (shell.joinLive(link) != null) openTerminal() }
     }
 
-    // Launcher shortcuts and termoso://host links: act once the shell is up.
+    // Launcher shortcuts and labterm://host links: act once the shell is up.
     val pendingAction by container.pendingAction.collectAsStateWithLifecycle()
     LaunchedEffect(pendingAction, restoring) {
         val action = pendingAction ?: return@LaunchedEffect

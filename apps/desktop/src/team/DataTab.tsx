@@ -25,7 +25,7 @@ export function DataTab({ team }: { team: Team }) {
     mutationFn: async () => {
       const json = await ipc.teamExport(team.id);
       const path = await save({
-        defaultPath: `termoso-team-${team.name.replace(/[^\w.-]+/g, "_")}.json`,
+        defaultPath: `labterm-team-${team.name.replace(/[^\w.-]+/g, "_")}.json`,
         filters: [{ name: "JSON", extensions: ["json"] }],
       });
       if (!path) return false;
@@ -62,7 +62,7 @@ export function DataTab({ team }: { team: Team }) {
         <SettingRow
           label={tr("Data region")}
           hint={tr(
-            "Where this server keeps the team's data. Set by the operator (TERMOSO_DATA_REGION).",
+            "Where this server keeps the team's data. Set by the operator (LABTERM_DATA_REGION).",
           )}
           control={
             <Typography variant="body2">

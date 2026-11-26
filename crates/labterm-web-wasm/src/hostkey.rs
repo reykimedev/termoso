@@ -1,11 +1,11 @@
-//! Known-hosts check, the same rules as Termoso's `labterm_core::hostkey::KnownHosts::check`, so a
+//! Known-hosts check, the same rules as Labterm's `labterm_core::hostkey::KnownHosts::check`, so a
 //! host trusted on the user's desktop is trusted here and nothing else is.
 
 use base64::Engine as _;
 use russh::keys::{HashAlg, PublicKey};
 use serde::{Deserialize, Serialize};
 
-/// One pinned key from the user's Termoso known hosts (`known_host` entities, every vault).
+/// One pinned key from the user's Labterm known hosts (`known_host` entities, every vault).
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Pin {
@@ -27,7 +27,7 @@ pub struct HostKeyInfo {
     pub public_key: String,
 }
 
-/// Same shape as Termoso's `HostKeyVerdict`, so the desktop UI's prompt can show it.
+/// Same shape as Labterm's `HostKeyVerdict`, so the desktop UI's prompt can show it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum Verdict {

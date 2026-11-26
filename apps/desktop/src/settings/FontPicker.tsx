@@ -95,7 +95,7 @@ export function FontPreview({
         overflow: "hidden",
       }}
     >
-      <span style={{ color: blue }}>{" ~/termoso  "}</span>
+      <span style={{ color: blue }}>{" ~/labterm  "}</span>
       <span style={{ color: magenta }}>{" main  "}</span>
       <span style={{ color: green }}>{"\uF00C\n"}</span>
       <span style={{ color: green }}>{"❯ "}</span>

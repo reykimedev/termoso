@@ -124,7 +124,7 @@ pub(crate) fn safe_drop_name(name: &str) -> String {
         }
     }
     if out.is_empty() {
-        out = format!("termoso-{}", Uuid::new_v4().simple());
+        out = format!("labterm-{}", Uuid::new_v4().simple());
     }
     out
 }
@@ -1951,7 +1951,7 @@ mod tests {
         assert_eq!(safe_drop_name("photo.jpg"), "photo.jpg");
         assert_eq!(safe_drop_name("../a/b c'$x.txt"), "_a_b_c__x.txt");
         assert_eq!(safe_drop_name("--rf"), "rf");
-        assert!(safe_drop_name("").starts_with("termoso-"));
+        assert!(safe_drop_name("").starts_with("labterm-"));
         let long = safe_drop_name(&format!("{}.tar.gz", "x".repeat(300)));
         assert!(long.chars().count() <= 111 && long.ends_with(".gz"));
     }

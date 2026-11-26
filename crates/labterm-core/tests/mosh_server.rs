@@ -2,7 +2,7 @@
 //! whole wire stack (OCB, fragments, protobuf, state sync) has to line up
 //! with the reference implementation for a single byte to get through.
 //!
-//! Skips when `mosh-server` is not installed (set `TERMOSO_TEST_REQUIRE_MOSH=1`
+//! Skips when `mosh-server` is not installed (set `LABTERM_TEST_REQUIRE_MOSH=1`
 //! to fail instead).
 
 use std::process::{Command, Stdio};
@@ -39,8 +39,8 @@ fn spawn_server(shell: &str) -> Option<Server> {
         .output()
         .ok()?;
     if !which.status.success() {
-        if std::env::var("TERMOSO_TEST_REQUIRE_MOSH").is_ok() {
-            panic!("mosh-server not installed but TERMOSO_TEST_REQUIRE_MOSH is set");
+        if std::env::var("LABTERM_TEST_REQUIRE_MOSH").is_ok() {
+            panic!("mosh-server not installed but LABTERM_TEST_REQUIRE_MOSH is set");
         }
         eprintln!("mosh-server not installed; skipping");
         return None;

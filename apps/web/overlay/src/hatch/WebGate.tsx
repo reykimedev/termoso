@@ -18,7 +18,7 @@ const MIN = 8;
 
 /**
  * First start in this browser: the lock password that encrypts this browser's copy of the vault
- * (Argon2id, AES-GCM in IndexedDB). It plays the part of Termoso's master password; the Termoso
+ * (Argon2id, AES-GCM in IndexedDB). It plays the part of Labterm's master password; the Labterm
  * account sign-in follows in the app, under Settings → Account.
  */
 export function WebGate({ onSetUp }: { onSetUp: (password: string) => Promise<void> }) {
@@ -73,7 +73,7 @@ export function WebGate({ onSetUp }: { onSetUp: (password: string) => Promise<vo
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {tr(
-                "It encrypts this browser's copy of your vault and unlocks Labterm Web on this computer. It is not your Termoso account password and never leaves this browser.",
+                "It encrypts this browser's copy of your vault and unlocks Labterm Web on this computer. It is not your Labterm account password and never leaves this browser.",
               )}
             </Typography>
           </Stack>
@@ -110,7 +110,7 @@ export function WebGate({ onSetUp }: { onSetUp: (password: string) => Promise<vo
           </Box>
           <Typography variant="caption" color="text.secondary" sx={{ textAlign: "center" }}>
             {tr(
-              "Next: sign in to your Termoso account (the person icon at the top) to sync your hosts and keys.",
+              "Next: sign in to your Labterm account (the person icon at the top) to sync your hosts and keys.",
             )}
           </Typography>
           <Box sx={{ display: "flex", justifyContent: "center" }}>

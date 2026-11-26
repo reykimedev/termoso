@@ -22,7 +22,7 @@ sed -i "0,/^version = \"$old\"/s//version = \"$new\"/" Cargo.toml
 (cd apps/desktop && npm version --no-git-tag-version --allow-same-version "$new" >/dev/null)
 (cd web && npm version --no-git-tag-version --allow-same-version "$new" >/dev/null)
 sed -i "s/^    MARKETING_VERSION: \"$old\"/    MARKETING_VERSION: \"$new\"/" apps/ios/project.yml
-sed -i "s/^appVersion: \"$old\"/appVersion: \"$new\"/" deploy/helm/termoso/Chart.yaml
+sed -i "s/^appVersion: \"$old\"/appVersion: \"$new\"/" deploy/helm/labterm/Chart.yaml
 sed -i "s/^version: \"$old\"/version: \"$new\"/" packaging/snap/snapcraft.yaml
 
 node - "$new" <<'JS'
@@ -32,7 +32,7 @@ const p = "packaging/scoop/termoso.json";
 const m = JSON.parse(fs.readFileSync(p, "utf8"));
 m.version = v;
 for (const [arch, suffix] of [["64bit", "x64"], ["arm64", "arm64"]]) {
-  m.architecture[arch].url = `https://github.com/termoso/termoso/releases/download/v${v}/Termoso_${v}_${suffix}-setup.exe#/dl.7z`;
+  m.architecture[arch].url = `https://github.com/termoso/termoso/releases/download/v${v}/Labterm_${v}_${suffix}-setup.exe#/dl.7z`;
   m.architecture[arch].hash = "REPLACE_WITH_SHA256_FROM_RELEASE_SHA256SUMS";
 }
 fs.writeFileSync(p, JSON.stringify(m, null, 2) + "\n");

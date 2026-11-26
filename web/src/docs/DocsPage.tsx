@@ -252,9 +252,9 @@ export function DocsPage() {
 
   useEffect(() => {
     if (!page) return;
-    document.title = `${page.title} · Termoso docs`;
+    document.title = `${page.title} · Labterm docs`;
     return () => {
-      document.title = "Termoso";
+      document.title = "Labterm";
     };
   }, [page]);
 

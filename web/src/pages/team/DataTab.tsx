@@ -30,7 +30,7 @@ export function DataTab({ team }: { team: Team }) {
       if (!blob) throw new Error(tr("Nothing to export"));
       saveBlob(
         blob,
-        `termoso-team-${team.name.replace(/[^\w.-]+/g, "_")}-${new Date().toISOString().slice(0, 10)}.json`,
+        `labterm-team-${team.name.replace(/[^\w.-]+/g, "_")}-${new Date().toISOString().slice(0, 10)}.json`,
       );
     },
     onSuccess: () => snack.notify(tr("Export downloaded")),
@@ -63,7 +63,7 @@ export function DataTab({ team }: { team: Team }) {
         <SettingRow
           label={tr("Data region")}
           description={tr(
-            "Where this server keeps the team's data. Set by the operator (TERMOSO_DATA_REGION).",
+            "Where this server keeps the team's data. Set by the operator (LABTERM_DATA_REGION).",
           )}
           control={
             <Typography variant="body2">

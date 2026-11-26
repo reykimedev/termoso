@@ -1,4 +1,4 @@
-# Running Termoso highly available
+# Running Labterm highly available
 
 The API is stateless: every replica serves every request, sessions live in
 PostgreSQL, short-lived state (login handshakes, codes, rate limits) and
@@ -12,7 +12,7 @@ pieces redundant.
                  └──────┬───────┘
           ┌─────────────┼─────────────┐
    ┌──────▼─────┐ ┌─────▼──────┐ ┌────▼───────┐
-   │ api #1     │ │ api #2     │ │ api #N     │   ghcr.io/termoso/termoso-server
+   │ api #1     │ │ api #2     │ │ api #N     │   ghcr.io/reykimedev/labterm-server
    └──────┬─────┘ └─────┬──────┘ └────┬───────┘
           └─────────────┼─────────────┘
      ┌──────────────────┼───────────────────┐
@@ -30,7 +30,7 @@ pieces redundant.
 | PostgreSQL | accounts, OPAQUE records, teams, roles, policies, vault ciphertext, audit log, webhook outbox, SCIM state, sessions | the deployment — back it up (below) |
 | Redis | login handshakes, MFA/approval codes, rate-limit counters, presence, pub/sub between replicas | nobody is logged out; in-flight logins and codes must be redone; no realtime updates until it is back |
 | S3 | encrypted session logs | logs; nothing else references them |
-| `TERMOSO_MASTER_KEY` | seals server-side secrets (SSO client secrets, webhook secrets, SCIM tokens, SMTP credentials) | the database is only partially usable — the key is part of every backup |
+| `LABTERM_MASTER_KEY` | seals server-side secrets (SSO client secrets, webhook secrets, SCIM tokens, SMTP credentials) | the database is only partially usable — the key is part of every backup |
 
 ## Readiness and draining
 
@@ -39,14 +39,14 @@ pieces redundant.
   or `503 {"status":"not_ready", …}` naming the failing dependency. PostgreSQL
   and Redis are probed with a 1 s timeout, S3 (when configured) with 2 s.
 * On `SIGTERM` a replica flips `draining` to `true` (so `/readyz` answers 503),
-  waits `TERMOSO_DRAIN_SECS` (default 3 — set it to one or two probe
+  waits `LABTERM_DRAIN_SECS` (default 3 — set it to one or two probe
   intervals of your balancer), then stops accepting connections and lets
   in-flight requests finish. WebSocket clients reconnect to another replica
   on their own; terminal sessions are not interrupted because the server
   never carries SSH traffic.
 
 Point the balancer's health check at `/readyz` and its interval below
-`TERMOSO_DRAIN_SECS`; roll replicas one at a time.
+`LABTERM_DRAIN_SECS`; roll replicas one at a time.
 
 ## Background jobs on several replicas
 
@@ -71,9 +71,9 @@ safe, the first one applies them and the rest wait.
 ## PostgreSQL
 
 * Any managed PostgreSQL ≥ 16 (18 in the Compose stack). Use
-  `TERMOSO_DATABASE_URL=postgres://…?sslmode=verify-full&sslrootcert=/path/ca.pem`
+  `LABTERM_DATABASE_URL=postgres://…?sslmode=verify-full&sslrootcert=/path/ca.pem`
   for managed services.
-* Pool: `TERMOSO_DATABASE_MAX_CONNECTIONS` per replica (default 20). Size the
+* Pool: `LABTERM_DATABASE_MAX_CONNECTIONS` per replica (default 20). Size the
   server for `replicas × pool + 10`.
 * PgBouncer: the server uses prepared statements, so run PgBouncer in
   `pool_mode = session` or connect directly. `transaction` mode breaks
@@ -84,7 +84,7 @@ safe, the first one applies them and the rest wait.
 
 ## Redis
 
-`TERMOSO_REDIS_URL` accepts:
+`LABTERM_REDIS_URL` accepts:
 
 * `redis://host:6379[/db]` — plain;
 * `rediss://host:6380` — TLS (system trust store);
@@ -108,18 +108,18 @@ depends on their presence.
 
 ## Backups and restore
 
-`termoso-server backup|restore|backup-check` (shipped in
-`ghcr.io/termoso/termoso-backup`, which also carries `pg_dump`/`pg_restore`
+`labterm-server backup|restore|backup-check` (shipped in
+`ghcr.io/reykimedev/labterm-backup`, which also carries `pg_dump`/`pg_restore`
 18 and `age`):
 
 ```bash
 # nightly, e.g. from cron or a systemd timer
 docker compose -f deploy/docker-compose.yml --profile backup run --rm backup
-# → ./backups/termoso-20261018T020000Z.dump (+ .manifest.json)
+# → ./backups/labterm-20261018T020000Z.dump (+ .manifest.json)
 
 # encrypted at rest: generate `age-keygen -o backup-identity.txt`,
-# put the public key in .env as TERMOSO_BACKUP_AGE_RECIPIENT=age1…
-# → ./backups/termoso-….dump.age
+# put the public key in .env as LABTERM_BACKUP_AGE_RECIPIENT=age1…
+# → ./backups/labterm-….dump.age
 ```
 
 The manifest records the server version, the highest applied migration,
@@ -138,7 +138,7 @@ is worse than no restore; `--force-key` overrides for forensics), then runs
 and compares row counts with the manifest (non-zero exit on mismatch).
 Stop or drain the API before restoring.
 
-Bare metal: `TERMOSO_PG_DUMP`, `TERMOSO_PG_RESTORE`, `TERMOSO_AGE` point at
+Bare metal: `LABTERM_PG_DUMP`, `LABTERM_PG_RESTORE`, `LABTERM_AGE` point at
 the binaries if they are not on `PATH`; they must match the server's major
 version.
 
@@ -157,11 +157,11 @@ Target: 30 minutes to a working deployment.
 1. New host: install Docker, clone the repo, restore `deploy/.env` (the
    master key!) from your secret store.
 2. `docker compose -f deploy/docker-compose.yml up -d postgres redis rustfs --wait`
-3. Copy the latest `termoso-….dump[.age]` + manifest into `./backups`;
+3. Copy the latest `labterm-….dump[.age]` + manifest into `./backups`;
    `docker compose --profile backup run --rm backup backup-check --from /backups/<file>`.
 4. `docker compose --profile backup run --rm backup restore --from /backups/<file> --yes`
 5. `docker compose up -d --wait`; point DNS/the balancer at the new host.
-6. Session logs: if the bucket moved, update `TERMOSO_S3__*`; old logs stay
+6. Session logs: if the bucket moved, update `LABTERM_S3__*`; old logs stay
    readable as long as the objects exist.
 
 Clients notice nothing beyond the downtime: sessions are in the restored

@@ -212,7 +212,7 @@ pub const SSO_CALLBACK: &str = "termoso://sso";
 pub enum SsoOutcome {
     /// Browser round trip not finished yet.
     Pending,
-    /// Known account: unlock with the Termoso password.
+    /// Known account: unlock with the Labterm password.
     LoginRequired {
         email: String,
     },
@@ -1227,10 +1227,10 @@ mod tests {
     #[test]
     fn url_normalisation() {
         assert_eq!(
-            normalize_url(" https://termoso.example.com/ ").unwrap(),
-            "https://termoso.example.com"
+            normalize_url(" https://labterm.example.com/ ").unwrap(),
+            "https://labterm.example.com"
         );
-        assert!(normalize_url("termoso.example.com").is_err());
+        assert!(normalize_url("labterm.example.com").is_err());
         assert!(normalize_url("").is_err());
     }
 
@@ -1266,7 +1266,7 @@ mod tests {
         assert_eq!(v["methods"][0], "totp");
     }
 
-    const SERVER: &str = "https://termoso.example.com";
+    const SERVER: &str = "https://labterm.example.com";
 
     fn sso_inner(outcome: Option<SsoOutcome>, session: Option<&str>) -> Inner {
         Inner {

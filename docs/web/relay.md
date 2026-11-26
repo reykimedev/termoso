@@ -55,11 +55,11 @@ signed release):
   "relayUrl": "https://relay.example.com",
   "oidcIssuer": "https://auth.example.com/application/o/labterm-web/",
   "oidcClientId": "labterm-web",
-  "termosoServer": "https://termoso.example.com",
+  "labtermServer": "https://labterm.example.com",
   "oidcScopes": "offline_access"
 }
 ```
 
 The Authentik application is a public client (no secret) with PKCE and the redirect URI
-`https://labterm.example.com/oidc-callback.html`. A self-hosted Termoso server must list the app's
-origin in `TERMOSO_CORS_ORIGINS`.
+`https://labterm.example.com/oidc-callback.html`. A self-hosted Labterm server must list the app's
+origin in `LABTERM_CORS_ORIGINS`.

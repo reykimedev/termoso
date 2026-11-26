@@ -1,6 +1,6 @@
 [package]
 name = "labterm-proto"
-description = "Wire types shared by the Termoso server and clients (REST + WebSocket + sync entities)"
+description = "Wire types shared by the Labterm server and clients (REST + WebSocket + sync entities)"
 version.workspace = true
 edition.workspace = true
 publish = false

@@ -30,7 +30,7 @@ With a remote host in both panes, drag from one to the other — or **Copy to ta
 
 ## ZMODEM (`rz` / `sz`) in the terminal
 
-Old-school and still handy on routers, serial consoles and boxes without SFTP: run `sz file.bin` on the remote and Termoso notices the ZMODEM header, hides the protocol noise and asks for a folder (Downloads by default); run `rz` and it asks which local files to send. A bar over the terminal shows the file, bytes and a cancel button, and a line in the terminal sums up the result. Files that already exist are kept — the new one lands as `name (1).ext`; the remote's modification time is preserved.
+Old-school and still handy on routers, serial consoles and boxes without SFTP: run `sz file.bin` on the remote and Labterm notices the ZMODEM header, hides the protocol noise and asks for a folder (Downloads by default); run `rz` and it asks which local files to send. A bar over the terminal shows the file, bytes and a cancel button, and a line in the terminal sums up the result. Files that already exist are kept — the new one lands as `name (1).ext`; the remote's modification time is preserved.
 
 Needs `lrzsz` on the remote (`apt install lrzsz`, `apk add lrzsz`), works over SSH, Telnet and serial, one direction at a time; `sz -e` (escape control characters) helps on noisy serial links. For anything bigger than a few megabytes the SFTP pane is faster.
 
@@ -98,7 +98,7 @@ S3 hosts show up where WebDAV ones do: Connections, **Copy to…**, and the Andr
 
 The **TLS** block covers everything about trusting the server; it is hidden for plain-HTTP shares.
 
-- **Server name (SNI)** — only when the certificate is issued to a different name than the address: a share behind a reverse proxy that you reach by IP, or an internal name that is not in DNS. Termoso connects to the address, but sends this name as SNI and `Host` and checks the certificate against it.
+- **Server name (SNI)** — only when the certificate is issued to a different name than the address: a share behind a reverse proxy that you reach by IP, or an internal name that is not in DNS. Labterm connects to the address, but sends this name as SNI and `Host` and checks the certificate against it.
 - **Certificate authority (PEM)** — your own CA (one or several certificates, PEM) that signed the server certificate. With a CA set, the system trust store is not consulted; the server chain must lead to one of the pasted certificates.
 - **Server certificate fingerprint** — pins exactly one certificate by SHA-256 (`sha256:…`, bare or colon-separated hex). A pin wins over the CA and over the system roots.
 - **Client certificate** — a certificate + private key pair for mutual TLS, stored in the vault. See [Keychain](/docs/keychain/identities) for identities.
@@ -110,7 +110,7 @@ With neither CA nor pin, the system trust store decides. An unknown certificate 
 
 ## Android
 
-Every SFTP and WebDAV host is exposed to the system **Files** app and to document pickers (Storage Access Framework) when **Settings → Files → Show SFTP hosts in Files** is on, so other apps can open and save files on your servers directly — attach a log to an e-mail, open a config in a code editor, save a photo to a server. Hosts in a locked vault are hidden until the vault is unlocked. Connections that another app opens this way run quietly: they do not appear as cards in the notification shade and close on their own after a few minutes idle; only sessions you open in Termoso itself are listed there.
+Every SFTP and WebDAV host is exposed to the system **Files** app and to document pickers (Storage Access Framework) when **Settings → Files → Show SFTP hosts in Files** is on, so other apps can open and save files on your servers directly — attach a log to an e-mail, open a config in a code editor, save a photo to a server. Hosts in a locked vault are hidden until the vault is unlocked. Connections that another app opens this way run quietly: they do not appear as cards in the notification shade and close on their own after a few minutes idle; only sessions you open in Labterm itself are listed there.
 
 The in-app browser has the same transfer queue with pause and resume, **Copy to…** between hosts, and uploads from the phone's storage or the camera. Open it from a session's **⋮ → Open SFTP**, from **Connections**, or from the host's menu.
 
@@ -125,4 +125,4 @@ The in-app browser has the same transfer queue with pause and resume, **Copy to�
 
 ## Browsing as root
 
-Files you cannot read as your user — `/etc`, another account's home, a service's data directory — can be opened with **sudo**: Termoso starts `sftp-server` under `sudo -S` with your password instead of asking the SSH server for the `sftp` subsystem, so the whole session (listing, editing, uploads, permissions) runs as root. It needs a sudoers rule that lets you run the `sftp-server` binary (the usual distribution paths are tried: `/usr/lib/openssh/sftp-server`, `/usr/libexec/sftp-server`, `/usr/lib/ssh/sftp-server`, …). The password is sent once, over the SSH channel, and not stored.
+Files you cannot read as your user — `/etc`, another account's home, a service's data directory — can be opened with **sudo**: Labterm starts `sftp-server` under `sudo -S` with your password instead of asking the SSH server for the `sftp` subsystem, so the whole session (listing, editing, uploads, permissions) runs as root. It needs a sudoers rule that lets you run the `sftp-server` binary (the usual distribution paths are tried: `/usr/lib/openssh/sftp-server`, `/usr/libexec/sftp-server`, `/usr/lib/ssh/sftp-server`, …). The password is sent once, over the SSH channel, and not stored.

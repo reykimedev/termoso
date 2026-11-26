@@ -1,7 +1,7 @@
-//! CI smoke hook, debug builds only. With `TERMOSO_SMOKE_SCRIPT=<file>` set,
+//! CI smoke hook, debug builds only. With `LABTERM_SMOKE_SCRIPT=<file>` set,
 //! the file is evaluated in the main webview once its page has loaded; the
 //! script drives the UI through the DOM and reports through `smoke_report`,
-//! which appends one line per call to `TERMOSO_SMOKE_REPORT`. Release builds
+//! which appends one line per call to `LABTERM_SMOKE_REPORT`. Release builds
 //! ignore both variables and reject the command, so a shipped binary carries
 //! no way to inject script.
 
@@ -12,8 +12,8 @@ use tauri::{Runtime, Webview};
 
 use crate::error::{DesktopError, Result};
 
-pub const SCRIPT_ENV: &str = "TERMOSO_SMOKE_SCRIPT";
-pub const REPORT_ENV: &str = "TERMOSO_SMOKE_REPORT";
+pub const SCRIPT_ENV: &str = "LABTERM_SMOKE_SCRIPT";
+pub const REPORT_ENV: &str = "LABTERM_SMOKE_REPORT";
 
 fn enabled() -> bool {
     cfg!(debug_assertions)

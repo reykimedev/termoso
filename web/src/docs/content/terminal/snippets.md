@@ -46,7 +46,7 @@ Other ways to run a snippet:
 
 ## Quiet run
 
-**Run quietly…** (in the snippet menu) runs the snippet on several hosts without opening a terminal: Termoso connects to each host, runs the expanded script over a separate `exec` channel and collects stdout, stderr and the exit code into one table. Pick the hosts (the snippet's targets are preselected), fill in the variables, and watch the rows fill in as hosts finish; expand a row for the full output, **Copy summary** puts everything into the clipboard as text.
+**Run quietly…** (in the snippet menu) runs the snippet on several hosts without opening a terminal: Labterm connects to each host, runs the expanded script over a separate `exec` channel and collects stdout, stderr and the exit code into one table. Pick the hosts (the snippet's targets are preselected), fill in the variables, and watch the rows fill in as hosts finish; expand a row for the full output, **Copy summary** puts everything into the clipboard as text.
 
 It is the right tool for `uptime`, `df -h`, `systemctl is-active {{service}}` across a fleet — read-only checks whose result you want side by side, not in ten tabs. Hosts run eight at a time on desktop (four on Android), each has two minutes for connect plus command, output is kept up to 64 KB per stream. Password, passphrase and host-key prompts appear as usual; a host that fails to connect is shown with the error and does not stop the others. There is no interactive shell behind the command, so anything that needs a TTY (`sudo` with a password prompt, `top`) will not work there — run it in terminals instead.
 

@@ -1,4 +1,4 @@
-//! Client façades shared by the Termoso shells (Tauri desktop, Android).
+//! Client façades shared by the Labterm shells (Tauri desktop, Android).
 //!
 //! Everything here is pure `Store` logic: the UI edits flat forms
 //! ([`hosts::HostForm`], [`keychain::GenerateForm`], …) and Rust maps them to

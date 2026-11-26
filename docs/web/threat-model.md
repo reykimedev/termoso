@@ -10,7 +10,7 @@ What Labterm Web protects, from whom, and where it stops. Update it when a new w
 
 | Asset | Where it lives |
 | --- | --- |
-| Vault contents: SSH keys, passwords, host list | Encrypted on the Termoso server; decrypted only inside the browser tab |
+| Vault contents: SSH keys, passwords, host list | Encrypted on the Labterm server; decrypted only inside the browser tab |
 | SSH sessions | End to end between the browser and the host; the relay carries ciphertext |
 | Known host keys | The user's Labterm vault, synced from their devices |
 | This browser's copy of the vault | IndexedDB, sealed with AES-GCM under a key from the lock password (Argon2id) |
@@ -30,9 +30,9 @@ What Labterm Web protects, from whom, and where it stops. Update it when a new w
 | A compromised build or a tampered server | Ship code that leaks keys | Reproducible builds, a release manifest signed with a key held by the release environment, SRI, a loader and service worker that check every file |
 | Someone with the unlocked laptop | Use open sessions | Idle lock after the user's Labterm setting; a lock button that closes sessions and forgets the vault key |
 | Someone with a copy of the browser profile | Read the vault from IndexedDB | Sealed with AES-GCM under the lock password (Argon2id, 64 MiB); the opkssh key is never stored |
-| Another member of a team vault, or the Termoso server | Pin a key for a host they don't own, or hand a new device a personal vault of their own making | Pins count only from the host's own vault, this browser's vault and a personal vault sealed with the account key; a personal key the server could have sealed is never opened ([0010](decisions/0010-who-vouches-for-a-host-key.md)) |
+| Another member of a team vault, or the Labterm server | Pin a key for a host they don't own, or hand a new device a personal vault of their own making | Pins count only from the host's own vault, this browser's vault and a personal vault sealed with the account key; a personal key the server could have sealed is never opened ([0010](decisions/0010-who-vouches-for-a-host-key.md)) |
 | A team vault's policy | Is ignored by a client | Labterm Web enforces `auth = keys_only`, `jump_host_required` and `export = deny` like the Labterm apps; hosts behind a jump host or proxy don't open until Labterm Web can follow the chain |
-| Whoever can change `config.json` on the server | Point the app at another relay, identity provider or Termoso server | Not signed (it is deployment data). Another relay still only sees ciphertext and fails the host-key check; another identity provider shows its own address in the sign-in pop-up |
+| Whoever can change `config.json` on the server | Point the app at another relay, identity provider or Labterm server | Not signed (it is deployment data). Another relay still only sees ciphertext and fails the host-key check; another identity provider shows its own address in the sign-in pop-up |
 
 ## What Labterm Web does not protect against
 
@@ -41,7 +41,7 @@ What Labterm Web protects, from whom, and where it stops. Update it when a new w
   App could close this.
 - **A compromised browser or OS**, a malicious browser extension, or a keylogger on the work PC.
 - **Metadata at the relay**: it sees who connects where, when, and how much.
-- **The rest of Labterm**: a flaw in the Termoso server or in `labterm-wasm` affects Labterm Web too.
+- **The rest of Labterm**: a flaw in the Labterm server or in `labterm-wasm` affects Labterm Web too.
 - **A replaced service worker after the warning.** The browser updates `sw.js` on its own; Labterm Web
   warns on the load that sees the change, but the next load runs whatever was installed.
 

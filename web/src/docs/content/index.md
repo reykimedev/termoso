@@ -1,9 +1,9 @@
 ---
-title: What is Termoso
+title: What is Labterm
 description: An open-source SSH client for desktop and mobile with end-to-end encrypted vaults, a free cloud you can replace with your own server, and no telemetry.
 ---
 
-Termoso is an SSH client built around one rule: **the software reports to you, not on you.** It covers the daily work around remote machines — terminal, SFTP, keys, port forwarding, snippets — on Linux, Windows, macOS, Android and iOS, and keeps everything it stores encrypted on your device.
+Labterm is an SSH client built around one rule: **the software reports to you, not on you.** It covers the daily work around remote machines — terminal, SFTP, keys, port forwarding, snippets — on Linux, Windows, macOS, Android and iOS, and keeps everything it stores encrypted on your device.
 
 ## Basic concepts
 
@@ -46,4 +46,4 @@ The web cabinet manages your account, devices, security settings and teams. By d
 - Something broke: [Troubleshooting](/docs/reference/troubleshooting) and the [FAQ](/docs/reference/faq).
 
 > [!NOTE]
-> Termoso is free software under AGPL-3.0. There are no plans, seats or paid features — the same build serves one person and a whole team.
+> Labterm is free software under AGPL-3.0. There are no plans, seats or paid features — the same build serves one person and a whole team.

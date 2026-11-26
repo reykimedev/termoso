@@ -87,7 +87,7 @@ fun SecurityKeyPicker(
                 Column(Modifier.weight(1f)) {
                     Text(stringResource(R.string.waiting_for_a_security_key), style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        if (pending > 0) stringResource(R.string.allow_termoso_to_use_the_usb_device_in) else hint,
+                        if (pending > 0) stringResource(R.string.allow_labterm_to_use_the_usb_device_in) else hint,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

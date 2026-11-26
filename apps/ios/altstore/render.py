@@ -2,7 +2,7 @@
 """Render the AltStore/SideStore source for one release.
 
     render.py --template source.template.json --repo owner/name --tag v0.2.0 \
-              --version 0.2.0 --ipa termoso-0.2.0-ios.ipa --out termoso-altstore.json
+              --version 0.2.0 --ipa labterm-0.2.0-ios.ipa --out labterm-altstore.json
 
 Fills version, download URL, size and sha256 of the .ipa. No credentials are
 involved: the feed only points at the unsigned .ipa on GitHub Releases, signing

@@ -5,7 +5,7 @@
 # the others), so an installed build only ever updates from the branch it came from.
 #
 # Secrets of the GitHub environment `android-debug` (deployments limited to main; skipped without them):
-#   ANDROID_DEBUG_KEYSTORE_BASE64     debug-channel keystore (`base64 -w0 termoso-debug.jks`, alias `termoso-debug`)
+#   ANDROID_DEBUG_KEYSTORE_BASE64     debug-channel keystore (`base64 -w0 labterm-debug.jks`, alias `labterm-debug`)
 #   ANDROID_DEBUG_KEYSTORE_PASSWORD   its store/key password
 name: Android debug channel
 
@@ -88,19 +88,19 @@ jobs:
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_DEBUG_KEYSTORE_BASE64 }}
         run: |
-          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/termoso-debug.jks"
-          echo "TERMOSO_ANDROID_DEBUG_KEYSTORE=$RUNNER_TEMP/termoso-debug.jks" >> "$GITHUB_ENV"
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/labterm-debug.jks"
+          echo "LABTERM_ANDROID_DEBUG_KEYSTORE=$RUNNER_TEMP/labterm-debug.jks" >> "$GITHUB_ENV"
       - name: Build
         if: env.HAS_KEY == 'true'
         working-directory: apps/android
         env:
           ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.2.12479018
-          TERMOSO_ANDROID_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_DEBUG_KEYSTORE_PASSWORD }}
-          TERMOSO_DEBUG_BUILD: ${{ github.run_number }}
+          LABTERM_ANDROID_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_DEBUG_KEYSTORE_PASSWORD }}
+          LABTERM_DEBUG_BUILD: ${{ github.run_number }}
           REPO: ${{ github.repository }}
         run: |
           UPDATE_URL="https://github.com/$REPO/releases/download/$CHANNEL_TAG/latest.json"
-          ./gradlew --no-daemon -Ptermoso.abis=arm64-v8a "-Ptermoso.debugUpdateUrl=$UPDATE_URL" :app:assembleDebug
+          ./gradlew --no-daemon -Plabterm.abis=arm64-v8a "-Plabterm.debugUpdateUrl=$UPDATE_URL" :app:assembleDebug
       - name: Publish
         if: env.HAS_KEY == 'true'
         env:
@@ -121,6 +121,6 @@ jobs:
               --notes "Debug builds for testing; the app updates itself from here. Not for production use."
           fi
           gh release upload "$CHANNEL_TAG" "$out/labterm-debug.apk" "$out/latest.json" --clobber
-          # The asset was called termoso-debug.apk before the rename; installed builds follow latest.json.
-          gh release delete-asset "$CHANNEL_TAG" termoso-debug.apk --yes 2>/dev/null || true
+          # The asset was called labterm-debug.apk before the rename; installed builds follow latest.json.
+          gh release delete-asset "$CHANNEL_TAG" labterm-debug.apk --yes 2>/dev/null || true
           gh release edit "$CHANNEL_TAG" --title "Labterm Debug (rolling, $CHANNEL_TAG)" --notes "Debug build $BUILD from $COMMIT. The app updates itself from here."

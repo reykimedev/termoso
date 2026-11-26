@@ -37,8 +37,8 @@ const PRINCIPAL = /^[a-z_][a-z0-9_-]{0,31}$/;
 
 function provisionCommand(url: string): string {
   return [
-    `curl -fsS ${url} | sudo tee /etc/ssh/termoso_ca.pub >/dev/null`,
-    `echo 'TrustedUserCAKeys /etc/ssh/termoso_ca.pub' | sudo tee -a /etc/ssh/sshd_config >/dev/null`,
+    `curl -fsS ${url} | sudo tee /etc/ssh/labterm_ca.pub >/dev/null`,
+    `echo 'TrustedUserCAKeys /etc/ssh/labterm_ca.pub' | sudo tee -a /etc/ssh/sshd_config >/dev/null`,
     `sudo systemctl reload ssh 2>/dev/null || sudo systemctl reload sshd`,
   ].join("\n");
 }

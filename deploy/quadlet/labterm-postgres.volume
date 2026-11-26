@@ -1,0 +1,5 @@
+[Unit]
+Description=Labterm postgres data
+
+[Volume]
+VolumeName=labterm-postgres

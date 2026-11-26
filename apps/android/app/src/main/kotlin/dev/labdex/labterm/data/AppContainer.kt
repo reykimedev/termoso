@@ -78,7 +78,7 @@ class AppContainer(context: Context) {
     private var backgroundedAt = 0L
 
     /**
-     * A team invitation link the app was opened with (`termoso://invite/<token>`),
+     * A team invitation link the app was opened with (`labterm://invite/<token>`),
      * held until the vault is open and the shell can show the join dialog.
      */
     private val _pendingInvite = MutableStateFlow<String?>(null)
@@ -93,7 +93,7 @@ class AppContainer(context: Context) {
     }
 
     /**
-     * A `termoso://join/…` multiplayer link the app was opened with. Held as one
+     * A `labterm://join/…` multiplayer link the app was opened with. Held as one
      * opaque string (its fragment is the session secret) until a signed-in
      * shell can hand it to Rust; never logged.
      */
@@ -108,7 +108,7 @@ class AppContainer(context: Context) {
         _pendingJoin.value = null
     }
 
-    /** A launcher shortcut (`termoso://new|local|sftp`) the app was opened with. */
+    /** A launcher shortcut (`labterm://new|local|sftp`) the app was opened with. */
     private val _pendingAction = MutableStateFlow<QuickAction?>(null)
     val pendingAction: StateFlow<QuickAction?> = _pendingAction.asStateFlow()
 
@@ -120,7 +120,7 @@ class AppContainer(context: Context) {
         _pendingAction.value = null
     }
 
-    /** Host id from a `termoso://host/<id>` link or a recent-host shortcut. */
+    /** Host id from a `labterm://host/<id>` link or a recent-host shortcut. */
     private val _pendingHost = MutableStateFlow<String?>(null)
     val pendingHost: StateFlow<String?> = _pendingHost.asStateFlow()
 

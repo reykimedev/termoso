@@ -23,7 +23,7 @@ for arg in "$@"; do
         *) appdir="${appdir:-$arg}" ;;
     esac
 done
-[ -d "$appdir" ] || { echo "linuxdeploy-plugin-appimage (termoso): AppDir not found: '$appdir'" >&2; exit 1; }
+[ -d "$appdir" ] || { echo "linuxdeploy-plugin-appimage (labterm): AppDir not found: '$appdir'" >&2; exit 1; }
 
 echo "Removing bundled libwayland from $appdir"
 find "$appdir"/usr/lib* \( -type f -o -type l \) -name 'libwayland-*.so*' -print -delete
@@ -31,5 +31,5 @@ find "$appdir"/usr/lib* \( -type f -o -type l \) -name 'libwayland-*.so*' -print
 # $LINUXDEPLOY is set by linuxdeploy for its plugins and points at the running
 # binary inside the extracted AppImage; the stock output plugin sits next to it.
 real="$(dirname "${LINUXDEPLOY:?not run by linuxdeploy}")/linuxdeploy-plugin-appimage"
-[ -x "$real" ] || { echo "linuxdeploy-plugin-appimage (termoso): built-in plugin not found at $real" >&2; exit 1; }
+[ -x "$real" ] || { echo "linuxdeploy-plugin-appimage (labterm): built-in plugin not found at $real" >&2; exit 1; }
 exec "$real" "$@"

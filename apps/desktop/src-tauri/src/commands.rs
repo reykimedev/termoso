@@ -65,7 +65,7 @@ pub fn app_quit<R: Runtime>(app: AppHandle<R>) {
     app.exit(0);
 }
 
-/// Links the command line asked for at launch (`termoso ssh …`), reported once;
+/// Links the command line asked for at launch (`labterm ssh …`), reported once;
 /// later ones arrive as the `quick-action` event.
 #[tauri::command]
 pub fn launch_links(links: tauri::State<'_, crate::quick::LaunchLinks>) -> Vec<String> {
@@ -100,7 +100,7 @@ pub fn launch_files(files: tauri::State<'_, crate::quick::LaunchFiles>) -> Vec<S
     files.take()
 }
 
-/// Register this binary as the handler for the `termoso://`, `ssh://` and
+/// Register this binary as the handler for the `labterm://`, `ssh://` and
 /// `telnet://` schemes for the current user. Installers do this already; the command
 /// covers AppImage / portable builds. Returns the schemes now registered.
 #[tauri::command]
@@ -109,7 +109,7 @@ pub fn deep_links_register<R: Runtime>(app: AppHandle<R>) -> Result<Vec<String>>
     links
         .register_all()
         .map_err(|e| DesktopError::new("deep_link", e.to_string()))?;
-    Ok(["termoso", "ssh", "telnet"]
+    Ok(["labterm", "ssh", "telnet"]
         .into_iter()
         .filter(|s| links.is_registered(s).unwrap_or(false))
         .map(str::to_string)

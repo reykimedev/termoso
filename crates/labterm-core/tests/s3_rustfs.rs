@@ -1,9 +1,9 @@
 //! S3 client against a real S3-compatible server (RustFS / MinIO) at
-//! `TERMOSO_TEST_S3_ENDPOINT` (default `http://127.0.0.1:9000`) with
-//! `TERMOSO_TEST_S3_ACCESS_KEY` / `TERMOSO_TEST_S3_SECRET_KEY` (default
-//! `minioadmin`); the bucket `TERMOSO_TEST_S3_BUCKET` (default
+//! `LABTERM_TEST_S3_ENDPOINT` (default `http://127.0.0.1:9000`) with
+//! `LABTERM_TEST_S3_ACCESS_KEY` / `LABTERM_TEST_S3_SECRET_KEY` (default
+//! `minioadmin`); the bucket `LABTERM_TEST_S3_BUCKET` (default
 //! `labterm-core-test-s3`) is created when missing. Skips when the endpoint
-//! is unreachable unless `TERMOSO_TEST_REQUIRE_SERVICES` is set.
+//! is unreachable unless `LABTERM_TEST_REQUIRE_SERVICES` is set.
 
 use std::time::Duration;
 
@@ -13,7 +13,7 @@ use labterm_core::s3::{S3, S3Config};
 use labterm_core::sftp::{EntryKind, OpenMode, TransferOptions};
 
 fn endpoint() -> String {
-    std::env::var("TERMOSO_TEST_S3_ENDPOINT").unwrap_or_else(|_| "http://127.0.0.1:9000".into())
+    std::env::var("LABTERM_TEST_S3_ENDPOINT").unwrap_or_else(|_| "http://127.0.0.1:9000".into())
 }
 
 async fn reachable(url: &str) -> bool {
@@ -27,7 +27,7 @@ async fn reachable(url: &str) -> bool {
         .await
         .is_ok_and(|r| r.is_ok());
     if !ok {
-        if std::env::var("TERMOSO_TEST_REQUIRE_SERVICES").is_ok() {
+        if std::env::var("LABTERM_TEST_REQUIRE_SERVICES").is_ok() {
             panic!("S3 storage unavailable at {url}");
         }
         eprintln!("S3 storage unavailable at {url}: skipping");
@@ -43,12 +43,12 @@ async fn client() -> Option<S3> {
     }
     let cfg = S3Config {
         endpoint,
-        bucket: std::env::var("TERMOSO_TEST_S3_BUCKET")
+        bucket: std::env::var("LABTERM_TEST_S3_BUCKET")
             .unwrap_or_else(|_| "labterm-core-test-s3".into()),
         prefix: format!("run-{}", uuid::Uuid::new_v4().simple()),
-        access_key: std::env::var("TERMOSO_TEST_S3_ACCESS_KEY")
+        access_key: std::env::var("LABTERM_TEST_S3_ACCESS_KEY")
             .unwrap_or_else(|_| "minioadmin".into()),
-        secret_key: std::env::var("TERMOSO_TEST_S3_SECRET_KEY")
+        secret_key: std::env::var("LABTERM_TEST_S3_SECRET_KEY")
             .unwrap_or_else(|_| "minioadmin".into()),
         spool_dir: Some(std::env::temp_dir()),
         ..S3Config::default()

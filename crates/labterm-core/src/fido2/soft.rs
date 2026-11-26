@@ -1152,7 +1152,7 @@ mod tests {
         assert_eq!(loaded.len(), 1);
         assert_eq!(
             loaded[0].public_key,
-            m.public_key.replace(" test@soft", " termoso")
+            m.public_key.replace(" test@soft", " labterm")
         );
     }
 

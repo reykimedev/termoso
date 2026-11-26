@@ -1,6 +1,6 @@
 [package]
 name = "labterm-client"
-description = "Termoso client façades shared by the desktop and mobile shells: host editor, keychain, typed errors"
+description = "Labterm client façades shared by the desktop and mobile shells: host editor, keychain, typed errors"
 version.workspace = true
 edition.workspace = true
 publish = false

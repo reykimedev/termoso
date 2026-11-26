@@ -192,7 +192,7 @@ export function AppShell() {
         }}
       >
         <Typography variant="caption" sx={{ flex: 1 }} noWrap>
-          {info.data ? `${info.data.name} · v${info.data.version}` : tr("Termoso")}
+          {info.data ? `${info.data.name} · v${info.data.version}` : tr("Labterm")}
         </Typography>
         <Tooltip
           title={

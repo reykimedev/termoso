@@ -16,7 +16,7 @@ Each section starts with the message you see, then the usual causes in order of 
 
 ### "Host key has changed"
 
-Termoso stops before sending anything and shows both fingerprints. If the server was reinstalled or its keys rotated, open **Known Hosts**, remove the old entry for that address and connect again. If you did not expect a change, do not connect until you can verify the new fingerprint through another channel — this is the one warning that is worth a phone call.
+Labterm stops before sending anything and shows both fingerprints. If the server was reinstalled or its keys rotated, open **Known Hosts**, remove the old entry for that address and connect again. If you did not expect a change, do not connect until you can verify the new fingerprint through another channel — this is the one warning that is worth a phone call.
 
 ![Host key confirmation](/docs/img/desktop-hostkey-prompt.png)
 
@@ -49,19 +49,19 @@ Mosh needs `mosh-server` on the host and UDP 60000–61000 open towards it. The 
 
 ### Backspace or Delete does the wrong thing
 
-Switch **Backspace sends** between `^?` and `^H` in the host's terminal settings — different embedded systems and old Unixes disagree. Delete problems are usually `TERM`: Termoso advertises `xterm-256color`; set the host's terminal type to `linux` or `vt100` for equipment that does not know it.
+Switch **Backspace sends** between `^?` and `^H` in the host's terminal settings — different embedded systems and old Unixes disagree. Delete problems are usually `TERM`: Labterm advertises `xterm-256color`; set the host's terminal type to `linux` or `vt100` for equipment that does not know it.
 
 ### Colours are wrong in `tmux` or `vim`
 
 Set `set -g default-terminal "tmux-256color"` (tmux) or `set termguicolors` (vim) on the host. If a TUI insists on 16 colours, check that `TERM` was not overridden by a profile script.
 
-### A shortcut reaches Termoso instead of the program
+### A shortcut reaches Labterm instead of the program
 
 Unbind it in **Settings → Keyboard**; unbound chords are passed through to the shell. See [Keyboard shortcuts](/docs/reference/keyboard-shortcuts#inside-the-terminal).
 
 ### Autocomplete shows nothing
 
-Suggestions come from history, snippets and — if enabled — the remote shell history. A fresh host has none yet. Prompt markers (OSC 133) make suggestions precise; without them Termoso guesses the prompt line, which fails on exotic prompts. The popup can be turned off entirely in **Settings → Terminal**.
+Suggestions come from history, snippets and — if enabled — the remote shell history. A fresh host has none yet. Prompt markers (OSC 133) make suggestions precise; without them Labterm guesses the prompt line, which fails on exotic prompts. The popup can be turned off entirely in **Settings → Terminal**.
 
 ### The terminal on Android ignores my taps
 
@@ -75,7 +75,7 @@ The target directory is owned by another user. Upload to your home directory and
 
 ### Transfers are slow
 
-Termoso pipelines SFTP requests, so throughput should be close to `scp`. If it is far below, the bottleneck is usually the server's disk or a VPN MTU problem; a quick comparison is `scp` of the same file from the same machine.
+Labterm pipelines SFTP requests, so throughput should be close to `scp`. If it is far below, the bottleneck is usually the server's disk or a VPN MTU problem; a quick comparison is `scp` of the same file from the same machine.
 
 ### The host does not appear in the Android Files app
 
@@ -110,11 +110,11 @@ The **destination** is resolved on the **server**, not on your machine: `localho
 
 ### "Server certificate not trusted" on a self-hosted server
 
-The apps ship their own root store and do not use the operating system's. Private CAs are not accepted — use a Let's Encrypt or other publicly trusted certificate on `TERMOSO_PUBLIC_URL`.
+The apps ship their own root store and do not use the operating system's. Private CAs are not accepted — use a Let's Encrypt or other publicly trusted certificate on `LABTERM_PUBLIC_URL`.
 
 ### Passkeys do not work with the desktop app
 
-`TERMOSO_WEBAUTHN__RP_ID` must be the domain of `TERMOSO_PUBLIC_URL`, and the allowed origins must include `tauri://localhost,http://tauri.localhost`. See [Configuration](/docs/self-hosting/configuration#passkeys-app-links-sso).
+`LABTERM_WEBAUTHN__RP_ID` must be the domain of `LABTERM_PUBLIC_URL`, and the allowed origins must include `tauri://localhost,http://tauri.localhost`. See [Configuration](/docs/self-hosting/configuration#passkeys-app-links-sso).
 
 ### I forgot my password
 
@@ -124,7 +124,7 @@ Use the 24-word recovery key from sign-up. Without it there is no way back in �
 
 ### The session died while the app was in the background
 
-Android stopped the foreground service — usually a battery optimiser. Exclude Termoso from battery optimisation (**Android Settings → Apps → Termoso → Battery → Unrestricted**). Some vendors (Xiaomi, Huawei, OnePlus) have a second switch for autostart or background activity.
+Android stopped the foreground service — usually a battery optimiser. Exclude Labterm from battery optimisation (**Android Settings → Apps → Labterm → Battery → Unrestricted**). Some vendors (Xiaomi, Huawei, OnePlus) have a second switch for autostart or background activity.
 
 ### Linux environment: "can't fork" on Alpine
 
@@ -136,4 +136,4 @@ The resolver file is rewritten from the phone's DNS at every shell start. If a V
 
 ## Getting help
 
-Issues and discussions live on [GitHub](https://github.com/termoso/termoso/issues). Include the app version (**Settings → About**), the platform, and — for connection problems — the output of `ssh -vv user@host` from the same network. Never paste keys, passwords or recovery words; Termoso's own logs do not contain them, and neither should an issue.
+Issues and discussions live on [GitHub](https://github.com/termoso/termoso/issues). Include the app version (**Settings → About**), the platform, and — for connection problems — the output of `ssh -vv user@host` from the same network. Never paste keys, passwords or recovery words; Labterm's own logs do not contain them, and neither should an issue.

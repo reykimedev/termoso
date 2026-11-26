@@ -532,7 +532,7 @@ pub fn host_setup_script(
     Ok(format!(
         r#"set -e
 if [ "$(id -u)" = 0 ]; then SUDO=; elif sudo -n true 2>/dev/null; then SUDO="sudo -n"; else
-  echo "termoso: needs root or passwordless sudo" >&2; exit 3; fi
+  echo "labterm: needs root or passwordless sudo" >&2; exit 3; fi
 if ! command -v opkssh >/dev/null 2>&1; then
   tmp=$(mktemp)
   url=https://raw.githubusercontent.com/openpubkey/opkssh/{version}/scripts/install-linux.sh
@@ -545,7 +545,7 @@ if ! $SUDO grep -qsF "{issuer_raw} {client_id_raw} " /etc/opk/providers; then
   echo "$line" | $SUDO tee -a /etc/opk/providers >/dev/null
 fi
 $SUDO opkssh add {principal} {identity} {issuer}
-echo "termoso: opkssh ready"
+echo "labterm: opkssh ready"
 "#,
         version = OPKSSH_VERSION,
         issuer_raw = settings.issuer.trim(),
@@ -563,7 +563,7 @@ pub fn host_setup_outcome(exit_code: Option<u32>, stdout: &[u8], stderr: &[u8]) 
     let err = String::from_utf8_lossy(stderr);
     let detail = err.trim();
     match exit_code {
-        Some(0) if out.contains("termoso: opkssh ready") => Ok(()),
+        Some(0) if out.contains("labterm: opkssh ready") => Ok(()),
         Some(3) => Err(ClientError::invalid(
             "setting up opkssh needs root or passwordless sudo on the host",
         )),
@@ -703,7 +703,7 @@ mod tests {
 
         remember(&store, id, &s, &fresh(now() + 3600)).unwrap();
         let mut changed = p.data.clone();
-        changed.client_id = "termoso".into();
+        changed.client_id = "labterm".into();
         save_provider(&store, vault, Some(p.id), changed).unwrap();
         assert!(matches!(
             prepare(&store, &key).unwrap(),

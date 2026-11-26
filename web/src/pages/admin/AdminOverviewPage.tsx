@@ -71,7 +71,7 @@ export function AdminOverviewPage() {
         title={tr("Admin")}
         subtitle={
           info.data
-            ? tr("{name} · Termoso {version}", { name: info.data.name, version: info.data.version })
+            ? tr("{name} · Labterm {version}", { name: info.data.name, version: info.data.version })
             : tr("Server overview")
         }
       />

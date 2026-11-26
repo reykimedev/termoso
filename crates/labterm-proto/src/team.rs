@@ -577,7 +577,7 @@ pub const PERMISSIONS: &[&str] = &[
 ];
 
 /// Permissions the server cannot enforce on its own: zero-knowledge clients
-/// hold the secrets, so these are honoured by Termoso clients and listed as
+/// hold the secrets, so these are honoured by Labterm clients and listed as
 /// such in the catalog (`enforced_by = "client"`).
 pub const CLIENT_ENFORCED_PERMISSIONS: &[&str] = &[
     "secrets.reveal",
@@ -609,7 +609,7 @@ schema! {
         pub description: String,
         /// Granting this widens access to secrets or administration.
         pub dangerous: bool,
-        /// `server` (checked on every request) or `client` (honoured by Termoso
+        /// `server` (checked on every request) or `client` (honoured by Labterm
         /// clients; the server cannot see the secret).
         pub enforced_by: String,
     }
@@ -1507,7 +1507,7 @@ schema! {
         /// `None` when the team has no IdP configured.
         #[serde(default)]
         pub idp: Option<TeamIdp>,
-        /// Whether this server allows per-team IdPs (`TERMOSO_TEAM_IDP`).
+        /// Whether this server allows per-team IdPs (`LABTERM_TEAM_IDP`).
         pub available: bool,
     }
 }

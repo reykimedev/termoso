@@ -119,7 +119,7 @@ function IntegrityDialog({ open, onClose }: { open: boolean; onClose: () => void
               Labterm
             </Typography>
             <Typography variant="body2" sx={{ fontFamily: "monospace" }}>
-              {i.termoso}
+              {i.labterm}
             </Typography>
           </Box>
           {i.files.length > 0 && (

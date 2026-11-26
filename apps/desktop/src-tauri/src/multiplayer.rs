@@ -52,7 +52,7 @@ pub struct ShareInfo {
     pub id: Uuid,
     pub live_id: Uuid,
     pub role: LiveRole,
-    /// Host only: the `termoso://join/…` link to hand out.
+    /// Host only: the `labterm://join/…` link to hand out.
     pub link: Option<String>,
     pub participants: Vec<Participant>,
     /// Viewer: whether our keystrokes reach the host terminal.
@@ -305,7 +305,7 @@ pub fn set_control<R: Runtime>(
     Ok(())
 }
 
-/// Open someone else's terminal from a `termoso://join/…` link. Called by the
+/// Open someone else's terminal from a `labterm://join/…` link. Called by the
 /// session registry as the `Live` open target; the tab then behaves like any
 /// other session (output stream, resize, close).
 pub(crate) async fn join<R: Runtime>(app: &AppHandle<R>, id: Uuid, link: &str) -> Result<Opened> {

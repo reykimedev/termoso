@@ -122,7 +122,7 @@ fun LiveSheet(session: TerminalSession, shell: ShellViewModel, onClose: () -> Un
                 }
                 share == null -> {
                     Text(
-                        stringResource(R.string.let_others_watch_this_terminal_live_through_termoso),
+                        stringResource(R.string.let_others_watch_this_terminal_live_through_labterm),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -133,7 +133,7 @@ fun LiveSheet(session: TerminalSession, shell: ShellViewModel, onClose: () -> Un
                 }
                 else -> {
                     Text(
-                        stringResource(R.string.anyone_with_the_link_and_a_termoso_account),
+                        stringResource(R.string.anyone_with_the_link_and_a_labterm_account),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -143,7 +143,7 @@ fun LiveSheet(session: TerminalSession, shell: ShellViewModel, onClose: () -> Un
                         OutlinedButton(
                             onClick = {
                                 context.getSystemService<ClipboardManager>()
-                                    ?.setPrimaryClip(ClipData.newPlainText(str(R.string.termoso_link), link))
+                                    ?.setPrimaryClip(ClipData.newPlainText(str(R.string.labterm_link), link))
                                 shell.notify(str(R.string.link_copied))
                             },
                             modifier = Modifier.weight(1f),
@@ -236,13 +236,13 @@ private fun Participants(
 private fun shareLink(context: Context, link: String) {
     val send = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
-        putExtra(Intent.EXTRA_SUBJECT, str(R.string.join_my_terminal_in_termoso))
+        putExtra(Intent.EXTRA_SUBJECT, str(R.string.join_my_terminal_in_labterm))
         putExtra(Intent.EXTRA_TEXT, link)
     }
     context.startActivity(Intent.createChooser(send, str(R.string.share_link)))
 }
 
-/** Paste or type a join link (`https://…/join/…` or `termoso://join/…`); Rust validates it on Join. */
+/** Paste or type a join link (`https://…/join/…` or `labterm://join/…`); Rust validates it on Join. */
 @Composable
 fun JoinLiveDialog(onDismiss: () -> Unit, onJoin: (String) -> Unit) {
     val context = LocalContext.current

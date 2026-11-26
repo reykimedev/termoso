@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- USB-UART adapters Termoso can drive (see data/serial/UsbSerial.kt). -->
+<!-- USB-UART adapters Labterm can drive (see data/serial/UsbSerial.kt). -->
 <resources>
     <!-- FTDI FT232R / FT2232 / FT4232 / FT232H / FT231X -->
     <usb-device vendor-id="1027" product-id="24577" />

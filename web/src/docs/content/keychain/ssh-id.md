@@ -37,4 +37,4 @@ Remove a key from SSH ID and it disappears from the published list at once; serv
 
 ## Privacy
 
-Only public keys and the handle are published; device keys are listed only while that device is signed in. Self-hosted servers publish at `https://<server>/sshid/<handle>` and can add a dedicated origin (`TERMOSO_SSHID_URL`) such as `https://sshid.example.com/<handle>` — the `/sshid/` path keeps working either way, and browsers opening it are redirected to the dedicated one.
+Only public keys and the handle are published; device keys are listed only while that device is signed in. Self-hosted servers publish at `https://<server>/sshid/<handle>` and can add a dedicated origin (`LABTERM_SSHID_URL`) such as `https://sshid.example.com/<handle>` — the `/sshid/` path keeps working either way, and browsers opening it are redirected to the dedicated one.

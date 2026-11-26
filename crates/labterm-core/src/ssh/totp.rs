@@ -181,7 +181,7 @@ mod tests {
         assert!(parse(SECRET).is_ok());
         assert!(parse("jbsw y3dp ehpk 3pxp").is_ok());
         assert!(
-            parse("otpauth://totp/Termoso:root@host?secret=JBSWY3DPEHPK3PXP&issuer=Termoso")
+            parse("otpauth://totp/Labterm:root@host?secret=JBSWY3DPEHPK3PXP&issuer=Labterm")
                 .is_ok()
         );
         assert!(parse("").is_err());

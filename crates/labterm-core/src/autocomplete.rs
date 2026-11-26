@@ -951,7 +951,7 @@ mod tests {
 
     #[test]
     fn local_listing() {
-        let tmp = std::env::temp_dir().join(format!("termoso-ac-{}", std::process::id()));
+        let tmp = std::env::temp_dir().join(format!("labterm-ac-{}", std::process::id()));
         std::fs::create_dir_all(tmp.join("sub")).unwrap();
         std::fs::write(tmp.join("file.txt"), b"x").unwrap();
         let entries = list_local_dir(None, tmp.to_str().unwrap());

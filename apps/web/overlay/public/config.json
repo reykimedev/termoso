@@ -2,6 +2,6 @@
   "relayUrl": "https://relay.example.com",
   "oidcIssuer": "https://auth.example.com/application/o/labterm-web/",
   "oidcClientId": "labterm-web",
-  "termosoServer": "https://termoso.example.com",
+  "labtermServer": "https://labterm.example.com",
   "oidcScopes": "offline_access"
 }

@@ -29,7 +29,7 @@ On Linux the user has to be in the `dialout` (Debian/Ubuntu) or `uucp` (Arch, Fe
 
 ## Android (USB-UART)
 
-Connect a USB-to-serial adapter with an OTG cable, then open **Connections → Serial (USB)**. Termoso drives the adapter itself over the Android USB host API — no root, no vendor app. Supported chips:
+Connect a USB-to-serial adapter with an OTG cable, then open **Connections → Serial (USB)**. Labterm drives the adapter itself over the Android USB host API — no root, no vendor app. Supported chips:
 
 - CDC-ACM (most Arduino boards, Raspberry Pi Pico, ESP32-S3/C3 native USB, many modern adapters);
 - FTDI FT232/FT2232;

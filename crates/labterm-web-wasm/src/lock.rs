@@ -1,5 +1,5 @@
 //! The key that encrypts this browser's copy of the account (session, keys, synced entities) at
-//! rest. Argon2id with the same cost as Termoso's OPAQUE key stretching (64 MiB, 3 passes).
+//! rest. Argon2id with the same cost as Labterm's OPAQUE key stretching (64 MiB, 3 passes).
 
 use wasm_bindgen::prelude::*;
 

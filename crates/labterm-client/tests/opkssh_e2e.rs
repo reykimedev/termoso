@@ -1,10 +1,10 @@
 //! End to end against real opkssh: a test OpenID provider and an OpenSSH
 //! host whose `AuthorizedKeysCommand` is `opkssh verify %u %k %t`
-//! (`tests/opkssh/compose.yml`). Skipped unless `TERMOSO_OPKSSH_E2E` is set:
+//! (`tests/opkssh/compose.yml`). Skipped unless `LABTERM_OPKSSH_E2E` is set:
 //!
 //! ```sh
 //! docker compose -f crates/labterm-client/tests/opkssh/compose.yml up -d --build --wait
-//! TERMOSO_OPKSSH_E2E=1 cargo test -p labterm-client --features oidc-cert --test opkssh_e2e
+//! LABTERM_OPKSSH_E2E=1 cargo test -p labterm-client --features oidc-cert --test opkssh_e2e
 //! ```
 #![cfg(feature = "oidc-cert")]
 
@@ -34,8 +34,8 @@ const OP_PASSWORD: &str = "verysecure";
 const OP_EMAIL: &str = "test-user@zitadel.ch";
 
 fn enabled() -> bool {
-    if std::env::var_os("TERMOSO_OPKSSH_E2E").is_none() {
-        eprintln!("skipped: set TERMOSO_OPKSSH_E2E=1 with tests/opkssh/compose.yml running");
+    if std::env::var_os("LABTERM_OPKSSH_E2E").is_none() {
+        eprintln!("skipped: set LABTERM_OPKSSH_E2E=1 with tests/opkssh/compose.yml running");
         return false;
     }
     true

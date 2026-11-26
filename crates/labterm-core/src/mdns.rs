@@ -431,7 +431,7 @@ mod tests {
             return;
         };
         let _ = daemon.set_multicast_loop_v4(true);
-        let name = format!("termoso-test-{}", uuid::Uuid::new_v4().simple());
+        let name = format!("labterm-test-{}", uuid::Uuid::new_v4().simple());
         let host = format!("{name}.local.");
         let info = mdns_sd::ServiceInfo::new(
             "_ssh._tcp.local.",
@@ -439,7 +439,7 @@ mod tests {
             &host,
             (),
             2222,
-            &[("model", "termoso")][..],
+            &[("model", "labterm")][..],
         )
         .expect("service info")
         .enable_addr_auto();
@@ -458,7 +458,7 @@ mod tests {
         assert_eq!(dev.port, 2222);
         assert_eq!(dev.hostname, host.trim_end_matches('.'));
         assert_eq!(dev.services, vec![LocalService::Ssh]);
-        assert_eq!(dev.txt.get("model").map(String::as_str), Some("termoso"));
+        assert_eq!(dev.txt.get("model").map(String::as_str), Some("labterm"));
         assert!(!dev.addresses.is_empty());
     }
 }

@@ -58,7 +58,7 @@ describe("ru table", () => {
     "Secret Access Key",
     "Shift_JIS",
     "Splunk HEC",
-    "TERMOSO_BRIDGE_API_KEY",
+    "LABTERM_BRIDGE_API_KEY",
     "Telnet",
     "Tenant ID",
     "Termius / CSV",
@@ -74,7 +74,7 @@ describe("ru table", () => {
     "config.yaml…",
     "example.com, corp.example.com",
     "member., vault.deleted, policy.updated",
-    "termoso-bridge",
+    "labterm-bridge",
     "vault. / member.removed",
     "{vault} · {role}",
   ]);

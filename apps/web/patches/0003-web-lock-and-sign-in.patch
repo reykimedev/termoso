@@ -17,7 +17,7 @@ index f313705..7c8ff06 100644
    const resumed = ssoState.phase !== "idle" ? ssoState.serverUrl : null;
 -  const [where, setWhere] = useState<Where>(resumed && resumed !== CLOUD_URL ? "custom" : "cloud");
 -  const [serverUrl, setServerUrl] = useState(resumed && resumed !== CLOUD_URL ? resumed : "");
-+  // Web build: start with the deployment's own Termoso server from config.json.
++  // Web build: start with the deployment's own Labterm server from config.json.
 +  const preset = IS_WEB ? webDefaultServer() : null;
 +  const [where, setWhere] = useState<Where>(
 +    resumed && resumed !== CLOUD_URL ? "custom" : preset ? "custom" : "cloud",

@@ -1,7 +1,7 @@
 // German (Swiss spelling, no ß) for Hatch's own text: English source → translation, in the format of
-// Termoso's ru table. Termoso's own UI text falls back to English until it has a German table.
+// Labterm's ru table. Labterm's own UI text falls back to English until it has a German table.
 export const de: Readonly<Record<string, string>> = {
-  // phone navigation (also Termoso's own labels)
+  // phone navigation (also Labterm's own labels)
   Hosts: "Hosts",
   Keychain: "Schlüsselbund",
   "Known hosts": "Bekannte Hosts",
@@ -10,23 +10,23 @@ export const de: Readonly<Record<string, string>> = {
 
   // first start, lock screen
   "Set a lock password": "Sperrpasswort festlegen",
-  "It encrypts this browser's copy of your vault and unlocks Labterm Web on this computer. It is not your Termoso account password and never leaves this browser.":
-    "Es verschlüsselt die Kopie deines Tresors in diesem Browser und entsperrt Labterm Web auf diesem Computer. Es ist nicht das Passwort deines Termoso-Kontos und verlässt diesen Browser nie.",
+  "It encrypts this browser's copy of your vault and unlocks Labterm Web on this computer. It is not your Labterm account password and never leaves this browser.":
+    "Es verschlüsselt die Kopie deines Tresors in diesem Browser und entsperrt Labterm Web auf diesem Computer. Es ist nicht das Passwort deines Labterm-Kontos und verlässt diesen Browser nie.",
   "Lock password": "Sperrpasswort",
   "Repeat the lock password": "Sperrpasswort wiederholen",
   "Use at least {count} characters": "Mindestens {count} Zeichen verwenden",
   "The passwords differ": "Die Passwörter stimmen nicht überein",
   "Setting up…": "Wird eingerichtet…",
   Continue: "Weiter",
-  "Next: sign in to your Termoso account (the person icon at the top) to sync your hosts and keys.":
-    "Als Nächstes: Beim Termoso-Konto anmelden (Personensymbol oben), um Hosts und Schlüssel zu synchronisieren.",
+  "Next: sign in to your Labterm account (the person icon at the top) to sync your hosts and keys.":
+    "Als Nächstes: Beim Labterm-Konto anmelden (Personensymbol oben), um Hosts und Schlüssel zu synchronisieren.",
   "Labterm Web cannot start": "Labterm Web kann nicht starten",
-  "Forgot it? Reset this browser and sign in to your Termoso account again.":
-    "Vergessen? Diesen Browser zurücksetzen und erneut beim Termoso-Konto anmelden.",
+  "Forgot it? Reset this browser and sign in to your Labterm account again.":
+    "Vergessen? Diesen Browser zurücksetzen und erneut beim Labterm-Konto anmelden.",
   "Reset this browser": "Diesen Browser zurücksetzen",
   "Reset this browser?": "Diesen Browser zurücksetzen?",
-  "Labterm Web forgets this browser's copy of your vault. Everything synced to your Termoso account comes back when you sign in again; entries kept only in this browser are lost.":
-    "Labterm Web vergisst die Kopie deines Tresors in diesem Browser. Alles, was mit deinem Termoso-Konto synchronisiert ist, kommt bei der nächsten Anmeldung zurück; Einträge, die nur in diesem Browser liegen, gehen verloren.",
+  "Labterm Web forgets this browser's copy of your vault. Everything synced to your Labterm account comes back when you sign in again; entries kept only in this browser are lost.":
+    "Labterm Web vergisst die Kopie deines Tresors in diesem Browser. Alles, was mit deinem Labterm-Konto synchronisiert ist, kommt bei der nächsten Anmeldung zurück; Einträge, die nur in diesem Browser liegen, gehen verloren.",
   Reset: "Zurücksetzen",
   Cancel: "Abbrechen",
   Close: "Schliessen",
@@ -99,15 +99,15 @@ export const de: Readonly<Record<string, string>> = {
     "Pop-ups für diese Seite erlauben, um dich beim Identitätsanbieter anzumelden.",
   "The provider sent no ID token": "Der Anbieter hat kein ID-Token gesendet",
 
-  // Termoso account
+  // Labterm account
   "Wrong email or password.": "E-Mail oder Passwort falsch.",
   "No sign-in in progress": "Keine Anmeldung im Gang",
   "No second factor pending": "Kein zweiter Faktor ausstehend",
   "No device approval pending": "Keine Gerätefreigabe ausstehend",
   "Unexpected answer from the server": "Unerwartete Antwort vom Server",
-  "Sign in to your Termoso account first": "Zuerst beim Termoso-Konto anmelden",
-  "Your Termoso session ended. Sign in again.":
-    "Deine Termoso-Sitzung ist abgelaufen. Bitte erneut anmelden.",
+  "Sign in to your Labterm account first": "Zuerst beim Labterm-Konto anmelden",
+  "Your Labterm session ended. Sign in again.":
+    "Deine Labterm-Sitzung ist abgelaufen. Bitte erneut anmelden.",
 
   // vault
   "The vault is locked": "Der Tresor ist gesperrt",
@@ -131,7 +131,7 @@ export const de: Readonly<Record<string, string>> = {
   "A vault without a lock password": "Ein Tresor ohne Sperrpasswort",
   "Creating an account (use the Labterm app, then sign in here)":
     "Ein Konto erstellen (in der Labterm-App, danach hier anmelden)",
-  "Single sign-on to Termoso": "Single Sign-on bei Termoso",
+  "Single sign-on to Labterm": "Single Sign-on bei Labterm",
   "Reading key files from disk": "Schlüsseldateien von der Festplatte lesen",
   "Saving files to disk": "Dateien auf der Festplatte speichern",
   "Importing known_hosts": "known_hosts importieren",

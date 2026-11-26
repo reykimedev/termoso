@@ -5,7 +5,7 @@ import { LandingPage } from "./LandingPage";
 
 /**
  * `/`: the landing page, unless the server hides it on this origin
- * (`TERMOSO_LANDING=false`, or the landing lives on `TERMOSO_LANDING_URL`),
+ * (`LABTERM_LANDING=false`, or the landing lives on `LABTERM_LANDING_URL`),
  * in which case the cabinet starts at sign-in. The server already redirects
  * a fresh page load; this covers client-side navigation back to `/`.
  */

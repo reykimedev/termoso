@@ -24,7 +24,7 @@ export function UpdateBanner({ onOpenSettings }: { onOpenSettings: () => void })
         </>
       }
     >
-      {tr("Termoso {version} is available.", { version: phase.info.version })}
+      {tr("Labterm {version} is available.", { version: phase.info.version })}
     </Alert>
   );
 }

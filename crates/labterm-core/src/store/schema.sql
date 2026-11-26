@@ -1,4 +1,4 @@
--- Termoso local database. Every value that is not needed for routing is
+-- Labterm local database. Every value that is not needed for routing is
 -- ciphertext: entity payloads are encrypted with their vault key (exactly the
 -- envelope the server stores), vault keys and account material are wrapped
 -- with the device master key that lives in the OS keychain.

@@ -3,7 +3,7 @@
 // release keys, hashes every file into manifest.json, and rewrites index.html so that it runs
 // only the loader (with SRI) under a strict CSP, with an import map that pins every module's hash.
 //   node apps/web/tools/manifest.mjs <dist>
-// Environment: HATCH_VERSION, HATCH_COMMIT, HATCH_TERMOSO_VERSION, HATCH_SERIAL (unix seconds,
+// Environment: HATCH_VERSION, HATCH_COMMIT, HATCH_LABTERM_VERSION, HATCH_SERIAL (unix seconds,
 // e.g. the commit time; must grow from release to release), HATCH_CSP_CONNECT (connect-src
 // sources, default "'self' https: wss:"). Sign the result with apps/web/tools/sign-manifest.mjs.
 import { createHash } from "node:crypto";
@@ -106,7 +106,7 @@ const manifest = {
   format: 1,
   version: env("HATCH_VERSION", "dev"),
   commit: env("HATCH_COMMIT", "dev"),
-  termoso: env("HATCH_TERMOSO_VERSION", "unknown"),
+  labterm: env("HATCH_LABTERM_VERSION", "unknown"),
   serial: Number(env("HATCH_SERIAL", "0")),
   entry: { script, styles },
   files: Object.fromEntries(Object.entries(files).sort(([a], [b]) => (a < b ? -1 : 1))),

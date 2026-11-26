@@ -237,7 +237,7 @@ final class SessionStore {
         start(origin: .local) { listener in
             let home = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.path ?? ""
             return try repository.app.connectLocal(
-                shell: LocalShell(argv: [], home: home, env: ["TERM_PROGRAM=Termoso"]),
+                shell: LocalShell(argv: [], home: home, env: ["TERM_PROGRAM=Labterm"]),
                 options: Self.options(transport: .auto),
                 listener: listener
             )

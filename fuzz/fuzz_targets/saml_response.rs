@@ -8,8 +8,8 @@ use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use libfuzzer_sys::fuzz_target;
 use std::sync::LazyLock;
-use termoso_server::saml::test_support::{idp_metadata_xml, sp_cert_der, sp_key};
-use termoso_server::saml::{ServiceProvider, SpConfig, metadata};
+use labterm_server::saml::test_support::{idp_metadata_xml, sp_cert_der, sp_key};
+use labterm_server::saml::{ServiceProvider, SpConfig, metadata};
 
 const IDP: &str = "https://idp.example/metadata";
 const SP: &str = "https://sp.example/api/v1/auth/sso/corp/saml/metadata";

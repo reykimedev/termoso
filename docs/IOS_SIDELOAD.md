@@ -1,12 +1,12 @@
-# Termoso for iOS: installing without the App Store
+# Labterm for iOS: installing without the App Store
 
-Termoso has no App Store listing and no paid Apple Developer account. Every
+Labterm has no App Store listing and no paid Apple Developer account. Every
 `v*` release ships two iOS assets:
 
 | Asset | What it is |
 |---|---|
-| `termoso-<version>-ios.ipa` | the app, **unsigned**, built by GitHub Actions from the tagged commit (`.github/workflows/release.yml`, job `ios`) |
-| `termoso-altstore.json` | an [AltStore](https://altstore.io) / [SideStore](https://sidestore.io) source that points at that `.ipa` (name, version, size, SHA-256, minimum iOS) |
+| `labterm-<version>-ios.ipa` | the app, **unsigned**, built by GitHub Actions from the tagged commit (`.github/workflows/release.yml`, job `ios`) |
+| `labterm-altstore.json` | an [AltStore](https://altstore.io) / [SideStore](https://sidestore.io) source that points at that `.ipa` (name, version, size, SHA-256, minimum iOS) |
 
 An unsigned `.ipa` cannot be installed on a stock iPhone as-is: iOS only runs
 code signed for *your* device. With a **free Apple ID** that signature is valid
@@ -20,7 +20,7 @@ before the week is over, so in practice the app just keeps working.
 1. Install AltStore (needs a Mac/PC with AltServer on the same Wi-Fi) or
    SideStore (no computer after the first pairing, uses an on-device VPN to
    talk to itself) following their own guides. Sign in with your Apple ID — the
-   credentials go to Apple only, never to Termoso.
+   credentials go to Apple only, never to Labterm.
 2. In the store app open **Sources → +** and add:
 
    ```
@@ -30,7 +30,7 @@ before the week is over, so in practice the app just keeps working.
    The URL never changes: `releases/latest/download/…` always resolves to the
    newest published release, and each release regenerates the JSON with its own
    `.ipa` URL and checksum.
-3. Open the **Termoso** entry and tap **Install**. The store downloads the
+3. Open the **Labterm** entry and tap **Install**. The store downloads the
    `.ipa`, signs it with your Apple ID and installs it.
 4. First launch: **Settings → General → VPN & Device Management → trust** your
    Apple ID if iOS asks.
@@ -42,7 +42,7 @@ before the week is over, so in practice the app just keeps working.
   Refresh must be on; AltStore additionally needs AltServer reachable on the
   network at that moment). Opening the store app and tapping **Refresh All**
   does the same on demand.
-* If the profile expires, the app icon stays but Termoso will not launch until
+* If the profile expires, the app icon stays but Labterm will not launch until
   you refresh — **nothing is lost**: the encrypted vault and the master key in
   the Keychain survive re-signing and updates.
 * Free Apple IDs are limited to **3 sideloaded apps** and **10 app IDs per
@@ -53,7 +53,7 @@ before the week is over, so in practice the app just keeps working.
 
 A new release = a new `.ipa` + regenerated source. The store app shows the
 update under **Updates** (or installs it automatically if you enabled that),
-verifying the download against the `sha256` in the source. Termoso itself has
+verifying the download against the `sha256` in the source. Labterm itself has
 no updater on iOS and never phones home.
 
 ## Verify what you install
@@ -62,10 +62,10 @@ Every release also carries `SHA256SUMS.txt`:
 
 ```bash
 sha256sum -c --ignore-missing SHA256SUMS.txt   # after downloading the .ipa next to it
-jq '.apps[0].versions[0] | {version, downloadURL, sha256}' termoso-altstore.json
+jq '.apps[0].versions[0] | {version, downloadURL, sha256}' labterm-altstore.json
 ```
 
-The `.ipa` is a plain zip: `unzip -l termoso-*-ios.ipa` shows one
+The `.ipa` is a plain zip: `unzip -l labterm-*-ios.ipa` shows one
 `Payload/Labterm.app`. The Rust core (`crates/labterm-mobile`) is statically
 linked into the app binary, so there are no embedded frameworks to inspect
 separately.
@@ -87,11 +87,11 @@ separately.
    `labterm-mobile` for `aarch64-apple-ios`, generates the UniFFI Swift
    bindings and wraps the static library into `LabtermCoreFFI.xcframework`.
 2. `xcodegen generate` → `xcodebuild archive` with code signing **disabled**.
-3. Zips `Payload/Labterm.app` into `termoso-<version>-ios.ipa` and checks
+3. Zips `Payload/Labterm.app` into `labterm-<version>-ios.ipa` and checks
    `CFBundleShortVersionString` equals the tag.
 4. The `publish` job uploads the `.ipa`, renders the source with
    `apps/ios/altstore/render.py` (URL, size, SHA-256, build number read from
-   the `.ipa`), uploads it as `termoso-altstore.json`, re-downloads every asset
+   the `.ipa`), uploads it as `labterm-altstore.json`, re-downloads every asset
    and verifies the checksum matches before the release goes public.
 
 Nothing in the pipeline signs the app or needs Apple credentials. `ci.yml`
@@ -106,5 +106,5 @@ XCUITest suites in an iPhone simulator, uploading screenshots and the
   SFTP, port forwarding, keychain, snippets, account sign-in and teams are
   placeholders and follow in the next milestones.
 * iOS suspends background apps within seconds, so live sessions will only run
-  while Termoso is on screen (same constraint as every iOS SSH client).
+  while Labterm is on screen (same constraint as every iOS SSH client).
 * iPhone only for now (`TARGETED_DEVICE_FAMILY = 1`); iPad comes later.

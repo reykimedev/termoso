@@ -1,4 +1,4 @@
-//! Termoso as an SSH agent: serves the vault's private keys to local tools
+//! Labterm as an SSH agent: serves the vault's private keys to local tools
 //! (`ssh`, `git`, IDEs) over a socket / named pipe, confirming each
 //! signature in the UI when the user asks for that. Private keys stay in
 //! this process; clients only ever see public halves and signatures.
@@ -20,7 +20,7 @@ use crate::state::AppState;
 #[cfg(unix)]
 const SOCKET_FILE: &str = "agent.sock";
 #[cfg(windows)]
-const PIPE_NAME: &str = r"\\.\pipe\termoso-ssh-agent";
+const PIPE_NAME: &str = r"\\.\pipe\labterm-ssh-agent";
 
 /// Running agent plus what it could not load, for the settings page.
 #[derive(Default)]

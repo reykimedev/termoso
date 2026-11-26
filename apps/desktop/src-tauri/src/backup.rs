@@ -1,11 +1,11 @@
 //! Portable data: hosts as Termius-style CSV and whole vaults as a
-//! password-protected `.termoso` backup.
+//! password-protected `.labterm` backup.
 //!
 //! Both leave the webview out of the loop: the frontend only passes a target
 //! path (chosen through the native dialog) and, for backups, a password. The
 //! plaintext never crosses IPC.
 //!
-//! Backup file layout (`.termoso`):
+//! Backup file layout (`.labterm`):
 //!
 //! ```text
 //! magic "TERMOSO-BACKUP\n" · u32 LE header length · header JSON · AEAD envelope

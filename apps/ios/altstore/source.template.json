@@ -1,15 +1,15 @@
 {
-  "name": "Termoso",
+  "name": "Labterm",
   "identifier": "dev.labdex.labterm.altstore",
   "subtitle": "Free, private SSH client — self-hosted or Termoso Cloud",
-  "description": "Termoso is a free, open-source SSH/SFTP client with end-to-end encrypted vaults, team sharing and no telemetry. This source publishes the iOS build straight from GitHub Releases; AltStore/SideStore sign it with your own Apple ID and refresh the 7-day profile automatically.",
+  "description": "Labterm is a free, open-source SSH/SFTP client with end-to-end encrypted vaults, team sharing and no telemetry. This source publishes the iOS build straight from GitHub Releases; AltStore/SideStore sign it with your own Apple ID and refresh the 7-day profile automatically.",
   "iconURL": "https://raw.githubusercontent.com/{repo}/main/apps/ios/Labterm/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png",
   "website": "https://github.com/{repo}",
   "tintColor": "#10B981",
   "featuredApps": ["dev.labdex.labterm"],
   "apps": [
     {
-      "name": "Termoso",
+      "name": "Labterm",
       "bundleIdentifier": "dev.labdex.labterm",
       "developerName": "Termoso contributors",
       "subtitle": "SSH · SFTP · encrypted vaults · teams",
@@ -23,7 +23,7 @@
           "version": "{version}",
           "buildVersion": "{build}",
           "date": "{date}",
-          "localizedDescription": "Termoso {version} — release notes: https://github.com/{repo}/releases/tag/{tag}",
+          "localizedDescription": "Labterm {version} — release notes: https://github.com/{repo}/releases/tag/{tag}",
           "downloadURL": "https://github.com/{repo}/releases/download/{tag}/{ipa_name}",
           "size": "{size}",
           "sha256": "{sha256}",
@@ -33,7 +33,7 @@
       "appPermissions": {
         "entitlements": [],
         "privacy": {
-          "NSLocalNetworkUsageDescription": "Termoso connects to SSH servers on your local network."
+          "NSLocalNetworkUsageDescription": "Labterm connects to SSH servers on your local network."
         }
       }
     }

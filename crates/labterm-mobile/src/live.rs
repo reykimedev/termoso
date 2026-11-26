@@ -86,7 +86,7 @@ fn end_reason(reason: &str) -> LiveEndReason {
     }
 }
 
-/// Is `s` a multiplayer join link (`https://<server>/join/…#…` or `termoso://join/…`)?
+/// Is `s` a multiplayer join link (`https://<server>/join/…#…` or `labterm://join/…`)?
 #[uniffi::export]
 pub fn is_live_link(s: String) -> bool {
     LiveLink::looks_like(&s)

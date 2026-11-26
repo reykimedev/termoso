@@ -160,7 +160,7 @@ fn parse_role(s: &str) -> Result<VaultRole> {
 /// The signed-in account as persisted locally (never contains the password).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StoredAccount {
-    /// Server base URL (`https://termoso.example`).
+    /// Server base URL (`https://labterm.example`).
     pub server_url: String,
     /// User id.
     pub user_id: Uuid,

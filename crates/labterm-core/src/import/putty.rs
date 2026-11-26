@@ -1,5 +1,5 @@
 //! PuTTY saved sessions, from a `.reg` export (any OS) or straight from the
-//! registry on Windows (`reg.exe export`). Only the fields Termoso can
+//! registry on Windows (`reg.exe export`). Only the fields Labterm can
 //! represent are mapped: address, protocol, port, user, key file, agent
 //! forwarding, environment, proxy and port forwardings.
 

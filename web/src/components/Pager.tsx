@@ -8,7 +8,7 @@ import { TablePagination } from "@mui/material";
 
 const OPTIONS = [10, 25, 50];
 const MIN = 10;
-const KEY = "termoso.rowsPerPage";
+const KEY = "labterm.rowsPerPage";
 
 function stored(): number {
   const n = Number(localStorage.getItem(KEY));

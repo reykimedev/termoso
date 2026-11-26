@@ -1,4 +1,4 @@
-// "Forgot the lock password": this browser's copy is only a cache of the Termoso account, so it
+// "Forgot the lock password": this browser's copy is only a cache of the Labterm account, so it
 // can be wiped and filled again by signing in. Local-only entries ("This browser" vault) are lost.
 import * as st from "./backend/state";
 import * as term from "./backend/terminal";

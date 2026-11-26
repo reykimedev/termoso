@@ -70,7 +70,7 @@ export interface State {
   history?: History;
 }
 
-/** The device-only vault every Termoso install has; it never syncs. */
+/** The device-only vault every Labterm install has; it never syncs. */
 export const LOCAL_VAULT = "00000000-0000-4000-8000-00000000000a";
 
 function fresh(): State {

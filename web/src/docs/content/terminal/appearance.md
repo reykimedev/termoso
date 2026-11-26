@@ -19,7 +19,7 @@ Android bundles **JetBrains Mono**, **Fira Code**, **Source Code Pro** and **Ubu
 
 ### Nerd Font glyphs
 
-Prompts such as Starship, Powerlevel10k and Oh My Posh, and tools like `eza`, `lsd`, `lazygit` or Neovim status lines draw icons from the Nerd Fonts private-use ranges. Termoso appends **Symbols Nerd Font Mono** as a fallback behind whichever font you chose, on the desktop and on Android. Icons render in any of the bundled fonts without installing a patched font on the device; if a glyph still shows as a box the program is using a code point outside the Nerd Fonts ranges, and switching the prompt to the "Nerd Font" preset usually fixes it.
+Prompts such as Starship, Powerlevel10k and Oh My Posh, and tools like `eza`, `lsd`, `lazygit` or Neovim status lines draw icons from the Nerd Fonts private-use ranges. Labterm appends **Symbols Nerd Font Mono** as a fallback behind whichever font you chose, on the desktop and on Android. Icons render in any of the bundled fonts without installing a patched font on the device; if a glyph still shows as a box the program is using a code point outside the Nerd Fonts ranges, and switching the prompt to the "Nerd Font" preset usually fixes it.
 
 ## Hyperlinks
 

@@ -4,5 +4,5 @@ export const HATCH_VERSION: string =
   (import.meta.env.VITE_HATCH_VERSION as string | undefined) ?? "dev";
 export const HATCH_COMMIT: string =
   (import.meta.env.VITE_HATCH_COMMIT as string | undefined) ?? "dev";
-export const TERMOSO_VERSION: string =
-  (import.meta.env.VITE_TERMOSO_VERSION as string | undefined) ?? "0.12.1";
+export const LABTERM_VERSION: string =
+  (import.meta.env.VITE_LABTERM_VERSION as string | undefined) ?? "0.12.1";
