@@ -57,7 +57,9 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: android
-          save-if: false
+          # Keeps main's android cache current even when CI's android job doesn't run on main.
+          # It only saves when the job finishes, not when a newer push cancels it.
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - if: env.HAS_KEY == 'true'
         uses: taiki-e/cache-cargo-install-action@v3
         with:
@@ -74,7 +76,7 @@ jobs:
       - if: env.HAS_KEY == 'true'
         uses: gradle/actions/setup-gradle@v6
         with:
-          cache-read-only: true
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
       - if: env.HAS_KEY == 'true'
         uses: actions/setup-go@v6
         with:
