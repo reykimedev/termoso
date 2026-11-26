@@ -12,14 +12,22 @@ name: Android debug channel
 on:
   push:
     branches: [main]
+    # Only pushes that change the APK publish a new debug build.
+    paths:
+      - apps/android/**
+      - crates/**
+      - Cargo.toml
+      - Cargo.lock
+      - .github/workflows/android-debug-channel.yml
   workflow_dispatch:
 
 permissions:
   contents: read
 
+# A running publish always finishes; a newer push waits and supersedes any older waiting one.
 concurrency:
   group: android-debug-channel-${{ github.ref_name }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 # Same as CI: rust-cache keys on these, so the publish job can reuse CI's android cache.
 env:
