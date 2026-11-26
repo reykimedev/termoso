@@ -576,7 +576,7 @@ mod tests {
             id: Uuid::nil(),
             vault_id: Uuid::nil(),
             version: 0,
-            updated_at: Default::default(),
+            updated_at: time::OffsetDateTime::UNIX_EPOCH,
             dirty: false,
             data: Transport {
                 label: "home".into(),

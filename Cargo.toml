@@ -90,7 +90,6 @@ oauth2 = "5"
 
 # misc
 uuid = { version = "1", features = ["v4", "serde"] }
-chrono = { version = "0.4", features = ["serde"] }
 # Replaces chrono (RUSTSEC-2026-0543); labterm-proto::timestamp keeps chrono's text forms.
 time = { version = "0.3.47", features = ["std", "formatting", "parsing", "macros"] }
 thiserror = "2"
