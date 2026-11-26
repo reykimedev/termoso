@@ -1,0 +1,365 @@
+# Devel pipeline: every push to main runs in stages, each needing the one before, so a failed
+# lint or test never builds or publishes anything:
+#
+#   ci (lint, then tests: ci.yml)  →  build (Android, Linux, Windows, macOS; images)  →  sign + publish
+#
+# Each commit gets its own prerelease `devel-<build>` with the Labterm Debug APK, the Labterm Dev
+# desktop bundles, their updater signatures, SHA256SUMS.txt and provenance attestations. The
+# newest 10 are kept. Nothing is cancelled: every commit on main gets its release.
+#
+# Installed builds keep updating from the feeds baked into them, which now point into the newest
+# devel release:
+#   android-debug-main/latest.json   Labterm Debug (Android); `apk` is an absolute URL
+#   desktop-dev/latest.json          Labterm Dev (desktop, Tauri updater)
+# `build` = 100 + this workflow's run number, so it stays above the builds the old per-channel
+# workflows published (Android up to ~45). A feed only moves forward: an older run that finishes
+# late never replaces a newer build.
+#
+# Secrets (both environments are limited to main):
+#   android-debug   ANDROID_DEBUG_KEYSTORE_BASE64, ANDROID_DEBUG_KEYSTORE_PASSWORD (alias termoso-debug)
+#   desktop-dev     TAURI_SIGNING_PRIVATE_KEY, TAURI_SIGNING_PRIVATE_KEY_PASSWORD (the dev updater key)
+# Tags (`v*`) are not handled here: release.yml builds and signs stable releases.
+name: Devel
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Same as ci.yml and the old Android channel: rust-cache keys on these, so the builds here reuse
+# (and on main, save) the same caches.
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
+jobs:
+  ci:
+    name: ci
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/ci.yml
+
+  plan:
+    name: build number + version
+    needs: ci
+    runs-on: ubuntu-latest
+    outputs:
+      build: ${{ steps.p.outputs.build }}
+      tag: ${{ steps.p.outputs.tag }}
+      desktop_version: ${{ steps.p.outputs.desktop_version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: p
+        env:
+          RUN: ${{ github.run_number }}
+        run: |
+          build=$((100 + RUN))
+          # Next patch version with a numeric dev suffix: newer than the last release and
+          # ordered by build, so the desktop updater always sees the newest build as newer.
+          v=$(node -p "require('./apps/desktop/package.json').version")
+          IFS=. read -r major minor patch <<< "${v%%-*}"
+          desktop="$major.$minor.$((patch + 1))-dev.$build"
+          jq -e '.plugins.updater.pubkey | strings | length > 0' apps/desktop/src-tauri/channels/dev.json > /dev/null \
+            || { echo "::error::channels/dev.json has no dev updater public key"; exit 1; }
+          echo "build $build, desktop $desktop"
+          { echo "build=$build"; echo "tag=devel-$build"; echo "desktop_version=$desktop"; } >> "$GITHUB_OUTPUT"
+
+  android:
+    name: android (Labterm Debug APK)
+    needs: plan
+    runs-on: ubuntu-latest
+    # The debug keystore lives in this environment, so only main can sign.
+    environment: android-debug
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          targets: aarch64-linux-android
+      # Shared with ci.yml's android job; this is the only Android build on main, so it saves.
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          shared-key: android
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - uses: taiki-e/cache-cargo-install-action@9ee83daaa7b96a6fab930949ecf1122bba04a389 # v3.0.8
+        with:
+          tool: cargo-ndk@4.1.2
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+        with:
+          packages: platform-tools platforms;android-36 build-tools;36.0.0 ndk;27.2.12479018
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: crates/labterm-netbird/go/go.mod
+          cache-dependency-path: crates/labterm-netbird/go/go.sum
+      - name: Debug keystore from secrets
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_DEBUG_KEYSTORE_BASE64 }}
+        run: |
+          [ -n "$KEYSTORE_BASE64" ] || { echo "::error::ANDROID_DEBUG_KEYSTORE_BASE64 is not set in the android-debug environment"; exit 1; }
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/labterm-debug.jks"
+          echo "LABTERM_ANDROID_DEBUG_KEYSTORE=$RUNNER_TEMP/labterm-debug.jks" >> "$GITHUB_ENV"
+      # The feed URL stays the one installed builds already have; it is baked into the APK.
+      - name: Build
+        working-directory: apps/android
+        env:
+          ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.2.12479018
+          LABTERM_ANDROID_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_DEBUG_KEYSTORE_PASSWORD }}
+          LABTERM_DEBUG_BUILD: ${{ needs.plan.outputs.build }}
+          REPO: ${{ github.repository }}
+        run: |
+          UPDATE_URL="https://github.com/$REPO/releases/download/android-debug-main/latest.json"
+          ./gradlew --no-daemon -Plabterm.abis=arm64-v8a "-Plabterm.debugUpdateUrl=$UPDATE_URL" :app:assembleDebug
+          mkdir -p "$RUNNER_TEMP/out"
+          cp app/build/outputs/apk/debug/*.apk "$RUNNER_TEMP/out/labterm-debug.apk"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: devel-android
+          path: ${{ runner.temp }}/out/labterm-debug.apk
+          if-no-files-found: error
+          retention-days: 7
+
+  desktop:
+    name: ${{ matrix.name }}
+    needs: plan
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux x86_64 (AppImage, deb)
+            os: ubuntu-22.04
+            bundles: appimage,deb
+            artifact: linux-x86_64
+          - name: windows x86_64 (nsis)
+            os: windows-latest
+            bundles: nsis
+            artifact: windows-x86_64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/desktop-dev-build
+        with:
+          bundles: ${{ matrix.bundles }}
+          artifact: ${{ matrix.artifact }}
+          version: ${{ needs.plan.outputs.desktop_version }}
+
+  # Its own job, not a matrix leg: macOS runners here are often slow to start, and a job waits for
+  # every leg of a matrix it needs. The release goes out without it; macOS joins when it is done.
+  desktop-macos:
+    name: macos Apple Silicon (app, dmg)
+    needs: plan
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/desktop-dev-build
+        with:
+          bundles: app,dmg
+          artifact: macos-aarch64
+          version: ${{ needs.plan.outputs.desktop_version }}
+
+  images:
+    name: server images
+    needs: ci
+    uses: ./.github/workflows/server-images.yml
+    permissions:
+      contents: read
+      packages: write
+
+  # Signs the desktop updater artifacts (the only job holding the dev updater key), creates the
+  # devel release and moves both feeds to it.
+  publish:
+    name: sign + publish devel release
+    needs: [plan, android, desktop]
+    runs-on: ubuntu-latest
+    environment: desktop-dev
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    env:
+      BUILD: ${{ needs.plan.outputs.build }}
+      TAG: ${{ needs.plan.outputs.tag }}
+      VERSION: ${{ needs.plan.outputs.desktop_version }}
+      COMMIT: ${{ github.sha }}
+      REPO: ${{ github.repository }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: "{devel-android,desktop-dev-linux-x86_64,desktop-dev-windows-x86_64}"
+          path: out
+          merge-multiple: true
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      # Only the Tauri CLI is needed; --ignore-scripts keeps third-party install scripts away
+      # from the job that holds the key, and the lockfile pins every byte.
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: apps/desktop
+      - name: Sign desktop updater artifacts
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          [ -n "$TAURI_SIGNING_PRIVATE_KEY" ] || { echo "::error::TAURI_SIGNING_PRIVATE_KEY is not set in the desktop-dev environment"; exit 1; }
+          ls -l out
+          for f in out/labterm-debug.apk out/Labterm-Dev_amd64.AppImage out/Labterm-Dev_amd64.deb out/Labterm-Dev_x64-setup.exe; do
+            test -f "$f" || { echo "::error::missing $f"; exit 1; }
+          done
+          for f in out/Labterm-Dev_amd64.AppImage out/Labterm-Dev_x64-setup.exe; do
+            apps/desktop/node_modules/.bin/tauri signer sign "$f" > /dev/null
+            test -s "$f.sig"
+          done
+      - name: Feeds and checksums
+        run: |
+          base="https://github.com/$REPO/releases/download/$TAG"
+          (cd out && sha256sum -- *.apk *.AppImage *.deb *.exe > SHA256SUMS.txt && cat SHA256SUMS.txt)
+          apk_sha=$(sha256sum out/labterm-debug.apk | cut -d' ' -f1)
+          apk_size=$(stat -c %s out/labterm-debug.apk)
+          # Android: the app resolves `apk` against the feed URL, so an absolute URL points
+          # installed builds straight into this release.
+          jq -n --argjson build "$BUILD" --arg commit "$COMMIT" --arg apk "$base/labterm-debug.apk" \
+            --arg sha "$apk_sha" --argjson size "$apk_size" \
+            '{build: $build, commit: $commit, apk: $apk, sha256: $sha, size: $size}' > out/android-latest.json
+          jq -n --arg v "$VERSION" --arg notes "Devel build $BUILD from $COMMIT" \
+            --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg base "$base" \
+            --rawfile linux out/Labterm-Dev_amd64.AppImage.sig --rawfile win out/Labterm-Dev_x64-setup.exe.sig '
+            {version: $v, notes: $notes, pub_date: $date, platforms: {
+              "linux-x86_64":          {url: "\($base)/Labterm-Dev_amd64.AppImage", signature: $linux},
+              "linux-x86_64-appimage": {url: "\($base)/Labterm-Dev_amd64.AppImage", signature: $linux},
+              "windows-x86_64":        {url: "\($base)/Labterm-Dev_x64-setup.exe", signature: $win},
+              "windows-x86_64-nsis":   {url: "\($base)/Labterm-Dev_x64-setup.exe", signature: $win}
+            }}' > out/desktop-latest.json
+          jq . out/android-latest.json
+          jq '.platforms | map_values(.url)' out/desktop-latest.json
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            out/*.apk
+            out/*.AppImage
+            out/*.deb
+            out/*.exe
+      - name: Create the devel release
+        run: |
+          {
+            echo "Devel build $BUILD from commit \`$COMMIT\` on main."
+            echo
+            echo "- Android: \`labterm-debug.apk\` (Labterm Debug)"
+            echo "- Desktop: Labterm Dev $VERSION for Linux and Windows; macOS is added when its build finishes"
+            echo "- Server images: \`ghcr.io/${REPO%%/*}/labterm-{server,bridge,backup}:main\` when this commit changed them"
+            echo
+            echo "For testing, not for production. Installed Labterm Debug and Labterm Dev builds update"
+            echo "themselves to the newest devel release. Verify a download with \`sha256sum -c SHA256SUMS.txt\`"
+            echo "and \`gh attestation verify <file> -R $REPO\`."
+            echo
+            echo '```'
+            cat out/SHA256SUMS.txt
+            echo '```'
+          } > notes.md
+          cp out/desktop-latest.json out/latest.json
+          gh release create "$TAG" --prerelease --latest=false --target "$COMMIT" \
+            --title "Labterm devel $BUILD" --notes-file notes.md \
+            out/labterm-debug.apk out/*.AppImage out/*.AppImage.sig out/*.deb out/*.exe out/*.exe.sig \
+            out/SHA256SUMS.txt out/latest.json
+      - name: Move the feeds forward
+        run: |
+          # Feed releases hold only latest.json now. An older run finishing late must not move
+          # a feed back, so compare builds first.
+          feed_build() { gh release download "$1" -p latest.json -O - 2>/dev/null | jq -r "$2" 2>/dev/null || echo 0; }
+          ensure() {
+            gh release view "$1" > /dev/null 2>&1 || gh release create "$1" --prerelease --latest=false \
+              --target "$COMMIT" --title "$2" --notes "Update feed: latest.json points at the newest devel release."
+          }
+          cur=$(feed_build android-debug-main '.build // 0')
+          if [ "$BUILD" -gt "${cur:-0}" ]; then
+            ensure android-debug-main "Labterm Debug feed"
+            cp out/android-latest.json latest.json
+            gh release upload android-debug-main latest.json --clobber
+            echo "android-debug-main → $TAG"
+          else
+            echo "::notice::android-debug-main already at build $cur; left as is"
+          fi
+          cur=$(feed_build desktop-dev '.version // "" | capture("dev\\.(?<n>[0-9]+)$").n // "0"')
+          if [ "$BUILD" -gt "${cur:-0}" ]; then
+            ensure desktop-dev "Labterm Dev feed"
+            cp out/desktop-latest.json latest.json
+            gh release upload desktop-dev latest.json --clobber
+            echo "desktop-dev → $TAG"
+          else
+            echo "::notice::desktop-dev already at build $cur; left as is"
+          fi
+      - name: Keep the newest 10 devel releases
+        run: |
+          gh api "repos/$REPO/releases?per_page=100" --paginate \
+            --jq '.[] | select(.prerelease and (.tag_name | test("^devel-[0-9]+$"))) | .tag_name' \
+            | sort -t- -k2 -n -r | tail -n +11 | while read -r old; do
+                echo "removing $old"
+                gh release delete "$old" --yes --cleanup-tag
+              done
+
+  publish-macos:
+    name: sign + publish (macOS)
+    needs: [plan, desktop-macos, publish]
+    runs-on: ubuntu-latest
+    environment: desktop-dev
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    env:
+      BUILD: ${{ needs.plan.outputs.build }}
+      TAG: ${{ needs.plan.outputs.tag }}
+      VERSION: ${{ needs.plan.outputs.desktop_version }}
+      REPO: ${{ github.repository }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: desktop-dev-macos-aarch64
+          path: out
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: apps/desktop
+      - name: Sign
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          apps/desktop/node_modules/.bin/tauri signer sign out/Labterm-Dev_aarch64.app.tar.gz > /dev/null
+          test -s out/Labterm-Dev_aarch64.app.tar.gz.sig
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            out/*.dmg
+            out/*.app.tar.gz
+      - name: Add macOS to the release and its feed
+        run: |
+          gh release view "$TAG" > /dev/null 2>&1 || { echo "::notice::$TAG was pruned meanwhile; skipping"; exit 0; }
+          gh release download "$TAG" -p latest.json -p SHA256SUMS.txt -D rel
+          url="https://github.com/$REPO/releases/download/$TAG/Labterm-Dev_aarch64.app.tar.gz"
+          jq --arg url "$url" --rawfile sig out/Labterm-Dev_aarch64.app.tar.gz.sig \
+            '.platforms["darwin-aarch64"] = {url: $url, signature: $sig}
+             | .platforms["darwin-aarch64-app"] = {url: $url, signature: $sig}' rel/latest.json > out/latest.json
+          (cd out && sha256sum -- *.dmg *.app.tar.gz) >> rel/SHA256SUMS.txt
+          cp rel/SHA256SUMS.txt out/SHA256SUMS.txt
+          gh release upload "$TAG" --clobber out/*.dmg out/*.app.tar.gz out/*.app.tar.gz.sig out/SHA256SUMS.txt out/latest.json
+          # The feed takes macOS only while it still points at this build.
+          if [ "$(gh release download desktop-dev -p latest.json -O - | jq -r .version)" = "$VERSION" ]; then
+            gh release upload desktop-dev --clobber out/latest.json
+            echo "desktop-dev now includes macOS"
+          else
+            echo "::notice::a newer devel build is on the desktop feed; its own macOS job adds macOS there"
+          fi
