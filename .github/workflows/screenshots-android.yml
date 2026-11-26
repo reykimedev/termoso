@@ -85,6 +85,7 @@ jobs:
           avdmanager=$(ls "$sdk"/cmdline-tools/*/bin/avdmanager | head -1)
           "$sdk/emulator/emulator" -accel-check || true
           echo no | "$avdmanager" create avd -n shots -k "$SYSTEM_IMAGE" -d pixel_7 --force
+          echo "hw.keyboard=yes" >> "$HOME/.android/avd/shots.avd/config.ini"
           nohup "$sdk/emulator/emulator" -avd shots -no-window -no-audio -no-boot-anim -no-snapshot -no-metrics \
             -gpu swiftshader_indirect -camera-back none -camera-front none > "$RUNNER_TEMP/emulator.log" 2>&1 &
           booted=0

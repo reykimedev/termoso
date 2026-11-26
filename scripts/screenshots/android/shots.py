@@ -100,13 +100,46 @@ def fill(label, value):
 
 
 def to_tabs():
-    """Backs out of whatever is open until the bottom tabs show."""
+    """Backs out of whatever is open until the bottom tabs show (a prompt sheet ignores Back)."""
     in_app()
     for _ in range(5):
         if has("Vaults") and has("Settings"):
             return
-        drive.back()
+        if has("Close sheet"):
+            tap("Close sheet")
+        elif has("Cancel"):
+            tap("Cancel")
+        else:
+            drive.back()
         in_app()
+
+
+def tick(label):
+    """Ticks the checkbox on the same row as `label` (the label itself is not clickable)."""
+    all_nodes = nodes()
+    y = find(label, True, all_nodes)[0].center[1]
+    box = [n for n in all_nodes if n.checkable and abs(n.center[1] - y) < 90]
+    if box and not box[0].checked:
+        tap_xy(*box[0].center)
+
+
+def answer_password():
+    """Answers the password sheet if it shows, and keeps the password in the vault."""
+    if wait("Save in vault", timeout=30):
+        tick("Save in vault")
+        text_field(0)
+        type_text(PASSWORD)
+        tap("Continue")
+
+
+def open_session():
+    """Opens the web-01 terminal from Connections when it is not in front."""
+    if has("Session actions"):
+        return
+    to_tabs()
+    nav("Connections")
+    tap("web-01", index=-1)
+    wait("Session actions", timeout=15)
 
 
 def keyboard_off():
@@ -192,12 +225,9 @@ def terminal():
     # Unknown host key: the test server's key is trusted here, once, like a person would.
     wait("Trust & save", timeout=40)
     tap("Trust & save")
-    wait("Save in vault", timeout=30)
-    tap("Save in vault")
-    text_field(0)
-    type_text(PASSWORD)
-    tap("Continue")
+    answer_password()
     time.sleep(4)
+    open_session()
     for cmd in ("uptime", "ls -la", "df -h /", "tail -n 5 logs/app.log"):
         type_text(cmd + "\n")
         time.sleep(1.2)
@@ -206,6 +236,7 @@ def terminal():
 
 @step("android-session-menu")
 def session_menu():
+    open_session()
     tap("Session actions")
     wait("Close session")
 
@@ -250,6 +281,9 @@ def sftp():
     tap("Files")
     time.sleep(1)
     tap("web-01")
+    time.sleep(2)
+    if has("Save in vault"):
+        answer_password()
     wait("logs", timeout=30)
 
 
@@ -338,6 +372,10 @@ def pin():
 @step("android-shade")
 def shade():
     tap("Cancel")
+    # Emulator notices (keyboard, serial console) are not Labterm's: snooze them.
+    for line in sh("cmd notification list").splitlines():
+        if line.startswith("0|android|") or "|com.android.systemui|" in line:
+            sh(f"cmd notification snooze --for 3600000 '{line.strip()}'")
     sh("cmd statusbar expand-notifications")
     time.sleep(1.5)
 

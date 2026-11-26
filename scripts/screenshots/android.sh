@@ -20,6 +20,9 @@ adb shell "iptables -t nat -A OUTPUT -p tcp -d 192.0.2.0/24 --dport 2222 -j DNAT
 adb shell "cmd uimode night yes"
 adb shell "settings put global window_animation_scale 0; settings put global transition_animation_scale 0; settings put global animator_duration_scale 0"
 adb shell "settings put system time_12_24 24"
+# Text goes in through adb as a hardware keyboard: no soft keyboard covering the pictures, and
+# no Back needed to hide one (Back in the terminal leaves it).
+adb shell "settings put secure show_ime_with_hard_keyboard 0"
 adb uninstall "$pkg" >/dev/null 2>&1 || true
 adb install -r "$apk"
 
