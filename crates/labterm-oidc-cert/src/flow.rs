@@ -75,7 +75,10 @@ impl ProviderConfig {
 
     /// Whether the ID token claims are for [`Self::account`] (always true
     /// without one): its `preferred_username` or `email`, or the email's
-    /// local part, case-insensitive.
+    /// local part, case-insensitive. The local part matches any domain
+    /// (`alice` accepts `alice@other.example.com`): this only stops picking
+    /// the wrong account at one provider, while hosts still enforce their
+    /// own opkssh policy. Set the full email to pin the domain.
     pub fn is_account(&self, claims: &crate::jose::IdTokenClaims) -> bool {
         let Some(want) = self.account() else {
             return true;

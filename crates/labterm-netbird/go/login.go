@@ -345,6 +345,8 @@ func idClaims(tok *oauth2.Token) tokenClaims {
 
 // isAccount is the rule of labterm-oidc-cert's ProviderConfig::is_account:
 // preferred_username, email, or the email's local part, ignoring case.
+// The local part matches any domain; it only guards against signing in
+// as the wrong account, and the management server decides who gets in.
 func isAccount(account string, c tokenClaims) bool {
 	want := strings.ToLower(strings.TrimSpace(account))
 	if want == "" {
