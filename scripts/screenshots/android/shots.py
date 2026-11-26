@@ -238,14 +238,14 @@ def terminal():
 def session_menu():
     open_session()
     tap("Session actions")
-    wait("Close session")
+    wait("Duplicate")
 
 
 @step("android-key-panel")
 def key_panel():
     drive.back()
     time.sleep(0.5)
-    tap("Show key panel")
+    tap("More keys")
     wait("Customize")
 
 
@@ -258,9 +258,15 @@ def hidden_input():
 @step("android-compose")
 def compose():
     tap("Cancel")
-    keyboard_off()
-    if not has("Compose"):
-        tap("More keys")
+    if has("Hide keys"):
+        tap("Hide keys")
+    # Compose sits at the far end of the key strip.
+    w, _ = screen_size()
+    y = wait("Paste")[0].center[1]
+    for _ in range(6):
+        if has("Compose"):
+            break
+        swipe(int(w * 0.85), y, int(w * 0.15), y)
     tap("Compose")
     time.sleep(0.8)
     text_field(-1)
@@ -290,7 +296,9 @@ def sftp():
 @step("android-ai-agent")
 def ai_agent():
     host_list()
-    long_press(*wait("web-01")[0].center)
+    row_y = wait("web-01")[0].center[1]
+    menu = min(find("Host actions"), key=lambda n: abs(n.center[1] - row_y))
+    tap_xy(*menu.center)
     tap("Edit", exact=False)
     scroll_to("AI coding agent", exact=False)
     tap("AI coding agent", exact=False)
@@ -312,6 +320,10 @@ def keys():
                 tap(algo, exact=False)
         tap("Save")
         wait(label, timeout=30)
+        # Saving opens the new key; the picture is the list.
+        if has("Delete key"):
+            tap("Back")
+            wait("Add")
 
 
 @step("android-pf-rule")
@@ -319,6 +331,8 @@ def pf_rule():
     vault_overview()
     tap("Port forwarding")
     tap("Add") if has("Add") else tap("Create a rule")
+    if has("Skip wizard"):
+        tap("Skip wizard")
     if has("Local forwarding"):
         tap("Local forwarding")
     fill("Label", "Admin panel via web-01")
@@ -375,7 +389,7 @@ def shade():
     # Emulator notices (keyboard, serial console) are not Labterm's: snooze them.
     for line in sh("cmd notification list").splitlines():
         if line.startswith("0|android|") or "|com.android.systemui|" in line:
-            sh(f"cmd notification snooze --for 3600000 '{line.strip()}'")
+            print("snooze", line.strip(), sh(f"cmd notification snooze --for 3600000 '{line.strip()}'").strip(), flush=True)
     sh("cmd statusbar expand-notifications")
     time.sleep(1.5)
 
