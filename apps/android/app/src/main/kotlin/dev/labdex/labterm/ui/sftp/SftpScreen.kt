@@ -1,6 +1,7 @@
 package dev.labdex.labterm.ui.sftp
 
 import android.content.ActivityNotFoundException
+import android.content.ClipData
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -37,11 +38,11 @@ import androidx.compose.material.icons.filled.DriveFileRenameOutline
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.InsertDriveFile
+import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SwapHoriz
@@ -82,11 +83,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
@@ -150,7 +150,7 @@ fun SftpScreen(
     val preview by vm.preview.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
-    val clipboard = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current.nativeClipboard
 
     var searching by remember { mutableStateOf(false) }
     var showTransfers by remember { mutableStateOf(false) }
@@ -206,7 +206,7 @@ fun SftpScreen(
     }
 
     fun copyPath(paths: List<String>) {
-        clipboard.setText(AnnotatedString(paths.joinToString("\n")))
+        clipboard.setPrimaryClip(ClipData.newPlainText(null, paths.joinToString("\n")))
         scope.launch { snackbar.showSnackbar(if (paths.size == 1) str(R.string.path_copied) else str(R.string.paths_copied, paths.size)) }
         vm.clearSelection()
     }
@@ -528,7 +528,7 @@ private fun UploadButton(enabled: Boolean, onFiles: () -> Unit, onFolder: () -> 
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.upload_files)) },
-                leadingIcon = { Icon(Icons.Filled.InsertDriveFile, null) },
+                leadingIcon = { Icon(Icons.AutoMirrored.Filled.InsertDriveFile, null) },
                 onClick = { open = false; onFiles() },
             )
             DropdownMenuItem(
@@ -593,7 +593,7 @@ private fun iconFor(e: SftpEntry) = when {
     e.kind == EntryKind.SYMLINK -> Icons.Filled.Link
     e.isDir -> Icons.Filled.Folder
     e.kind == EntryKind.OTHER -> Icons.Filled.Lock
-    else -> Icons.Filled.InsertDriveFile
+    else -> Icons.AutoMirrored.Filled.InsertDriveFile
 }
 
 @Composable
@@ -664,7 +664,7 @@ private fun SelectionBar(
                             }
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.open_with_2)) },
-                                leadingIcon = { Icon(Icons.Filled.OpenInNew, null) },
+                                leadingIcon = { Icon(Icons.AutoMirrored.Filled.OpenInNew, null) },
                                 onClick = { menu = false; onOpenWith() },
                             )
                         }
@@ -758,7 +758,7 @@ private fun OverflowMenu(
             )
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.disconnect)) },
-                leadingIcon = { Icon(Icons.Filled.OpenInNew, null) },
+                leadingIcon = { Icon(Icons.AutoMirrored.Filled.OpenInNew, null) },
                 onClick = { open = false; onDisconnect() },
             )
         }

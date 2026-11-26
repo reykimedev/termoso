@@ -1,5 +1,6 @@
 package dev.labdex.labterm.ui.vault
 
+import android.content.ClipData
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
@@ -31,9 +32,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -161,7 +161,7 @@ fun formatDuration(secs: Long): String = when {
 /** One recording as plain text: escape sequences stripped, remote output only. */
 @Composable
 fun SessionLogScreen(shell: ShellViewModel, logId: String, onBack: () -> Unit) {
-    val clipboard = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current.nativeClipboard
     var card by remember { mutableStateOf<SessionLogCard?>(null) }
     var text by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -181,7 +181,7 @@ fun SessionLogScreen(shell: ShellViewModel, logId: String, onBack: () -> Unit) {
         onBack,
         actions = {
             text?.let { t ->
-                IconButton(onClick = { clipboard.setText(AnnotatedString(t)); shell.notify(str(R.string.copied_2)) }) {
+                IconButton(onClick = { clipboard.setPrimaryClip(ClipData.newPlainText(null, t)); shell.notify(str(R.string.copied_2)) }) {
                     Icon(Icons.Filled.ContentCopy, contentDescription = stringResource(R.string.copy))
                 }
             }

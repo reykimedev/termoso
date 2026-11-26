@@ -16,8 +16,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CallMade
-import androidx.compose.material.icons.filled.CallReceived
+import androidx.compose.material.icons.automirrored.filled.CallMade
+import androidx.compose.material.icons.automirrored.filled.CallReceived
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -330,8 +330,8 @@ fun kindTitle(kind: PfKind): String = when (kind) {
 }
 
 fun kindIcon(kind: PfKind): ImageVector = when (kind) {
-    PfKind.LOCAL -> Icons.Filled.CallMade
-    PfKind.REMOTE -> Icons.Filled.CallReceived
+    PfKind.LOCAL -> Icons.AutoMirrored.Filled.CallMade
+    PfKind.REMOTE -> Icons.AutoMirrored.Filled.CallReceived
     PfKind.DYNAMIC -> Icons.Filled.Hub
 }
 

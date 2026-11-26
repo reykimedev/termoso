@@ -109,7 +109,7 @@ fun TeamVaultScreen(
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                         DropdownMenuItem(text = { Text(stringResource(R.string.rename_vault)) }, onClick = { menu = false; renaming = true })
                         DropdownMenuItem(text = { Text(stringResource(R.string.rotate_key)) }, onClick = { menu = false; rotating = true })
-                        if (vault?.isDefault != true) {
+                        if (!vault.isDefault) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.delete_vault), color = MaterialTheme.colorScheme.error) },
                                 onClick = { menu = false; deleting = true },
@@ -146,7 +146,7 @@ fun TeamVaultScreen(
                 )
             }
 
-            vault?.teamId?.let { tid -> AclSection(shell = shell, teamId = tid, vaultId = vaultId) }
+            vault.teamId?.let { tid -> AclSection(shell = shell, teamId = tid, vaultId = vaultId) }
             SectionLabel(stringResource(R.string.access))
             SectionCard {
                 val list = members

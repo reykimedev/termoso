@@ -22,7 +22,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Sync
@@ -371,7 +371,7 @@ fun AccountScreen(
                     title = stringResource(R.string.sign_out),
                     subtitle = stringResource(R.string.synced_vaults_are_removed_from_this_device_local),
                     titleColor = Danger,
-                    leading = { IconTile(Icons.Filled.Logout, tint = Danger) },
+                    leading = { IconTile(Icons.AutoMirrored.Filled.Logout, tint = Danger) },
                     modifier = Modifier.clickable { confirmSignOut = true },
                 )
             }

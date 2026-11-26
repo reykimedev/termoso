@@ -56,6 +56,7 @@ import dev.labdex.labterm.ui.components.SubScreen
 import dev.labdex.labterm.ui.shell.ShellViewModel
 import dev.labdex.labterm.core.TransportItem
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
@@ -281,7 +282,12 @@ fun NetbirdSignInDialog(
     var account by remember { mutableStateOf(network.account.orEmpty()) }
 
     fun cancel() {
-        if (waiting) scope.launch(NonCancellable) { repo.read { transportSignInCancel(id) } }
+        // onDone closes the dialog and cancels its scope: start right away and finish regardless.
+        if (waiting) {
+            scope.launch(start = CoroutineStart.UNDISPATCHED) {
+                withContext(NonCancellable) { repo.read { transportSignInCancel(id) } }
+            }
+        }
         onDone(false)
     }
 

@@ -50,7 +50,6 @@ tokio = { version = "1", features = ["full"] }
 axum = { version = "0.8", features = ["ws", "macros"] }
 tower = { version = "0.5", features = ["util", "timeout", "limit"] }
 tower-http = { version = "0.7", features = ["cors", "trace", "compression-full", "limit", "timeout", "set-header", "fs"] }
-hyper = "1"
 futures = "0.3"
 futures-util = "0.3"
 
@@ -62,10 +61,8 @@ aws-sdk-s3 = { version = "1", default-features = false, features = ["behavior-ve
 # serialization / api docs
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-serde_with = { version = "3", features = ["base64"] }
 utoipa = { version = "6", features = ["axum_extras", "uuid", "time"] }
 utoipa-swagger-ui = { version = "10", features = ["axum"] }
-validator = { version = "0.20", features = ["derive"] }
 
 # crypto
 opaque-ke = { version = "4.0", features = ["argon2"] }
