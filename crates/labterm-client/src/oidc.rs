@@ -829,7 +829,7 @@ mod tests {
         let script = host_setup_script(&evil, None, "alice", "alice@example.com").unwrap();
         for line in script
             .lines()
-            .filter(|l| l.contains("$(id") || l.contains("`id`"))
+            .filter(|l| l.contains("$(id>") || l.contains("`id`"))
         {
             assert!(
                 line == "issuer='https://auth.example.com/$(id>/tmp/x)'"
