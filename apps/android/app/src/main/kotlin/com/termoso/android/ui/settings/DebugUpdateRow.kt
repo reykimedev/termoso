@@ -37,6 +37,7 @@ fun DebugUpdateRow(onNotify: (String) -> Unit) {
         checked = true
     }
     val current = update
+    val upToDate = stringResource(R.string.debug_update_current, BuildConfig.DEBUG_BUILD)
     RowDivider()
     ChevronRow(
         title = if (current != null) stringResource(R.string.debug_update_available, current.build) else stringResource(R.string.debug_check_for_updates),
@@ -53,7 +54,7 @@ fun DebugUpdateRow(onNotify: (String) -> Unit) {
                 runCatching {
                     val u = current ?: DebugUpdater.check()
                     update = u
-                    if (u == null) onNotify(context.getString(R.string.debug_update_current, BuildConfig.DEBUG_BUILD))
+                    if (u == null) onNotify(upToDate)
                     else DebugUpdater.install(context, u)
                 }.onFailure { onNotify(it.userMessage()) }
                 busy = false
