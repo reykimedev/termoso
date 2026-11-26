@@ -10,7 +10,7 @@ here="$(cd "$(dirname "$0")" && pwd)"
 root="$(cd "$here/../.." && pwd)"
 out="$here/out"
 parts=("$@")
-[ ${#parts[@]} -eq 0 ] && parts=(desktop web)
+[ ${#parts[@]} -eq 0 ] && parts=(desktop web cabinet)
 want() { local p; for p in "${parts[@]}"; do [ "$p" = "$1" ] && return 0; done; return 1; }
 
 [ -d "$here/node_modules" ] || (cd "$here" && npm ci --no-audit --no-fund)
@@ -23,7 +23,7 @@ trap cleanup EXIT
 
 serve() { # <dir> <port> [env...]
   local dir="$1" port="$2"; shift 2
-  (cd "$dir" && env "$@" npx vite --port "$port" --strictPort --logLevel warn) &
+  (cd "$dir" && exec env "$@" node_modules/.bin/vite --port "$port" --strictPort --logLevel warn) &
   pids+=($!)
   for _ in $(seq 60); do curl -sf "http://localhost:$port/" >/dev/null && return 0; sleep 1; done
   echo "vite on $port did not start" >&2
@@ -38,7 +38,7 @@ if want web; then
   version="$(awk -F'"' '/^version = / { print $2; exit }' "$root/Cargo.toml")"
   serve "$here/.work/web/apps/desktop" 5192 VITE_LABTERM_WEB=1 VITE_HATCH_VERSION="v$version" \
     VITE_HATCH_COMMIT=0000000 VITE_LABTERM_VERSION="$version"
-  SHOTS_WEB=1 node "$here/shots.mjs" "http://localhost:5192/" "$out/web"
+  SHOTS_PART=web node "$here/shots.mjs" "http://localhost:5192/" "$out/web"
 fi
 if want cabinet; then
   "$here/cabinet.sh" "$out/cabinet"
