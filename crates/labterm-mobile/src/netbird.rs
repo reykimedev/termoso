@@ -111,14 +111,19 @@ pub(crate) fn needs_sign_in(store: &Arc<Store>, resolved: &ResolvedHost) -> Opti
     vpn::needs_sign_in(store, resolved).map(|e| to_item(store, e))
 }
 
+/// App link the sign-in's browser tab ends on (see the Android manifest).
+const RETURN_URL: &str = "labterm://vpn-signed-in";
+
 /// Start signing in to a network as `account` (`None` = anyone): returns
 /// the URL to open in a browser. The account is remembered on this device.
+/// Once the browser handed over the code it opens [`RETURN_URL`], which
+/// brings the app back to the front and closes the browser tab.
 pub(crate) async fn sign_in_begin(
     store: &Arc<Store>,
     network_id: &str,
     account: Option<String>,
 ) -> Result<String> {
-    Ok(vpn::sign_in_begin(store, parse_id(network_id)?, account).await?)
+    Ok(vpn::sign_in_begin(store, parse_id(network_id)?, account, Some(RETURN_URL)).await?)
 }
 
 /// Wait for the browser to come back from [`sign_in_begin`]; returns the

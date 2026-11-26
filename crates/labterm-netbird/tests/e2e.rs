@@ -125,7 +125,7 @@ async fn sign_in_as(
     account: Option<&str>,
 ) -> Result<Option<String>, String> {
     let pending = nb
-        .sign_in(net, "labterm-e2e-sso", account, keys.as_ref())
+        .sign_in(net, "labterm-e2e-sso", account, None, keys.as_ref())
         .await
         .expect("sign-in start");
     assert!(

@@ -175,7 +175,7 @@ func tnb_dial(h C.uintptr_t, host *C.char, port C.int, timeoutMs C.int, errOut *
 		*errOut = cstr(fmt.Sprintf("netbird: %v", err))
 		return -1
 	}
-	fds, err := syscall.Socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM|syscall.SOCK_CLOEXEC, 0)
+	fds, err := socketpair()
 	if err != nil {
 		remote.Close()
 		*errOut = cstr(fmt.Sprintf("socketpair: %v", err))
@@ -245,3 +245,18 @@ func tnb_free(s *C.char) {
 }
 
 func main() {}
+
+// socketpair returns a connected Unix stream pair, both ends close-on-exec.
+// SOCK_CLOEXEC is Linux/BSD only (macOS lacks it), so the flag is set after
+// the call, holding ForkLock as the standard library does.
+func socketpair() ([2]int, error) {
+	syscall.ForkLock.RLock()
+	defer syscall.ForkLock.RUnlock()
+	fds, err := syscall.Socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM, 0)
+	if err != nil {
+		return fds, err
+	}
+	syscall.CloseOnExec(fds[0])
+	syscall.CloseOnExec(fds[1])
+	return fds, nil
+}

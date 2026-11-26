@@ -169,6 +169,8 @@ struct LoginOptions<'a> {
     device_name: &'a str,
     /// Identity provider account to sign in as; empty = anyone.
     account: &'a str,
+    /// Where the browser goes after the callback; empty shows a page.
+    return_url: &'a str,
 }
 
 #[derive(Deserialize)]
@@ -176,6 +178,8 @@ struct LoginResult {
     private_key: String,
     #[serde(default)]
     email: Option<String>,
+    #[serde(default)]
+    timings: String,
 }
 
 #[derive(Serialize)]
@@ -384,12 +388,15 @@ impl Netbird {
     /// [`SignIn::auth_url`] in a browser, then call [`Self::finish_sign_in`].
     /// Signing in again keeps this device's peer (the saved key). With an
     /// `account` the provider is asked for that user, and a sign-in as
-    /// anyone else is refused before the peer registers.
+    /// anyone else is refused before the peer registers. With a
+    /// `return_url` the browser is sent there once it handed over the code
+    /// (an app link that brings the app back); without, it shows a page.
     pub async fn sign_in(
         &self,
         config: &NetworkConfig,
         device_name: &str,
         account: Option<&str>,
+        return_url: Option<&str>,
         keys: &dyn PeerKeys,
     ) -> Result<SignIn> {
         let saved = keys.load(&config.peer_slot());
@@ -399,6 +406,7 @@ impl Netbird {
                 private_key: saved.as_deref().map(String::as_str).unwrap_or(""),
                 device_name,
                 account: account.map(str::trim).unwrap_or(""),
+                return_url: return_url.unwrap_or(""),
             })
             .map_err(|e| CoreError::Invalid(e.to_string()))?,
         );
@@ -414,9 +422,12 @@ impl Netbird {
         #[derive(Deserialize)]
         struct Begin {
             auth_url: String,
+            #[serde(default)]
+            timings: String,
         }
         let begin: Begin = serde_json::from_str(&out)
             .map_err(|e| CoreError::Transport(format!("netbird: bad sign-in result: {e}")))?;
+        tracing::info!(network = %config.id, timings = %begin.timings, "netbird: sign-in started");
         Ok(SignIn {
             auth_url: begin.auth_url,
             handle,
@@ -452,7 +463,7 @@ impl Netbird {
         if let Some(n) = self.nodes.lock().await.remove(&config.id) {
             self.stop_node(n).await;
         }
-        tracing::info!(network = %config.id, "netbird: signed in");
+        tracing::info!(network = %config.id, timings = %result.timings, "netbird: signed in");
         Ok(SignedIn {
             email: result.email.filter(|e| !e.is_empty()),
         })
