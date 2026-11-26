@@ -10,6 +10,7 @@ import type {
   HostForm,
   ProxyData,
   Settings,
+  OverlayScope,
   Uuid,
   VaultStatus,
   ColorSchemeData,
@@ -30,6 +31,9 @@ export const keys = {
     ["inherited", groupId, vaultId, [...tagIds].sort().join(",")] as const,
   tagForm: (id: Uuid) => ["tagForm", id] as const,
   identities: (vaultId: Uuid | null) => ["identities", vaultId] as const,
+  overlays: ["overlays"] as const,
+  overlayFor: (vaultId: Uuid, scope: string, targetId: Uuid | null) =>
+    ["overlays", vaultId, scope, targetId] as const,
   sshKeys: (vaultId: Uuid | null) => ["sshKeys", vaultId] as const,
   proxies: (vaultId: Uuid | null) => ["proxies", vaultId] as const,
   colorSchemes: (vaultId: Uuid | null) => ["colorSchemes", vaultId] as const,
@@ -150,6 +154,14 @@ export const useIdentities = (vaultId: Uuid | null) =>
   useQuery({
     queryKey: keys.identities(vaultId),
     queryFn: () => ipc.identitiesList(vaultId),
+  });
+
+export const useOverlays = () => useQuery({ queryKey: keys.overlays, queryFn: ipc.overlaysList });
+
+export const useOverlayFor = (vaultId: Uuid, scope: OverlayScope, targetId: Uuid | null) =>
+  useQuery({
+    queryKey: keys.overlayFor(vaultId, scope, targetId),
+    queryFn: () => ipc.overlayForTarget(vaultId, scope, targetId),
   });
 
 export const useSshKeys = (vaultId: Uuid | null) =>

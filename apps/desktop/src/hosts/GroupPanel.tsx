@@ -14,6 +14,7 @@ import ContentCopyRoundedIcon from "@mui/icons-material/ContentCopyRounded";
 import FolderRoundedIcon from "@mui/icons-material/FolderRounded";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useSnackbar } from "@/components/Snackbar";
+import { MyCredentialsSection } from "./MyCredentialsSection";
 import { Field, Loading, SectionCard, SidePanel, ToolIconButton } from "@/components/ui";
 import {
   useDeleteGroup,
@@ -276,6 +277,8 @@ function GroupEditor({
           )}
           envHint={tr("Sent with every session to hosts in this group.")}
         />
+
+        {groupId && <MyCredentialsSection vaultId={vaultId} scope="group" targetId={groupId} />}
 
         {node && <CloudSyncSection group={node} readOnly={readOnly} />}
       </Box>
