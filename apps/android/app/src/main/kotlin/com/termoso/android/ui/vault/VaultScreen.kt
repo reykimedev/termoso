@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.CloudQueue
@@ -86,6 +87,7 @@ fun VaultScreen(
     onOpenForwarding: () -> Unit,
     onOpenSnippets: () -> Unit,
     onOpenKnownHosts: () -> Unit,
+    onOpenOidcProviders: () -> Unit,
     onOpenHistory: () -> Unit,
     onOpenLogs: () -> Unit,
 ) {
@@ -181,6 +183,13 @@ fun VaultScreen(
                     badge = known.toString(),
                     leading = { IconTile(Icons.Filled.Fingerprint) },
                     modifier = Modifier.clickable(onClick = onOpenKnownHosts),
+                )
+                RowDivider()
+                ChevronRow(
+                    title = stringResource(R.string.openid_providers),
+                    subtitle = stringResource(R.string.openid_providers_hint),
+                    leading = { IconTile(Icons.Filled.Badge) },
+                    modifier = Modifier.clickable(onClick = onOpenOidcProviders),
                 )
             }
             Spacer(Modifier.height(24.dp))

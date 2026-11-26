@@ -38,6 +38,8 @@ const key = (over: Partial<KeyCard> = {}): KeyCard => ({
   publicKey: "ssh-ed25519 AAAA",
   comment: "me@laptop",
   encrypted: false,
+  opkssh: false,
+  oidc: null,
   hasPassphrase: false,
   unreadable: false,
   agentBacked: false,

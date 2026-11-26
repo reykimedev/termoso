@@ -10,6 +10,7 @@ members = [
     "crates/termoso-awslc-rsa",
     "crates/termoso-server",
     "crates/termoso-bridge",
+    "crates/termoso-oidc-cert",
     "crates/termoso-wasm",
     "apps/desktop/src-tauri",
 ]
@@ -32,6 +33,7 @@ termoso-core = { path = "crates/termoso-core", default-features = false }
 termoso-client = { path = "crates/termoso-client", default-features = false }
 termoso-bridge = { path = "crates/termoso-bridge" }
 termoso-awslc-rsa = { path = "crates/termoso-awslc-rsa" }
+termoso-oidc-cert = { path = "crates/termoso-oidc-cert", default-features = false }
 
 # mobile bindings
 uniffi = { version = "0.32.0", default-features = false }

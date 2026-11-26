@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DriveFileMove
@@ -105,6 +106,8 @@ fun HostActionsSheet(
     onForward: () -> Unit,
     onEdit: () -> Unit,
     onAddKey: () -> Unit,
+    onOpksshSetup: () -> Unit = {},
+    onOidcKey: () -> Unit = {},
     onDuplicate: () -> Unit,
     onMove: () -> Unit,
     onMoveVault: () -> Unit,
@@ -222,6 +225,10 @@ fun HostActionsSheet(
                 if (ssh) {
                     RowDivider()
                     ActionRow(Icons.Filled.VpnKey, stringResource(R.string.add_ssh_key_to_host), onClick = then(onAddKey))
+                    RowDivider()
+                    ActionRow(Icons.Filled.Badge, stringResource(R.string.setup_opkssh_on_host), onClick = then(onOpksshSetup))
+                    RowDivider()
+                    ActionRow(Icons.Filled.Badge, stringResource(R.string.openid_key_for_host), onClick = then(onOidcKey))
                 }
                 RowDivider()
                 ActionRow(Icons.Filled.ContentCopy, stringResource(R.string.duplicate), onClick = then(onDuplicate))

@@ -577,7 +577,7 @@ fn remember_username(store: &Store, resolved: &ResolvedHost, username: &str) {
 
 /// Ask for the login name when the target has none; an empty answer asks
 /// again, backing out cancels the connection.
-async fn ask_username(
+pub(crate) async fn ask_username(
     conn: &Arc<Connector>,
     target: &SshTarget,
     resolved: Option<&ResolvedHost>,
@@ -739,6 +739,13 @@ async fn ssh_connect(
     let mut asked_passphrase = false;
     loop {
         let mut auth: Vec<AuthMethod> = Vec::new();
+        // OpenID key from the host's (or its group's) settings first.
+        if let Some(r) = resolved
+            && let Some(k) = termoso_client::oidc::host_key(store, r)?
+            && let Some(m) = crate::oidc::auth_method(store, &k).await
+        {
+            auth.push(m);
+        }
         if let Some(key) = resolved.and_then(|r| r.key.as_ref()) {
             let certificate = resolved
                 .and_then(|r| r.certificate.as_ref())
@@ -759,6 +766,11 @@ async fn ssh_connect(
                     backend: Arc::new(crate::fido2::PhoneBackend::default()),
                     certificate,
                 });
+            } else if key.data.is_opkssh() {
+                // OpenID key: fresh key + certificate from a sign-in.
+                if let Some(m) = crate::oidc::auth_method(store, key).await {
+                    auth.push(m);
+                }
             } else {
                 auth.push(AuthMethod::Key {
                     private_key: Zeroizing::new(key.data.private_key.clone()),

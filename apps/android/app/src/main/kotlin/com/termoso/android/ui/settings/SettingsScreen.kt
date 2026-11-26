@@ -447,6 +447,7 @@ fun SettingsScreen(
                     subtitle = stringResource(R.string.core, BuildConfig.VERSION_NAME, coreVersion()),
                     leading = { IconTile(Icons.Filled.Info) },
                 )
+                DebugUpdateRow(onNotify = shell::notify)
                 RowDivider()
                 ChevronRow(
                     title = stringResource(R.string.privacy),

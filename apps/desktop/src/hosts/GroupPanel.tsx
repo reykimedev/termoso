@@ -41,6 +41,7 @@ import { AgentForwardingRow, CredentialsFields, X11ForwardingRow } from "./Crede
 import { ChainDialog, ProxyDialog } from "./HostAdvancedDialogs";
 import { CloudSyncSection } from "./CloudSyncSection";
 import { IconPicker } from "./IconPicker";
+import { OidcKeyField } from "./OidcKeyField";
 import { tr, trn } from "@/i18n";
 
 interface Props {
@@ -287,6 +288,12 @@ function GroupEditor({
             inlineLabel={tr("Set on this group")}
             value={form}
             onChange={patch}
+          />
+          <OidcKeyField
+            vaultId={vaultId}
+            value={form.oidcKeyId}
+            inherited={inh?.oidcKeyId ?? null}
+            onChange={(v) => set("oidcKeyId", v)}
           />
           <Typography variant="caption" color="text.secondary">
             {tr("Hosts in this group use these when their own credentials are left empty.")}
