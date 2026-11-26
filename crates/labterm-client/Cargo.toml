@@ -19,6 +19,8 @@ url = { workspace = true }
 time = { workspace = true }
 zeroize = { workspace = true }
 labterm-oidc-cert = { workspace = true, optional = true, features = ["loopback", "rustls"] }
+labterm-netbird = { workspace = true, optional = true }
+tracing = { workspace = true, optional = true }
 
 [features]
 default = ["fido2"]
@@ -26,6 +28,8 @@ default = ["fido2"]
 fido2 = ["labterm-core/fido2"]
 # OpenPubkey (opkssh) certificates: per-key OpenID sign-in before connecting.
 oidc-cert = ["dep:labterm-oidc-cert"]
+# VPN networks: the embedded NetBird client that dials hosts set to use one.
+vpn = ["dep:labterm-netbird", "dep:tracing"]
 
 
 [dev-dependencies]

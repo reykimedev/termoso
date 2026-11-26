@@ -11,6 +11,7 @@ import { SnippetsPage } from "@/snippets/SnippetsPage";
 import { KeychainPage } from "@/keychain/KeychainPage";
 import { KnownHostsPage } from "@/knownhosts/KnownHostsPage";
 import { OidcProvidersPage } from "@/keychain/OidcProvidersPage";
+import { VpnNetworksPage } from "@/vpn/VpnNetworksPage";
 import { LogsPage } from "@/logs/LogsPage";
 import { PromptHost } from "@/prompts/PromptHost";
 import { TerminalWorkspace } from "@/terminal/TerminalWorkspace";
@@ -214,6 +215,7 @@ function UnlockedShell() {
             {section === "keychain" && <KeychainPage />}
             {section === "knownHosts" && <KnownHostsPage />}
             {section === "oidcProviders" && <OidcProvidersPage />}
+            {section === "vpnNetworks" && <VpnNetworksPage />}
             {section === "logs" && <LogsPage />}
           </Box>
         </Box>

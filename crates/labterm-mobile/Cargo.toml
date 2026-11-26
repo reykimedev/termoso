@@ -14,12 +14,11 @@ name = "labterm_mobile"
 
 [dependencies]
 labterm-core = { workspace = true, features = ["local-pty", "fido2-ctap"] }
-labterm-client = { workspace = true, features = ["oidc-cert"] }
+labterm-client = { workspace = true, features = ["oidc-cert", "vpn"] }
 labterm-proto = { workspace = true }
 labterm-crypto = { workspace = true }
 # Embedded NetBird: the Go library is only bundled in the Android app; elsewhere
 # a host set to use NetBird fails with "not available in this build".
-labterm-netbird = { workspace = true }
 
 uniffi = { workspace = true }
 alacritty_terminal = { workspace = true }

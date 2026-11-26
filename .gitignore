@@ -12,3 +12,4 @@ node_modules
 /apps/desktop/src-tauri/gen/schemas
 /apps/web/.build
 /apps/web/dist
+/apps/desktop/src-tauri/vpn/liblabterm_netbird.*

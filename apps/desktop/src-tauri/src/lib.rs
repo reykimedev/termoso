@@ -40,6 +40,7 @@ mod team;
 mod theme_import;
 mod trust;
 mod update;
+mod vpn;
 mod webdav;
 mod workspaces;
 mod zmodem;
@@ -128,6 +129,7 @@ pub fn run() {
             #[cfg(windows)]
             std::thread::spawn(quick::install_jump_list);
             let handle = app.handle().clone();
+            vpn::init(&handle);
             tauri::async_runtime::spawn(async {
                 // Hardware-backed device keys are not implemented on desktop yet: say so.
                 let posture = labterm_core::posture::collect(Some(false)).await;
@@ -272,6 +274,15 @@ pub fn run() {
             commands_tools::oidc_providers,
             commands_tools::oidc_provider_save,
             commands_tools::oidc_provider_delete,
+            vpn::vpn_available,
+            vpn::vpn_networks,
+            vpn::vpn_sign_in_only,
+            vpn::vpn_network_save,
+            vpn::vpn_network_delete,
+            vpn::vpn_sign_in,
+            vpn::vpn_sign_in_cancel,
+            vpn::vpn_connect,
+            vpn::vpn_running,
             commands_tools::key_create_opkssh,
             commands_tools::key_set_oidc,
             commands_tools::key_oidc_session,

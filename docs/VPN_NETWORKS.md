@@ -1,9 +1,18 @@
-# VPN networks (NetBird on Android; Tailscale and other clients planned)
+# VPN networks (NetBird; Tailscale planned)
 
 A host or group can be set to be reached through a [NetBird](https://netbird.io)
-network. The Android app then joins that network by itself, in userspace, for
-the connection: no system VPN, no `VpnService` and no NetBird app. Hosts that
-are not set to use a network connect directly as before.
+network. The Android app and the desktop app on Linux and macOS then join that
+network by themselves, in userspace, for the connection: no system VPN, no
+`VpnService`, no TUN device and no NetBird app. Hosts that are not set to use a
+network connect directly as before.
+
+| Client | Joins networks itself | Edits networks |
+|---|---|---|
+| Android | yes | yes |
+| Desktop, Linux and macOS | yes | yes |
+| Desktop, Windows | not yet: hosts are dialled directly, which works while the NetBird app runs | yes |
+| Labterm Web | not yet: such hosts refuse to connect | yes |
+| iOS | not yet | no |
 
 ## Who gets in
 
@@ -20,16 +29,20 @@ never grants network access by itself:
 
 ## Setting it up
 
-1. In the app: **Vault → NetBird networks → +**. Enter a label and the
+1. Add the network. Android: **Vault → VPN networks → +**. Desktop and web:
+   **VPN Networks** in the sidebar → **New network**. Enter a label and the
    management URL of a self-hosted server (empty = NetBird's cloud). In a
    personal vault you can add a setup key; leave it empty to sign in.
-2. Long-press a host (or a group) → **Tunnel** → pick the network. Hosts in a
-   group use the group's choice unless they set their own. The address is the
-   host's NetBird IP or DNS name (`host.netbird.cloud`, or your own domain).
+2. Pick the network for a host or a group. Android: long-press → **Tunnel**.
+   Desktop and web: the host's or group's settings → **VPN network**. Hosts in
+   a group use the group's choice unless they set their own. The address is
+   the host's NetBird IP or DNS name (`host.netbird.cloud`, or your own domain).
 3. The first connection to such a host asks you to **sign in**: the app opens
    the sign-in page of the identity provider your NetBird server uses (for
-   example Authentik) in a browser tab. Afterwards the phone is a peer of your
-   NetBird user. You can also sign in from the network's settings.
+   example Authentik) in the browser. Afterwards the device is a peer of your
+   NetBird user. Tapping (or clicking) a network in the list signs in when
+   needed and joins it; its gear opens the settings, where you can also sign
+   in again.
 
 ## Signing in
 
@@ -77,14 +90,17 @@ Authentik guide; nothing app specific is needed.
   carries ciphertext.
 - Inside the app there is no access to Android's interface list, so NetBird
   connects through its relay rather than peer to peer. That is fine for SSH.
+- On desktop the library ships with the app: `Contents/Frameworks` on macOS,
+  a resource on Linux (`apps/desktop/src-tauri/vpn/build.sh` builds it). For
+  `npm run tauri dev`, run that script once or set `LABTERM_VPN_LIBRARY`.
 - Mosh is not used through a network (it needs UDP straight to the host).
 
 ## Not yet
 
 - Team policy: an allowlist of networks and audit entries for connections
   through them.
-- Desktop and iOS: there, hosts set to use a network are dialled directly
-  (works when the system NetBird client is running).
+- Windows (the client uses a Unix socket pair and `dlopen`), iOS, and the
+  browser (NetBird's wasm client over its WebSocket relay).
 - Tailscale.
 
 ## Testing

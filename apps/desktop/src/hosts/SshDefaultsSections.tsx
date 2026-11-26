@@ -9,6 +9,7 @@ import { monoFontFamily } from "@/theme/theme";
 import { AgentForwardingRow, CredentialsFields, X11ForwardingRow } from "./CredentialsFields";
 import { ChainDialog, ProxyDialog } from "./HostAdvancedDialogs";
 import { OidcKeyField } from "./OidcKeyField";
+import { VpnNetworkField } from "@/vpn/VpnNetworkField";
 import { tr, trn } from "@/i18n";
 
 const clampPort = (raw: string) =>
@@ -142,6 +143,12 @@ export function SshDefaultsSections({
             </MenuItem>
           </TextField>
         </Field>
+        <VpnNetworkField
+          vaultId={vaultId}
+          value={value.transportId ?? null}
+          inheritedId={inh?.transportId}
+          onChange={(id) => set("transportId", id)}
+        />
         <Box sx={{ display: "flex", gap: 1.5 }}>
           <Field label={tr("Keep-alive, s")} sx={{ flex: 1 }}>
             <TextField
