@@ -284,7 +284,7 @@ fn device_name() -> String {
         .ok()
         .and_then(|h| h.into_string().ok())
         .filter(|h| !h.trim().is_empty())
-        .unwrap_or_else(|| "Termoso Desktop".into())
+        .unwrap_or_else(|| "Labterm Desktop".into())
 }
 
 fn device(state: &AppState) -> Result<termoso_proto::auth::DeviceInfo> {

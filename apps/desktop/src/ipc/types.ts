@@ -89,7 +89,7 @@ export interface Settings {
   terminalFontFamily: string;
   /** Line height multiplier (1.0 = natural). */
   terminalLineHeight: number;
-  /** Colour scheme id; `auto` follows `theme` with Termoso Dark / Light. */
+  /** Colour scheme id; `auto` follows `theme` with Labterm Dark / Light. */
   terminalTheme: string;
   cursorBlink: boolean;
   cursorStyle: CursorStyle;

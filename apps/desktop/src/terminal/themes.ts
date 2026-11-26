@@ -1,11 +1,11 @@
-// Terminal colour schemes: the Termoso pair plus the community set every
+// Terminal colour schemes: the Labterm pair (labdex's colours) plus the community set every
 // terminal user knows (Solarized, Dracula, Gruvbox, Catppuccin, Nord, Tokyo
 // Night, …) in xterm's 16-colour order. Settings store a scheme by `id`.
 
 import type { ITheme } from "@xterm/xterm";
 import type { ColorSchemeData, Entity } from "@/ipc/types";
 import { createStore, useStore } from "@/lib/store";
-import { dark as appDark, emerald, light as appLight } from "@/theme/theme";
+import { dark as appDark, lantern, light as appLight } from "@/theme/theme";
 
 export interface TerminalTheme {
   id: string;
@@ -50,18 +50,20 @@ const t = (
 
 export const TERMOSO_DARK = "termoso-dark";
 export const TERMOSO_LIGHT = "termoso-light";
-/** Follow the app colour scheme with the Termoso pair. */
+/** Follow the app colour scheme with the Labterm pair. */
 export const AUTO_THEME = "auto";
 
+// labdex's status colours, so a colour means the same in the terminal as in labdex. The ids
+// stay "termoso-*" so saved settings keep working.
 // prettier-ignore
-const termosoDark = t(TERMOSO_DARK, "Termoso Dark", appDark.lowest, appDark.text, emerald.main, "#2BB88452", [
-  "#1A1E2B", "#F25E61", "#2BB884", "#F2C94C", "#5AA9E6", "#C58AF9", "#4FD1C5", "#C9CDDA",
-  "#5A6076", "#FF8285", "#5FD0A4", "#FFDB7A", "#8CC5F0", "#DBB3FF", "#84E7DD", "#F2F4FA",
+const termosoDark = t(TERMOSO_DARK, "Labterm Dark", appDark.lowest, appDark.text, lantern.main, "#F59A2340", [
+  "#1E1E1C", "#F2555A", "#3ECF8E", "#F5C84C", "#5AA9FF", "#E879F9", "#4FD1C5", "#C9C9C4",
+  "#5F5F5C", "#FF7B7F", "#6EE0AB", "#FFDB7A", "#8CC5FF", "#F0A6FB", "#84E7DD", "#F2F2EF",
 ]);
 // prettier-ignore
-const termosoLight = t(TERMOSO_LIGHT, "Termoso Light", appLight.high, appLight.text, emerald.dark, "#1F8F6647", [
-  "#171B26", "#C93B3E", "#1F8F66", "#B08A12", "#2C6B9C", "#8A4FCF", "#1C8C82", "#9AA3B2",
-  "#5F6B7C", "#F25E61", "#2BB884", "#D6A81C", "#3D86BF", "#A66BE8", "#28A89C", "#CBD2DC",
+const termosoLight = t(TERMOSO_LIGHT, "Labterm Light", appLight.high, appLight.text, lantern.dark, "#E8870E40", [
+  "#1A1A19", "#C2410C", "#15803D", "#A16207", "#2563EB", "#A21CAF", "#0F766E", "#8F8F8A",
+  "#5F5F5C", "#DC5A1F", "#1F9D50", "#CA8A04", "#3B82F6", "#C026D3", "#14958A", "#D3D3CF",
 ]);
 
 // prettier-ignore
@@ -355,7 +357,7 @@ export function terminalThemeById(id: string): TerminalTheme | undefined {
   return byId.get(id) ?? custom.get(id);
 }
 
-/** Scheme to render for a settings value; unknown ids fall back to the Termoso pair. */
+/** Scheme to render for a settings value; unknown ids fall back to the Labterm pair. */
 export function resolveTerminalTheme(
   id: string | undefined,
   scheme: "dark" | "light",

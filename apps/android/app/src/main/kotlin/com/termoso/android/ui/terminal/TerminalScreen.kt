@@ -1196,7 +1196,7 @@ private fun OverlayCard(content: @Composable () -> Unit) {
 }
 
 internal fun copyToClipboard(context: android.content.Context, text: String) {
-    context.getSystemService<ClipboardManager>()?.setPrimaryClip(ClipData.newPlainText("Termoso", text))
+    context.getSystemService<ClipboardManager>()?.setPrimaryClip(ClipData.newPlainText("Labterm", text))
 }
 
 /** Open a hyperlink from the terminal: web and mail go to the system, anything else is copied. */

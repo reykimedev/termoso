@@ -66,7 +66,7 @@ export function WelcomeScreen({ settings }: { settings: Settings }) {
           <Stack spacing={1.5} sx={{ alignItems: "center", textAlign: "center" }}>
             <LogoMark size={52} />
             <Typography variant="h5" sx={{ fontWeight: 600, letterSpacing: "-0.01em" }}>
-              {pending ? pendingTitle(pending) : tr("Welcome to Termoso")}
+              {pending ? pendingTitle(pending) : tr("Welcome to Labterm")}
             </Typography>
             {!pending && (
               <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 340 }}>

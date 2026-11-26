@@ -213,7 +213,7 @@ export const COMMANDS: Command[] = [
   },
   {
     id: "nav.about",
-    title: msg("About Termoso"),
+    title: msg("About Labterm"),
     group: "Navigation",
     keywords: "version",
     keys: [],
@@ -532,7 +532,7 @@ export const COMMANDS: Command[] = [
   },
   {
     id: "window.quit",
-    title: msg("Quit Termoso"),
+    title: msg("Quit Labterm"),
     group: "Window",
     keywords: "exit close",
     keys: ["ctrl+q"],

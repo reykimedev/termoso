@@ -189,7 +189,7 @@ jobs:
         working-directory: apps/desktop
       - name: Inspect the bundle
         run: |
-          app=target/debug/bundle/macos/Termoso.app
+          app=target/debug/bundle/macos/Labterm.app
           exe="$app/Contents/MacOS/$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Contents/Info.plist")"
           test -x "$exe" || { echo "::error::no executable at $exe"; ls -R "$app"; exit 1; }
           plutil -p "$app/Contents/Info.plist" | grep -E 'CFBundleIdentifier|CFBundleShortVersionString|LSMinimumSystemVersion|CFBundleURLSchemes'
@@ -197,7 +197,7 @@ jobs:
           codesign -dv "$app" 2>&1 | grep -E '^(Identifier|TeamIdentifier|Signature)'
           lipo -info "$exe"
       - name: Runtime smoke
-        run: apps/desktop/smoke/macos.sh target/debug/bundle/macos/Termoso.app "$RUNNER_TEMP/smoke"
+        run: apps/desktop/smoke/macos.sh target/debug/bundle/macos/Labterm.app "$RUNNER_TEMP/smoke"
       - uses: actions/upload-artifact@v7
         if: always()
         with:

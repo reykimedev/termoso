@@ -1,12 +1,33 @@
-<p align="center"><img src=".github/banner.svg" alt="Termoso" width="100%"></p>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset=".github/labterm-logo-dark.svg">
+    <img src=".github/labterm-logo-light.svg" alt="Labterm" height="88">
+  </picture>
+</p>
 
-<p align="center"><img src=".github/screens/terminal.png" alt="Termoso desktop: terminal with tabs and splits" width="100%"></p>
+<p align="center"><img src=".github/screens/terminal.png" alt="Labterm desktop: terminal with tabs and splits" width="100%"></p>
 <p align="center">
   <img src=".github/screens/hosts.png" alt="Hosts, groups and identities" width="49.5%">
   <img src=".github/screens/sftp.png" alt="SFTP: two panes, local or remote on either side" width="49.5%">
 </p>
 
-# Termoso
+# Labterm
+
+Labterm is the SSH client of the [labdex](https://github.com/labdex-app/labdex) family
+(<https://term.labdex.dev>). It is a fork of [Termoso](https://github.com/termoso/termoso)
+by the Termoso contributors, licensed under the same [AGPL-3.0](LICENSE), and keeps
+Termoso's sync protocol: it signs in to Termoso Cloud or any self-hosted Termoso server.
+
+What the fork adds or changes on top of Termoso:
+
+* labdex look: the lantern mark and labdex's colours.
+* TODO(Mike): list the fork's features (opkssh certificates, NetBird transport, …) as they land.
+
+Internal names (crates, modules, the `termoso://` link scheme, app ids, the
+`TERMOSO_*` settings) still say Termoso, so syncing with upstream stays easy.
+Everything below is Termoso's own README and applies to Labterm as well.
+
+## About Termoso
 
 A free, open-source, self-hostable SSH / SFTP / WebDAV / S3 / Mosh / Telnet / Serial
 workstation in the spirit of Termius: one Rust core, native clients for Linux,

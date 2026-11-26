@@ -185,7 +185,7 @@ fn load_keys(state: &AppState) -> Result<(Vec<ServedKey>, Vec<SkippedKey>)> {
         if k.fido2_credential_id.is_some() || k.key_type.starts_with("sk-") {
             skipped.push(SkippedKey {
                 label: k.label.clone(),
-                reason: "security key: signs only inside Termoso".into(),
+                reason: "security key: signs only inside Labterm".into(),
             });
             continue;
         }

@@ -204,7 +204,7 @@ function DeepLinksRow() {
     onSuccess: (schemes) =>
       snackbar.notify(
         schemes.length
-          ? tr("Termoso now opens {schemes} links", {
+          ? tr("Labterm now opens {schemes} links", {
               schemes: schemes.map((s) => `${s}://`).join(", "),
             })
           : tr("Registration ran, but the system reports no handler — check your desktop settings"),
@@ -296,7 +296,7 @@ function General({ s, update }: SectionProps) {
         <SettingRow
           label={tr("Keep running in the tray")}
           hint={tr(
-            "Closing the window hides Termoso to the system tray; sessions and port forwards stay up. Quit from the tray menu or with {keys}.",
+            "Closing the window hides Labterm to the system tray; sessions and port forwards stay up. Quit from the tray menu or with {keys}.",
             { keys: IS_MAC ? "⌘Q" : "Ctrl+Q" },
           )}
           control={
@@ -406,7 +406,7 @@ function General({ s, update }: SectionProps) {
         <SettingRow
           label={tr("Serve vault keys as an SSH agent")}
           hint={tr(
-            "Termoso runs its own agent: ssh, git and editors on this computer can sign with keys from the vault without the private keys ever being written to disk. Point SSH_AUTH_SOCK at it (line below).",
+            "Labterm runs its own agent: ssh, git and editors on this computer can sign with keys from the vault without the private keys ever being written to disk. Point SSH_AUTH_SOCK at it (line below).",
           )}
           control={
             <Toggle checked={s.serveSshAgent} onChange={(v) => update({ serveSshAgent: v })} />
@@ -952,7 +952,7 @@ function About() {
 
   return (
     <>
-      <SectionCard title={tr("Termoso")}>
+      <SectionCard title={tr("Labterm")}>
         <SettingRow label={tr("Version")} control={<Value>{d ? d.version : "…"}</Value>} />
         <SettingRow label={tr("Platform")} control={<Value>{d?.platform ?? "…"}</Value>} />
         <SettingRow
@@ -969,7 +969,7 @@ function About() {
       <SectionCard title={tr("Privacy")}>
         <Typography variant="body2" color="text.secondary">
           {tr(
-            "Termoso sends nothing anywhere unless you sign in to a server you chose or ask it to check for updates. No analytics, no crash reports, no background pings.",
+            "Labterm sends nothing anywhere unless you sign in to a server you chose or ask it to check for updates. No analytics, no crash reports, no background pings.",
           )}
         </Typography>
       </SectionCard>

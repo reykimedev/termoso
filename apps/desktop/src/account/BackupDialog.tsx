@@ -77,9 +77,9 @@ function fileStamp() {
 /** Native picker for a `.termoso` file; `null` when the user cancels. */
 export async function pickBackupFile(): Promise<string | null> {
   const path = await openFile({
-    title: tr("Open Termoso backup"),
+    title: tr("Open Labterm backup"),
     multiple: false,
-    filters: [{ name: "Termoso backup", extensions: [EXT] }],
+    filters: [{ name: "Labterm backup", extensions: [EXT] }],
   });
   return typeof path === "string" ? path : null;
 }
@@ -199,7 +199,7 @@ function ExportBody({ onClose }: { onClose: () => void }) {
     const path = await saveFile({
       title: tr("Save encrypted backup"),
       defaultPath: `termoso-backup-${fileStamp()}.${EXT}`,
-      filters: [{ name: "Termoso backup", extensions: [EXT] }],
+      filters: [{ name: "Labterm backup", extensions: [EXT] }],
     });
     if (!path) return;
     setBusy(true);
@@ -289,7 +289,7 @@ function Summary({ summary }: { summary: BackupSummary }) {
   return (
     <Stack spacing={0.75}>
       <Typography variant="caption" color="text.secondary">
-        {tr("Created {date} · Termoso {version}", {
+        {tr("Created {date} · Labterm {version}", {
           date: new Date(summary.createdAt).toLocaleString(),
           version: summary.appVersion,
         })}
@@ -442,7 +442,7 @@ function RestoreBody({ path, onClose }: { path: string; onClose: () => void }) {
         <DialogTitle>{tr("Restore from backup")}</DialogTitle>
         <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
           <Typography variant="caption" color="text.secondary">
-            {tr("Created {date} · Termoso {version}", {
+            {tr("Created {date} · Labterm {version}", {
               date: new Date(step.summary.createdAt).toLocaleString(),
               version: step.summary.appVersion,
             })}
