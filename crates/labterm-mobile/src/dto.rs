@@ -643,6 +643,7 @@ pub(crate) fn blank_form(vault_id: Uuid) -> hosts::HostForm {
         keep_alive_interval: None,
         timeout: None,
         oidc_key_id: None,
+        transport_id: None,
         color_scheme: None,
         charset: None,
         backspace: None,

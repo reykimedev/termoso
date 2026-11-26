@@ -50,6 +50,7 @@ payloads! {
     LogBookmark => "log_bookmark",
     ColorScheme => "color_scheme",
     OidcProvider => "oidc_provider",
+    Transport => "transport",
 }
 
 /// Decrypted entity as handed to the UI.
@@ -108,6 +109,10 @@ pub struct ResolvedHost {
     /// Gateway (API bridge) to tunnel through, if any.
     #[serde(default)]
     pub gateway_id: Option<Uuid>,
+    /// Overlay network (NetBird, ...) to dial through, if any; only from
+    /// the host's own vault.
+    #[serde(default)]
+    pub transport: Option<Entity<Transport>>,
     /// Jump hosts in order (each already resolved one level).
     pub chain: Vec<Entity<Host>>,
     /// Telnet config when the host is a telnet target.

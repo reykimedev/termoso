@@ -26,6 +26,11 @@ RUN set -eu; \
     install -m 0755 "/tmp/${name}/wasm-pack" /usr/local/bin/wasm-pack; \
     rm -rf /tmp/wp.tgz "/tmp/${name}"
 COPY Cargo.toml Cargo.lock ./
+# wasm-bindgen at the lockfile's version, built here: wasm-pack would otherwise download a
+# prebuilt one, and the aarch64 build of 0.2.130 needs a newer glibc than bookworm has.
+RUN --mount=type=cache,id=cargo-registry-wasm,target=/usr/local/cargo/registry \
+    v="$(awk '/^name = "wasm-bindgen"$/ { getline; gsub(/version = |"/, ""); print; exit }' Cargo.lock)" \
+ && cargo install wasm-bindgen-cli --locked --version "$v"
 COPY crates ./crates
 COPY apps/desktop/src-tauri ./apps/desktop/src-tauri
 RUN --mount=type=cache,id=cargo-registry-wasm,target=/usr/local/cargo/registry \

@@ -11,6 +11,7 @@ members = [
     "crates/termoso-server",
     "crates/termoso-bridge",
     "crates/labterm-oidc-cert",
+    "crates/labterm-netbird",
     "crates/labterm-wasm",
     "crates/labterm-relay-proto",
     "crates/labterm-relay",
@@ -37,6 +38,7 @@ labterm-client = { path = "crates/labterm-client", default-features = false }
 termoso-bridge = { path = "crates/termoso-bridge" }
 labterm-awslc-rsa = { path = "crates/labterm-awslc-rsa" }
 labterm-oidc-cert = { path = "crates/labterm-oidc-cert", default-features = false }
+labterm-netbird = { path = "crates/labterm-netbird" }
 labterm-relay-proto = { path = "crates/labterm-relay-proto" }
 
 # mobile bindings
@@ -104,7 +106,8 @@ ipnet = { version = "2", features = ["serde"] }
 jsonwebtoken = { version = "11", default-features = false, features = ["rust_crypto", "use_pem"] }
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls-no-provider"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
-serde_yaml = "0.9"
+# Maintained fork of serde_yaml (deprecated; unsafe-libyaml is unmaintained, RUSTSEC-2024-0449).
+serde_norway = "0.9"
 metrics-exporter-prometheus = { version = "0.18", default-features = false }
 url = "2"
 bytes = "1"

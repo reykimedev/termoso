@@ -40,6 +40,7 @@ pub const KINDS: &[&str] = &[
     "log_bookmark",
     "color_scheme",
     "oidc_provider",
+    "transport",
 ];
 
 /// Whether `kind` is a known entity kind.
@@ -51,7 +52,8 @@ pub fn is_known_kind(kind: &str) -> bool {
 /// (usernames, passwords, private keys, certificates). Clients can be told
 /// to keep these device-local for the Personal vault; see
 /// `SyncOptions::sync_credentials` in `labterm-core`.
-pub const CREDENTIAL_KINDS: &[&str] = &["identity", "ssh_key", "ssh_certificate"];
+/// `transport` is one because it carries the network's setup key.
+pub const CREDENTIAL_KINDS: &[&str] = &["identity", "ssh_key", "ssh_certificate", "transport"];
 
 /// Whether `kind` is one of [`CREDENTIAL_KINDS`].
 pub fn is_credential_kind(kind: &str) -> bool {
@@ -68,6 +70,9 @@ pub const AGENT_KEY_TYPE: &str = "agent";
 /// device makes a fresh key at sign-in and keeps it with its short-lived
 /// certificate.
 pub const OPKSSH_KEY_TYPE: &str = "opkssh";
+
+/// [`payload::Transport::provider`] of a NetBird network.
+pub const TRANSPORT_NETBIRD: &str = "netbird";
 
 impl payload::SshKey {
     /// The private half is not in the vault; an SSH agent signs.
@@ -253,6 +258,11 @@ pub mod payload {
             /// instead of dialling it directly; the bridge id.
             #[serde(default, skip_serializing_if = "Option::is_none")]
             pub gateway_id: Option<Uuid>,
+            /// Reach the host through this overlay network ([`Transport`], e.g.
+            /// NetBird) run inside the app, instead of the device's network.
+            /// Only clients built with that transport use it.
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            pub transport_id: Option<Uuid>,
             /// Port knocking sequence.
             #[serde(default, skip_serializing_if = "Option::is_none")]
             pub port_knocking_id: Option<Uuid>,
@@ -579,6 +589,30 @@ pub mod payload {
             /// (`12h`, `24h`, `48h`, `1week`, `oidc`, `oidc-refreshed`).
             #[serde(default, skip_serializing_if = "Option::is_none")]
             pub expiration_policy: Option<String>,
+        }
+    }
+
+    schema! {
+        /// Overlay network the app joins by itself, in userspace, to reach
+        /// hosts whose [`SshConfig::transport_id`] names it: no system VPN
+        /// and no other app. The network only carries the SSH bytes; host
+        /// keys are still checked as for a direct connection.
+        #[derive(Default, PartialEq, Eq)]
+        pub struct Transport {
+            /// Label.
+            pub label: String,
+            /// [`super::TRANSPORT_NETBIRD`] (Tailscale later).
+            pub provider: String,
+            /// Management server; `None` = the provider's cloud
+            /// (`https://api.netbird.io`).
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            pub management_url: Option<String>,
+            /// Setup key every device of this vault joins with. Anyone who
+            /// can read the vault can use it: prefer a reusable, ephemeral
+            /// key limited to a group that the network's ACLs only let
+            /// reach SSH. Optional so a sign-in can replace it later.
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            pub setup_key: Option<String>,
         }
     }
 

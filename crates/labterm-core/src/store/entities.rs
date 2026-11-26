@@ -14,7 +14,7 @@ use super::{LocalVault, Store, parse_time, parse_uuid};
 use crate::error::{CoreError, Result};
 use crate::model::{
     AnyEntity, Entity, Group, Host, Identity, Payload, Proxy, ResolvedHost, S3Config, SerialConfig,
-    SshCertificate, SshConfig, SshKey, Tag, TagHost, TelnetConfig, WebDavConfig,
+    SshCertificate, SshConfig, SshKey, Tag, TagHost, TelnetConfig, Transport, WebDavConfig,
 };
 
 /// Raw local row (ciphertext), as the sync engine sees it.
@@ -796,6 +796,12 @@ impl Store {
         tags.dedup();
 
         let gateway_id = ssh.gateway_id;
+        // `get_in` keeps this to the host's vault: a team's network is never
+        // used for a personal host, nor the other way round.
+        let transport = match ssh.transport_id {
+            Some(id) => self.get_in::<Transport>(id, vault)?,
+            None => None,
+        };
         Ok(ResolvedHost {
             host,
             ssh,
@@ -805,6 +811,7 @@ impl Store {
             ssh_id_handle,
             proxy,
             gateway_id,
+            transport,
             chain,
             telnet,
             serial,
@@ -854,6 +861,7 @@ fn merge_ssh(into: &mut SshConfig, from: &SshConfig) {
         identity_id,
         host_chain_id,
         proxy_id,
+        transport_id,
         port_knocking_id,
         charset,
         color_scheme,

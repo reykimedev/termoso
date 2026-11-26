@@ -130,6 +130,9 @@ pub struct ConnectOptions {
     pub proxy_command: Option<String>,
     /// Tunnel through a gateway instead of dialling (takes precedence over `proxy`).
     pub gateway: Option<crate::gateway::GatewayDial>,
+    /// Dial through an overlay network run inside the app (takes
+    /// precedence over `proxy_command` and `proxy`; `gateway` still wins).
+    pub transport: Option<std::sync::Arc<dyn crate::transport::TransportDial>>,
     /// Environment to request on every shell (`SetEnv`).
     pub env: Vec<(String, String)>,
     /// Request agent forwarding on shells.
@@ -218,6 +221,7 @@ impl ConnectOptions {
             proxy: None,
             proxy_command: None,
             gateway: None,
+            transport: None,
             env: Vec::new(),
             agent_forwarding: false,
             x11: None,
@@ -350,6 +354,13 @@ impl SshClient {
                 return crate::gateway::dial(g)
                     .await
                     .map(|s| proxy::ProxyStream::Ws(Box::new(s)));
+            }
+            if let Some(t) = &opts.transport {
+                opts.report(ConnectPhase::Connecting { via: t.label() });
+                return t
+                    .dial(&opts.target.host, opts.target.port)
+                    .await
+                    .map(proxy::ProxyStream::Transport);
             }
             if let Some(cmd) = opts
                 .proxy_command
