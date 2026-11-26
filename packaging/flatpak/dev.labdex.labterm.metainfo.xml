@@ -1,31 +1,31 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>dev.termoso.Termoso</id>
+  <id>dev.labdex.labterm</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>AGPL-3.0-only</project_license>
-  <name>Termoso</name>
+  <name>Labterm</name>
   <summary>SSH, SFTP and terminal client with an encrypted vault</summary>
   <description>
-    <p>Termoso keeps your hosts, keys and snippets in a vault that is encrypted on your device, syncs them to your own server or none at all, and gives you a fast terminal, SFTP with resume and folder sync, port forwarding, Mosh, Telnet and serial consoles.</p>
+    <p>Labterm keeps your hosts, keys and snippets in a vault that is encrypted on your device, syncs them to your own server or none at all, and gives you a fast terminal, SFTP with resume and folder sync, port forwarding, Mosh, Telnet and serial consoles.</p>
     <p>Teams get shared vaults with roles, SSO, audit and session recordings on a self-hosted server.</p>
   </description>
-  <launchable type="desktop-id">dev.termoso.Termoso.desktop</launchable>
-  <url type="homepage">https://termoso.dev</url>
-  <url type="bugtracker">https://github.com/termoso/termoso/issues</url>
-  <url type="vcs-browser">https://github.com/termoso/termoso</url>
-  <developer id="dev.termoso"><name>Termoso</name></developer>
+  <launchable type="desktop-id">dev.labdex.labterm.desktop</launchable>
+  <url type="homepage">https://github.com/reykimedev/termoso</url>
+  <url type="bugtracker">https://github.com/reykimedev/termoso/issues</url>
+  <url type="vcs-browser">https://github.com/reykimedev/termoso</url>
+  <developer id="dev.labdex"><name>Labterm</name></developer>
   <content_rating type="oars-1.1" />
   <screenshots>
     <screenshot type="default">
-      <image>https://raw.githubusercontent.com/termoso/termoso/v0.12.1/docs/screenshots/desktop-terminal.png</image>
+      <image>https://raw.githubusercontent.com/reykimedev/termoso/v0.12.1/docs/screenshots/desktop-terminal.png</image>
       <caption>Terminal with the host sidebar</caption>
     </screenshot>
     <screenshot>
-      <image>https://raw.githubusercontent.com/termoso/termoso/v0.12.1/docs/screenshots/desktop-hosts.png</image>
+      <image>https://raw.githubusercontent.com/reykimedev/termoso/v0.12.1/docs/screenshots/desktop-hosts.png</image>
       <caption>Hosts grouped in the vault</caption>
     </screenshot>
     <screenshot>
-      <image>https://raw.githubusercontent.com/termoso/termoso/v0.12.1/docs/screenshots/desktop-sftp.png</image>
+      <image>https://raw.githubusercontent.com/reykimedev/termoso/v0.12.1/docs/screenshots/desktop-sftp.png</image>
       <caption>SFTP with resume and folder sync</caption>
     </screenshot>
   </screenshots>

@@ -2,6 +2,8 @@
 
 Every image lives in [`docs/screenshots/`](screenshots/) and is also used by the online documentation at [termoso.dev/docs](https://termoso.dev/docs). Click a thumbnail to open it at full size.
 
+The pictures are taken by script from mocked backends with example data only; [`scripts/screenshots/`](../scripts/screenshots/README.md) explains how to retake them.
+
 ## Contents
 
 - [Desktop — hosts and connections](#desktop--hosts-and-connections)
@@ -9,6 +11,7 @@ Every image lives in [`docs/screenshots/`](screenshots/) and is also used by the
 - [Desktop — SFTP, port forwarding, snippets](#desktop--sftp-port-forwarding-snippets)
 - [Desktop — keychain and import](#desktop--keychain-and-import)
 - [Desktop — account and settings](#desktop--account-and-settings)
+- [Labterm Web](#labterm-web)
 - [Android](#android)
 - [Web cabinet — account](#web-cabinet--account)
 - [Web cabinet — vaults and teams](#web-cabinet--vaults-and-teams)
@@ -103,6 +106,21 @@ Every image lives in [`docs/screenshots/`](screenshots/) and is also used by the
     <td align="center" width="33%"><a href="screenshots/desktop-account-sync.png"><img src="screenshots/desktop-account-sync.png" alt="Account and sync settings" width="100%"></a><br><sub>Account and sync settings</sub></td>
     <td align="center" width="33%"><a href="screenshots/desktop-settings-general.png"><img src="screenshots/desktop-settings-general.png" alt="General settings" width="100%"></a><br><sub>General settings</sub></td>
     <td align="center" width="33%"><a href="screenshots/desktop-settings-security.png"><img src="screenshots/desktop-settings-security.png" alt="Security settings" width="100%"></a><br><sub>Security settings</sub></td>
+  </tr>
+</table>
+
+## Labterm Web
+
+<table>
+  <tr>
+    <td align="center" width="33%"><a href="screenshots/web-app-hosts.png"><img src="screenshots/web-app-hosts.png" alt="Hosts in the browser" width="100%"></a><br><sub>Hosts in the browser</sub></td>
+    <td align="center" width="33%"><a href="screenshots/web-app-terminal.png"><img src="screenshots/web-app-terminal.png" alt="A terminal in the browser" width="100%"></a><br><sub>A terminal in the browser</sub></td>
+    <td align="center" width="33%"><a href="screenshots/web-app-sftp.png"><img src="screenshots/web-app-sftp.png" alt="Two-pane SFTP in the browser" width="100%"></a><br><sub>Two-pane SFTP in the browser</sub></td>
+  </tr>
+  <tr>
+    <td align="center" width="33%"><a href="screenshots/web-app-lock.png"><img src="screenshots/web-app-lock.png" alt="Vault locked in the browser" width="100%"></a><br><sub>Vault locked in the browser</sub></td>
+    <td align="center" width="33%"><a href="screenshots/web-app-phone-hosts.png"><img src="screenshots/web-app-phone-hosts.png" alt="Hosts on a phone" width="100%"></a><br><sub>Hosts on a phone</sub></td>
+    <td align="center" width="33%"><a href="screenshots/web-app-phone-terminal.png"><img src="screenshots/web-app-phone-terminal.png" alt="A terminal on a phone, with the key bar" width="100%"></a><br><sub>A terminal on a phone, with the key bar</sub></td>
   </tr>
 </table>
 

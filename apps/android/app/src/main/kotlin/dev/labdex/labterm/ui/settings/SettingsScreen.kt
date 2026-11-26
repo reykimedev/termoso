@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Terminal
@@ -467,7 +468,11 @@ fun SettingsScreen(
                     },
                 )
                 RowDivider()
-                ChevronRow(title = stringResource(R.string.open_source_licenses), modifier = Modifier.clickable { licenses = true })
+                ChevronRow(
+                    title = stringResource(R.string.open_source_licenses),
+                    leading = { IconTile(Icons.Filled.Gavel) },
+                    modifier = Modifier.clickable { licenses = true },
+                )
             }
             Spacer(Modifier.height(24.dp))
         }

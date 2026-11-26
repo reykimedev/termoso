@@ -19,6 +19,13 @@ name: Desktop dev channel
 on:
   push:
     branches: [main]
+    # Only pushes that change the desktop app publish a new dev build.
+    paths:
+      - apps/desktop/**
+      - crates/**
+      - Cargo.toml
+      - Cargo.lock
+      - .github/workflows/desktop-dev-channel.yml
   workflow_dispatch:
 
 permissions:

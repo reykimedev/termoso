@@ -12,14 +12,22 @@ name: Android debug channel
 on:
   push:
     branches: [main]
+    # Only pushes that change the APK publish a new debug build.
+    paths:
+      - apps/android/**
+      - crates/**
+      - Cargo.toml
+      - Cargo.lock
+      - .github/workflows/android-debug-channel.yml
   workflow_dispatch:
 
 permissions:
   contents: read
 
+# A running publish always finishes; a newer push waits and supersedes any older waiting one.
 concurrency:
   group: android-debug-channel-${{ github.ref_name }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 # Same as CI: rust-cache keys on these, so the publish job can reuse CI's android cache.
 env:
@@ -49,7 +57,9 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: android
-          save-if: false
+          # Keeps main's android cache current even when CI's android job doesn't run on main.
+          # It only saves when the job finishes, not when a newer push cancels it.
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - if: env.HAS_KEY == 'true'
         uses: taiki-e/cache-cargo-install-action@v3
         with:
@@ -66,7 +76,7 @@ jobs:
       - if: env.HAS_KEY == 'true'
         uses: gradle/actions/setup-gradle@v6
         with:
-          cache-read-only: true
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
       - if: env.HAS_KEY == 'true'
         uses: actions/setup-go@v6
         with:
@@ -121,6 +131,4 @@ jobs:
               --notes "Debug builds for testing; the app updates itself from here. Not for production use."
           fi
           gh release upload "$CHANNEL_TAG" "$out/labterm-debug.apk" "$out/latest.json" --clobber
-          # The asset was called labterm-debug.apk before the rename; installed builds follow latest.json.
-          gh release delete-asset "$CHANNEL_TAG" labterm-debug.apk --yes 2>/dev/null || true
           gh release edit "$CHANNEL_TAG" --title "Labterm Debug (rolling, $CHANNEL_TAG)" --notes "Debug build $BUILD from $COMMIT. The app updates itself from here."
