@@ -55,6 +55,7 @@ KEEP = [
     r'"termoso-core/\{\}"',  # user agent the server sees
     r"TermosoCaptcha",
     r"termosoCaptcha",
+    r"packaging/fdroid/com\.termoso\.android\.yml",  # upstream's F-Droid manifest stays
 ]
 
 SKIP_DIRS = {".git", "node_modules", "target", "dist", "build", ".gradle", "pkg", "fuzz/target"}
