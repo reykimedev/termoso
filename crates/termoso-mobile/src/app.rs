@@ -1006,6 +1006,60 @@ impl TermosoApp {
         Ok(keychain::delete_identity(&self.store, parse_id(&id)?)?)
     }
 
+    // ---- own credentials on team hosts (personal overlays) -------------
+
+    /// Every link from the member's vaults to team hosts, groups and tags.
+    pub fn overlays(&self) -> Result<Vec<OverlayItem>> {
+        Ok(termoso_client::overlays::list(&self.store)?
+            .into_iter()
+            .map(OverlayItem::from)
+            .collect())
+    }
+
+    /// The link for one team host, group or tag (`target_id` `None` = the
+    /// whole team vault).
+    pub fn overlay_for(
+        &self,
+        target_vault_id: String,
+        scope: String,
+        target_id: Option<String>,
+    ) -> Result<Option<OverlayItem>> {
+        Ok(termoso_client::overlays::for_target(
+            &self.store,
+            parse_id(&target_vault_id)?,
+            &scope,
+            parse_opt_id(&target_id)?,
+        )?
+        .map(OverlayItem::from))
+    }
+
+    pub fn save_overlay(&self, draft: OverlayDraft) -> Result<OverlayItem> {
+        let form = termoso_client::overlays::OverlayForm {
+            id: parse_opt_id(&draft.id)?,
+            vault_id: parse_id(&draft.vault_id)?,
+            target_vault_id: parse_id(&draft.target_vault_id)?,
+            scope: draft.scope,
+            target_id: parse_opt_id(&draft.target_id)?,
+            identity_id: parse_opt_id(&draft.identity_id)?,
+            oidc_key_id: parse_opt_id(&draft.oidc_key_id)?,
+            agent_forwarding: draft.agent_forwarding,
+            forward_x11: draft.forward_x11,
+        };
+        Ok(termoso_client::overlays::save(&self.store, &form)?.into())
+    }
+
+    /// Use a paused host link again after the team changed the address.
+    pub fn confirm_overlay(&self, id: String) -> Result<OverlayItem> {
+        Ok(termoso_client::overlays::confirm(&self.store, parse_id(&id)?)?.into())
+    }
+
+    pub fn delete_overlay(&self, id: String) -> Result<()> {
+        Ok(termoso_client::overlays::delete(
+            &self.store,
+            parse_id(&id)?,
+        )?)
+    }
+
     // ---- known hosts --------------------------------------------------
 
     pub fn known_hosts(&self) -> Result<Vec<KnownHostItem>> {

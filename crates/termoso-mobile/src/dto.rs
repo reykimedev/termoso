@@ -999,6 +999,69 @@ impl From<keychain::KeyPreview> for KeyPreview {
     }
 }
 
+/// The member's own credentials for a team host, group, tag or whole team
+/// vault (a personal overlay), kept in their personal or local vault.
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct OverlayItem {
+    pub id: String,
+    pub vault_id: String,
+    pub target_vault_id: String,
+    pub target_vault_name: Option<String>,
+    /// `host`, `group`, `tag` or `vault`.
+    pub scope: String,
+    pub target_id: Option<String>,
+    pub target_label: Option<String>,
+    pub identity_id: Option<String>,
+    pub identity_label: Option<String>,
+    pub oidc_key_id: Option<String>,
+    pub oidc_key_label: Option<String>,
+    pub agent_forwarding: bool,
+    pub forward_x11: bool,
+    /// The team target exists and its vault is unlocked.
+    pub linked: bool,
+    /// Host link whose address the team changed: unused until confirmed.
+    pub paused: bool,
+    pub pinned_address: Option<String>,
+}
+
+impl From<termoso_client::overlays::OverlayCard> for OverlayItem {
+    fn from(o: termoso_client::overlays::OverlayCard) -> Self {
+        let s = |u: Option<uuid::Uuid>| u.map(|u| u.to_string());
+        Self {
+            id: o.id.to_string(),
+            vault_id: o.vault_id.to_string(),
+            target_vault_id: o.target_vault_id.to_string(),
+            target_vault_name: o.target_vault_name,
+            scope: o.scope,
+            target_id: s(o.target_id),
+            target_label: o.target_label,
+            identity_id: s(o.identity_id),
+            identity_label: o.identity_label,
+            oidc_key_id: s(o.oidc_key_id),
+            oidc_key_label: o.oidc_key_label,
+            agent_forwarding: o.agent_forwarding,
+            forward_x11: o.forward_x11,
+            linked: o.linked,
+            paused: o.paused,
+            pinned_address: o.pinned_address,
+        }
+    }
+}
+
+/// What the overlay editor saves; ids as strings.
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct OverlayDraft {
+    pub id: Option<String>,
+    pub vault_id: String,
+    pub target_vault_id: String,
+    pub scope: String,
+    pub target_id: Option<String>,
+    pub identity_id: Option<String>,
+    pub oidc_key_id: Option<String>,
+    pub agent_forwarding: bool,
+    pub forward_x11: bool,
+}
+
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct IdentityItem {
     pub id: String,

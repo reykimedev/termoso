@@ -99,6 +99,40 @@ that sets one. `gateway_id` is host-only. A new inheritable `SshConfig` field
 needs its line in `merge_ssh` and its place in `SshDefaultsForm` (the shared
 group and tag editor form).
 
+### Own credentials on team hosts (personal overlays)
+
+A team vault holds the shared hosts, groups and tags. A member who wants to
+connect with their own key or password keeps a `host_overlay` entity in their
+personal (or local) vault. It names a team host, group, tag or the whole team
+vault (`target_vault_id`, `scope`, `target_id`) and points at credentials in
+the same personal vault. The team vault never holds an overlay, and the
+server refuses the kind in team vaults.
+
+References only go one way. `Store::resolve_host_in` stays inside the host's
+vault; `Store::resolve_host_to_connect` then applies the nearest overlay (host,
+group chain nearest first, tags by priority, whole vault), reading overlays
+only from the local and personal vaults. Connections use
+`resolve_host_to_connect`; exports, backups and editors keep using
+`resolve_host_in`, so personal credentials never end up in team data.
+
+The team still controls where a host points, so overlays limit what a changed
+host can get:
+
+- The credential block (identity, key, certificate, OpenID key) is replaced as
+  one unit. Only an empty username falls through to the team's.
+- Group, tag and whole-vault overlays carry keys only; passwords, TOTP
+  secrets and tokens need a host overlay.
+- A host overlay records the address and port it was made for and pauses when
+  the team changes them, until the member confirms.
+- Agent and X11 forwarding come from the overlay, never from the team.
+- Nothing typed while connecting through an overlay is remembered in the team
+  vault.
+- A personal OpenID key may use a team vault's OpenID provider; a team key never
+  reads a provider from another vault.
+
+An overlay whose target is gone (host deleted, member left the team) stays in
+the personal vault as "not linked" and applies again if the target returns.
+
 ### Local store (`termoso-core::store`)
 
 One SQLite file per profile (`~/.local/share/termoso/<profile>/` on Linux;

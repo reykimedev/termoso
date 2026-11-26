@@ -279,6 +279,15 @@ fun DefaultsEditorDialog(shell: ShellViewModel, target: DefaultsTarget, onDismis
                         onCheckedChange = { v -> d = draft.copy(agentForwarding = v) },
                     )
                 }
+                MyCredentialsCard(
+                    shell,
+                    l.vaultId,
+                    if (target is DefaultsTarget.Group) OVERLAY_SCOPE_GROUP else OVERLAY_SCOPE_TAG,
+                    when (target) {
+                        is DefaultsTarget.Group -> target.id
+                        is DefaultsTarget.Tag -> target.id
+                    },
+                )
             }
         }
     }
