@@ -198,6 +198,9 @@ export function vault(id: Uuid): VaultRec {
 export function put<T>(kind: string, vaultId: Uuid, id: Uuid | null, data: T): Ent<T> {
   const v = vault(vaultId);
   if (v.role === "viewer") fail("forbidden", "This vault is view-only");
+  // labterm-proto's PERSONAL_ONLY_KINDS: a member's own credential links never go in a team vault.
+  if (kind === "host_overlay" && v.kind === "team")
+    fail("invalid", "a host_overlay belongs in your personal or local vault, not a team vault");
   const now = new Date().toISOString();
   const prev = id ? s().entities[id] : undefined;
   const e: Ent = {

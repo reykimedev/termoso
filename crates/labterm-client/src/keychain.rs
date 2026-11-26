@@ -818,6 +818,30 @@ pub struct OpksshKeyForm {
     pub oidc: OidcKeyOptions,
 }
 
+/// A provider a key in `vault_id` may name: one in the key's own vault, or,
+/// for a key in the personal or local vault, one in a team vault (only its
+/// public settings are read; see personal overlays). A key in a team vault
+/// never reads a provider from another vault.
+pub fn oidc_provider_in_reach(
+    store: &Store,
+    vault_id: Uuid,
+    id: Uuid,
+) -> Result<Option<Entity<OidcProvider>>> {
+    let Some(p) = store.get::<OidcProvider>(id).ok().flatten() else {
+        return Ok(None);
+    };
+    if p.vault_id == vault_id {
+        return Ok(Some(p));
+    }
+    use labterm_core::store::LocalVaultKind;
+    let kind = |v: Uuid| store.vault(v).map(|v| v.kind).ok();
+    let own = matches!(
+        kind(vault_id),
+        Some(LocalVaultKind::Personal | LocalVaultKind::Local)
+    );
+    Ok((own && kind(p.vault_id) == Some(LocalVaultKind::Team)).then_some(p))
+}
+
 fn check_oidc_options(store: &Store, vault_id: Uuid, o: &mut OidcKeyOptions) -> Result<()> {
     let tidy = |v: &Option<String>| {
         v.as_deref()
@@ -833,15 +857,12 @@ fn check_oidc_options(store: &Store, vault_id: Uuid, o: &mut OidcKeyOptions) -> 
         .map(|p| p.trim().to_owned())
         .filter(|p| !p.is_empty())
         .collect();
-    if let Some(pid) = o.provider_id {
-        match store.get::<OidcProvider>(pid)? {
-            Some(p) if p.vault_id == vault_id => {}
-            _ => {
-                return Err(ClientError::invalid(
-                    "the OpenID provider must be in the key's vault",
-                ));
-            }
-        }
+    if let Some(pid) = o.provider_id
+        && oidc_provider_in_reach(store, vault_id, pid)?.is_none()
+    {
+        return Err(ClientError::invalid(
+            "the OpenID provider must be in the key's vault (or, for a personal key, a team vault)",
+        ));
     }
     Ok(())
 }
@@ -2100,5 +2121,59 @@ mod tests {
         )
         .unwrap();
         assert_ne!(card.id, second.id);
+    }
+}
+
+#[cfg(test)]
+mod provider_reach_tests {
+    use labterm_core::labterm_crypto::keys::SymmetricKey;
+    use labterm_core::labterm_proto::vault::VaultRole;
+    use labterm_core::store::LocalVaultKind;
+
+    use super::*;
+
+    fn vault(s: &Store, kind: LocalVaultKind) -> Uuid {
+        let v = Uuid::new_v4();
+        let team = (kind == LocalVaultKind::Team).then(Uuid::new_v4);
+        s.upsert_vault(
+            v,
+            kind,
+            "V",
+            team,
+            VaultRole::Editor,
+            Some(&SymmetricKey::generate()),
+            1,
+        )
+        .unwrap();
+        v
+    }
+
+    fn provider(s: &Store, vault: Uuid) -> Uuid {
+        s.insert(
+            vault,
+            &OidcProvider {
+                label: "idp".into(),
+                issuer: "https://idp.example.com".into(),
+                client_id: "labterm".into(),
+                ..Default::default()
+            },
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn personal_keys_may_use_team_providers_but_not_the_reverse() {
+        let s = Store::open_in_memory(SymmetricKey::generate()).unwrap();
+        let team = vault(&s, LocalVaultKind::Team);
+        let other_team = vault(&s, LocalVaultKind::Team);
+        let personal = vault(&s, LocalVaultKind::Personal);
+        let team_p = provider(&s, team);
+        let personal_p = provider(&s, personal);
+        let reach = |v, p| oidc_provider_in_reach(&s, v, p).unwrap().is_some();
+        assert!(reach(personal, personal_p));
+        assert!(reach(personal, team_p));
+        assert!(reach(team, team_p));
+        assert!(!reach(team, personal_p));
+        assert!(!reach(other_team, team_p));
     }
 }

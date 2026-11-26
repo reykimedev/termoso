@@ -9,7 +9,8 @@ import * as oidc from "./oidc";
 import * as opkssh from "./opkssh";
 import * as history from "./history";
 import * as policy from "./policy";
-import { type Resolved, type SshKey, pins, resolve } from "./model";
+import { type Resolved, type SshKey, pins } from "./model";
+import { resolveToConnect } from "./overlays";
 import { type Uuid, changed, isUnlocked, require, s } from "./state";
 import { loadWasm, w } from "./wasm";
 
@@ -134,7 +135,7 @@ function planFor(target: Target): Plan {
   }
   if (target.kind !== "host")
     fail("unsupported", "The web app connects to SSH hosts only (no local shell, serial or Mosh).");
-  const r: Resolved = resolve((target as { host_id: Uuid }).host_id);
+  const r: Resolved = resolveToConnect((target as { host_id: Uuid }).host_id);
   // Going around a configured jump host or proxy would reach the host by another path than the
   // one its owner set up, so such hosts don't open here until Hatch can follow the chain.
   if (r.ssh.host_chain_id || r.ssh.proxy_id)

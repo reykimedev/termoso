@@ -607,6 +607,47 @@ pub async fn identity_save(state: State<'_, AppState>, form: IdentityForm) -> Re
     keychain::save_identity(&*state.store()?, &form)
 }
 
+/// The member's own credentials for team hosts (personal overlays).
+#[tauri::command]
+pub async fn overlays_list(
+    state: State<'_, AppState>,
+) -> Result<Vec<labterm_client::overlays::OverlayCard>> {
+    labterm_client::overlays::list(&*state.store()?)
+}
+
+/// The overlay for one team host, group, tag or vault (`targetId` empty).
+#[tauri::command]
+pub async fn overlay_for_target(
+    state: State<'_, AppState>,
+    target_vault_id: Uuid,
+    scope: String,
+    target_id: Option<Uuid>,
+) -> Result<Option<labterm_client::overlays::OverlayCard>> {
+    labterm_client::overlays::for_target(&*state.store()?, target_vault_id, &scope, target_id)
+}
+
+#[tauri::command]
+pub async fn overlay_save(
+    state: State<'_, AppState>,
+    form: labterm_client::overlays::OverlayForm,
+) -> Result<labterm_client::overlays::OverlayCard> {
+    labterm_client::overlays::save(&*state.store()?, &form)
+}
+
+/// Use a paused host overlay again after the team changed the address.
+#[tauri::command]
+pub async fn overlay_confirm(
+    state: State<'_, AppState>,
+    id: Uuid,
+) -> Result<labterm_client::overlays::OverlayCard> {
+    labterm_client::overlays::confirm(&*state.store()?, id)
+}
+
+#[tauri::command]
+pub async fn overlay_delete(state: State<'_, AppState>, id: Uuid) -> Result<()> {
+    labterm_client::overlays::delete(&*state.store()?, id)
+}
+
 #[tauri::command]
 pub async fn identity_delete(state: State<'_, AppState>, id: Uuid) -> Result<()> {
     keychain::delete_identity(&*state.store()?, id)

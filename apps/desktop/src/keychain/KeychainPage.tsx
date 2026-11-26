@@ -36,6 +36,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { save as saveFile } from "@tauri-apps/plugin-dialog";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { EmptyState } from "@/components/EmptyState";
+import { PersonalLinks } from "./PersonalLinks";
 import { Page } from "@/components/PageHeader";
 import {
   ActionMenu,
@@ -669,6 +670,7 @@ function KeychainBody({ vault }: { vault: ReturnType<typeof useActiveVault> }) {
                   )}
                 </Box>
               )}
+              {!query && <PersonalLinks />}
               {query && shownKeys.length === 0 && shownIds.length === 0 && (
                 <EmptyState
                   compact

@@ -34,6 +34,7 @@ import { TagsPopover } from "./TagsPopover";
 import { AgentForwardingRow, CredentialsFields, X11ForwardingRow } from "./CredentialsFields";
 import { WebDavAuthFields } from "./WebDavAuthFields";
 import { ServerKeyField } from "./ServerKeyField";
+import { MyCredentialsSection } from "./MyCredentialsSection";
 import { OidcKeyField } from "./OidcKeyField";
 import {
   Field,
@@ -1017,6 +1018,10 @@ function HostEditor({
             </SectionCard>
           ) : (
             <AddSectionButton label={tr("Add SSH")} onClick={() => set("ssh", true)} />
+          )}
+
+          {form.ssh && hostId && (
+            <MyCredentialsSection vaultId={vaultId} scope="host" targetId={hostId} />
           )}
 
           {form.telnet ? (

@@ -10,6 +10,7 @@ import {
   Typography,
 } from "@mui/material";
 import { Field, Loading, SectionCard } from "@/components/ui";
+import { MyCredentialsSection } from "./MyCredentialsSection";
 import { useSnackbar } from "@/components/Snackbar";
 import { useSaveTagForm, useTagForm } from "@/ipc/hooks";
 import { errorMessage, type SshDefaultsForm, type TagForm, type Uuid } from "@/ipc/types";
@@ -121,6 +122,9 @@ function TagSettingsEditor({ initial, onClose }: { initial: TagForm; onClose: ()
             )}
             envHint={tr("Sent with every session to hosts with this tag.")}
           />
+          {form.id && (
+            <MyCredentialsSection vaultId={form.vaultId} scope="tag" targetId={form.id} />
+          )}
         </Box>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
