@@ -31,6 +31,8 @@ class Node:
         self.res = el.get("resource-id") or ""
         self.clickable = el.get("clickable") == "true"
         self.focused = el.get("focused") == "true"
+        self.checkable = el.get("checkable") == "true"
+        self.checked = el.get("checked") == "true"
         x1, y1, x2, y2 = map(int, re.findall(r"\d+", el.get("bounds", "[0,0][0,0]")))
         self.box = (x1, y1, x2, y2)
         self.center = ((x1 + x2) // 2, (y1 + y2) // 2)
@@ -145,3 +147,18 @@ def shot(path):
 def swipe(x1, y1, x2, y2, ms=300):
     sh(f"input swipe {x1} {y1} {x2} {y2} {ms}")
     time.sleep(0.6)
+
+
+def switch_state(label):
+    """`checked` of the switch on the same row as `label` (None when there is none)."""
+    all_nodes = nodes()
+    hits = find(label, True, all_nodes)
+    if not hits:
+        raise NotFound(f"not found: {label!r}; screen shows: {labels()}")
+    y = hits[0].center[1]
+    near = [n for n in all_nodes if n.checkable and abs(n.center[1] - y) < 90]
+    return near[0].checked if near else None
+
+
+def foreground():
+    return sh("dumpsys window | grep -E 'mCurrentFocus|mFocusedApp'")

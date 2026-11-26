@@ -14,8 +14,9 @@ import traceback
 
 import re
 
-from drive import (NotFound, back, find, has, hide_keyboard, key, labels, long_press, nodes,
-                   screen_size, sh, shot, swipe, tap, tap_xy, type_text, wait)
+import drive
+from drive import (NotFound, find, foreground, has, hide_keyboard, key, labels, long_press, nodes,
+                   screen_size, sh, shot, swipe, switch_state, tap, tap_xy, type_text, wait)
 
 IMPORT_BUTTON = re.compile(r"^Import \d+ hosts?$")
 
@@ -59,6 +60,7 @@ STEPS = []
 
 
 def nav(tab):
+    in_app()
     tap(tab)
     time.sleep(0.8)
 
@@ -66,6 +68,26 @@ def nav(tab):
 def home():
     sh(f"am start -n {PKG}/dev.labdex.labterm.MainActivity")
     time.sleep(1.5)
+
+
+def in_app():
+    """Brings the app back if a step left it (a Back too many)."""
+    if PKG not in foreground():
+        home()
+
+
+def back():
+    drive.back()
+    in_app()
+
+
+def scroll_to(label, exact=True, tries=8):
+    w, h = screen_size()
+    for _ in range(tries):
+        if has(label, exact):
+            return
+        swipe(w // 2, int(h * 0.75), w // 2, int(h * 0.4))
+    wait(label, 2, exact)
 
 
 def fill(label, value):
@@ -77,6 +99,27 @@ def fill(label, value):
     type_text(value)
 
 
+def host_list():
+    nav("Vaults")
+    if has("Keychain"):
+        tap("Hosts")
+    wait("Sort")
+
+
+def vault_overview():
+    nav("Vaults")
+    for _ in range(3):
+        if has("Keychain"):
+            return
+        tap("Back")
+    wait("Keychain")
+
+
+def text_field(index=0):
+    fields = [n for n in nodes() if n.cls.endswith("EditText")]
+    tap_xy(*fields[index].center)
+
+
 @step("setup", keep=False)
 def setup():
     sh(f"pm grant {PKG} android.permission.POST_NOTIFICATIONS")
@@ -84,21 +127,23 @@ def setup():
     if has("Continue without sync"):
         tap("Continue without sync")
     time.sleep(1.5)
-    # Anything asking at first start (notifications, battery) is answered so it stays away.
     for label in ("Allow", "Not now", "Skip", "Later"):
         if has(label):
             tap(label)
+    # The pictures show Labterm's own colours, not the emulator wallpaper's.
+    nav("Settings")
+    if switch_state("Dynamic colors"):
+        tap("Dynamic colors")
+        time.sleep(1)
 
 
 @step("android-quick-import")
 def quick_import():
-    nav("Vaults")
+    host_list()
     tap("Add")
     tap("Import hosts")
     time.sleep(1)
-    fields = [n for n in nodes() if n.cls.endswith("EditText")]
-    if fields:
-        tap_xy(*fields[0].center)
+    text_field(0)
     type_text(IMPORT)
     hide_keyboard()
     wait("Detected: ssh_config", exact=False)
@@ -106,11 +151,7 @@ def quick_import():
 
 @step("android-hosts")
 def hosts():
-    w, h = screen_size()
-    for _ in range(4):
-        if has(IMPORT_BUTTON):
-            break
-        swipe(w // 2, int(h * 0.85), w // 2, int(h * 0.45))
+    scroll_to(IMPORT_BUTTON)
     tap(IMPORT_BUTTON)
     wait("web-01", timeout=10)
     time.sleep(1)
@@ -118,13 +159,12 @@ def hosts():
 
 @step("android-vault")
 def vault():
-    tap("Back")
-    wait("Keychain")
+    vault_overview()
 
 
 @step("android-terminal")
 def terminal():
-    tap("Hosts")
+    host_list()
     tap("web-01")
     if has("Connect"):
         tap("Connect")
@@ -151,7 +191,7 @@ def session_menu():
 
 @step("android-key-panel")
 def key_panel():
-    back()
+    drive.back()
     time.sleep(0.5)
     tap("Show key panel")
     wait("Customize")
@@ -165,25 +205,21 @@ def hidden_input():
 
 @step("android-compose")
 def compose():
-    back()
+    tap("Cancel")
     hide_keyboard()
     if not has("Compose"):
         tap("More keys")
     tap("Compose")
     time.sleep(0.8)
-    fields = [n for n in nodes() if n.cls.endswith("EditText")]
-    if fields:
-        tap_xy(*fields[-1].center)
+    text_field(-1)
     type_text("Refactor the auth module: extract token validation into a helper and add unit tests for expired and malformed tokens.")
     wait("Paste only")
 
 
 @step("android-connections")
 def connections():
-    back()
     hide_keyboard()
-    back()
-    time.sleep(0.5)
+    drive.back()
     nav("Connections")
     wait("Ways to connect", exact=False)
 
@@ -198,33 +234,25 @@ def sftp():
 
 @step("android-ai-agent")
 def ai_agent():
-    home()
-    nav("Vaults")
-    hit = wait("web-01")[0]
-    long_press(*hit.center)
+    host_list()
+    long_press(*wait("web-01")[0].center)
     tap("Edit", exact=False)
-    wait("web-01")
-    w, h = screen_size()
-    for _ in range(8):
-        if has("AI coding agent", exact=False):
-            break
-        swipe(w // 2, int(h * 0.8), w // 2, int(h * 0.35))
+    scroll_to("AI coding agent", exact=False)
     tap("AI coding agent", exact=False)
     wait("Claude Code", exact=False)
 
 
 @step("android-keys")
 def keys():
-    back()
-    back()
-    home()
-    nav("Vaults")
-    tap("Back")
+    drive.back()
+    drive.back()
+    vault_overview()
     tap("Keychain")
     for label, algo in (("deploy", "Ed25519"), ("backup", "ECDSA"), ("ci-runner", "RSA")):
         tap("Add")
         tap("Generate key")
         fill("Label", label)
+        hide_keyboard()
         if has("Algorithm"):
             tap("Algorithm")
             if has(algo, exact=False):
@@ -235,12 +263,13 @@ def keys():
 
 @step("android-pf-rule")
 def pf_rule():
-    back()
-    tap("Port forwarding", exact=False)
+    vault_overview()
+    tap("Port forwarding")
     tap("Add") if has("Add") else tap("Create a rule")
     if has("Local forwarding"):
         tap("Local forwarding")
     fill("Label", "Admin panel via web-01")
+    hide_keyboard()
     if has("Host"):
         tap("Host")
         tap("web-01", index=-1)
@@ -252,18 +281,20 @@ def pf_rule():
 
 @step("android-settings")
 def settings():
-    back()
+    drive.back()
     if has("Discard", exact=False):
         tap("Discard", exact=False)
-    home()
     nav("Settings")
+    w, h = screen_size()
+    for _ in range(3):
+        swipe(w // 2, int(h * 0.3), w // 2, int(h * 0.8))
     wait("Appearance")
 
 
 @step("android-gestures-settings")
 def gestures():
     tap("Keyboard & gestures")
-    wait("Gestures", exact=False)
+    scroll_to("Gestures", exact=False)
 
 
 @step("android-linux-env")
@@ -276,21 +307,17 @@ def linux_env():
 @step("android-pin")
 def pin():
     back()
-    w, h = screen_size()
-    for _ in range(6):
-        if has("App PIN / pattern"):
-            break
-        swipe(w // 2, int(h * 0.8), w // 2, int(h * 0.4))
+    scroll_to("App PIN / pattern")
     tap("App PIN / pattern")
     time.sleep(1)
     if has("Set up"):
         tap("Set up")
-    wait("PIN")
+    wait("Pattern")
 
 
 @step("android-shade")
 def shade():
-    back()
+    tap("Cancel")
     sh("cmd statusbar expand-notifications")
     time.sleep(1.5)
 
@@ -300,7 +327,7 @@ def calm_status_bar():
     demo = "am broadcast -a com.android.systemui.demo -e command"
     sh(f"settings put global sysui_demo_allowed 1; {demo} enter; {demo} clock -e hhmm 0942; "
        f"{demo} battery -e level 100 -e plugged false; {demo} network -e wifi show -e level 4 -e fully true; "
-       f"{demo} network -e mobile show -e level 4 -e datatype none; {demo} notifications -e visible false")
+       f"{demo} network -e mobile hide; {demo} notifications -e visible false")
 
 
 def main():
