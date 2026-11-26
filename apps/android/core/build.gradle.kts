@@ -11,14 +11,22 @@ val rustAbis: List<String> = (findProperty("termoso.abis") as String)
     .split(',')
     .map { it.trim() }
     .filter { it.isNotEmpty() }
+val ndkVersionPinned: String = findProperty("termoso.ndkVersion") as String
+// Prefer the pinned NDK under the SDK, so the Rust/Go builds use the same one AGP strips with.
 val rustNdkHome: String? = System.getenv("ANDROID_NDK_HOME")
     ?: System.getenv("ANDROID_NDK_ROOT")
     ?: (System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT"))
-        ?.let { sdk -> File(sdk, "ndk").listFiles()?.filter { it.isDirectory }?.maxByOrNull { it.name }?.absolutePath }
+        ?.let { sdk -> File(sdk, "ndk") }
+        ?.let { ndks ->
+            File(ndks, ndkVersionPinned).takeIf { it.isDirectory }
+                ?: ndks.listFiles()?.filter { it.isDirectory }?.maxByOrNull { it.name }
+        }
+        ?.absolutePath
 
 android {
     namespace = "dev.labdex.labterm.core"
     compileSdk = 36
+    ndkVersion = ndkVersionPinned
 
     defaultConfig {
         minSdk = 26

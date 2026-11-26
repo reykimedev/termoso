@@ -42,6 +42,9 @@ val appLinkHost: String = findProperty("termoso.appLinkHost") as String
 android {
     namespace = "dev.labdex.labterm"
     compileSdk = 36
+    // Without the NDK AGP expects, it can't strip the packaged .so files (ours, JNA, ML Kit,
+    // CameraX, proot) and ships them as they are. Pin the one CI installs.
+    ndkVersion = findProperty("termoso.ndkVersion") as String
 
     defaultConfig {
         applicationId = "dev.labdex.labterm"

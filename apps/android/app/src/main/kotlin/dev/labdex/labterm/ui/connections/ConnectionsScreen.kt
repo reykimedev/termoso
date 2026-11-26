@@ -29,7 +29,7 @@ import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Refresh
@@ -536,7 +536,7 @@ private fun ActiveSessionRow(
                     fun item(icon: ImageVector, label: String, destructive: Boolean = false, action: () -> Unit) {
                         MenuItem(icon, label, destructive) { menu = false; action() }
                     }
-                    item(Icons.Filled.OpenInNew, stringResource(R.string.open_), action = onOpen)
+                    item(Icons.AutoMirrored.Filled.OpenInNew, stringResource(R.string.open_), action = onOpen)
                     if (!session.isView) item(Icons.Filled.ContentCopy, stringResource(R.string.duplicate), action = onDuplicate)
                     if (session.reconnectable) item(Icons.Filled.Refresh, stringResource(R.string.reconnect), action = onReconnect)
                     if (ssh) item(Icons.Filled.FolderOpen, stringResource(R.string.open_sftp), action = onSftp)
@@ -608,7 +608,7 @@ private fun SftpRow(
                     fun item(icon: ImageVector, label: String, destructive: Boolean = false, action: () -> Unit) {
                         MenuItem(icon, label, destructive) { menu = false; action() }
                     }
-                    item(Icons.Filled.OpenInNew, stringResource(R.string.open_), action = onOpen)
+                    item(Icons.AutoMirrored.Filled.OpenInNew, stringResource(R.string.open_), action = onOpen)
                     if (conn.protocol == FileProtocol.SFTP && (conn.hostId != null || conn.quick != null)) {
                         item(Icons.Filled.Terminal, stringResource(R.string.open_terminal), action = onTerminal)
                     }

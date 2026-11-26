@@ -20,7 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -114,7 +114,7 @@ fun FileViewer(
                             Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.edit))
                         }
                     }
-                    IconButton(onClick = onOpenWith) { Icon(Icons.Filled.OpenInNew, contentDescription = stringResource(R.string.open_with)) }
+                    IconButton(onClick = onOpenWith) { Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = stringResource(R.string.open_with)) }
                 },
             )
         },

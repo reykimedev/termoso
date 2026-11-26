@@ -22,12 +22,12 @@ import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.DriveFileMove
+import androidx.compose.material.icons.automirrored.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.LibraryAdd
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.PlaylistPlay
+import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -302,7 +302,7 @@ private fun TransferMenuItems(onTransfer: ((move: Boolean) -> Unit)?, onPicked: 
     )
     DropdownMenuItem(
         text = { Text(stringResource(R.string.move_to_vault)) },
-        leadingIcon = { Icon(Icons.Filled.DriveFileMove, null) },
+        leadingIcon = { Icon(Icons.AutoMirrored.Filled.DriveFileMove, null) },
         onClick = { onPicked(); onTransfer(true) },
     )
 }
@@ -357,7 +357,7 @@ private fun SnippetRow(
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
             DropdownMenuItem(text = { Text(stringResource(R.string.run)) }, leadingIcon = { Icon(Icons.Filled.PlayArrow, null) }, onClick = { menu = false; onRun() })
-            DropdownMenuItem(text = { Text(stringResource(R.string.run_quietly)) }, leadingIcon = { Icon(Icons.Filled.PlaylistPlay, null) }, onClick = { menu = false; onRunQuiet() })
+            DropdownMenuItem(text = { Text(stringResource(R.string.run_quietly)) }, leadingIcon = { Icon(Icons.AutoMirrored.Filled.PlaylistPlay, null) }, onClick = { menu = false; onRunQuiet() })
             DropdownMenuItem(text = { Text(stringResource(R.string.edit)) }, leadingIcon = { Icon(Icons.Filled.Edit, null) }, onClick = { menu = false; onEdit() })
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.duplicate)) },

@@ -881,7 +881,7 @@ private fun ActiveSession(
                     modifier = Modifier.fillMaxSize(),
                     onFrame = {
                         scrolled = it.frame.displayOffset > 0u
-                        terminalBackground.value = it.frame.background?.toInt()?.let { c -> Color(c or (0xFF shl 24)) }
+                        terminalBackground.value = Color(it.frame.background.toInt() or (0xFF shl 24))
                         frameInfo = Triple(it.frame.history.toLong(), it.frame.displayOffset.toLong(), it.rows)
                     },
                     highlights = searchHighlights,

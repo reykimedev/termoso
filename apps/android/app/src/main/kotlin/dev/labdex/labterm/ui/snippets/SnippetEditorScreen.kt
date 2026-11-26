@@ -376,7 +376,7 @@ private fun packagePath(all: List<SnippetPackageItem>, pkg: SnippetPackageItem):
     var guard = 0
     while (cur != null && guard++ < 32) {
         parts.addFirst(cur.label)
-        cur = all.firstOrNull { it.id == cur?.parentId }
+        cur = all.firstOrNull { it.id == cur.parentId }
     }
     return parts.joinToString(" / ")
 }

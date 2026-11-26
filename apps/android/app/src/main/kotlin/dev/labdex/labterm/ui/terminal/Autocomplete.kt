@@ -18,7 +18,7 @@ import androidx.compose.material.icons.automirrored.filled.Subject
 import androidx.compose.material.icons.filled.DataObject
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.InsertDriveFile
+import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
@@ -81,7 +81,7 @@ fun suggestionIcon(item: SuggestionItem): ImageVector = when (item.kind) {
     SuggestionKind.COMMAND -> Icons.Filled.Terminal
     SuggestionKind.OPTION -> Icons.Filled.Tune
     SuggestionKind.SUBCOMMAND -> Icons.AutoMirrored.Filled.Subject
-    SuggestionKind.PATH -> if (item.label.endsWith("/")) Icons.Filled.Folder else Icons.Filled.InsertDriveFile
+    SuggestionKind.PATH -> if (item.label.endsWith("/")) Icons.Filled.Folder else Icons.AutoMirrored.Filled.InsertDriveFile
     SuggestionKind.HISTORY -> Icons.Filled.History
     SuggestionKind.SNIPPET -> Icons.Filled.DataObject
 }

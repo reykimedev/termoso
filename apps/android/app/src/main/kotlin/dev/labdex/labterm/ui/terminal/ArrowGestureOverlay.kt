@@ -13,8 +13,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -50,9 +50,9 @@ fun ArrowGestureOverlay(hint: ArrowHint, modifier: Modifier = Modifier) {
     ) {
         Arrow(Icons.Filled.KeyboardArrowUp, hint.direction == SpecialKey.UP)
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Arrow(Icons.Filled.KeyboardArrowLeft, hint.direction == SpecialKey.LEFT)
+            Arrow(Icons.AutoMirrored.Filled.KeyboardArrowLeft, hint.direction == SpecialKey.LEFT)
             Spacer(Modifier.size(28.dp))
-            Arrow(Icons.Filled.KeyboardArrowRight, hint.direction == SpecialKey.RIGHT)
+            Arrow(Icons.AutoMirrored.Filled.KeyboardArrowRight, hint.direction == SpecialKey.RIGHT)
         }
         Arrow(Icons.Filled.KeyboardArrowDown, hint.direction == SpecialKey.DOWN)
         Spacer(Modifier.height(6.dp))
