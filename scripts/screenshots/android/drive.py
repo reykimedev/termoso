@@ -140,3 +140,8 @@ def shot(path):
     data = adb("exec-out", "screencap", "-p", text=False)
     with open(path, "wb") as f:
         f.write(data)
+
+
+def swipe(x1, y1, x2, y2, ms=300):
+    sh(f"input swipe {x1} {y1} {x2} {y2} {ms}")
+    time.sleep(0.6)

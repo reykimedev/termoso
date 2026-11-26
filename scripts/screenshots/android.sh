@@ -16,19 +16,10 @@ adb root >/dev/null; sleep 2; adb wait-for-device
 # Example addresses go to the test server on the host (10.0.2.2:2222).
 adb shell "iptables -t nat -A OUTPUT -p tcp -d 192.0.2.0/24 --dport 22 -j DNAT --to-destination 10.0.2.2:2222"
 adb shell "iptables -t nat -A OUTPUT -p tcp -d 192.0.2.0/24 --dport 2222 -j DNAT --to-destination 10.0.2.2:2222"
-# Same look every time: dark, English, no animations, a calm status bar at 9:42.
+# Same look every time: dark, 24-hour clock, no animations (shots.py sets the status bar).
 adb shell "cmd uimode night yes"
 adb shell "settings put global window_animation_scale 0; settings put global transition_animation_scale 0; settings put global animator_duration_scale 0"
 adb shell "settings put system time_12_24 24"
-adb shell "settings put global sysui_demo_allowed 1"
-demo() { adb shell "am broadcast -a com.android.systemui.demo -e command $*" >/dev/null; }
-demo enter
-demo clock -e hhmm 0942
-demo battery -e level 100 -e plugged false
-demo network -e wifi show -e level 4 -e fully true
-demo network -e mobile show -e level 4 -e datatype none
-demo notifications -e visible false
-
 adb uninstall "$pkg" >/dev/null 2>&1 || true
 adb install -r "$apk"
 
