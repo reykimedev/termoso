@@ -4,8 +4,8 @@ use std::time::Duration;
 
 use axum::Json;
 use axum::extract::{Path, State};
-use chrono::{DateTime, Utc};
 use labterm_proto::auth::*;
+use time::OffsetDateTime;
 use uuid::Uuid;
 use webauthn_rs::prelude::{
     CreationChallengeResponse, PasskeyRegistration, RegisterPublicKeyCredential,
@@ -28,7 +28,7 @@ const BACKUP_CODE_COUNT: usize = 10;
 #[utoipa::path(get, path = "/api/v1/account/mfa", tag = "mfa", responses((status = 200, body = MfaStatus)))]
 pub async fn status(State(state): State<AppState>, auth: Auth) -> ApiResult<Json<MfaStatus>> {
     let u = users::by_id(&state.db, auth.user_id()).await?;
-    let creds: Vec<(Uuid, String, DateTime<Utc>, Option<DateTime<Utc>>)> = sqlx::query_as(
+    let creds: Vec<(Uuid, String, OffsetDateTime, Option<OffsetDateTime>)> = sqlx::query_as(
         "SELECT id, name, created_at, last_used_at FROM webauthn_credentials WHERE user_id = $1 ORDER BY created_at",
     )
     .bind(u.id)
@@ -293,7 +293,7 @@ pub async fn webauthn_register_finish(
         .map_err(|e| Error::bad_request(format!("WebAuthn registration rejected: {e}")))?;
     let had_mfa = users::mfa_enabled(&state, &u).await?;
     let id = Uuid::new_v4();
-    let (created_at,): (DateTime<Utc>,) = sqlx::query_as(
+    let (created_at,): (OffsetDateTime,) = sqlx::query_as(
         "INSERT INTO webauthn_credentials (id, user_id, name, credential) VALUES ($1, $2, $3, $4) RETURNING created_at",
     )
     .bind(id)

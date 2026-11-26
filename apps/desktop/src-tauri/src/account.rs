@@ -6,7 +6,6 @@
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
 use labterm_core::account::{
     self as core, LoginFlow, LoginStep, ReauthFlow, ReauthStep, RegisterInput,
 };
@@ -19,6 +18,7 @@ use labterm_proto::entities::is_credential_kind;
 use labterm_proto::vault::VaultMember;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager, Runtime};
+use time::OffsetDateTime;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
@@ -39,7 +39,8 @@ pub struct AccountCard {
     pub avatar: Option<String>,
     pub is_admin: bool,
     pub device_id: Uuid,
-    pub signed_in_at: DateTime<Utc>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    pub signed_in_at: OffsetDateTime,
 }
 
 impl From<StoredAccount> for AccountCard {
@@ -78,7 +79,7 @@ pub enum LoginOutcome {
     rename_all_fields = "camelCase"
 )]
 pub enum ReauthOutcome {
-    Done { expires_at: DateTime<Utc> },
+    Done { expires_at: OffsetDateTime },
     MfaRequired { methods: Vec<MfaMethod> },
     EmailCodeRequired { email_hint: String },
 }
@@ -106,7 +107,8 @@ pub enum SyncState {
 pub struct SyncStatus {
     pub state: SyncState,
     pub realtime: bool,
-    pub last_sync_at: Option<DateTime<Utc>>,
+    #[serde(default, with = "labterm_proto::timestamp::serde::option")]
+    pub last_sync_at: Option<OffsetDateTime>,
     pub last_error: Option<String>,
     pub pushed: usize,
     pub pulled: usize,
@@ -989,7 +991,7 @@ fn apply_report(s: &mut SyncStatus, r: &SyncReport) {
     } else {
         SyncState::Offline
     };
-    s.last_sync_at = Some(Utc::now());
+    s.last_sync_at = Some(OffsetDateTime::now_utc());
     s.last_error = r.errors.first().map(|(id, code)| format!("{code} ({id})"));
     s.pushed = r.pushed;
     s.pulled = r.pulled;
@@ -1071,7 +1073,7 @@ pub async fn set_credential_sync<R: Runtime>(
             Ok(Some(report)) => state.account.update_status(|s| apply_report(s, report)),
             Ok(None) => state.account.update_status(|s| {
                 s.state = SyncState::Idle;
-                s.last_sync_at = Some(Utc::now());
+                s.last_sync_at = Some(OffsetDateTime::now_utc());
             }),
             Err(e) => state.account.update_status(|s| {
                 s.state = SyncState::Error;

@@ -10,7 +10,6 @@
 
 use std::sync::Arc;
 
-use chrono::Utc;
 use labterm_crypto::aead::{self, Aad};
 use labterm_crypto::encoding::unb64;
 use labterm_crypto::kdf::{Label, derive_key};
@@ -24,6 +23,7 @@ use labterm_proto::auth::{
     RegisterFinishRequest, RegisterStartRequest, Session,
 };
 use labterm_proto::vault::{ResealMyKeyRequest, Vault};
+use time::OffsetDateTime;
 use uuid::Uuid;
 use zeroize::Zeroizing;
 
@@ -71,7 +71,7 @@ pub struct SignedIn {
     pub account: StoredAccount,
     /// Session expiry reported by the server at sign-in (`None` after a
     /// resume — the server extends it on every request).
-    pub expires_at: Option<chrono::DateTime<Utc>>,
+    pub expires_at: Option<OffsetDateTime>,
     /// Vaults now available locally (personal first).
     pub vaults: Vec<Uuid>,
 }
@@ -237,7 +237,7 @@ pub enum ReauthStep {
     /// The session may perform sensitive changes until `expires_at`.
     Done {
         /// When the step-up window closes.
-        expires_at: chrono::DateTime<Utc>,
+        expires_at: OffsetDateTime,
     },
     /// The account has a second factor. Call [`ReauthFlow::mfa`].
     MfaRequired {
@@ -723,7 +723,7 @@ async fn install_session(
         key_version: session.keys.key_version,
         history_cursor: 0,
         logs_cursor: 0,
-        signed_in_at: Utc::now(),
+        signed_in_at: OffsetDateTime::now_utc(),
     };
     // A different user than the one previously stored: drop their synced data.
     if let Some(prev) = store.account()?
@@ -759,7 +759,7 @@ mod tests {
             kind,
             team_id: (kind == VaultKind::Team).then(Uuid::new_v4),
             name: "v".into(),
-            created_at: Utc::now(),
+            created_at: OffsetDateTime::now_utc(),
             my_role: VaultRole::Editor,
             sealed_key: sealed,
             key_version: kv,
@@ -989,14 +989,14 @@ mod tests {
         .unwrap();
         let mut session = Session {
             token: "t".into(),
-            expires_at: Utc::now(),
+            expires_at: OffsetDateTime::now_utc(),
             device_id: Uuid::new_v4(),
             user: labterm_proto::account::UserProfile {
                 id: Uuid::new_v4(),
                 email: "a@b".into(),
                 email_verified: false,
                 display_name: None,
-                created_at: Utc::now(),
+                created_at: OffsetDateTime::now_utc(),
                 is_admin: false,
                 is_owner: false,
                 mfa_enabled: false,

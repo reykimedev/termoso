@@ -13,12 +13,12 @@ use std::path::{Component, Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use chrono::{DateTime, Utc};
 use labterm_core::remote::RemoteFs;
 use labterm_core::sftp::{EntryKind, RemoteEntry, TransferOptions};
 use notify::Watcher;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, Runtime};
+use time::OffsetDateTime;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
@@ -50,7 +50,8 @@ pub struct SyncInfo {
     pub delete_remote: bool,
     /// Also download files that change on the server (polled every 15 s).
     pub two_way: bool,
-    pub started_at: DateTime<Utc>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    pub started_at: OffsetDateTime,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
@@ -65,7 +66,8 @@ pub struct SyncStats {
     /// Files waiting for the settle timer or being uploaded right now.
     pub pending: u64,
     pub last_path: Option<String>,
-    pub last_at: Option<DateTime<Utc>>,
+    #[serde(default, with = "labterm_proto::timestamp::serde::option")]
+    pub last_at: Option<OffsetDateTime>,
     pub last_error: Option<String>,
 }
 
@@ -204,7 +206,7 @@ pub async fn start<R: Runtime>(
         ignore: ignore.clone(),
         delete_remote,
         two_way,
-        started_at: Utc::now(),
+        started_at: OffsetDateTime::now_utc(),
     };
     let live = Arc::new(Live {
         info: info.clone(),
@@ -668,7 +670,7 @@ impl<R: Runtime> Worker<R> {
         s.downloaded += 1;
         s.bytes += bytes;
         s.last_path = Some(rel.to_string());
-        s.last_at = Some(Utc::now());
+        s.last_at = Some(OffsetDateTime::now_utc());
         s.last_error = None;
         let snap = s.clone();
         drop(s);
@@ -690,7 +692,7 @@ impl<R: Runtime> Worker<R> {
         s.uploaded += 1;
         s.bytes += bytes;
         s.last_path = Some(rel.to_string());
-        s.last_at = Some(Utc::now());
+        s.last_at = Some(OffsetDateTime::now_utc());
         s.last_error = None;
         let snap = s.clone();
         drop(s);
@@ -701,7 +703,7 @@ impl<R: Runtime> Worker<R> {
         let mut s = self.live.stats.lock().expect("sync stats poisoned");
         s.removed += 1;
         s.last_path = Some(rel.to_string());
-        s.last_at = Some(Utc::now());
+        s.last_at = Some(OffsetDateTime::now_utc());
         let snap = s.clone();
         drop(s);
         self.emit(snap);

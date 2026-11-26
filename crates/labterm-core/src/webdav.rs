@@ -1279,10 +1279,10 @@ fn parse_http_status(s: &str) -> Option<u16> {
 
 pub(crate) fn parse_http_date(s: &str) -> Option<u32> {
     let t = s.trim();
-    let dt = chrono::DateTime::parse_from_rfc2822(t)
-        .or_else(|_| chrono::DateTime::parse_from_rfc3339(t))
+    let dt = time::OffsetDateTime::parse(t, &time::format_description::well_known::Rfc2822)
+        .or_else(|_| labterm_proto::timestamp::parse_rfc3339(t))
         .ok()?;
-    u32::try_from(dt.timestamp()).ok()
+    u32::try_from(dt.unix_timestamp()).ok()
 }
 
 /// Parse a `207 Multi-Status` body.

@@ -21,13 +21,13 @@ use std::sync::{Mutex, OnceLock};
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as B64;
-use chrono::{DateTime, Utc};
 use labterm_core::model::{Entity, Identity};
 use labterm_core::store::{EntityFilter, LocalVaultKind, Store};
 use labterm_crypto::aead::{self, Aad};
 use labterm_crypto::kdf::{self, PasswordParams};
 use labterm_proto::entities::KINDS;
 use serde::{Deserialize, Serialize};
+use time::OffsetDateTime;
 use uuid::Uuid;
 use zeroize::Zeroizing;
 
@@ -324,7 +324,8 @@ struct Header {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct Payload {
-    created_at: DateTime<Utc>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    created_at: OffsetDateTime,
     app_version: String,
     vaults: Vec<VaultDump>,
 }
@@ -341,7 +342,8 @@ struct VaultDump {
 struct EntityDump {
     id: Uuid,
     kind: String,
-    updated_at: DateTime<Utc>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    updated_at: OffsetDateTime,
     data: serde_json::Value,
 }
 
@@ -437,7 +439,7 @@ fn collect(store: &Store, vault_ids: &[Uuid]) -> Result<Payload> {
         vaults.push(dump_vault(store, id)?);
     }
     Ok(Payload {
-        created_at: Utc::now(),
+        created_at: OffsetDateTime::now_utc(),
         app_version: env!("CARGO_PKG_VERSION").to_string(),
         vaults,
     })
@@ -536,7 +538,8 @@ pub struct BackupVaultSummary {
 pub struct BackupSummary {
     /// Token for `apply`; nil when this summary describes a fresh export.
     pub preview_id: Uuid,
-    pub created_at: DateTime<Utc>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    pub created_at: OffsetDateTime,
     pub app_version: String,
     pub vaults: Vec<BackupVaultSummary>,
     pub path: Option<String>,

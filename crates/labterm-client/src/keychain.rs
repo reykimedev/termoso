@@ -6,6 +6,7 @@
 //! key.
 
 use std::collections::HashMap;
+use time::OffsetDateTime;
 
 use labterm_core::fido2;
 #[cfg(feature = "fido2")]
@@ -36,8 +37,10 @@ pub struct CertificateCard {
     pub key_id: String,
     pub serial: u64,
     pub principals: Vec<String>,
-    pub valid_after: Option<chrono::DateTime<chrono::Utc>>,
-    pub valid_before: Option<chrono::DateTime<chrono::Utc>>,
+    #[serde(default, with = "labterm_proto::timestamp::serde::option")]
+    pub valid_after: Option<OffsetDateTime>,
+    #[serde(default, with = "labterm_proto::timestamp::serde::option")]
+    pub valid_before: Option<OffsetDateTime>,
     /// Fingerprint of the certified key (equals the key's fingerprint).
     pub fingerprint: String,
     pub ca_fingerprint: String,
@@ -104,7 +107,8 @@ pub struct KeyCard {
     /// public half and the credential handle.
     #[cfg(feature = "fido2")]
     pub security_key: Option<SecurityKeyInfo>,
-    pub updated_at: chrono::DateTime<chrono::Utc>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    pub updated_at: OffsetDateTime,
     pub dirty: bool,
 }
 
@@ -204,7 +208,8 @@ pub struct IdentityCard {
     /// Logs in with the account's SSH ID passkeys.
     pub ssh_id: bool,
     pub ssh_id_key_type: Option<SshIdKeyType>,
-    pub updated_at: chrono::DateTime<chrono::Utc>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    pub updated_at: OffsetDateTime,
 }
 
 #[derive(Debug, Clone, Deserialize)]

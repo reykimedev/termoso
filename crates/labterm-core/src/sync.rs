@@ -1253,7 +1253,7 @@ mod tests {
             "nothing → no heartbeat"
         );
 
-        let since = chrono::Utc::now();
+        let since = time::OffsetDateTime::now_utc();
         let a = PresenceSession {
             vault_id: Uuid::new_v4(),
             host_id: Uuid::new_v4(),
@@ -1264,7 +1264,7 @@ mod tests {
             vault_id: a.vault_id,
             host_id: Uuid::new_v4(),
             protocol: "sftp".into(),
-            since: since - chrono::Duration::seconds(5),
+            since: since - time::Duration::seconds(5),
         };
         engine.set_presence(vec![a.clone(), b.clone(), a.clone()]);
         assert_eq!(
@@ -1333,7 +1333,7 @@ mod tests {
             vault_id: vault,
             host_id: Uuid::new_v4(),
             protocol: "ssh".into(),
-            since: chrono::Utc::now(),
+            since: time::OffsetDateTime::now_utc(),
         }]);
         engine.presence_kick.notified().await;
 

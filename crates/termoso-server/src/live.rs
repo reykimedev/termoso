@@ -18,12 +18,12 @@ use axum::extract::{Path, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use bytes::Bytes;
-use chrono::{DateTime, Utc};
 use futures::{SinkExt, StreamExt};
 use labterm_proto::error::codes;
 use labterm_proto::live::*;
 use serde::{Deserialize, Serialize};
 use sqlx::AssertSqlSafe;
+use time::OffsetDateTime;
 use tokio::sync::broadcast;
 use tokio::time::{interval, timeout};
 use uuid::Uuid;
@@ -160,14 +160,14 @@ struct Row {
     id: Uuid,
     host_user_id: Uuid,
     join_token_hash: String,
-    created_at: DateTime<Utc>,
-    expires_at: DateTime<Utc>,
-    ended_at: Option<DateTime<Utc>>,
+    created_at: OffsetDateTime,
+    expires_at: OffsetDateTime,
+    ended_at: Option<OffsetDateTime>,
 }
 
 impl Row {
     fn active(&self) -> bool {
-        self.ended_at.is_none() && self.expires_at > Utc::now()
+        self.ended_at.is_none() && self.expires_at > OffsetDateTime::now_utc()
     }
     fn dto(self) -> LiveSession {
         LiveSession {
@@ -275,7 +275,8 @@ struct Presence {
     can_write: bool,
     /// Socket that owns this entry; a second device of the same user replaces it.
     conn: Uuid,
-    joined_at: DateTime<Utc>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    joined_at: OffsetDateTime,
 }
 
 impl Presence {
@@ -345,7 +346,8 @@ pub async fn create(
         return Err(Error::conflict("Too many active multiplayer sessions"));
     }
     let id = Uuid::new_v4();
-    let expires_at = Utc::now() + chrono::Duration::from_std(SESSION_TTL).unwrap_or_default();
+    let expires_at =
+        OffsetDateTime::now_utc() + time::Duration::try_from(SESSION_TTL).unwrap_or_default();
     let row = sqlx::query_as::<_, Row>(AssertSqlSafe(format!(
         "INSERT INTO live_sessions (id, host_user_id, join_token_hash, expires_at)
          VALUES ($1, $2, $3, $4) RETURNING {COLUMNS}"
@@ -526,7 +528,7 @@ async fn serve(state: AppState, session_id: Uuid, mut socket: WebSocket) -> anyh
                 is_host,
                 can_write: is_host,
                 conn: conn.id,
-                joined_at: Utc::now(),
+                joined_at: OffsetDateTime::now_utc(),
             },
             PRESENCE_TTL,
         )

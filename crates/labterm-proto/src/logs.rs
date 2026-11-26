@@ -1,6 +1,6 @@
 //! Session logs: terminal recordings encrypted client-side and stored in object storage.
 
-use chrono::{DateTime, Utc};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::schema;
@@ -44,7 +44,8 @@ schema! {
         /// Upload finished.
         pub completed: bool,
         /// Created.
-        pub created_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub created_at: OffsetDateTime,
         /// Server sequence for incremental listing: the author's counter in
         /// `GET /logs`, the vault's counter in `GET /vaults/{id}/logs`.
         pub seq: i64,
@@ -88,7 +89,8 @@ schema! {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub offset_ms: Option<i64>,
         /// Posted.
-        pub created_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub created_at: OffsetDateTime,
     }
 }
 

@@ -10,6 +10,7 @@ use axum::extract::{Path, Query, State};
 use labterm_proto::auth::SsoDiscoverResponse;
 use labterm_proto::team::{TeamIdp, TeamIdpResponse, UpdateTeamIdpRequest};
 use serde::Deserialize;
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 const KINDS: &[&str] = &["oidc", "saml"];
@@ -100,7 +101,7 @@ pub async fn put(
         domains: Vec::new(),
         enabled: true,
         jit_join: true,
-        updated_at: chrono::Utc::now(),
+        updated_at: OffsetDateTime::now_utc(),
     });
     if let Some(k) = req.kind {
         let k = k.trim().to_lowercase();

@@ -18,7 +18,6 @@ use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use chrono::Utc;
 use labterm_crypto::aead::{self, Aad};
 use labterm_crypto::kdf::{Label, derive_key};
 use labterm_crypto::keys::{KeyPair, SymmetricKey};
@@ -34,6 +33,7 @@ use labterm_proto::vault::{VaultKind, VaultList};
 use reqwest::{Client, StatusCode};
 use serde::de::DeserializeOwned;
 use serde_json::json;
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 struct Options {
@@ -307,7 +307,7 @@ async fn run_user(api: Arc<Api>, mut user: VirtualUser, o: &Options, deadline: I
                         &plaintext,
                     )
                     .expect("encrypt"),
-                    updated_at: Utc::now(),
+                    updated_at: OffsetDateTime::now_utc(),
                 }
             })
             .collect();

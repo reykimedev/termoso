@@ -9,6 +9,7 @@
 mod common;
 
 use std::time::Duration;
+use time::OffsetDateTime;
 
 use common::*;
 use futures::{SinkExt, StreamExt};
@@ -434,7 +435,7 @@ async fn sync_push_pull_conflicts_and_tombstones() {
         base_version: base,
         key_version: 1,
         data: u.encrypt_entity(key, "host", host_id, &format!(r#"{{"label":"{label}"}}"#)),
-        updated_at: chrono::Utc::now(),
+        updated_at: OffsetDateTime::now_utc(),
     };
 
     // Create.
@@ -633,7 +634,7 @@ async fn sync_push_pull_conflicts_and_tombstones() {
                         base_version: None,
                         key_version: 1,
                         data: u.encrypt_entity(key, "snippet", *id, "{}"),
-                        updated_at: chrono::Utc::now(),
+                        updated_at: OffsetDateTime::now_utc(),
                     })
                     .collect(),
                 deletes: vec![],
@@ -725,7 +726,7 @@ async fn teams_vaults_invites_and_sharing() {
                     base_version: None,
                     key_version: 1,
                     data: bob.encrypt_entity(&vault_key, "host", host_id, "{}"),
-                    updated_at: chrono::Utc::now(),
+                    updated_at: OffsetDateTime::now_utc(),
                 }],
                 deletes: vec![],
             }),
@@ -838,7 +839,7 @@ async fn teams_vaults_invites_and_sharing() {
                     base_version: None,
                     key_version: bv.key_version,
                     data: bob.encrypt_entity(&vault_key, "host", host_id, r#"{"label":"db1"}"#),
-                    updated_at: chrono::Utc::now(),
+                    updated_at: OffsetDateTime::now_utc(),
                 }],
                 deletes: vec![],
             }),
@@ -1039,7 +1040,7 @@ async fn history_push_pull_clear() {
             )
             .unwrap(),
             key_version: 1,
-            created_at: chrono::Utc::now(),
+            created_at: OffsetDateTime::now_utc(),
             seq: 0,
             deleted: false,
         }
@@ -1175,7 +1176,7 @@ async fn websocket_notifies_on_push_and_revocation() {
                     base_version: None,
                     key_version: 1,
                     data: u.encrypt_entity(&u.personal_vault_key, "group", id, "{}"),
-                    updated_at: chrono::Utc::now(),
+                    updated_at: OffsetDateTime::now_utc(),
                 }],
                 deletes: vec![],
             }),
@@ -1634,12 +1635,12 @@ async fn team_activity_digest_is_opt_in_per_admin() {
     };
     let mailer = termoso_server::mail::Mailer::new(&smtp, &mail_cfg).expect("mailer");
     let db = sqlx::PgPool::connect(&s.database_url).await.expect("db");
-    let today = chrono::Utc::now().date_naive();
-    let at_8 = |d: chrono::NaiveDate| d.and_hms_opt(8, 0, 0).expect("time").and_utc();
-    let tomorrow = today.succ_opt().expect("date");
-    let days_to_monday = 7 - chrono::Datelike::weekday(&today).num_days_from_monday();
+    let today = OffsetDateTime::now_utc().date();
+    let at_8 = |d: time::Date| d.with_time(time::macros::time!(8:00)).assume_utc();
+    let tomorrow = today.next_day().expect("date");
+    let days_to_monday = 7 - today.weekday().number_days_from_monday();
     let next_monday = today
-        .checked_add_days(chrono::Days::new(u64::from(days_to_monday)))
+        .checked_add(time::Duration::days(i64::from(days_to_monday)))
         .expect("date");
     let owner_before = s.email_count(&owner.email).await;
     let admin_before = s.email_count(&admin.email).await;
@@ -1662,7 +1663,7 @@ async fn team_activity_digest_is_opt_in_per_admin() {
         .await;
     assert_eq!(
         sub.last_sent_at,
-        Some(at_8(next_monday) - chrono::TimeDelta::hours(8))
+        Some(at_8(next_monday) - time::Duration::hours(8))
     );
 
     // Unsubscribing is a null cadence.

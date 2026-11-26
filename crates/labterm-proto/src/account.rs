@@ -1,6 +1,6 @@
 //! Account profile, keys and settings.
 
-use chrono::{DateTime, Utc};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::schema;
@@ -18,7 +18,8 @@ schema! {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub display_name: Option<String>,
         /// Created.
-        pub created_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub created_at: OffsetDateTime,
         /// Server administrator.
         pub is_admin: bool,
         /// Server owner: the only account that can grant or revoke admin.
@@ -29,7 +30,8 @@ schema! {
         /// A "start over" reset is scheduled for this moment (cancel it from any
         /// signed-in device or via the emailed link if it was not you).
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub reset_scheduled_for: Option<DateTime<Utc>>,
+        #[serde(with = "crate::timestamp::serde::option")]
+        pub reset_scheduled_for: Option<OffsetDateTime>,
         /// Teammates never see which hosts this user is connected to, even in
         /// teams that have presence turned on.
         #[serde(default)]
@@ -118,7 +120,8 @@ schema! {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub details: Option<serde_json::Value>,
         /// When.
-        pub created_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub created_at: OffsetDateTime,
     }
 }
 
@@ -141,7 +144,8 @@ schema! {
         /// Optimistic-concurrency version.
         pub version: i64,
         /// Last update.
-        pub updated_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub updated_at: OffsetDateTime,
     }
 }
 

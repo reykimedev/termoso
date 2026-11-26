@@ -1,6 +1,7 @@
 //! In-memory decrypted mirror of one vault, rebuilt from `/sync/pull`.
 
 use std::collections::HashMap;
+use time::OffsetDateTime;
 
 use labterm_crypto::aead::{self, Aad};
 use labterm_crypto::keys::SymmetricKey;
@@ -184,7 +185,7 @@ impl VaultState {
             base_version: self.version_of(id),
             key_version: self.key_version,
             data: ct,
-            updated_at: chrono::Utc::now(),
+            updated_at: OffsetDateTime::now_utc(),
         })
     }
 }

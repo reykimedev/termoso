@@ -7,12 +7,12 @@ use std::collections::{HashMap, HashSet};
 
 use axum::Json;
 use axum::extract::State;
-use chrono::{DateTime, Utc};
 use labterm_crypto::encoding::unb64;
 use labterm_proto::entities::{SyncEntity, is_known_kind};
 use labterm_proto::sync::*;
 use sqlx::AssertSqlSafe;
 use sqlx::{Postgres, Transaction};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::audit;
@@ -33,9 +33,9 @@ type Row = (
     bool,
     i32,
     String,
-    DateTime<Utc>,
+    OffsetDateTime,
     Option<Uuid>,
-    Option<DateTime<Utc>>,
+    Option<OffsetDateTime>,
 );
 
 fn to_entity(r: Row) -> SyncEntity {

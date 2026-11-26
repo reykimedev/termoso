@@ -1,8 +1,8 @@
 //! AWS: EC2 `DescribeInstances` (Query API, XML) and Lightsail
 //! `GetInstances` (JSON 1.1), both signed with SigV4.
 
-use chrono::Utc;
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue};
+use time::OffsetDateTime;
 use url::Url;
 
 use super::sigv4;
@@ -290,7 +290,7 @@ async fn signed_post(
         },
         cfg.access_key_id.trim(),
         cfg.secret_access_key.trim(),
-        Utc::now(),
+        OffsetDateTime::now_utc(),
     );
     let mut headers = HeaderMap::new();
     for (k, v) in extra_headers {

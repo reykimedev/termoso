@@ -11,12 +11,12 @@ use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::{HeaderValue, header};
 use axum::response::{IntoResponse, Response};
-use chrono::{DateTime, Duration, Utc};
 use labterm_proto::ca::*;
 use labterm_proto::sshid::SshIdKeyType;
 use sqlx::PgExecutor;
 use ssh_key::certificate::{Builder, CertType};
 use ssh_key::{Algorithm, EcdsaCurve, HashAlg, LineEnding, PrivateKey, PublicKey};
+use time::{Duration, OffsetDateTime};
 use uuid::Uuid;
 
 use crate::audit;
@@ -54,10 +54,10 @@ type CaTuple = (
     Vec<String>,
     bool,
     Option<String>,
-    Option<DateTime<Utc>>,
-    DateTime<Utc>,
-    Option<DateTime<Utc>>,
-    DateTime<Utc>,
+    Option<OffsetDateTime>,
+    OffsetDateTime,
+    Option<OffsetDateTime>,
+    OffsetDateTime,
 );
 
 struct Ca {
@@ -69,10 +69,10 @@ struct Ca {
     extensions: Vec<String>,
     enabled: bool,
     retired_public_key: Option<String>,
-    retired_until: Option<DateTime<Utc>>,
-    created_at: DateTime<Utc>,
-    rotated_at: Option<DateTime<Utc>>,
-    updated_at: DateTime<Utc>,
+    retired_until: Option<OffsetDateTime>,
+    created_at: OffsetDateTime,
+    rotated_at: Option<OffsetDateTime>,
+    updated_at: OffsetDateTime,
 }
 
 const SELECT: &str =
@@ -123,7 +123,7 @@ async fn view(state: &AppState, team_id: Uuid, ca: &Ca) -> ApiResult<TeamCa> {
     .await?;
     let retired = ca
         .retired_until
-        .filter(|until| *until > Utc::now())
+        .filter(|until| *until > OffsetDateTime::now_utc())
         .and(ca.retired_public_key.clone());
     Ok(TeamCa {
         team_id,
@@ -408,10 +408,10 @@ type CertTuple = (
     String,
     String,
     Vec<String>,
-    DateTime<Utc>,
-    DateTime<Utc>,
-    Option<DateTime<Utc>>,
-    DateTime<Utc>,
+    OffsetDateTime,
+    OffsetDateTime,
+    Option<OffsetDateTime>,
+    OffsetDateTime,
 );
 
 macro_rules! select_cert {
@@ -426,7 +426,7 @@ macro_rules! select_cert {
 }
 
 fn to_cert(r: CertTuple, me: Uuid) -> IssuedCertificate {
-    let now = Utc::now();
+    let now = OffsetDateTime::now_utc();
     IssuedCertificate {
         id: r.0,
         team_id: r.1,
@@ -515,7 +515,7 @@ pub async fn issue(
         .fetch_one(&state.db)
         .await?;
 
-    let now = Utc::now();
+    let now = OffsetDateTime::now_utc();
     let valid_after = now - CLOCK_SKEW;
     let valid_before = now + Duration::hours(ca.ttl_hours as i64);
     let key_id = format!("{}/{}/{}", me.email, device_name, team_name);
@@ -557,7 +557,7 @@ pub async fn issue(
             "serial": serial,
             "key_fingerprint": key_fingerprint,
             "principals": principals,
-            "valid_before": valid_before,
+            "valid_before": labterm_proto::timestamp::to_json(valid_before),
         })),
     )
     .await;
@@ -582,8 +582,8 @@ fn sign(
     serial: u64,
     key_id: &str,
     principals: &[String],
-    valid_after: DateTime<Utc>,
-    valid_before: DateTime<Utc>,
+    valid_after: OffsetDateTime,
+    valid_before: OffsetDateTime,
 ) -> ApiResult<String> {
     let pem =
         zeroize::Zeroizing::new(state.decrypt_secret(&purpose(team_id), &ca.private_key_enc)?);
@@ -591,8 +591,8 @@ fn sign(
     let signing = PrivateKey::from_openssh(pem).map_err(|e| anyhow::anyhow!("ca key: {e}"))?;
     let mut nonce = [0u8; 32];
     labterm_crypto::random_bytes(&mut nonce);
-    let to_time = |t: DateTime<Utc>| {
-        SystemTime::UNIX_EPOCH + StdDuration::from_secs(t.timestamp().max(0) as u64)
+    let to_time = |t: OffsetDateTime| {
+        SystemTime::UNIX_EPOCH + StdDuration::from_secs(t.unix_timestamp().max(0) as u64)
     };
     let mut b = Builder::new_with_validity_times(
         nonce.to_vec(),
@@ -750,11 +750,11 @@ pub async fn trusted_keys(
         ca.public_key
     );
     if let (Some(old), Some(until)) = (&ca.retired_public_key, ca.retired_until)
-        && until > Utc::now()
+        && until > OffsetDateTime::now_utc()
     {
         out.push_str(&format!(
             "# previous key, trusted until {}\n{old}\n",
-            until.to_rfc3339()
+            labterm_proto::timestamp::to_rfc3339(until)
         ));
     }
     Ok(text(out, Some(TRUSTED_KEYS_MAX_AGE)))

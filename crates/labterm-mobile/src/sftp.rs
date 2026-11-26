@@ -1498,7 +1498,7 @@ impl SftpSession {
             .inner
             .store
             .cached_file(c.host_id, &path)?
-            .map(|e| e.cached_at.timestamp_millis()))
+            .map(|e| labterm_proto::timestamp::unix_millis(e.cached_at)))
     }
 }
 
@@ -1517,7 +1517,7 @@ impl From<CachedEntry> for OfflineCopy {
             path: e.path,
             size: e.size,
             modified_ms: e.mtime.map(|t| t * 1000),
-            cached_at_ms: e.cached_at.timestamp_millis(),
+            cached_at_ms: labterm_proto::timestamp::unix_millis(e.cached_at),
         }
     }
 }

@@ -4,9 +4,9 @@
 //! the encrypted store metadata so the rules hold offline and is refreshed
 //! with every sync pass alongside the team CA certificates.
 
-use chrono::{DateTime, Utc};
 use labterm_proto::team::TeamPolicies;
 use serde::{Deserialize, Serialize};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::api::ApiClient;
@@ -23,7 +23,8 @@ pub struct CachedPolicies {
     /// The policies.
     pub policies: TeamPolicies,
     /// When they were fetched.
-    pub fetched_at: DateTime<Utc>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    pub fetched_at: OffsetDateTime,
 }
 
 /// Every cached entry.
@@ -36,7 +37,7 @@ pub fn cached(store: &Store) -> Result<Vec<CachedPolicies>> {
 
 /// Replace the cache with the policies of `teams` (as returned by `GET /teams`).
 pub fn remember(store: &Store, teams: &[labterm_proto::team::Team]) -> Result<()> {
-    let now = Utc::now();
+    let now = OffsetDateTime::now_utc();
     let list: Vec<CachedPolicies> = teams
         .iter()
         .filter_map(|t| {

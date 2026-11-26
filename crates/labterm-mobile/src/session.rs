@@ -10,6 +10,7 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
+use time::OffsetDateTime;
 
 use bytes::Bytes;
 use labterm_core::api::ApiClient;
@@ -1555,7 +1556,7 @@ fn log_meta(row: &ConnectionHistory, inner: &Inner) -> LogMeta {
         label: row.label.clone(),
         target: row.target.clone(),
         protocol: row.protocol.clone(),
-        started_at: chrono::Utc::now(),
+        started_at: OffsetDateTime::now_utc(),
         ended_at: None,
         cols: size.cols,
         rows: size.rows,

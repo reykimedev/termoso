@@ -90,6 +90,18 @@ pub fn to_json(t: Timestamp) -> String {
     format(t, Fraction::Auto, true)
 }
 
+/// Formats `t` in UTC with a `time` format description, like chrono's
+/// `format("%Y-%m-%d")` on a UTC time. Formatting a UTC time with a
+/// four-digit year cannot fail; should it, the result is empty.
+pub fn format_utc(
+    t: Timestamp,
+    items: &[time::format_description::BorrowedFormatItem<'_>],
+) -> String {
+    t.to_offset(UtcOffset::UTC)
+        .format(items)
+        .unwrap_or_default()
+}
+
 /// Parses RFC 3339 into UTC, as chrono's `parse_from_rfc3339` did.
 ///
 /// Also takes a space instead of `T`, which chrono's serde accepted.
@@ -112,6 +124,11 @@ pub fn parse_rfc3339(s: &str) -> Result<Timestamp, time::error::Parse> {
 /// Unix seconds, rounded down like chrono's `timestamp()`.
 pub fn unix_secs(t: Timestamp) -> i64 {
     t.unix_timestamp()
+}
+
+/// Unix milliseconds, rounded down like chrono's `timestamp_millis()`.
+pub fn unix_millis(t: Timestamp) -> i64 {
+    t.unix_timestamp_nanos().div_euclid(1_000_000) as i64
 }
 
 /// From Unix seconds; `None` when out of range.
@@ -234,6 +251,36 @@ mod tests {
         assert_eq!(
             format(t, Fraction::Micros, false),
             "2026-11-18T11:06:40.123456+00:00"
+        );
+    }
+
+    #[test]
+    fn formats_like_strftime() {
+        let t = at(1_795_000_000, 0);
+        assert_eq!(
+            format_utc(
+                t,
+                time::macros::format_description!("[year]-[month]-[day] [hour]:[minute]")
+            ),
+            "2026-11-18 11:06"
+        );
+    }
+
+    #[test]
+    fn millis_round_down() {
+        assert_eq!(
+            unix_millis(at(1_795_000_000, 123_999_999)),
+            1_795_000_000_123
+        );
+        assert_eq!(unix_millis(at(-1, 999_500_000)), -1);
+    }
+
+    #[test]
+    fn parses_long_fractions() {
+        // Some SAML IdPs send seven digits; chrono read them, truncating past nine.
+        assert_eq!(
+            parse_rfc3339("2026-11-18T11:06:40.1234567Z").unwrap(),
+            at(1_795_000_000, 123_456_700)
         );
     }
 

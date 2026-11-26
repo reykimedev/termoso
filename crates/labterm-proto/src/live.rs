@@ -11,7 +11,7 @@
 //! carry opaque encrypted payloads that the server forwards host → viewers
 //! and (when the viewer has remote control) viewer → host.
 
-use chrono::{DateTime, Utc};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::schema;
@@ -32,12 +32,15 @@ schema! {
         /// User hosting the session.
         pub host_user_id: Uuid,
         /// Created.
-        pub created_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub created_at: OffsetDateTime,
         /// Links stop working after this even if the host never stops.
-        pub expires_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub expires_at: OffsetDateTime,
         /// Stopped by the host (or by its connection going away).
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub ended_at: Option<DateTime<Utc>>,
+        #[serde(with = "crate::timestamp::serde::option")]
+        pub ended_at: Option<OffsetDateTime>,
     }
 }
 

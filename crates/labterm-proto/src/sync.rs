@@ -7,7 +7,7 @@
 
 use std::collections::HashMap;
 
-use chrono::{DateTime, Utc};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::entities::SyncEntity;
@@ -22,7 +22,8 @@ schema! {
         /// When the secret inside (key, password) was last rotated; plaintext
         /// so the server can apply max-age policies without the vault key.
         #[serde(default)]
-        pub secret_rotated_at: Option<DateTime<Utc>>,
+        #[serde(with = "crate::timestamp::serde::option")]
+        pub secret_rotated_at: Option<OffsetDateTime>,
         /// Client-generated UUID.
         pub id: Uuid,
         /// Kind.
@@ -37,7 +38,8 @@ schema! {
         /// Encrypted payload.
         pub data: String,
         /// Client-side modification time (used only for conflict hints).
-        pub updated_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub updated_at: OffsetDateTime,
     }
 }
 
@@ -151,7 +153,8 @@ schema! {
         /// Personal vault key version.
         pub key_version: i32,
         /// When it happened (plaintext, needed for server-side pruning).
-        pub created_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub created_at: OffsetDateTime,
         /// Server sequence (assigned by the server).
         #[serde(default)]
         pub seq: i64,

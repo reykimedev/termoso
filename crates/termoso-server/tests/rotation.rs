@@ -8,6 +8,7 @@ use labterm_proto::sync::{EntityChange, PushRequest, PushResponse, PushResult};
 use labterm_proto::team::{AuditEventList, RotationJob, RotationJobList, RotationOverview};
 use labterm_proto::vault::{CreateVaultRequest, Vault, VaultMemberUpsert, VaultRole};
 use reqwest::{Method, StatusCode};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 fn upsert(key: &SymmetricKey, u: &User, role: VaultRole) -> VaultMemberUpsert {
@@ -118,14 +119,15 @@ async fn rotation_policy_due_list_and_jobs() {
     let fresh_key = Uuid::new_v4();
     let old_host = Uuid::new_v4();
     let change = |id: Uuid, kind: &str, rotated_days_ago: Option<i64>| EntityChange {
-        secret_rotated_at: rotated_days_ago.map(|d| chrono::Utc::now() - chrono::Duration::days(d)),
+        secret_rotated_at: rotated_days_ago
+            .map(|d| OffsetDateTime::now_utc() - time::Duration::days(d)),
         id,
         kind: kind.into(),
         vault_id: vault.id,
         base_version: None,
         key_version: 1,
         data: owner.encrypt_entity(&key, kind, id, r#"{"label":"x"}"#),
-        updated_at: chrono::Utc::now(),
+        updated_at: OffsetDateTime::now_utc(),
     };
     assert!(push(s, &owner, change(old_key, "ssh_key", Some(60))).await);
     assert!(push(s, &owner, change(fresh_key, "ssh_key", Some(1))).await);

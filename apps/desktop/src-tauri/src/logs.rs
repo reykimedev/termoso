@@ -2,12 +2,12 @@
 //! playback text, export and bookmarks. Bodies never leave Rust unencrypted
 //! except for the explicit `read`/`export` operations.
 
-use chrono::{DateTime, Duration, Utc};
 use labterm_core::labterm_proto::logs::MAX_NOTE_CHARS;
 use labterm_core::labterm_proto::vault::VaultRole;
 use labterm_core::model::LogBookmark;
 use labterm_core::store::{LocalVault, LocalVaultKind, LogItem, Store};
 use serde::Serialize;
+use time::{Duration, OffsetDateTime};
 use uuid::Uuid;
 
 use crate::error::{DesktopError, Result};
@@ -23,8 +23,10 @@ pub struct LogCard {
     pub label: String,
     pub target: String,
     pub protocol: String,
-    pub started_at: DateTime<Utc>,
-    pub ended_at: Option<DateTime<Utc>>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    pub started_at: OffsetDateTime,
+    #[serde(default, with = "labterm_proto::timestamp::serde::option")]
+    pub ended_at: Option<OffsetDateTime>,
     pub duration_secs: Option<i64>,
     pub cols: u16,
     pub rows: u16,
@@ -32,7 +34,8 @@ pub struct LogCard {
     pub cached: bool,
     pub uploaded: bool,
     pub completed: bool,
-    pub created_at: DateTime<Utc>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    pub created_at: OffsetDateTime,
     pub bookmarks: usize,
     /// Recorded by this account / device.
     pub mine: bool,
@@ -66,7 +69,8 @@ pub struct BookmarkCard {
     pub log_id: Uuid,
     pub offset: u64,
     pub note: String,
-    pub updated_at: DateTime<Utc>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    pub updated_at: OffsetDateTime,
 }
 
 /// Decrypted recording as text (lossy UTF-8) plus its size in bytes.
@@ -82,7 +86,7 @@ fn card(item: LogItem, vault: Option<&LocalVault>, bookmarks: usize) -> LogCard 
     let duration_secs = item
         .meta
         .ended_at
-        .map(|e| (e - item.meta.started_at).num_seconds().max(0));
+        .map(|e| (e - item.meta.started_at).whole_seconds().max(0));
     let team = vault.is_some_and(|v| v.kind == LocalVaultKind::Team);
     let role = vault.map_or(VaultRole::Manager, |v| v.role);
     LogCard {
@@ -226,7 +230,7 @@ pub fn prune(store: &Store, days: u32) -> Result<usize> {
     if days == 0 {
         return Ok(0);
     }
-    let cutoff = Utc::now() - Duration::days(i64::from(days));
+    let cutoff = OffsetDateTime::now_utc() - Duration::days(i64::from(days));
     let mut n = 0;
     // Teammates' recordings are the team's to keep; retention is about
     // what this account recorded.
@@ -299,7 +303,7 @@ mod tests {
         Store::open_in_memory(SymmetricKey::generate()).expect("store")
     }
 
-    fn meta(label: &str, started: DateTime<Utc>) -> LogMeta {
+    fn meta(label: &str, started: OffsetDateTime) -> LogMeta {
         LogMeta {
             host_id: None,
             label: label.into(),
@@ -318,7 +322,7 @@ mod tests {
         let vault = store.local_vault().unwrap().id;
         let dir = tempfile::tempdir().unwrap();
 
-        let rec = Recorder::begin(&store, vault, meta("shell", Utc::now())).unwrap();
+        let rec = Recorder::begin(&store, vault, meta("shell", OffsetDateTime::now_utc())).unwrap();
         rec.append(b"$ echo hi\r\n");
         rec.append(b"hi\r\n");
         rec.finish(&store, dir.path()).unwrap();
@@ -355,10 +359,15 @@ mod tests {
         let store = store();
         let vault = store.local_vault().unwrap().id;
         let dir = tempfile::tempdir().unwrap();
-        let old =
-            Recorder::begin(&store, vault, meta("old", Utc::now() - Duration::days(40))).unwrap();
+        let old = Recorder::begin(
+            &store,
+            vault,
+            meta("old", OffsetDateTime::now_utc() - Duration::days(40)),
+        )
+        .unwrap();
         old.finish(&store, dir.path()).unwrap();
-        let fresh = Recorder::begin(&store, vault, meta("fresh", Utc::now())).unwrap();
+        let fresh =
+            Recorder::begin(&store, vault, meta("fresh", OffsetDateTime::now_utc())).unwrap();
         fresh.finish(&store, dir.path()).unwrap();
         assert_eq!(prune(&store, 0).unwrap(), 0);
         assert_eq!(prune(&store, 30).unwrap(), 1);
@@ -366,7 +375,7 @@ mod tests {
         assert_eq!(left.len(), 1);
         assert_eq!(left[0].label, "fresh");
 
-        let rec = Recorder::begin(&store, vault, meta("big", Utc::now())).unwrap();
+        let rec = Recorder::begin(&store, vault, meta("big", OffsetDateTime::now_utc())).unwrap();
         rec.append(&vec![b'x'; MAX_CAPTURE_BYTES]);
         rec.append(b"tail");
         rec.finish(&store, dir.path()).unwrap();

@@ -1,9 +1,9 @@
 //! User rows, profile mapping and the per-user security log.
 
-use chrono::{DateTime, Utc};
 use labterm_proto::account::{AccountKeys, UserProfile};
 use sqlx::AssertSqlSafe;
 use sqlx::FromRow;
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::error::{ApiResult, Error};
@@ -27,8 +27,8 @@ pub struct UserRow {
     pub totp_enabled: bool,
     pub is_admin: bool,
     pub disabled: bool,
-    pub created_at: DateTime<Utc>,
-    pub reset_scheduled_for: Option<DateTime<Utc>>,
+    pub created_at: OffsetDateTime,
+    pub reset_scheduled_for: Option<OffsetDateTime>,
     pub presence_hidden: bool,
     pub avatar_tag: Option<String>,
     pub managed_by_team_id: Option<Uuid>,

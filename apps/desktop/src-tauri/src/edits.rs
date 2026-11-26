@@ -8,11 +8,11 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
 use labterm_core::remote::RemoteFs;
 use labterm_core::sftp::{EntryKind, TransferOptions};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, Runtime};
+use time::OffsetDateTime;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
@@ -33,7 +33,8 @@ pub struct EditInfo {
     /// Application the file was handed to (`None` = system default).
     pub app: Option<String>,
     pub size: Option<u64>,
-    pub started_at: DateTime<Utc>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    pub started_at: OffsetDateTime,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -49,7 +50,8 @@ pub enum EditEvent {
     Uploaded {
         id: Uuid,
         bytes: u64,
-        at: DateTime<Utc>,
+        #[serde(with = "labterm_proto::timestamp::serde")]
+        at: OffsetDateTime,
     },
     Failed {
         id: Uuid,
@@ -222,7 +224,7 @@ pub async fn open<R: Runtime>(
         name,
         app: with,
         size: entry.size,
-        started_at: Utc::now(),
+        started_at: OffsetDateTime::now_utc(),
     };
     let live = Arc::new(Live {
         info: info.clone(),
@@ -301,7 +303,7 @@ async fn watch<R: Runtime>(
                     EditEvent::Uploaded {
                         id,
                         bytes,
-                        at: Utc::now(),
+                        at: OffsetDateTime::now_utc(),
                     },
                 );
             }

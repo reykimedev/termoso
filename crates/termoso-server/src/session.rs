@@ -2,10 +2,10 @@
 
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
 use labterm_proto::auth::{DeviceInfo, Platform};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::error::{ApiResult, Error};
@@ -16,22 +16,26 @@ use crate::util::{hash_token, random_token};
 const CACHE_TTL: Duration = Duration::from_secs(60);
 
 /// How long a step-up (`reauth_at`) authorizes sensitive operations.
-pub const STEP_UP_TTL: chrono::Duration = chrono::Duration::minutes(5);
+pub const STEP_UP_TTL: time::Duration = time::Duration::minutes(5);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionInfo {
     pub session_id: Uuid,
     pub user_id: Uuid,
     pub device_id: Uuid,
-    pub expires_at: DateTime<Utc>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    pub expires_at: OffsetDateTime,
     pub is_admin: bool,
     pub disabled: bool,
     pub email_verified: bool,
-    pub last_used_at: DateTime<Utc>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    pub last_used_at: OffsetDateTime,
     #[serde(default)]
-    pub created_at: Option<DateTime<Utc>>,
+    #[serde(with = "labterm_proto::timestamp::serde::option")]
+    pub created_at: Option<OffsetDateTime>,
     #[serde(default)]
-    pub reauth_at: Option<DateTime<Utc>>,
+    #[serde(with = "labterm_proto::timestamp::serde::option")]
+    pub reauth_at: Option<OffsetDateTime>,
     /// Set for API-bridge sessions, which are confined to sync.
     #[serde(default)]
     pub bridge_id: Option<Uuid>,
@@ -39,12 +43,13 @@ pub struct SessionInfo {
 
 impl SessionInfo {
     pub fn step_up_fresh(&self) -> bool {
-        self.reauth_at.is_some_and(|t| Utc::now() - t < STEP_UP_TTL)
+        self.reauth_at
+            .is_some_and(|t| OffsetDateTime::now_utc() - t < STEP_UP_TTL)
     }
 }
 
 /// Bridge sessions do not slide: they live until revoked from the cabinet.
-const BRIDGE_TTL: chrono::Duration = chrono::Duration::days(365 * 20);
+const BRIDGE_TTL: time::Duration = time::Duration::days(365 * 20);
 
 fn cache_key(token_hash: &str) -> String {
     format!("sess:{token_hash}")
@@ -141,10 +146,10 @@ pub async fn issue(
     state: &AppState,
     user_id: Uuid,
     device_id: Uuid,
-) -> ApiResult<(String, DateTime<Utc>)> {
+) -> ApiResult<(String, OffsetDateTime)> {
     let settings = state.settings().await?;
     let token = random_token();
-    let expires_at = Utc::now()
+    let expires_at = OffsetDateTime::now_utc()
         + crate::policy::session_ttl(&state.db, user_id, settings.session_ttl_days).await?;
     // A device holds one live session: signing in again replaces the previous
     // token instead of leaving it valid until it expires.
@@ -189,7 +194,7 @@ pub async fn issue_bridge(
     .bind(user_id)
     .bind(device_id)
     .bind(hash_token(&token))
-    .bind(Utc::now() + BRIDGE_TTL)
+    .bind(OffsetDateTime::now_utc() + BRIDGE_TTL)
     .bind(bridge_id)
     .execute(&state.db)
     .await?;
@@ -204,7 +209,7 @@ pub async fn validate(state: &AppState, token: &str) -> ApiResult<SessionInfo> {
     let h = hash_token(token);
     let key = cache_key(&h);
     if let Some(info) = state.cache.get_json::<SessionInfo>(&key).await?
-        && info.expires_at > Utc::now()
+        && info.expires_at > OffsetDateTime::now_utc()
     {
         return Ok(info);
     }
@@ -212,13 +217,13 @@ pub async fn validate(state: &AppState, token: &str) -> ApiResult<SessionInfo> {
         Uuid,
         Uuid,
         Uuid,
-        DateTime<Utc>,
+        OffsetDateTime,
         bool,
         bool,
         bool,
-        DateTime<Utc>,
-        DateTime<Utc>,
-        Option<DateTime<Utc>>,
+        OffsetDateTime,
+        OffsetDateTime,
+        Option<OffsetDateTime>,
         Option<Uuid>,
     );
     let row: Option<Row> = sqlx::query_as(
@@ -269,14 +274,16 @@ pub async fn validate(state: &AppState, token: &str) -> ApiResult<SessionInfo> {
 pub async fn touch(state: &AppState, info: &SessionInfo, ip: Option<&str>) -> ApiResult<()> {
     let first_bridge_use =
         info.bridge_id.is_some() && info.created_at.is_some_and(|c| info.last_used_at <= c);
-    if !first_bridge_use && Utc::now() - info.last_used_at < chrono::Duration::minutes(5) {
+    if !first_bridge_use
+        && OffsetDateTime::now_utc() - info.last_used_at < time::Duration::minutes(5)
+    {
         return Ok(());
     }
     let new_exp = if info.bridge_id.is_some() {
         info.expires_at
     } else {
         let settings = state.settings().await?;
-        Utc::now()
+        OffsetDateTime::now_utc()
             + crate::policy::session_ttl(&state.db, info.user_id, settings.session_ttl_days).await?
     };
     sqlx::query("UPDATE sessions SET last_used_at = now(), expires_at = $2 WHERE id = $1")
@@ -299,8 +306,8 @@ pub async fn touch(state: &AppState, info: &SessionInfo, ip: Option<&str>) -> Ap
 }
 
 /// Record a completed step-up on the session; returns when it expires.
-pub async fn mark_step_up(state: &AppState, session_id: Uuid) -> ApiResult<DateTime<Utc>> {
-    let row: Option<(String, DateTime<Utc>)> = sqlx::query_as(
+pub async fn mark_step_up(state: &AppState, session_id: Uuid) -> ApiResult<OffsetDateTime> {
+    let row: Option<(String, OffsetDateTime)> = sqlx::query_as(
         "UPDATE sessions SET reauth_at = now() WHERE id = $1 AND revoked_at IS NULL AND expires_at > now()
          RETURNING token_hash, reauth_at",
     )

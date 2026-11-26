@@ -9,6 +9,7 @@ use labterm_crypto::sealed;
 use labterm_proto::sync::{EntityChange, EntityDelete, PushRequest, PushResponse, PushResult};
 use labterm_proto::vault::{CreateVaultRequest, Vault, VaultList, VaultMemberUpsert, VaultRole};
 use reqwest::{Method, StatusCode};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 fn upsert(key: &SymmetricKey, u: &User, role: VaultRole) -> VaultMemberUpsert {
@@ -112,7 +113,7 @@ async fn entity_acl_is_resolved_and_enforced() {
         base_version: base,
         key_version: 1,
         data: u.encrypt_entity(&key, "host", host_id, &format!(r#"{{"label":"{label}"}}"#)),
-        updated_at: chrono::Utc::now(),
+        updated_at: OffsetDateTime::now_utc(),
     };
     assert!(push(s, &owner, change(&owner, None, "v1")).await);
     // Editor without rules may write.

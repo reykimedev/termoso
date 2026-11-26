@@ -5,7 +5,6 @@
 use labterm_proto::team as proto;
 use std::collections::HashMap;
 
-use chrono::{DateTime, Utc};
 use labterm_core::account as core;
 use labterm_core::api::{ApiClient, AuditQuery};
 use labterm_core::labterm_crypto::keys::{SymmetricKey, public_key_from_b64};
@@ -21,6 +20,7 @@ use labterm_proto::vault::{
 };
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager, Runtime};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::account::{SYNC_EVENT, SyncNotice, api};
@@ -37,7 +37,8 @@ pub struct TeamMemberCard {
     pub display_name: Option<String>,
     pub avatar: Option<String>,
     pub role: TeamRole,
-    pub joined_at: DateTime<Utc>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    pub joined_at: OffsetDateTime,
     /// Second factor enrolled; `None` when the server keeps it private.
     pub mfa_enabled: Option<bool>,
     /// Account was created through this team's invitation; the owner may delete it.

@@ -6,7 +6,6 @@
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
-use chrono::Utc;
 use libfuzzer_sys::fuzz_target;
 use std::sync::LazyLock;
 use termoso_server::saml::test_support::{idp_metadata_xml, sp_cert_der, sp_key};
@@ -29,7 +28,7 @@ static PROVIDER: LazyLock<ServiceProvider> = LazyLock::new(|| {
             allow_sha1: true,
             email_attribute: None,
             name_attribute: None,
-            clock_skew: chrono::Duration::minutes(5),
+            clock_skew: time::Duration::minutes(5),
         },
         idp,
     )
@@ -40,5 +39,5 @@ fuzz_target!(|data: &[u8]| {
     // Fuzz the decoded document: libFuzzer mutates bytes, we present them as
     // the base64 the browser would POST.
     let b64 = STANDARD.encode(data);
-    let _ = PROVIDER.consume_response(&b64, "_req-fuzz", Utc::now());
+    let _ = PROVIDER.consume_response(&b64, "_req-fuzz", time::OffsetDateTime::now_utc());
 });

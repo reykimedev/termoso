@@ -8,6 +8,7 @@ use labterm_proto::sync::{EntityChange, PushRequest, PushResponse, PushResult};
 use labterm_proto::team::{AuditEventList, TeamDataStatus};
 use labterm_proto::vault::{CreateVaultRequest, Vault, VaultMemberUpsert, VaultRole};
 use reqwest::{Method, StatusCode};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 #[tokio::test]
@@ -79,7 +80,7 @@ async fn export_and_scheduled_deletion() {
                     base_version: None,
                     key_version: 1,
                     data: owner.encrypt_entity(&key, "host", host, r#"{"label":"db"}"#),
-                    updated_at: chrono::Utc::now(),
+                    updated_at: OffsetDateTime::now_utc(),
                 }],
                 deletes: vec![],
             }),
@@ -167,7 +168,7 @@ async fn export_and_scheduled_deletion() {
         )
         .await;
     let at = scheduled.deletion_scheduled_at.expect("scheduled");
-    let days = (at - chrono::Utc::now()).num_hours();
+    let days = (at - OffsetDateTime::now_utc()).whole_hours();
     assert!((7 * 24 - 1..=7 * 24).contains(&days), "{days}");
     assert_eq!(scheduled.deletion_requested_by, Some(owner.id()));
     s.expect_status(
