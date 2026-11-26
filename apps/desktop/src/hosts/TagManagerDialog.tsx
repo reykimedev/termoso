@@ -20,6 +20,7 @@ import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import TuneRoundedIcon from "@mui/icons-material/TuneRounded";
 import MergeRoundedIcon from "@mui/icons-material/MergeRounded";
 import SellOutlinedIcon from "@mui/icons-material/SellOutlined";
 import BlockRoundedIcon from "@mui/icons-material/BlockRounded";
@@ -28,6 +29,7 @@ import { useSnackbar } from "@/components/Snackbar";
 import { useDeleteTag, useMergeTags, useTags, useUpdateTag } from "@/ipc/hooks";
 import { errorMessage, type TagInfo, type Uuid } from "@/ipc/types";
 import { TAG_COLORS, TagDot } from "./TagChip";
+import { TagSettingsDialog } from "./TagSettingsDialog";
 import { tr, trn } from "@/i18n";
 
 const hostsLabel = (n: number) => trn(n, "{count} host", "{count} hosts");
@@ -61,6 +63,7 @@ export function TagManagerDialog({
   const [colorFor, setColorFor] = useState<{ tag: TagInfo; anchor: HTMLElement } | null>(null);
   const [mergeFor, setMergeFor] = useState<{ tag: TagInfo; anchor: HTMLElement } | null>(null);
   const [pending, setPending] = useState<Pending>({ kind: "none" });
+  const [settingsFor, setSettingsFor] = useState<Uuid | null>(null);
 
   const list = [...(tags.data ?? [])].sort((a, b) => a.label.localeCompare(b.label));
   const busy = update.isPending || remove.isPending || merge.isPending;
@@ -203,10 +206,28 @@ export function TagManagerDialog({
                         {t.label}
                       </Typography>
                     )}
+                    {t.hasConfig && (
+                      <Tooltip title={tr("Hosts with this tag inherit its settings")}>
+                        <TuneRoundedIcon
+                          fontSize="small"
+                          color="action"
+                          aria-label={tr("Has settings")}
+                        />
+                      </Tooltip>
+                    )}
                     <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
                       {hostsLabel(t.hosts)}
                     </Typography>
                     <Box className="tag-actions" sx={{ display: "flex", gap: 0.25, flexShrink: 0 }}>
+                      <Tooltip title={tr("Settings")}>
+                        <IconButton
+                          size="small"
+                          aria-label={tr("Settings for {label}", { label: t.label })}
+                          onClick={() => setSettingsFor(t.id)}
+                        >
+                          <TuneRoundedIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
                       <Tooltip title={tr("Rename")}>
                         <IconButton
                           size="small"
@@ -244,7 +265,10 @@ export function TagManagerDialog({
             </Box>
           )}
           <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1.5 }}>
-            {tr("Double-click a tag to rename it. Renaming onto an existing tag merges the two.")}
+            {tr("Double-click a tag to rename it. Renaming onto an existing tag merges the two.")}{" "}
+            {tr(
+              "Settings on a tag (username, key, port…) apply to its hosts below their own and their groups' settings.",
+            )}
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -330,6 +354,8 @@ export function TagManagerDialog({
             </MenuItem>
           ))}
       </Menu>
+
+      <TagSettingsDialog tagId={settingsFor} onClose={() => setSettingsFor(null)} />
 
       <ConfirmDialog
         open={pending.kind === "delete"}

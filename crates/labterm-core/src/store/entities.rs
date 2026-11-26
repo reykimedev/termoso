@@ -527,10 +527,71 @@ impl Store {
     /// group chain (nearer groups win), plus the group path root → leaf.
     pub fn resolve_group_ssh(&self, group_id: Uuid) -> Result<(SshConfig, Vec<String>)> {
         let group = self.require::<Group>(group_id)?;
-        let groups: Vec<Entity<Group>> = self.list(Some(group.vault_id))?;
-        let mut path = Vec::new();
-        let mut chain: Vec<Uuid> = Vec::new();
-        let mut cursor = Some(group_id);
+        let d = self.resolve_defaults(group.vault_id, Some(group_id), &[])?;
+        Ok((d.ssh, d.group_path))
+    }
+
+    /// What a host in `group_id` carrying `tag_ids` inherits before its own
+    /// settings: tags first, then the group chain, so groups beat tags.
+    /// See [`Self::defaults_layers`] for the order.
+    pub fn resolve_defaults(
+        &self,
+        vault: Uuid,
+        group_id: Option<Uuid>,
+        tag_ids: &[Uuid],
+    ) -> Result<ResolvedDefaults> {
+        let layers = self.defaults_layers(vault, group_id, tag_ids)?;
+        let (ssh, username) = self.merge_layers(vault, &layers.ssh)?;
+        Ok(ResolvedDefaults {
+            ssh,
+            username,
+            group_path: layers.group_path,
+            tags: layers.tags,
+        })
+    }
+
+    /// SSH and telnet config ids a host inherits, lowest precedence first:
+    /// its tags (lowest priority first), then its group chain root → leaf.
+    /// The host's own config goes on top of these.
+    ///
+    /// Among tags the higher `priority` wins, then the label (A before Z,
+    /// ignoring case), then the id, so the order never depends on how the
+    /// tags happen to be stored.
+    pub fn defaults_layers(
+        &self,
+        vault: Uuid,
+        group_id: Option<Uuid>,
+        tag_ids: &[Uuid],
+    ) -> Result<DefaultsLayers> {
+        let mut out = DefaultsLayers::default();
+
+        if !tag_ids.is_empty() {
+            let all: Vec<Entity<Tag>> = self.list(Some(vault))?;
+            let mut tags: Vec<&Entity<Tag>> = all
+                .iter()
+                .filter(|t| tag_ids.contains(&t.id) && t.data.ssh_config_id.is_some())
+                .collect();
+            // Winner first.
+            tags.sort_by(|a, b| {
+                b.data
+                    .priority
+                    .cmp(&a.data.priority)
+                    .then_with(|| {
+                        a.data
+                            .label
+                            .to_lowercase()
+                            .cmp(&b.data.label.to_lowercase())
+                    })
+                    .then_with(|| a.id.cmp(&b.id))
+            });
+            out.tags = tags.iter().map(|t| t.data.label.clone()).collect();
+            out.ssh
+                .extend(tags.iter().rev().filter_map(|t| t.data.ssh_config_id));
+        }
+
+        let groups: Vec<Entity<Group>> = self.list(Some(vault))?;
+        let mut chain_ssh = Vec::new();
+        let mut cursor = group_id;
         let mut hops = 0;
         while let Some(gid) = cursor {
             hops += 1;
@@ -540,18 +601,61 @@ impl Store {
             let Some(g) = groups.iter().find(|g| g.id == gid) else {
                 break;
             };
-            path.push(g.data.label.clone());
-            chain.extend(g.data.ssh_config_id);
+            out.group_path.push(g.data.label.clone());
+            chain_ssh.extend(g.data.ssh_config_id);
+            out.telnet.extend(g.data.telnet_config_id);
             cursor = g.data.parent_id;
         }
-        path.reverse();
+        out.group_path.reverse();
+        out.telnet.reverse();
+        out.ssh.extend(chain_ssh.into_iter().rev());
+        Ok(out)
+    }
+
+    /// Merge SSH configs (lowest precedence first) and find the username to
+    /// fall back on: the nearest non-empty username among the layers'
+    /// identities. The identity itself (key, password, certificate) still
+    /// comes whole from the nearest layer that names one, so secrets from
+    /// different places never mix.
+    fn merge_layers(&self, vault: Uuid, ids: &[Uuid]) -> Result<(SshConfig, Option<String>)> {
         let mut ssh = SshConfig::default();
-        for cid in chain.iter().rev() {
-            if let Some(c) = self.get_in::<SshConfig>(*cid, group.vault_id)? {
+        let mut identities = Vec::new();
+        for cid in ids {
+            if let Some(c) = self.get_in::<SshConfig>(*cid, vault)? {
+                identities.extend(c.data.identity_id);
                 merge_ssh(&mut ssh, &c.data);
             }
         }
-        Ok((ssh, path))
+        let mut username = None;
+        for iid in identities.iter().rev() {
+            if let Some(i) = self.get_in::<Identity>(*iid, vault)?
+                && !i.data.username.is_empty()
+            {
+                username = Some(i.data.username);
+                break;
+            }
+        }
+        Ok((ssh, username))
+    }
+
+    /// Tags on a host: its `tag_ids` plus `tag_host` links, deduplicated.
+    pub fn host_tag_ids(&self, host: &Entity<Host>) -> Result<Vec<Uuid>> {
+        let links: Vec<Entity<TagHost>> = self.list(Some(host.vault_id))?;
+        let mut ids: Vec<Uuid> = host
+            .data
+            .tag_ids
+            .iter()
+            .copied()
+            .chain(
+                links
+                    .iter()
+                    .filter(|l| l.data.host_id == host.id)
+                    .map(|l| l.data.tag_id),
+            )
+            .collect();
+        ids.sort();
+        ids.dedup();
+        Ok(ids)
     }
 
     /// Resolve everything needed to connect to a host. Every record the host
@@ -565,47 +669,20 @@ impl Store {
     pub fn resolve_host_in(&self, host_id: Uuid, vault_id: Option<Uuid>) -> Result<ResolvedHost> {
         let host = self.require_host_in(host_id, vault_id)?;
         let vault = host.vault_id;
-        let groups: Vec<Entity<Group>> = self.list(Some(vault))?;
-
-        // Walk the group chain root-ward collecting configs.
-        let mut group_path = Vec::new();
-        let mut chain_ssh: Vec<Uuid> = Vec::new();
-        let mut chain_telnet: Vec<Uuid> = Vec::new();
-        let mut cursor = host.data.group_id;
-        let mut hops = 0;
-        while let Some(gid) = cursor {
-            hops += 1;
-            if hops > 64 {
-                break;
-            }
-            let Some(g) = groups.iter().find(|g| g.id == gid) else {
-                break;
-            };
-            group_path.push(g.data.label.clone());
-            if let Some(c) = g.data.ssh_config_id {
-                chain_ssh.push(c);
-            }
-            if let Some(c) = g.data.telnet_config_id {
-                chain_telnet.push(c);
-            }
-            cursor = g.data.parent_id;
-        }
-        group_path.reverse();
-
-        let mut ssh = SshConfig::default();
-        // Apply from the root group down to the host so nearer configs win.
-        for cid in chain_ssh.iter().rev().chain(host.data.ssh_config_id.iter()) {
-            if let Some(c) = self.get_in::<SshConfig>(*cid, vault)? {
-                merge_ssh(&mut ssh, &c.data);
-            }
-        }
+        let tag_ids = self.host_tag_ids(&host)?;
+        let layers = self.defaults_layers(vault, host.data.group_id, &tag_ids)?;
+        let group_path = layers.group_path.clone();
+        let chain_telnet = layers.telnet.clone();
+        let ssh_ids: Vec<Uuid> = layers
+            .ssh
+            .iter()
+            .chain(host.data.ssh_config_id.iter())
+            .copied()
+            .collect();
+        let (ssh, fallback_username) = self.merge_layers(vault, &ssh_ids)?;
         let telnet = if host.data.telnet_config_id.is_some() || !chain_telnet.is_empty() {
             let mut t = TelnetConfig::default();
-            for cid in chain_telnet
-                .iter()
-                .rev()
-                .chain(host.data.telnet_config_id.iter())
-            {
+            for cid in chain_telnet.iter().chain(host.data.telnet_config_id.iter()) {
                 if let Some(c) = self.get_in::<TelnetConfig>(*cid, vault)? {
                     if c.data.port.is_some() {
                         t.port = c.data.port;
@@ -657,10 +734,21 @@ impl Store {
                 None
             }
         });
-        let identity = match identity_id {
+        let mut identity = match identity_id {
             Some(id) => self.get_in::<Identity>(id, vault)?,
             None => None,
         };
+        // A layer that sets only the key (say the group) still logs in with
+        // the username a lower layer sets (say a tag). Only in this resolved
+        // copy: callers that write back must re-read the identity first.
+        if let Some(i) = identity.as_mut()
+            && ssh.identity_id.is_some()
+            && i.data.username.is_empty()
+            && !i.data.ssh_id
+            && let Some(u) = fallback_username
+        {
+            i.data.username = u;
+        }
         let key = match identity.as_ref().and_then(|i| i.data.ssh_key_id) {
             Some(id) => self.get_in::<SshKey>(id, vault)?,
             None => None,
@@ -698,18 +786,9 @@ impl Store {
             }
         }
 
-        let tag_links: Vec<Entity<TagHost>> = self.list(Some(vault))?;
         let tags_all: Vec<Entity<Tag>> = self.list(Some(vault))?;
-        let mut tags: Vec<String> = host
-            .data
-            .tag_ids
+        let mut tags: Vec<String> = tag_ids
             .iter()
-            .chain(
-                tag_links
-                    .iter()
-                    .filter(|l| l.data.host_id == host_id)
-                    .map(|l| &l.data.tag_id),
-            )
             .filter_map(|tid| tags_all.iter().find(|t| t.id == *tid))
             .map(|t| t.data.label.clone())
             .collect();
@@ -737,6 +816,33 @@ impl Store {
             tags,
         })
     }
+}
+
+/// Config ids a host inherits, from [`Store::defaults_layers`].
+#[derive(Debug, Clone, Default)]
+pub struct DefaultsLayers {
+    /// Group labels root → leaf.
+    pub group_path: Vec<String>,
+    /// SSH config ids, lowest precedence first (tags, then groups).
+    pub ssh: Vec<Uuid>,
+    /// Telnet config ids of the group chain, root first.
+    pub telnet: Vec<Uuid>,
+    /// Labels of the host's tags that carry settings, the winner first.
+    pub tags: Vec<String>,
+}
+
+/// What a host inherits before its own settings, from
+/// [`Store::resolve_defaults`].
+#[derive(Debug, Clone, Default)]
+pub struct ResolvedDefaults {
+    /// Merged SSH config of tags and groups.
+    pub ssh: SshConfig,
+    /// Nearest non-empty username among the layers' identities.
+    pub username: Option<String>,
+    /// Group labels root → leaf.
+    pub group_path: Vec<String>,
+    /// Labels of the tags that carry settings, the winner first.
+    pub tags: Vec<String>,
 }
 
 fn merge_ssh(into: &mut SshConfig, from: &SshConfig) {
@@ -861,6 +967,7 @@ mod tests {
                 &Tag {
                     label: "prod".into(),
                     color: None,
+                    ..Default::default()
                 },
             )
             .unwrap();
@@ -1034,6 +1141,7 @@ mod tests {
                 &Tag {
                     label: "db".into(),
                     color: None,
+                    ..Default::default()
                 },
             )
             .unwrap();
@@ -1246,5 +1354,264 @@ mod tests {
             s.resolve_host_in(host, Some(local)),
             Err(CoreError::Invalid(m)) if m.contains("another vault")
         ));
+    }
+
+    fn ident(s: &Store, v: Uuid, username: &str, key: Option<Uuid>) -> Uuid {
+        s.insert(
+            v,
+            &Identity {
+                label: username.into(),
+                username: username.into(),
+                ssh_key_id: key,
+                ..Default::default()
+            },
+        )
+        .unwrap()
+    }
+
+    fn cfg(s: &Store, v: Uuid, c: SshConfig) -> Uuid {
+        s.insert(v, &c).unwrap()
+    }
+
+    fn tag(s: &Store, v: Uuid, label: &str, priority: i32, c: Option<Uuid>) -> Uuid {
+        s.insert(
+            v,
+            &Tag {
+                label: label.into(),
+                ssh_config_id: c,
+                priority,
+                ..Default::default()
+            },
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn tags_rank_below_groups_and_host() {
+        let s = store();
+        let v = s.local_vault().unwrap().id;
+        let tag_cfg = cfg(
+            &s,
+            v,
+            SshConfig {
+                port: Some(2201),
+                timeout: Some(7),
+                keep_alive_interval: Some(30),
+                ..Default::default()
+            },
+        );
+        let t = tag(&s, v, "debian", 0, Some(tag_cfg));
+        let group_cfg = cfg(
+            &s,
+            v,
+            SshConfig {
+                port: Some(2202),
+                timeout: Some(9),
+                ..Default::default()
+            },
+        );
+        let g = s
+            .insert(
+                v,
+                &Group {
+                    label: "Prod".into(),
+                    ssh_config_id: Some(group_cfg),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        let host_cfg = cfg(
+            &s,
+            v,
+            SshConfig {
+                port: Some(2203),
+                ..Default::default()
+            },
+        );
+        let h = s
+            .insert(
+                v,
+                &Host {
+                    label: "web".into(),
+                    address: "192.0.2.10".into(),
+                    group_id: Some(g),
+                    ssh_config_id: Some(host_cfg),
+                    tag_ids: vec![t],
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        let r = s.resolve_host(h).unwrap();
+        assert_eq!(r.ssh.port, Some(2203), "host beats group and tag");
+        assert_eq!(r.ssh.timeout, Some(9), "group beats tag");
+        assert_eq!(r.ssh.keep_alive_interval, Some(30), "tag fills the rest");
+
+        let d = s.resolve_defaults(v, Some(g), &[t]).unwrap();
+        assert_eq!(d.ssh.port, Some(2202));
+        assert_eq!(d.tags, vec!["debian"]);
+        assert_eq!(d.group_path, vec!["Prod"]);
+    }
+
+    #[test]
+    fn tag_priority_then_label_decides_between_tags() {
+        let s = store();
+        let v = s.local_vault().unwrap().id;
+        let port = |p| {
+            cfg(
+                &s,
+                v,
+                SshConfig {
+                    port: Some(p),
+                    ..Default::default()
+                },
+            )
+        };
+        let a = tag(&s, v, "alpha", 0, Some(port(1001)));
+        let b = tag(&s, v, "Beta", 0, Some(port(1002)));
+        let c = tag(&s, v, "zulu", 5, Some(port(1003)));
+        let plain = tag(&s, v, "aaa", 9, None);
+
+        let d = s.resolve_defaults(v, None, &[b, a]).unwrap();
+        assert_eq!(d.ssh.port, Some(1001), "same priority: A before Z");
+        assert_eq!(d.tags, vec!["alpha", "Beta"]);
+
+        let d = s.resolve_defaults(v, None, &[a, b, c, plain]).unwrap();
+        assert_eq!(d.ssh.port, Some(1003), "higher priority wins");
+        assert_eq!(
+            d.tags,
+            vec!["zulu", "alpha", "Beta"],
+            "tags without settings are left out"
+        );
+    }
+
+    #[test]
+    fn username_falls_through_but_credentials_stay_whole() {
+        let s = store();
+        let v = s.local_vault().unwrap().id;
+        let key = s
+            .insert(
+                v,
+                &SshKey {
+                    label: "k".into(),
+                    key_type: "ed25519".into(),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        let tag_ident = s
+            .insert(
+                v,
+                &Identity {
+                    label: "ubuntu".into(),
+                    username: "ubuntu".into(),
+                    password: Some("tag-secret".into()),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        let t = tag(
+            &s,
+            v,
+            "ubuntu",
+            0,
+            Some(cfg(
+                &s,
+                v,
+                SshConfig {
+                    identity_id: Some(tag_ident),
+                    ..Default::default()
+                },
+            )),
+        );
+        let group_ident = ident(&s, v, "", Some(key));
+        let g = s
+            .insert(
+                v,
+                &Group {
+                    label: "Prod".into(),
+                    ssh_config_id: Some(cfg(
+                        &s,
+                        v,
+                        SshConfig {
+                            identity_id: Some(group_ident),
+                            ..Default::default()
+                        },
+                    )),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        let h = s
+            .insert(
+                v,
+                &Host {
+                    label: "web".into(),
+                    address: "192.0.2.11".into(),
+                    group_id: Some(g),
+                    tag_ids: vec![t],
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        let r = s.resolve_host(h).unwrap();
+        let i = r.identity.as_ref().unwrap();
+        assert_eq!(i.id, group_ident, "the group's credentials win");
+        assert_eq!(i.data.username, "ubuntu", "username from the tag");
+        assert_eq!(
+            i.data.password, None,
+            "the tag's password stays with the tag"
+        );
+        assert_eq!(r.key.unwrap().id, key);
+        // Only the resolved copy changes.
+        assert_eq!(
+            s.require::<Identity>(group_ident).unwrap().data.username,
+            ""
+        );
+
+        // A username on the nearer layer wins.
+        let mut gi = s.require::<Identity>(group_ident).unwrap();
+        gi.data.username = "admin".into();
+        s.update(group_ident, &gi.data).unwrap();
+        let r = s.resolve_host(h).unwrap();
+        assert_eq!(r.identity.unwrap().data.username, "admin");
+    }
+
+    #[test]
+    fn tag_host_links_count_as_tags() {
+        let s = store();
+        let v = s.local_vault().unwrap().id;
+        let t = tag(
+            &s,
+            v,
+            "linked",
+            0,
+            Some(cfg(
+                &s,
+                v,
+                SshConfig {
+                    port: Some(2222),
+                    ..Default::default()
+                },
+            )),
+        );
+        let h = s
+            .insert(
+                v,
+                &Host {
+                    label: "x".into(),
+                    address: "192.0.2.12".into(),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        s.insert(
+            v,
+            &TagHost {
+                host_id: h,
+                tag_id: t,
+            },
+        )
+        .unwrap();
+        assert_eq!(s.resolve_host(h).unwrap().ssh.port, Some(2222));
     }
 }

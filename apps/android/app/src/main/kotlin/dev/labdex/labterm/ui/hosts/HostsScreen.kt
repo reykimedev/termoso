@@ -30,6 +30,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Sell
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Add
@@ -105,6 +106,7 @@ import dev.labdex.labterm.ui.shell.ShellViewModel
 import dev.labdex.labterm.ui.vault.VaultPickerTitle
 import dev.labdex.labterm.ui.vault.vaultLabel
 import dev.labdex.labterm.core.GroupItem
+import dev.labdex.labterm.core.TagItem
 import dev.labdex.labterm.core.HostItem
 import dev.labdex.labterm.core.Transport
 import dev.labdex.labterm.core.VaultInfo
@@ -204,6 +206,11 @@ fun HostsScreen(
                     if (!searching) {
                         IconButton(onClick = { searching = true }) {
                             Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.search))
+                        }
+                    }
+                    if (!searching) {
+                        IconButton(onClick = { dialog = HostsDialog.Tags }) {
+                            Icon(Icons.Outlined.Sell, contentDescription = stringResource(R.string.tags))
                         }
                     }
                     SortMenu(state.sort, vm::setSort)
@@ -381,6 +388,7 @@ fun HostsScreen(
         )
         is HostsDialog.GroupMenu -> GroupMenuDialog(
             group = d.group,
+            onSettings = { dialog = HostsDialog.Settings(DefaultsTarget.Group(d.group.id)) },
             onRename = { dialog = HostsDialog.RenameGroup(d.group) },
             onDelete = { vm.deleteGroup(d.group); dialog = null },
             onDismiss = { dialog = null },
@@ -391,6 +399,22 @@ fun HostsScreen(
             onConfirm = { vm.renameGroup(d.group, it); dialog = null },
             onDismiss = { dialog = null },
         )
+        is HostsDialog.Settings -> DefaultsEditorDialog(
+            shell = shell,
+            target = d.target,
+            onDismiss = { dialog = null },
+        )
+        HostsDialog.Tags -> {
+            var tags by remember { mutableStateOf<List<TagItem>>(emptyList()) }
+            LaunchedEffect(selectedVaultId) {
+                tags = runCatching { shell.repo.read { tags(selectedVaultId) } }.getOrDefault(emptyList())
+            }
+            TagsDialog(
+                tags = tags,
+                onSettings = { t -> dialog = HostsDialog.Settings(DefaultsTarget.Tag(t.id)) },
+                onDismiss = { dialog = null },
+            )
+        }
         HostsDialog.QuickImport -> QuickImportSheet(parse = vm::parseImport, onImport = { items -> dialog = null; vm.importHosts(items) }, onDismiss = { dialog = null })
         HostsDialog.Discover -> DiscoverSheet(onPick = { t -> dialog = null; onNewHostFrom(t) }, onDismiss = { dialog = null })
         HostsDialog.Online -> {
@@ -422,6 +446,8 @@ private sealed interface HostsDialog {
     data object NewGroup : HostsDialog
     data class GroupMenu(val group: GroupItem) : HostsDialog
     data class RenameGroup(val group: GroupItem) : HostsDialog
+    data class Settings(val target: DefaultsTarget) : HostsDialog
+    data object Tags : HostsDialog
     data object Online : HostsDialog
     data object Discover : HostsDialog
     data object QuickImport : HostsDialog
@@ -729,7 +755,13 @@ private fun NameDialog(title: String, initial: String, onConfirm: (String) -> Un
 }
 
 @Composable
-private fun GroupMenuDialog(group: GroupItem, onRename: () -> Unit, onDelete: () -> Unit, onDismiss: () -> Unit) {
+private fun GroupMenuDialog(
+    group: GroupItem,
+    onSettings: () -> Unit,
+    onRename: () -> Unit,
+    onDelete: () -> Unit,
+    onDismiss: () -> Unit,
+) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(group.label) },
@@ -744,6 +776,7 @@ private fun GroupMenuDialog(group: GroupItem, onRename: () -> Unit, onDelete: ()
         },
         confirmButton = {
             Row {
+                TextButton(onClick = onSettings) { Text(stringResource(R.string.settings)) }
                 TextButton(onClick = onRename) { Text(stringResource(R.string.rename)) }
                 TextButton(onClick = onDelete) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
             }
