@@ -155,23 +155,20 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  # One job assembles the multi-arch manifests of all three images; each is a few seconds of work,
+  # not worth a runner of its own.
   publish:
-    name: manifest (${{ matrix.image }})
+    name: manifests
     needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-    strategy:
-      fail-fast: false
-      matrix:
-        image: [server, bridge, backup]
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          pattern: digests-${{ matrix.image }}-*
+          pattern: digests-*
           path: /tmp/digests
-          merge-multiple: true
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
@@ -181,32 +178,34 @@ jobs:
       - id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
-          images: ghcr.io/${{ github.repository_owner }}/labterm-${{ matrix.image }}
+          images: |
+            ghcr.io/${{ github.repository_owner }}/labterm-server
+            ghcr.io/${{ github.repository_owner }}/labterm-bridge
+            ghcr.io/${{ github.repository_owner }}/labterm-backup
           tags: |
             type=ref,event=branch
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable={{is_default_branch}}
-      - name: Create the multi-arch manifest
-        working-directory: /tmp/digests
+      - name: Create and verify the multi-arch manifests
         env:
-          IMAGE_NAME: labterm-${{ matrix.image }}
-        run: |
-          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/$IMAGE_NAME"
-          ls
-          [ "$(ls | wc -l)" -eq 2 ] || { echo "::error::expected 2 digests (amd64 + arm64)"; exit 1; }
-          docker buildx imagetools create \
-            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf "$image@sha256:%s " *)
-      - name: Verify the manifest
-        env:
-          IMAGE_NAME: labterm-${{ matrix.image }}
           VERSION: ${{ steps.meta.outputs.version }}
         run: |
-          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/$IMAGE_NAME:$VERSION"
-          docker buildx imagetools inspect "$image"
-          for p in linux/amd64 linux/arm64; do
-            docker buildx imagetools inspect "$image" --format '{{json .Manifest}}' \
-              | jq -e --arg p "$p" '.manifests[] | select((.platform.os + "/" + .platform.architecture) == $p)' > /dev/null \
-              || { echo "::error::$image lacks $p"; exit 1; }
+          ls -R /tmp/digests
+          for name in server bridge backup; do
+            image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/labterm-$name"
+            digests=(/tmp/digests/digests-"$name"-*/*)
+            [ "${#digests[@]}" -eq 2 ] || { echo "::error::expected 2 digests (amd64 + arm64) for $name"; exit 1; }
+            # metadata-action lists the tags of all three images; take this one's.
+            tags=$(jq -r --arg n "/labterm-$name:" '.tags[] | select(contains($n)) | "-t " + .' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+            refs=()
+            for d in "${digests[@]}"; do refs+=("$image@sha256:$(basename "$d")"); done
+            # shellcheck disable=SC2086 # one -t per tag
+            docker buildx imagetools create $tags "${refs[@]}"
+            docker buildx imagetools inspect "$image:$VERSION"
+            for p in linux/amd64 linux/arm64; do
+              docker buildx imagetools inspect "$image:$VERSION" --format '{{json .Manifest}}' \
+                | jq -e --arg p "$p" '.manifests[] | select((.platform.os + "/" + .platform.architecture) == $p)' > /dev/null \
+                || { echo "::error::$image lacks $p"; exit 1; }
+            done
           done
