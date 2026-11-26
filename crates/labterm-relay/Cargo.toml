@@ -1,0 +1,20 @@
+[package]
+name = "hatch-relay"
+description = "WebSocket to TCP relay for Hatch: tickets, allowlist, limits and an audit log"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+axum.workspace = true
+ipnet.workspace = true
+serde.workspace = true
+serde_yaml.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[lints]
+workspace = true
