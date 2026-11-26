@@ -9186,6 +9186,7 @@ dependencies = [
  "termoso-client",
  "termoso-core",
  "termoso-crypto",
+ "termoso-netbird",
  "termoso-proto",
  "thiserror 2.0.21",
  "tokio",

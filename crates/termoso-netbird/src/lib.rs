@@ -142,8 +142,6 @@ struct Node {
 /// Starts, shares and stops the NetBird peers of this process.
 pub struct Netbird {
     library_path: Option<String>,
-    device_name: String,
-    keys: Arc<dyn PeerKeys>,
     idle: Duration,
     start_timeout: Duration,
     /// Running peers by network id. The async mutex also serialises starts,
@@ -154,33 +152,16 @@ pub struct Netbird {
 }
 
 impl Netbird {
-    /// `device_name` is this peer's name in the network (shown in the
-    /// NetBird dashboard).
-    pub fn new(device_name: impl Into<String>, keys: Arc<dyn PeerKeys>) -> Arc<Self> {
-        let n = Arc::new(Self {
-            library_path: None,
-            device_name: device_name.into(),
-            keys,
-            idle: DEFAULT_IDLE,
-            start_timeout: Duration::from_secs(45),
-            nodes: tokio::sync::Mutex::new(HashMap::new()),
-            me: Mutex::new(Weak::new()),
-        });
-        *n.me.lock().expect("netbird self") = Arc::downgrade(&n);
-        n
+    /// The process's peers, loading the library from the platform's search
+    /// path on first use.
+    pub fn new() -> Arc<Self> {
+        Self::with_options(None, DEFAULT_IDLE)
     }
 
     /// Like [`Self::new`] with a library path and idle time (tests).
-    pub fn with_options(
-        device_name: impl Into<String>,
-        keys: Arc<dyn PeerKeys>,
-        library_path: Option<String>,
-        idle: Duration,
-    ) -> Arc<Self> {
+    pub fn with_options(library_path: Option<String>, idle: Duration) -> Arc<Self> {
         let n = Arc::new(Self {
             library_path,
-            device_name: device_name.into(),
-            keys,
             idle,
             start_timeout: Duration::from_secs(45),
             nodes: tokio::sync::Mutex::new(HashMap::new()),
@@ -191,10 +172,19 @@ impl Netbird {
     }
 
     /// A dialer for one network, to put in `ConnectOptions::transport`.
-    pub fn dialer(self: &Arc<Self>, config: NetworkConfig) -> Arc<dyn TransportDial> {
+    /// `device_name` is this peer's name in the network (shown in the
+    /// NetBird dashboard) when it registers; `keys` keeps its peer key.
+    pub fn dialer(
+        self: &Arc<Self>,
+        config: NetworkConfig,
+        device_name: impl Into<String>,
+        keys: Arc<dyn PeerKeys>,
+    ) -> Arc<dyn TransportDial> {
         Arc::new(Dialer {
             netbird: self.clone(),
             config,
+            device_name: device_name.into(),
+            keys,
         })
     }
 
@@ -224,7 +214,12 @@ impl Netbird {
         tracing::info!(network = %node.config.id, "netbird: stopped");
     }
 
-    async fn node(&self, config: &NetworkConfig) -> Result<Arc<Node>> {
+    async fn node(
+        &self,
+        config: &NetworkConfig,
+        device_name: &str,
+        keys: &dyn PeerKeys,
+    ) -> Result<Arc<Node>> {
         let mut nodes = self.nodes.lock().await;
         if let Some(n) = nodes.get(&config.id) {
             if n.config == *config {
@@ -235,7 +230,7 @@ impl Netbird {
             self.stop_node(old).await;
         }
         let slot = config.peer_slot();
-        let saved = self.keys.load(&slot);
+        let saved = keys.load(&slot);
         if saved.is_none() && config.setup_key.is_none() {
             return Err(CoreError::Invalid(format!(
                 "NetBird network \"{}\" has no setup key",
@@ -251,7 +246,7 @@ impl Netbird {
                     .map(String::as_str)
                     .unwrap_or(""),
                 private_key: saved.as_deref().map(String::as_str).unwrap_or(""),
-                device_name: &self.device_name,
+                device_name,
                 log_level: "warn",
                 timeout_ms: self.start_timeout.as_millis() as u64,
             })
@@ -270,7 +265,7 @@ impl Netbird {
             .map_err(|e| CoreError::Ssh(format!("netbird: bad start result: {e}")))?;
         let result_key = Zeroizing::new(result.private_key);
         if saved.as_deref() != Some(&*result_key) && !result_key.is_empty() {
-            self.keys.save(&slot, &result_key);
+            keys.save(&slot, &result_key);
         }
         tracing::info!(
             network = %config.id,
@@ -287,8 +282,9 @@ impl Netbird {
         Ok(node)
     }
 
-    async fn dial(&self, config: &NetworkConfig, host: &str, port: u16) -> Result<BoxStream> {
-        let node = self.node(config).await?;
+    async fn dial(&self, d: &Dialer, host: &str, port: u16) -> Result<BoxStream> {
+        let config = &d.config;
+        let node = self.node(config, &d.device_name, d.keys.as_ref()).await?;
         node.streams.fetch_add(1, Ordering::SeqCst);
         node.epoch.fetch_add(1, Ordering::SeqCst);
         let guard = StreamGuard {
@@ -347,6 +343,8 @@ impl Netbird {
 struct Dialer {
     netbird: Arc<Netbird>,
     config: NetworkConfig,
+    device_name: String,
+    keys: Arc<dyn PeerKeys>,
 }
 
 impl TransportDial for Dialer {
@@ -359,7 +357,7 @@ impl TransportDial for Dialer {
         host: &'a str,
         port: u16,
     ) -> Pin<Box<dyn std::future::Future<Output = Result<BoxStream>> + Send + 'a>> {
-        Box::pin(self.netbird.dial(&self.config, host, port))
+        Box::pin(self.netbird.dial(self, host, port))
     }
 }
 
@@ -414,24 +412,19 @@ impl AsyncWrite for Tracked {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono_free::entity;
-
-    mod chrono_free {
-        use super::*;
-        pub fn entity(provider: &str, url: Option<&str>, key: Option<&str>) -> Entity<Transport> {
-            Entity {
-                id: Uuid::nil(),
-                vault_id: Uuid::nil(),
-                version: 0,
-                updated_at: Default::default(),
-                dirty: false,
-                data: Transport {
-                    label: "home".into(),
-                    provider: provider.into(),
-                    management_url: url.map(Into::into),
-                    setup_key: key.map(Into::into),
-                },
-            }
+    fn entity(provider: &str, url: Option<&str>, key: Option<&str>) -> Entity<Transport> {
+        Entity {
+            id: Uuid::nil(),
+            vault_id: Uuid::nil(),
+            version: 0,
+            updated_at: Default::default(),
+            dirty: false,
+            data: Transport {
+                label: "home".into(),
+                provider: provider.into(),
+                management_url: url.map(Into::into),
+                setup_key: key.map(Into::into),
+            },
         }
     }
 
@@ -466,9 +459,13 @@ mod tests {
 
     #[tokio::test]
     async fn no_setup_key_and_no_peer_is_a_clear_error() {
-        let nb = Netbird::new("t", Arc::new(NoKeys));
+        let nb = Netbird::new();
         let c = NetworkConfig::from_entity(&entity("netbird", None, None)).unwrap();
-        let err = match nb.dialer(c).dial("192.0.2.1", 22).await {
+        let err = match nb
+            .dialer(c, "t", Arc::new(NoKeys))
+            .dial("192.0.2.1", 22)
+            .await
+        {
             Err(e) => e.to_string(),
             Ok(_) => panic!("dialled without credentials"),
         };

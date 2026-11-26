@@ -53,8 +53,12 @@ fn network(id: Uuid, setup_key: Option<String>) -> NetworkConfig {
     .unwrap()
 }
 
-async fn echo(nb: &Arc<Netbird>, net: NetworkConfig, target: &str) {
-    let mut s = nb.dialer(net).dial(target, 2222).await.expect("dial");
+async fn echo(nb: &Arc<Netbird>, keys: &Arc<MemKeys>, net: NetworkConfig, target: &str) {
+    let mut s = nb
+        .dialer(net, "termoso-e2e", keys.clone())
+        .dial(target, 2222)
+        .await
+        .expect("dial");
     s.write_all(b"ssh bytes only").await.unwrap();
     let mut buf = [0u8; 14];
     tokio::time::timeout(Duration::from_secs(20), s.read_exact(&mut buf))
@@ -73,19 +77,14 @@ async fn dial_through_embedded_netbird() {
     let keys = Arc::new(MemKeys::default());
 
     // First start registers with the setup key and saves this device's key.
-    let nb = Netbird::with_options(
-        "termoso-e2e",
-        keys.clone(),
-        lib.clone(),
-        Duration::from_secs(2),
-    );
+    let nb = Netbird::with_options(lib, Duration::from_secs(2));
     let net = network(id, Some(env("NB_E2E_SETUP_KEY")));
-    echo(&nb, net.clone(), &target).await;
+    echo(&nb, &keys, net.clone(), &target).await;
     assert!(keys.load(&net.peer_slot()).is_some(), "peer key not saved");
     assert!(nb.is_running(id).await);
 
     // Two streams share one peer.
-    echo(&nb, net.clone(), &target).await;
+    echo(&nb, &keys, net.clone(), &target).await;
 
     // Idle: the peer stops after its last stream closed.
     tokio::time::sleep(Duration::from_secs(4)).await;
@@ -96,12 +95,16 @@ async fn dial_through_embedded_netbird() {
 
     // On demand again, now without the setup key: the saved key logs in.
     let net_no_key = network(id, None);
-    echo(&nb, net_no_key, &target).await;
+    echo(&nb, &keys, net_no_key, &target).await;
     nb.stop_all().await;
     assert!(!nb.is_running(id).await);
 
     // Not reachable outside the network.
-    let err = match nb.dialer(net).dial("192.0.2.1", 2222).await {
+    let err = match nb
+        .dialer(net, "termoso-e2e", keys.clone())
+        .dial("192.0.2.1", 2222)
+        .await
+    {
         Ok(_) => panic!("dialled an address outside the network"),
         Err(e) => e.to_string(),
     };

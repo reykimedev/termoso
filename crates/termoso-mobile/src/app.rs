@@ -838,6 +838,66 @@ impl TermosoApp {
         crate::oidc::delete_provider(&self.store, &id)
     }
 
+    // ---- NetBird networks ---------------------------------------------
+
+    /// NetBird networks of a vault (all vaults with `None`).
+    pub fn transports(&self, vault_id: Option<String>) -> Result<Vec<crate::TransportItem>> {
+        crate::netbird::list(&self.store, vault_id)
+    }
+
+    /// Add (`id = None`) or update a network of `item.vault_id`.
+    pub fn save_transport(&self, item: crate::TransportItem) -> Result<crate::TransportItem> {
+        crate::netbird::save(&self.store, item)
+    }
+
+    /// Delete a network; its hosts and groups connect directly again.
+    pub fn delete_transport(&self, id: String) -> Result<()> {
+        crate::netbird::delete(&self.store, &id)
+    }
+
+    /// Network a host's own SSH settings name (not the group's).
+    pub fn host_transport(&self, host_id: String) -> Result<Option<String>> {
+        let form = termoso_client::hosts::form(&self.store, parse_id(&host_id)?)?;
+        Ok(form.transport_id.map(|id| id.to_string()))
+    }
+
+    /// Network a host gets from its group chain, when its own settings name none.
+    pub fn host_inherited_transport(&self, host_id: String) -> Result<Option<String>> {
+        let form = termoso_client::hosts::form(&self.store, parse_id(&host_id)?)?;
+        let inherited = termoso_client::hosts::inherited(&self.store, form.group_id)?;
+        Ok(inherited.transport_id.map(|id| id.to_string()))
+    }
+
+    /// Set or clear the network a host is reached through.
+    pub fn set_host_transport(&self, host_id: String, transport_id: Option<String>) -> Result<()> {
+        let t = parse_opt_id(&transport_id.filter(|t| !t.is_empty()))?;
+        termoso_client::hosts::set_transport(&self.store, parse_id(&host_id)?, t)?;
+        Ok(())
+    }
+
+    /// Network a group's own SSH settings name.
+    pub fn group_transport(&self, group_id: String) -> Result<Option<String>> {
+        let form = termoso_client::hosts::group_form(&self.store, parse_id(&group_id)?)?;
+        Ok(form.transport_id.map(|id| id.to_string()))
+    }
+
+    /// Set or clear the network hosts of a group are reached through.
+    pub fn set_group_transport(
+        &self,
+        group_id: String,
+        transport_id: Option<String>,
+    ) -> Result<()> {
+        let t = parse_opt_id(&transport_id.filter(|t| !t.is_empty()))?;
+        termoso_client::hosts::set_group_transport(&self.store, parse_id(&group_id)?, t)?;
+        Ok(())
+    }
+
+    /// Stop the embedded NetBird peers now (they start again on the next
+    /// connection through them).
+    pub fn stop_transports(&self) {
+        RUNTIME.block_on(crate::netbird::stop_all());
+    }
+
     /// Create an OpenID (opkssh) key: no key material is stored.
     pub fn create_opkssh_key(
         &self,
@@ -1216,6 +1276,7 @@ impl TermosoApp {
 
     /// Name this installation registers under (shown in the devices list).
     pub fn set_device_name(&self, name: String) {
+        crate::netbird::set_device_name(&name);
         self.account.set_device_name(name);
     }
 
@@ -1757,7 +1818,7 @@ impl TermosoApp {
             Transport::Mosh => true,
             Transport::Ssh | Transport::Telnet => false,
             Transport::Auto => resolved.ssh.use_mosh,
-        };
+        } && resolved.transport.is_none();
         let presence = Some(self.presence.slot(
             resolved.host.id,
             match (protocol, mosh) {
