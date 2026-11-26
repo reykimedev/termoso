@@ -19,6 +19,7 @@ mod entities;
 mod file_cache;
 mod history;
 mod logs;
+mod overlays;
 
 use std::collections::HashMap;
 use std::path::Path;

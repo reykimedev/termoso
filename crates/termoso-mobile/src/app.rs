@@ -2570,7 +2570,7 @@ impl TermosoApp {
     fn resolve_host_in(&self, host_id: &str, vault_id: &str) -> Result<ResolvedHost> {
         Ok(self
             .store
-            .resolve_host_in(parse_id(host_id)?, Some(parse_id(vault_id)?))?)
+            .resolve_host_to_connect(parse_id(host_id)?, Some(parse_id(vault_id)?))?)
     }
 
     fn ssh_host(&self, host_id: &str, vault_id: &str) -> Result<(ResolvedHost, SshTarget)> {

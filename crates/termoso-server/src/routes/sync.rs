@@ -11,7 +11,7 @@ use chrono::{DateTime, Utc};
 use sqlx::AssertSqlSafe;
 use sqlx::{Postgres, Transaction};
 use termoso_crypto::encoding::unb64;
-use termoso_proto::entities::{SyncEntity, is_known_kind};
+use termoso_proto::entities::{SyncEntity, is_known_kind, is_personal_only_kind};
 use termoso_proto::sync::*;
 use uuid::Uuid;
 
@@ -201,6 +201,11 @@ pub async fn push(
         };
         if !is_known_kind(&c.kind) {
             results.push(err(c.id, "unknown_kind"));
+            continue;
+        }
+        // Personal overlays name team items; a team vault must never hold one.
+        if is_personal_only_kind(&c.kind) && a.team_id.is_some() {
+            results.push(err(c.id, "forbidden"));
             continue;
         }
         if c.data.len() > max_bytes || unb64(&c.data).is_err() {

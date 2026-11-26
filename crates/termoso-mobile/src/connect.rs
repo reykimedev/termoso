@@ -515,12 +515,17 @@ fn remember_on_identity(
     edit: impl Fn(&mut Identity),
 ) {
     let result = (|| -> termoso_core::error::Result<()> {
-        if let Some(ident) = &resolved.identity {
+        if let Some(ident) = resolved.rememberable_identity() {
             // Re-read: the resolved copy may carry a username that falls
             // through from a tag, which must not be written into this one.
-            let mut data = store.require::<Identity>(ident.id)?.data;
+            let mut data = store.require::<Identity>(ident)?.data;
             edit(&mut data);
-            return store.update(ident.id, &data);
+            return store.update(ident, &data);
+        }
+        if !resolved.may_remember_in_host_vault() {
+            // A personal overlay is in use: never copy what was typed into
+            // the team vault. The user can add it to their own credentials.
+            return Ok(());
         }
         let vault_id = resolved.host.vault_id;
         let mut identity = Identity {
@@ -659,7 +664,7 @@ async fn ssh_connect(
     let mut jumps: Vec<Arc<SshClient>> = Vec::new();
     let mut via = jump;
     for link in chain {
-        let hop_resolved = store.resolve_host_in(link.id, Some(link.vault_id))?;
+        let hop_resolved = store.resolve_host_to_connect(link.id, Some(link.vault_id))?;
         let hop_target = SshTarget {
             host: hop_resolved.host.data.address.clone(),
             port: hop_resolved.port(),

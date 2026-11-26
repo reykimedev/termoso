@@ -50,6 +50,7 @@ payloads! {
     LogBookmark => "log_bookmark",
     ColorScheme => "color_scheme",
     OidcProvider => "oidc_provider",
+    HostOverlay => "host_overlay",
 }
 
 /// Decrypted entity as handed to the UI.
@@ -130,9 +131,44 @@ pub struct ResolvedHost {
     pub group_path: Vec<String>,
     /// Tag labels.
     pub tags: Vec<String>,
+    /// Vault the credentials (identity, key, certificate, OpenID key) come
+    /// from when it is not the host's: the member's personal or local vault
+    /// through a [`HostOverlay`]. `None` = the host's vault.
+    #[serde(default)]
+    pub credential_vault_id: Option<Uuid>,
+    /// The [`HostOverlay`] whose credentials are used.
+    #[serde(default)]
+    pub overlay_id: Option<Uuid>,
+    /// A host overlay that would apply but is paused because the team changed
+    /// the host's address or port since it was made. The UI asks before
+    /// using it again.
+    #[serde(default)]
+    pub paused_overlay_id: Option<Uuid>,
 }
 
 impl ResolvedHost {
+    /// Whether a credential the user types while connecting may be saved on
+    /// [`Self::identity`] or a new identity in the host's vault. Not when a
+    /// personal overlay is in use: that would copy a personal secret into
+    /// the team vault (or into the team identity).
+    pub fn may_remember_in_host_vault(&self) -> bool {
+        self.overlay_id.is_none()
+    }
+
+    /// The identity a typed credential may be remembered on: the overlay's
+    /// own identity when an overlay is in use, else the host's identity.
+    pub fn rememberable_identity(&self) -> Option<Uuid> {
+        self.identity
+            .as_ref()
+            .map(|i| i.id)
+            .filter(|id| !id.is_nil())
+    }
+
+    /// Vault the credentials come from (see [`Self::credential_vault_id`]).
+    pub fn credential_vault(&self) -> Uuid {
+        self.credential_vault_id.unwrap_or(self.host.vault_id)
+    }
+
     /// `ssh` | `telnet` | `serial` | `webdav` | `s3`, from which config the
     /// host carries.
     pub fn protocol(&self) -> &'static str {
