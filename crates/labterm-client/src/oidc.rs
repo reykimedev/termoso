@@ -177,7 +177,7 @@ pub fn provider_of(
     options: &OidcKeyOptions,
 ) -> Result<Option<Entity<OidcProvider>>> {
     if let Some(id) = options.provider_id
-        && let Some(p) = store.get::<OidcProvider>(id)?
+        && let Some(p) = crate::keychain::oidc_provider_in_reach(store, vault_id, id)?
     {
         return Ok(Some(p));
     }
@@ -328,8 +328,9 @@ pub fn sign_out(store: &Store, key_id: Uuid) -> Result<()> {
 }
 
 /// The OpenID key a host's SSH settings name (tried before its identity's
-/// credentials), when it is an opkssh key of the host's vault and not
-/// already the identity's key.
+/// credentials), when it is an opkssh key of the vault the credentials come
+/// from (the host's, or the member's own through a personal overlay) and
+/// not already the identity's key.
 pub fn host_key(
     store: &Store,
     resolved: &labterm_core::model::ResolvedHost,
@@ -341,7 +342,7 @@ pub fn host_key(
         return Ok(None);
     }
     Ok(store
-        .get_in::<SshKey>(id, resolved.host.vault_id)?
+        .get_in::<SshKey>(id, resolved.credential_vault())?
         .filter(|k| k.data.is_opkssh()))
 }
 
