@@ -14,7 +14,7 @@ use labterm_core::model::{Entity, ResolvedHost, Transport};
 use labterm_core::store::Store;
 use labterm_core::transport::TransportDial;
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Manager, Runtime, State};
+use tauri::{AppHandle, Runtime, State};
 use uuid::Uuid;
 
 use crate::error::{DesktopError, Result};
@@ -138,7 +138,7 @@ pub fn init<R: Runtime>(app: &AppHandle<R>) {
 
 #[cfg(unix)]
 fn library_path<R: Runtime>(app: &AppHandle<R>) -> Option<std::path::PathBuf> {
-    // A development build may point elsewhere (scripts/build-vpn-lib.sh
+    // A development build may point elsewhere (vpn/build.sh
     // prints the path).
     if let Some(p) = std::env::var_os("LABTERM_VPN_LIBRARY") {
         return Some(p.into());
@@ -153,6 +153,7 @@ fn library_path<R: Runtime>(app: &AppHandle<R>) -> Option<std::path::PathBuf> {
     // Linux: a resource next to the app (tauri.linux.conf.json).
     #[cfg(not(target_os = "macos"))]
     {
+        use tauri::Manager;
         let dir = app.path().resource_dir().ok()?;
         Some(dir.join("vpn").join("liblabterm_netbird.so"))
     }
