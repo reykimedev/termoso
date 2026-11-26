@@ -9,8 +9,10 @@ WORKDIR /src
 COPY Cargo.toml Cargo.lock ./
 COPY crates ./crates
 COPY apps/desktop/src-tauri ./apps/desktop/src-tauri
-RUN --mount=type=cache,id=cargo-registry-bridge,target=/usr/local/cargo/registry \
-    --mount=type=cache,id=target-bridge,target=/src/target \
+# Same cache mounts as the server build (deploy/Dockerfile): built after it in one builder (CI
+# does), the dependencies they share are not compiled again.
+RUN --mount=type=cache,id=cargo-registry-server,target=/usr/local/cargo/registry \
+    --mount=type=cache,id=target-server,target=/src/target \
     cargo build --release --locked -p labterm-bridge \
     && cp target/release/labterm-bridge /labterm-bridge
 

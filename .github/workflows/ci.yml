@@ -58,6 +58,7 @@ jobs:
       netbird: ${{ steps.filter.outputs.netbird }}
       fuzz: ${{ steps.filter.outputs.fuzz }}
       docker: ${{ steps.filter.outputs.docker }}
+      docker_backup: ${{ steps.filter.outputs.docker_backup }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -72,13 +73,13 @@ jobs:
           WORKFLOW: ${{ github.workflow }}
         run: |
           light="rust opkssh web desktop labterm_web kubernetes supply_chain"
-          heavy="web_images android netbird fuzz docker"
+          heavy="web_images android netbird fuzz docker docker_backup"
           set_to() { v=$1; shift; for j in "$@"; do echo "$j=$v" >> "$GITHUB_OUTPUT"; done; }
           shared='^(crates/|Cargo\.(toml|lock)$|rust-toolchain|\.cargo/|\.github/workflows/ci\.yml$|\.github/actions/)'
           ci='^\.github/workflows/ci\.yml$'
           has() { grep -qE "$1" <<<"$files" && echo true || echo false; }
           if [ "$WORKFLOW" = "Desktop release" ]; then
-            set_to true run $light netbird fuzz; set_to false web_images android docker; exit 0
+            set_to true run $light netbird fuzz; set_to false web_images android docker docker_backup; exit 0
           fi
           case "$EVENT" in
             pull_request)
@@ -102,6 +103,8 @@ jobs:
                 echo "netbird=$(has "$shared")"
                 echo "fuzz=$(has "$shared|^fuzz/")"
                 echo "docker=$(has "$shared|^apps/desktop/src-tauri/|^web/|^deploy/Dockerfile|^\.dockerignore$")"
+                # backup's build stage is the server's; only its own Dockerfile adds anything.
+                echo "docker_backup=$(has "$ci|^deploy/Dockerfile\.backup$|^\.dockerignore$")"
               } | tee -a "$GITHUB_OUTPUT" ;;
             push)
               set_to true run $light; set_to false $heavy ;;
@@ -111,7 +114,7 @@ jobs:
                 set_to false run $light $heavy
               else
                 # Images are built and published by devel.yml.
-                set_to false $light web_images docker; set_to true run android netbird fuzz
+                set_to false $light web_images docker docker_backup; set_to true run android netbird fuzz
               fi ;;
             *) set_to true run $light $heavy ;;
           esac
@@ -653,7 +656,8 @@ jobs:
   # them in server-images.yml. A skipped matrix job reports under its unexpanded name, which would
   # leave per-image required checks pending, so on a PR the matrix always runs and only its steps
   # skip when no image input changed. PRs build amd64 only; arm64 is built on main (devel.yml),
-  # and its legs stay here, empty, so their check names keep reporting.
+  # and its legs stay here, empty, so their check names keep reporting. The backup image builds
+  # only when deploy/Dockerfile.backup changed: its Rust build stage is the server's.
   docker:
     name: docker image (${{ matrix.image }}, ${{ matrix.arch }})
     # test and web may be skipped when their paths did not change; the matrix must still run.
@@ -674,10 +678,10 @@ jobs:
             runner: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        if: needs.changes.outputs.docker == 'true' && matrix.arch == 'amd64'
+        if: needs.changes.outputs.docker == 'true' && matrix.arch == 'amd64' && (matrix.image != 'backup' || needs.changes.outputs.docker_backup == 'true')
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-        if: needs.changes.outputs.docker == 'true' && matrix.arch == 'amd64'
-      - if: needs.changes.outputs.docker == 'true' && matrix.arch == 'amd64'
+        if: needs.changes.outputs.docker == 'true' && matrix.arch == 'amd64' && (matrix.image != 'backup' || needs.changes.outputs.docker_backup == 'true')
+      - if: needs.changes.outputs.docker == 'true' && matrix.arch == 'amd64' && (matrix.image != 'backup' || needs.changes.outputs.docker_backup == 'true')
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
