@@ -14,11 +14,11 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use chrono::{DateTime, Utc};
+use labterm_core::remote::RemoteFs;
+use labterm_core::sftp::{EntryKind, RemoteEntry, TransferOptions};
 use notify::Watcher;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, Runtime};
-use termoso_core::remote::RemoteFs;
-use termoso_core::sftp::{EntryKind, RemoteEntry, TransferOptions};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
@@ -463,7 +463,7 @@ impl<R: Runtime> Worker<R> {
                     return;
                 }
                 let res = match self.fs.stat(&remote_path).await {
-                    Ok(entry) if entry.kind == termoso_core::sftp::EntryKind::Dir => {
+                    Ok(entry) if entry.kind == labterm_core::sftp::EntryKind::Dir => {
                         known_dirs.remove(&remote_path);
                         self.fs.remove_dir_all(&remote_path, &cancel).await
                     }

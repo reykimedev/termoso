@@ -3,7 +3,7 @@
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use chrono::{DateTime, Utc};
-use termoso_proto::team::*;
+use labterm_proto::team::*;
 use uuid::Uuid;
 
 use crate::audit;

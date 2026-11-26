@@ -1,4 +1,4 @@
-/** Wire types mirroring `crates/termoso-proto`. Dates are RFC 3339 strings. */
+/** Wire types mirroring `crates/labterm-proto`. Dates are RFC 3339 strings. */
 
 export type Platform = "windows" | "linux" | "macos" | "android" | "ios" | "web" | "cli";
 

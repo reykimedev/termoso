@@ -131,7 +131,7 @@ async fn run_first(candidates: &[String], args: &[&str]) -> Result<Option<String
     for bin in candidates {
         let mut cmd = Command::new(bin);
         cmd.args(args).stdin(std::process::Stdio::null());
-        termoso_core::posture::hide_console_window(&mut cmd);
+        labterm_core::posture::hide_console_window(&mut cmd);
         let child = cmd.output();
         let out = match tokio::time::timeout(CLI_TIMEOUT, child).await {
             Err(_) => {

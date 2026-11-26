@@ -56,20 +56,20 @@ export const AUTO_THEME = "auto";
 // labdex's status colours, so a colour means the same in the terminal as in labdex. The ids
 // stay "termoso-*" so saved settings keep working.
 // prettier-ignore
-const termosoDark = t(TERMOSO_DARK, "Labterm Dark", appDark.lowest, appDark.text, lantern.main, "#F59A2340", [
+const labtermDark = t(TERMOSO_DARK, "Labterm Dark", appDark.lowest, appDark.text, lantern.main, "#F59A2340", [
   "#1E1E1C", "#F2555A", "#3ECF8E", "#F5C84C", "#5AA9FF", "#E879F9", "#4FD1C5", "#C9C9C4",
   "#5F5F5C", "#FF7B7F", "#6EE0AB", "#FFDB7A", "#8CC5FF", "#F0A6FB", "#84E7DD", "#F2F2EF",
 ]);
 // prettier-ignore
-const termosoLight = t(TERMOSO_LIGHT, "Labterm Light", appLight.high, appLight.text, lantern.dark, "#E8870E40", [
+const labtermLight = t(TERMOSO_LIGHT, "Labterm Light", appLight.high, appLight.text, lantern.dark, "#E8870E40", [
   "#1A1A19", "#C2410C", "#15803D", "#A16207", "#2563EB", "#A21CAF", "#0F766E", "#8F8F8A",
   "#5F5F5C", "#DC5A1F", "#1F9D50", "#CA8A04", "#3B82F6", "#C026D3", "#14958A", "#D3D3CF",
 ]);
 
 // prettier-ignore
 export const terminalThemes: readonly TerminalTheme[] = [
-  termosoDark,
-  termosoLight,
+  labtermDark,
+  labtermLight,
   t("flexoki-dark", "Flexoki Dark", "#100f0f", "#cecdc3", "#cecdc3", "#cecdc380", [
     "#100f0f", "#af3029", "#66800b", "#ad8301", "#205ea6", "#a02f6f", "#24837b", "#878580",
     "#6f6e69", "#d14d41", "#879a39", "#d0a215", "#4385be", "#ce5d97", "#3aa99f", "#cecdc3",
@@ -362,7 +362,7 @@ export function resolveTerminalTheme(
   id: string | undefined,
   scheme: "dark" | "light",
 ): TerminalTheme {
-  const fallback = scheme === "light" ? termosoLight : termosoDark;
+  const fallback = scheme === "light" ? labtermLight : labtermDark;
   if (!id || id === AUTO_THEME) return fallback;
   return byId.get(id) ?? custom.get(id) ?? fallback;
 }

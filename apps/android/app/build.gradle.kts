@@ -33,11 +33,11 @@ val abiSplits: Boolean = (findProperty("termoso.splits") as String?)?.toBoolean(
 val appLinkHost: String = findProperty("termoso.appLinkHost") as String
 
 android {
-    namespace = "com.termoso.android"
+    namespace = "dev.labdex.labterm"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.termoso.android"
+        applicationId = "dev.labdex.labterm"
         minSdk = 26
         targetSdk = 36
         versionCode = versionCodeOf(workspaceVersion)

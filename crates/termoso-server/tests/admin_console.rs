@@ -2,8 +2,8 @@
 
 mod common;
 use common::*;
+use labterm_proto::admin::{AdminJobList, AdminTeamDetail, AdminTeamList, AdminUserList};
 use reqwest::{Method, StatusCode};
-use termoso_proto::admin::{AdminJobList, AdminTeamDetail, AdminTeamList, AdminUserList};
 use uuid::Uuid;
 
 #[tokio::test]
@@ -158,7 +158,7 @@ async fn admin_sees_teams_and_manages_members() {
 
 #[tokio::test]
 async fn admin_sees_effective_config() {
-    use termoso_proto::admin::{AdminConfig, ServerSettings};
+    use labterm_proto::admin::{AdminConfig, ServerSettings};
     let Some(s) = server().await else { return };
     let admin_tok = admin_token(s).await;
     let user = register(s, &unique_email("cfg-user"), "pw-user-12345678").await;

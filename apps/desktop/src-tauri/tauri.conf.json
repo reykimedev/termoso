@@ -2,7 +2,7 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Labterm",
   "version": "../package.json",
-  "identifier": "com.termoso.desktop",
+  "identifier": "dev.labdex.labterm",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:5174",

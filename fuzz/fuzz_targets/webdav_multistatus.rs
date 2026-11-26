@@ -3,7 +3,7 @@
 
 use libfuzzer_sys::fuzz_target;
 use std::sync::LazyLock;
-use termoso_core::webdav::parse_multistatus;
+use labterm_core::webdav::parse_multistatus;
 use url::Url;
 
 static URLS: LazyLock<[(Url, &'static str); 2]> = LazyLock::new(|| {

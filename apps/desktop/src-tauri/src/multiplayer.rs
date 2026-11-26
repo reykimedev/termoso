@@ -1,18 +1,18 @@
 //! Multiplayer: share a terminal tab with teammates, or watch someone else's.
 //!
 //! The heavy lifting (link secret, key derivation, frame encryption, relay
-//! socket) lives in `termoso_core::live`; this module only ties it to the
+//! socket) lives in `labterm_core::live`; this module only ties it to the
 //! session registry and turns relay events into Tauri events. The share
 //! secret never reaches TypeScript except as the opaque link the host copies.
 
 use std::collections::HashMap;
 use std::sync::Mutex;
 
+use labterm_core::live::{HostShare, LiveEvent, LiveLink, ViewerJoin};
+use labterm_core::terminal::TermSize;
+use labterm_proto::live::LiveParticipant;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, Runtime};
-use termoso_core::live::{HostShare, LiveEvent, LiveLink, ViewerJoin};
-use termoso_core::terminal::TermSize;
-use termoso_proto::live::LiveParticipant;
 use tokio::sync::mpsc;
 use uuid::Uuid;
 
@@ -328,7 +328,7 @@ pub(crate) async fn join<R: Runtime>(app: &AppHandle<R>, id: Uuid, link: &str) -
         events,
         user_id,
         participants,
-    } = termoso_core::live::join(api, &link, tx).await?;
+    } = labterm_core::live::join(api, &link, tx).await?;
     let host = participants
         .iter()
         .find(|p| p.is_host)

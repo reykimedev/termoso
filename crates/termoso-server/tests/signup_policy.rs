@@ -6,10 +6,10 @@ mod common;
 
 use common::oidc::{self, Identity};
 use common::*;
+use labterm_proto::account::ServerInfo;
+use labterm_proto::admin::ServerSettings;
+use labterm_proto::auth::{LoginStartRequest, SsoResult, SsoStartResponse};
 use reqwest::{Method, StatusCode, redirect::Policy};
-use termoso_proto::account::ServerInfo;
-use termoso_proto::admin::ServerSettings;
-use termoso_proto::auth::{LoginStartRequest, SsoResult, SsoStartResponse};
 use url::Url;
 
 const PASSWORD: &str = "pw-policy-1234567890";
@@ -76,7 +76,7 @@ async fn server_info(s: &TestServer) -> ServerInfo {
 
 /// `sso_session` must be spent: presenting it again is refused outright.
 async fn assert_spent(s: &TestServer, email: &str, sso_session: String) {
-    let (request, _) = termoso_crypto::opaque::client_login_start(PASSWORD.as_bytes()).unwrap();
+    let (request, _) = labterm_crypto::opaque::client_login_start(PASSWORD.as_bytes()).unwrap();
     s.expect_status(
         Method::POST,
         "/auth/login/start",

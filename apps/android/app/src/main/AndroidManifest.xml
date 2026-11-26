@@ -25,7 +25,7 @@
     </queries>
 
     <application
-        android:name=".TermosoApplication"
+        android:name=".LabtermApplication"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="false"
@@ -33,7 +33,7 @@
         android:label="@string/app_name"
         android:localeConfig="@xml/locales_config"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Termoso"
+        android:theme="@style/Theme.Labterm"
         android:enableOnBackInvokedCallback="true"
         tools:targetApi="34"
         android:usesCleartextTraffic="true">
@@ -44,7 +44,7 @@
             android:launchMode="singleTask"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|keyboard|uiMode|smallestScreenSize|density"
             android:windowSoftInputMode="adjustResize"
-            android:theme="@style/Theme.Termoso">
+            android:theme="@style/Theme.Labterm">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

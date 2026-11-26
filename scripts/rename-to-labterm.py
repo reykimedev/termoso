@@ -52,7 +52,7 @@ IDENTS = {
 
 # Text that must never change, protected before the rules run.
 KEEP = [
-    r'"termoso-core/',  # user agent the server sees
+    r'"termoso-core/\{\}"',  # user agent the server sees
     r"TermosoCaptcha",
     r"termosoCaptcha",
 ]
@@ -131,6 +131,9 @@ def rules(path, s):
         s = re.sub(r"(?m)^(\s+path: )Termoso/", r"\1Labterm/", s)
         s = re.sub(r"(?m)^(\s+)Termoso: all$", r"\1Labterm: all", s)
         s = s.replace("CFBundleName: Termoso", "CFBundleName: Labterm")
+    if path.startswith("apps/ios/"):
+        s = re.sub(r"(?m)^@testable import Termoso$", "@testable import Labterm", s)
+    s = s.replace("Theme.Termoso", "Theme.Labterm")
     return s
 
 

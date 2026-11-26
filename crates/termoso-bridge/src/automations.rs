@@ -6,12 +6,12 @@ use std::time::{Duration, Instant};
 
 use futures::StreamExt;
 
-use termoso_crypto::aead::{self, Aad};
-use termoso_crypto::keys::SymmetricKey;
-use termoso_proto::automation::{
+use labterm_crypto::aead::{self, Aad};
+use labterm_crypto::keys::SymmetricKey;
+use labterm_proto::automation::{
     ClaimRunsRequest, ClaimedRun, FinishRunRequest, HostRunResult, OUTPUT_CAP, RUN_AAD,
 };
-use termoso_proto::entities::payload::{Group, Host, Snippet};
+use labterm_proto::entities::payload::{Group, Host, Snippet};
 use uuid::Uuid;
 
 use crate::bridge::Bridge;

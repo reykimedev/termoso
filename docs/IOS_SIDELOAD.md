@@ -66,13 +66,13 @@ jq '.apps[0].versions[0] | {version, downloadURL, sha256}' termoso-altstore.json
 ```
 
 The `.ipa` is a plain zip: `unzip -l termoso-*-ios.ipa` shows one
-`Payload/Termoso.app`. The Rust core (`crates/termoso-mobile`) is statically
+`Payload/Labterm.app`. The Rust core (`crates/labterm-mobile`) is statically
 linked into the app binary, so there are no embedded frameworks to inspect
 separately.
 
 ## Other ways to install the same `.ipa`
 
-* **Xcode** (free Apple ID): open `apps/ios/Termoso.xcodeproj` (after
+* **Xcode** (free Apple ID): open `apps/ios/Labterm.xcodeproj` (after
   `./build-core.sh --device` and `xcodegen generate`), set your team under
   *Signing & Capabilities*, run on the connected iPhone. Same 7-day profile.
 * **Sideloadly / iOS App Signer**: drag the `.ipa` in, sign with your Apple ID.
@@ -84,10 +84,10 @@ separately.
 `release.yml` on a tag:
 
 1. `apps/ios/build-core.sh --release --device --no-sim` — builds
-   `termoso-mobile` for `aarch64-apple-ios`, generates the UniFFI Swift
-   bindings and wraps the static library into `TermosoCoreFFI.xcframework`.
+   `labterm-mobile` for `aarch64-apple-ios`, generates the UniFFI Swift
+   bindings and wraps the static library into `LabtermCoreFFI.xcframework`.
 2. `xcodegen generate` → `xcodebuild archive` with code signing **disabled**.
-3. Zips `Payload/Termoso.app` into `termoso-<version>-ios.ipa` and checks
+3. Zips `Payload/Labterm.app` into `termoso-<version>-ios.ipa` and checks
    `CFBundleShortVersionString` equals the tag.
 4. The `publish` job uploads the `.ipa`, renders the source with
    `apps/ios/altstore/render.py` (URL, size, SHA-256, build number read from

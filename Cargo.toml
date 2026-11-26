@@ -1,16 +1,16 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/termoso-crypto",
-    "crates/termoso-proto",
-    "crates/termoso-core",
-    "crates/termoso-client",
-    "crates/termoso-mobile",
-    "crates/termoso-mobile/uniffi-bindgen",
-    "crates/termoso-awslc-rsa",
+    "crates/labterm-crypto",
+    "crates/labterm-proto",
+    "crates/labterm-core",
+    "crates/labterm-client",
+    "crates/labterm-mobile",
+    "crates/labterm-mobile/uniffi-bindgen",
+    "crates/labterm-awslc-rsa",
     "crates/termoso-server",
     "crates/termoso-bridge",
-    "crates/termoso-wasm",
+    "crates/labterm-wasm",
     "apps/desktop/src-tauri",
 ]
 # cargo-fuzz targets (nightly, libFuzzer); built on their own via `cargo fuzz`.
@@ -26,12 +26,12 @@ homepage = "https://termoso.dev"
 authors = ["Termoso contributors"]
 
 [workspace.dependencies]
-termoso-crypto = { path = "crates/termoso-crypto" }
-termoso-proto = { path = "crates/termoso-proto" }
-termoso-core = { path = "crates/termoso-core", default-features = false }
-termoso-client = { path = "crates/termoso-client", default-features = false }
+labterm-crypto = { path = "crates/labterm-crypto" }
+labterm-proto = { path = "crates/labterm-proto" }
+labterm-core = { path = "crates/labterm-core", default-features = false }
+labterm-client = { path = "crates/labterm-client", default-features = false }
 termoso-bridge = { path = "crates/termoso-bridge" }
-termoso-awslc-rsa = { path = "crates/termoso-awslc-rsa" }
+labterm-awslc-rsa = { path = "crates/labterm-awslc-rsa" }
 
 # mobile bindings
 uniffi = { version = "0.32.0", default-features = false }

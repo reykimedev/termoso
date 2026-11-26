@@ -12,8 +12,8 @@ use std::time::Duration as StdDuration;
 use axum::Json;
 use axum::extract::{Path, State};
 use chrono::{DateTime, Duration, Utc};
+use labterm_proto::automation::*;
 use sqlx::PgExecutor;
-use termoso_proto::automation::*;
 use uuid::Uuid;
 
 use crate::audit;

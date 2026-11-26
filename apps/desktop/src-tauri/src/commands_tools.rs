@@ -1,20 +1,20 @@
 //! IPC surface for keychain, port forwarding, snippets, known hosts, logs
 //! and account/sync. Thin adapters; the façades own validation and secrets.
 
+use labterm_proto::team as proto;
 use std::collections::HashMap;
-use termoso_proto::team as proto;
 
 use serde::Deserialize;
 
+use labterm_client::trust::HostKeyPin;
+use labterm_core::model::SshKey;
+use labterm_core::secrets::MasterKeySource;
+use labterm_proto::account::{ServerInfo, UserProfile};
+use labterm_proto::ai::{AiCommandResponse, AiStatus};
+use labterm_proto::auth::{Device, MfaCredential};
+use labterm_proto::team::{Invite, Team, TeamPresence, TeamRole};
+use labterm_proto::vault::{VaultMember, VaultRole};
 use tauri::{AppHandle, Emitter, Manager, Runtime, State};
-use termoso_client::trust::HostKeyPin;
-use termoso_core::model::SshKey;
-use termoso_core::secrets::MasterKeySource;
-use termoso_proto::account::{ServerInfo, UserProfile};
-use termoso_proto::ai::{AiCommandResponse, AiStatus};
-use termoso_proto::auth::{Device, MfaCredential};
-use termoso_proto::team::{Invite, Team, TeamPresence, TeamRole};
-use termoso_proto::vault::{VaultMember, VaultRole};
 use uuid::Uuid;
 use zeroize::Zeroizing;
 
@@ -82,7 +82,7 @@ fn blocking_err(e: tokio::task::JoinError) -> DesktopError {
 
 /// FIDO2 authenticators plugged in right now (USB HID enumeration; local only).
 #[tauri::command]
-pub async fn fido2_devices() -> Result<Vec<termoso_core::fido2::Fido2Device>> {
+pub async fn fido2_devices() -> Result<Vec<labterm_core::fido2::Fido2Device>> {
     tokio::task::spawn_blocking(keychain::fido2_devices)
         .await
         .map_err(blocking_err)
@@ -306,11 +306,11 @@ pub async fn key_export(
 }
 
 /// Team policy `export = deny` covers private keys of the team vault.
-fn key_export_allowed(store: &termoso_core::store::Store, id: Uuid) -> Result<()> {
-    let e = store.require::<termoso_core::model::SshKey>(id)?;
-    if termoso_core::policy::export_denied(store, e.vault_id) {
+fn key_export_allowed(store: &labterm_core::store::Store, id: Uuid) -> Result<()> {
+    let e = store.require::<labterm_core::model::SshKey>(id)?;
+    if labterm_core::policy::export_denied(store, e.vault_id) {
         return Err(DesktopError::invalid(
-            termoso_core::policy::Denied::Export.message(),
+            labterm_core::policy::Denied::Export.message(),
         ));
     }
     Ok(())
@@ -402,12 +402,12 @@ pub struct AgentKeys {
     pub available: bool,
     /// Why the agent is unavailable (never contains secrets).
     pub error: Option<String>,
-    pub keys: Vec<termoso_core::agent::AgentKey>,
+    pub keys: Vec<labterm_core::agent::AgentKey>,
 }
 
 #[tauri::command]
 pub async fn agent_keys() -> Result<AgentKeys> {
-    let mut agent = match termoso_core::agent::connect_system_agent().await {
+    let mut agent = match labterm_core::agent::connect_system_agent().await {
         Ok(a) => a,
         Err(e) => {
             return Ok(AgentKeys {
@@ -417,7 +417,7 @@ pub async fn agent_keys() -> Result<AgentKeys> {
             });
         }
     };
-    match termoso_core::agent::list_keys(&mut agent).await {
+    match labterm_core::agent::list_keys(&mut agent).await {
         Ok(keys) => Ok(AgentKeys {
             available: true,
             error: None,
@@ -643,7 +643,7 @@ pub async fn host_key_pins(
     host: String,
     port: u16,
 ) -> Result<Vec<HostKeyPin>> {
-    termoso_client::trust::pins(&state.store()?, &host, port)
+    labterm_client::trust::pins(&state.store()?, &host, port)
 }
 
 #[tauri::command]
@@ -654,7 +654,7 @@ pub async fn host_key_pin(
     port: u16,
     public_key: Option<String>,
 ) -> Result<Vec<HostKeyPin>> {
-    termoso_client::trust::pin(
+    labterm_client::trust::pin(
         &state.store()?,
         vault_id,
         &host,
@@ -665,7 +665,7 @@ pub async fn host_key_pin(
 
 #[tauri::command]
 pub async fn host_key_unpin(state: State<'_, AppState>, id: Uuid) -> Result<()> {
-    termoso_client::trust::unpin(&state.store()?, id)
+    labterm_client::trust::unpin(&state.store()?, id)
 }
 
 #[tauri::command]
@@ -792,7 +792,7 @@ pub fn import_discard(preview_id: Uuid) {
 pub async fn cloud_discover(
     state: State<'_, AppState>,
     vault_id: Uuid,
-    config: termoso_core::cloud::CloudConfig,
+    config: labterm_core::cloud::CloudConfig,
 ) -> Result<CloudPreview> {
     cloud::discover(&*state.store()?, vault_id, config).await
 }
@@ -865,11 +865,11 @@ pub async fn cloud_sync_run(
 /// Browse the LAN for SSH servers advertised over mDNS/DNS-SD. Candidates
 /// only; nothing is stored until the user imports one.
 #[tauri::command]
-pub async fn mdns_browse(timeout_ms: Option<u64>) -> Result<Vec<termoso_core::mdns::LocalDevice>> {
+pub async fn mdns_browse(timeout_ms: Option<u64>) -> Result<Vec<labterm_core::mdns::LocalDevice>> {
     let timeout = timeout_ms
         .map(std::time::Duration::from_millis)
-        .unwrap_or(termoso_core::mdns::DEFAULT_TIMEOUT);
-    Ok(termoso_core::mdns::browse(timeout).await?)
+        .unwrap_or(labterm_core::mdns::DEFAULT_TIMEOUT);
+    Ok(labterm_core::mdns::browse(timeout).await?)
 }
 
 /// Machines known to the local Tailscale / NetBird / ZeroTier client.
@@ -918,7 +918,7 @@ pub async fn wake_host(mac: String, broadcast: Option<String>) -> Result<usize> 
         ),
         None => None,
     };
-    Ok(termoso_core::wol::wake(&mac, target).await?)
+    Ok(labterm_core::wol::wake(&mac, target).await?)
 }
 
 /// Encrypt the given vaults (all unlocked when empty) into a `.termoso` file.
@@ -1158,7 +1158,7 @@ pub async fn save_text_file(path: String, contents: String) -> Result<()> {
 pub async fn account_sso_discover(
     server_url: String,
     email: String,
-) -> Result<termoso_proto::auth::SsoDiscoverResponse> {
+) -> Result<labterm_proto::auth::SsoDiscoverResponse> {
     account::sso_discover(&server_url, &email).await
 }
 
@@ -1546,7 +1546,7 @@ pub async fn team_policies<R: Runtime>(
 pub async fn team_ca<R: Runtime>(
     app: AppHandle<R>,
     team_id: Uuid,
-) -> Result<Option<termoso_proto::ca::TeamCa>> {
+) -> Result<Option<labterm_proto::ca::TeamCa>> {
     team::ca(&app, team_id).await
 }
 
@@ -1554,8 +1554,8 @@ pub async fn team_ca<R: Runtime>(
 pub async fn team_update_ca<R: Runtime>(
     app: AppHandle<R>,
     team_id: Uuid,
-    patch: termoso_proto::ca::UpdateTeamCaRequest,
-) -> Result<termoso_proto::ca::TeamCa> {
+    patch: labterm_proto::ca::UpdateTeamCaRequest,
+) -> Result<labterm_proto::ca::TeamCa> {
     team::update_ca(&app, team_id, patch).await
 }
 
@@ -1569,7 +1569,7 @@ pub async fn team_rotate_ca<R: Runtime>(
     app: AppHandle<R>,
     team_id: Uuid,
     grace_hours: Option<i32>,
-) -> Result<termoso_proto::ca::TeamCa> {
+) -> Result<labterm_proto::ca::TeamCa> {
     team::rotate_ca(&app, team_id, grace_hours).await
 }
 
@@ -1577,7 +1577,7 @@ pub async fn team_rotate_ca<R: Runtime>(
 pub async fn team_ca_certificates<R: Runtime>(
     app: AppHandle<R>,
     team_id: Uuid,
-) -> Result<termoso_proto::ca::IssuedCertificateList> {
+) -> Result<labterm_proto::ca::IssuedCertificateList> {
     team::ca_certificates(&app, team_id).await
 }
 
@@ -1586,7 +1586,7 @@ pub async fn team_ca_revoke<R: Runtime>(
     app: AppHandle<R>,
     team_id: Uuid,
     certificate_id: Uuid,
-) -> Result<termoso_proto::ca::IssuedCertificate> {
+) -> Result<labterm_proto::ca::IssuedCertificate> {
     team::ca_revoke(&app, team_id, certificate_id).await
 }
 
@@ -1594,7 +1594,7 @@ pub async fn team_ca_revoke<R: Runtime>(
 pub async fn team_ca_local<R: Runtime>(
     app: AppHandle<R>,
     team_id: Uuid,
-) -> Result<Option<termoso_core::ca::CachedCert>> {
+) -> Result<Option<labterm_core::ca::CachedCert>> {
     team::ca_local(&app, team_id).await
 }
 
@@ -1677,7 +1677,7 @@ pub async fn team_logs<R: Runtime>(
     app: AppHandle<R>,
     team_id: Uuid,
     vault_id: Option<Uuid>,
-) -> Result<termoso_proto::logs::LogListResponse> {
+) -> Result<labterm_proto::logs::LogListResponse> {
     team::logs(&app, team_id, vault_id).await
 }
 
@@ -1729,7 +1729,7 @@ pub async fn rotation_run_job<R: Runtime>(
 pub async fn rotation_mark_done<R: Runtime>(
     app: AppHandle<R>,
     job_id: Uuid,
-) -> Result<termoso_proto::team::RotationJob> {
+) -> Result<labterm_proto::team::RotationJob> {
     crate::rotation::mark_done(&app, job_id).await
 }
 
@@ -2026,7 +2026,7 @@ pub fn update_restart<R: Runtime>(app: AppHandle<R>) {
 pub async fn team_automations<R: Runtime>(
     app: AppHandle<R>,
     team_id: Uuid,
-) -> Result<termoso_proto::automation::AutomationList> {
+) -> Result<labterm_proto::automation::AutomationList> {
     crate::automations::list(&app, team_id).await
 }
 
@@ -2034,8 +2034,8 @@ pub async fn team_automations<R: Runtime>(
 pub async fn team_automation_create<R: Runtime>(
     app: AppHandle<R>,
     team_id: Uuid,
-    req: termoso_proto::automation::CreateAutomationRequest,
-) -> Result<termoso_proto::automation::Automation> {
+    req: labterm_proto::automation::CreateAutomationRequest,
+) -> Result<labterm_proto::automation::Automation> {
     crate::automations::create(&app, team_id, req).await
 }
 
@@ -2044,8 +2044,8 @@ pub async fn team_automation_update<R: Runtime>(
     app: AppHandle<R>,
     team_id: Uuid,
     id: Uuid,
-    req: termoso_proto::automation::UpdateAutomationRequest,
-) -> Result<termoso_proto::automation::Automation> {
+    req: labterm_proto::automation::UpdateAutomationRequest,
+) -> Result<labterm_proto::automation::Automation> {
     crate::automations::update(&app, team_id, id, req).await
 }
 
@@ -2063,7 +2063,7 @@ pub async fn team_automation_run_now<R: Runtime>(
     app: AppHandle<R>,
     team_id: Uuid,
     id: Uuid,
-) -> Result<termoso_proto::automation::AutomationRun> {
+) -> Result<labterm_proto::automation::AutomationRun> {
     crate::automations::run_now(&app, team_id, id).await
 }
 
@@ -2072,7 +2072,7 @@ pub async fn team_automation_runs<R: Runtime>(
     app: AppHandle<R>,
     team_id: Uuid,
     id: Uuid,
-) -> Result<termoso_proto::automation::AutomationRunList> {
+) -> Result<labterm_proto::automation::AutomationRunList> {
     crate::automations::runs(&app, team_id, id).await
 }
 
@@ -2086,7 +2086,7 @@ pub async fn team_automations_execute<R: Runtime>(app: AppHandle<R>) -> Result<u
 #[tauri::command]
 pub async fn gateways_list<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
-) -> Result<Vec<termoso_proto::bridge::GatewayInfo>> {
+) -> Result<Vec<labterm_proto::bridge::GatewayInfo>> {
     Ok(crate::account::api(&app).await?.gateways().await?.gateways)
 }
 
@@ -2094,7 +2094,7 @@ pub async fn gateways_list<R: tauri::Runtime>(
 pub async fn team_access_reviews<R: Runtime>(
     app: AppHandle<R>,
     team_id: Uuid,
-) -> Result<termoso_proto::team::AccessReviewList> {
+) -> Result<labterm_proto::team::AccessReviewList> {
     team::access_reviews(&app, team_id).await
 }
 
@@ -2103,7 +2103,7 @@ pub async fn team_access_review<R: Runtime>(
     app: AppHandle<R>,
     team_id: Uuid,
     review_id: Uuid,
-) -> Result<termoso_proto::team::AccessReviewDetail> {
+) -> Result<labterm_proto::team::AccessReviewDetail> {
     team::access_review(&app, team_id, review_id).await
 }
 
@@ -2111,7 +2111,7 @@ pub async fn team_access_review<R: Runtime>(
 pub async fn team_access_review_open<R: Runtime>(
     app: AppHandle<R>,
     team_id: Uuid,
-) -> Result<termoso_proto::team::AccessReviewDetail> {
+) -> Result<labterm_proto::team::AccessReviewDetail> {
     team::open_access_review(&app, team_id).await
 }
 
@@ -2121,8 +2121,8 @@ pub async fn team_access_review_decide<R: Runtime>(
     team_id: Uuid,
     review_id: Uuid,
     item_id: Uuid,
-    req: termoso_proto::team::DecideAccessReviewItemRequest,
-) -> Result<termoso_proto::team::AccessReviewItem> {
+    req: labterm_proto::team::DecideAccessReviewItemRequest,
+) -> Result<labterm_proto::team::AccessReviewItem> {
     team::decide_access_review_item(&app, team_id, review_id, item_id, req).await
 }
 
@@ -2131,8 +2131,8 @@ pub async fn team_access_review_complete<R: Runtime>(
     app: AppHandle<R>,
     team_id: Uuid,
     review_id: Uuid,
-    req: termoso_proto::team::CompleteAccessReviewRequest,
-) -> Result<termoso_proto::team::AccessReviewDetail> {
+    req: labterm_proto::team::CompleteAccessReviewRequest,
+) -> Result<labterm_proto::team::AccessReviewDetail> {
     team::complete_access_review(&app, team_id, review_id, req).await
 }
 
@@ -2141,7 +2141,7 @@ pub async fn team_access_review_cancel<R: Runtime>(
     app: AppHandle<R>,
     team_id: Uuid,
     review_id: Uuid,
-) -> Result<termoso_proto::team::AccessReview> {
+) -> Result<labterm_proto::team::AccessReview> {
     team::cancel_access_review(&app, team_id, review_id).await
 }
 
@@ -2149,7 +2149,7 @@ pub async fn team_access_review_cancel<R: Runtime>(
 pub async fn team_break_glass<R: Runtime>(
     app: AppHandle<R>,
     team_id: Uuid,
-) -> Result<Option<termoso_proto::team::BreakGlass>> {
+) -> Result<Option<labterm_proto::team::BreakGlass>> {
     team::break_glass(&app, team_id).await
 }
 
@@ -2157,8 +2157,8 @@ pub async fn team_break_glass<R: Runtime>(
 pub async fn team_break_glass_configure<R: Runtime>(
     app: AppHandle<R>,
     team_id: Uuid,
-    req: termoso_proto::team::ConfigureBreakGlassRequest,
-) -> Result<termoso_proto::team::BreakGlass> {
+    req: labterm_proto::team::ConfigureBreakGlassRequest,
+) -> Result<labterm_proto::team::BreakGlass> {
     team::configure_break_glass(&app, team_id, req).await
 }
 
@@ -2171,8 +2171,8 @@ pub async fn team_break_glass_delete<R: Runtime>(app: AppHandle<R>, team_id: Uui
 pub async fn team_break_glass_use<R: Runtime>(
     app: AppHandle<R>,
     team_id: Uuid,
-    req: termoso_proto::team::UseBreakGlassRequest,
-) -> Result<termoso_proto::team::BreakGlass> {
+    req: labterm_proto::team::UseBreakGlassRequest,
+) -> Result<labterm_proto::team::BreakGlass> {
     team::use_break_glass(&app, team_id, req).await
 }
 
@@ -2180,7 +2180,7 @@ pub async fn team_break_glass_use<R: Runtime>(
 pub async fn team_break_glass_end<R: Runtime>(
     app: AppHandle<R>,
     team_id: Uuid,
-) -> Result<termoso_proto::team::BreakGlass> {
+) -> Result<labterm_proto::team::BreakGlass> {
     team::end_break_glass(&app, team_id).await
 }
 
@@ -2188,6 +2188,6 @@ pub async fn team_break_glass_end<R: Runtime>(
 pub async fn team_audit_verify<R: Runtime>(
     app: AppHandle<R>,
     team_id: Uuid,
-) -> Result<termoso_proto::team::AuditVerification> {
+) -> Result<labterm_proto::team::AuditVerification> {
     team::verify_audit(&app, team_id).await
 }

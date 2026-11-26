@@ -1,0 +1,326 @@
+package dev.labdex.labterm.ui.team
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.labdex.labterm.R
+import dev.labdex.labterm.data.AccountManager
+import dev.labdex.labterm.data.userMessage
+import dev.labdex.labterm.str
+import dev.labdex.labterm.ui.components.IconTile
+import dev.labdex.labterm.ui.components.ListRow
+import dev.labdex.labterm.ui.components.RowDivider
+import dev.labdex.labterm.ui.components.SectionCard
+import dev.labdex.labterm.ui.components.SectionLabel
+import dev.labdex.labterm.ui.components.SubScreen
+import dev.labdex.labterm.ui.components.UserAvatar
+import dev.labdex.labterm.ui.hosts.ConfirmDialog
+import dev.labdex.labterm.ui.shell.ShellViewModel
+import dev.labdex.labterm.core.TeamMemberCard
+import dev.labdex.labterm.core.VaultAccess
+import dev.labdex.labterm.core.VaultMemberCard
+import kotlinx.coroutines.launch
+
+/**
+ * One team vault: who can open it and how. Managers grant, change and revoke
+ * access; every grant seals the key on this phone, every revoke rotates it.
+ */
+@Composable
+fun TeamVaultScreen(
+    shell: ShellViewModel,
+    account: AccountManager,
+    vaultId: String,
+    onBack: () -> Unit,
+) {
+    val status by account.status.collectAsStateWithLifecycle()
+    val vault = status.vaults.firstOrNull { it.id == vaultId }
+    val scope = rememberCoroutineScope()
+    var members by remember { mutableStateOf<List<VaultMemberCard>?>(null) }
+    var teamMembers by remember { mutableStateOf<List<TeamMemberCard>>(emptyList()) }
+    var reload by remember { mutableIntStateOf(0) }
+    var menu by remember { mutableStateOf(false) }
+    var renaming by remember { mutableStateOf(false) }
+    var rotating by remember { mutableStateOf(false) }
+    var deleting by remember { mutableStateOf(false) }
+    var adding by remember { mutableStateOf(false) }
+    var memberMenu by remember { mutableStateOf<VaultMemberCard?>(null) }
+    var revoking by remember { mutableStateOf<VaultMemberCard?>(null) }
+    val canManage = vault?.access == VaultAccess.MANAGE && !vault.locked
+
+    LaunchedEffect(vaultId, reload, vault?.teamId) {
+        val teamId = vault?.teamId ?: return@LaunchedEffect
+        runCatching {
+            shell.repo.read { teamVaultMembers(vaultId) to teamMembers(teamId) }
+        }.onSuccess { (m, t) -> members = m; teamMembers = t }
+            .onFailure { shell.notify(it.userMessage()) }
+    }
+
+    fun mutate(done: String? = null, block: suspend () -> Unit) {
+        scope.launch {
+            runCatching { block() }
+                .onSuccess { reload++; done?.let(shell::notify) }
+                .onFailure { shell.notify(it.userMessage()) }
+        }
+    }
+
+    SubScreen(
+        title = vault?.name ?: stringResource(R.string.vault),
+        onBack = onBack,
+        actions = {
+            if (canManage) {
+                Box {
+                    IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more)) }
+                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                        DropdownMenuItem(text = { Text(stringResource(R.string.rename_vault)) }, onClick = { menu = false; renaming = true })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.rotate_key)) }, onClick = { menu = false; rotating = true })
+                        if (vault?.isDefault != true) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.delete_vault), color = MaterialTheme.colorScheme.error) },
+                                onClick = { menu = false; deleting = true },
+                            )
+                        }
+                    }
+                }
+            }
+        },
+    ) { padding ->
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp),
+        ) {
+            Spacer(Modifier.height(8.dp))
+            if (vault == null) {
+                Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                    Text(stringResource(R.string.this_vault_is_no_longer_on_this_device), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                return@SubScreen
+            }
+            SectionCard {
+                ListRow(
+                    title = vault.name,
+                    subtitle = when {
+                        vault.locked -> stringResource(R.string.key_not_received_yet_ask_a_manager_to)
+                        vault.isDefault -> stringResource(R.string.you_5, vault.access.label()) + stringResource(R.string.sep_default_vault)
+                        else -> stringResource(R.string.you_5, vault.access.label())
+                    },
+                    leading = { IconTile(if (vault.locked) Icons.Filled.Lock else Icons.Filled.LockOpen) },
+                )
+            }
+
+            vault?.teamId?.let { tid -> AclSection(shell = shell, teamId = tid, vaultId = vaultId) }
+            SectionLabel(stringResource(R.string.access))
+            SectionCard {
+                val list = members
+                when {
+                    list == null -> Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+                    }
+                    else -> list.forEachIndexed { i, m ->
+                        if (i > 0) RowDivider()
+                        ListRow(
+                            title = (m.displayName ?: m.email) + if (m.me) stringResource(R.string.you_3) else "",
+                            subtitle = m.access.label() + if (m.pending) stringResource(R.string.sep_waiting_for_key) else "",
+                            leading = { UserAvatar(shell.repo, m.userId, m.avatar, m.displayName ?: m.email) },
+                            trailing = when {
+                                m.pending && canManage -> {
+                                    {
+                                        TextButton(onClick = { mutate { shell.repo.read { setTeamVaultAccess(vaultId, m.userId, m.access) } } }) {
+                                            Text(stringResource(R.string.grant))
+                                        }
+                                    }
+                                }
+                                canManage && !m.me -> {
+                                    { IconButton(onClick = { memberMenu = m }) { Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.manage)) } }
+                                }
+                                else -> null
+                            },
+                        )
+                    }
+                }
+                if (canManage) {
+                    RowDivider()
+                    ListRow(
+                        title = stringResource(R.string.add_member),
+                        titleColor = MaterialTheme.colorScheme.primary,
+                        leading = { IconTile(Icons.Filled.PersonAdd, tint = MaterialTheme.colorScheme.primary) },
+                        modifier = Modifier.clickable { adding = true },
+                    )
+                }
+            }
+            if (canManage) {
+                Text(
+                    stringResource(R.string.granting_seals_the_vault_key_to_the_members),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+            }
+            Spacer(Modifier.height(24.dp))
+        }
+    }
+
+    if (renaming && vault != null) {
+        NameDialog(
+            title = stringResource(R.string.rename_vault),
+            label = stringResource(R.string.vault_name),
+            initial = vault.name,
+            onDismiss = { renaming = false },
+            onConfirm = { renaming = false; mutate { shell.repo.write { renameTeamVault(vaultId, it) } } },
+        )
+    }
+    if (rotating) {
+        ConfirmDialog(
+            title = stringResource(R.string.rotate_the_vault_key),
+            text = stringResource(R.string.a_new_key_is_generated_on_this_phone),
+            confirm = stringResource(R.string.rotate),
+            onConfirm = { rotating = false; mutate(str(R.string.vault_key_rotated)) { shell.repo.write { rotateTeamVaultKey(vaultId) } } },
+            onDismiss = { rotating = false },
+        )
+    }
+    if (deleting && vault != null) {
+        ConfirmDialog(
+            title = stringResource(R.string.delete_3, vault.name),
+            text = stringResource(R.string.its_hosts_keys_and_snippets_are_deleted_for),
+            confirm = stringResource(R.string.delete),
+            onConfirm = {
+                deleting = false
+                scope.launch {
+                    runCatching { shell.repo.write { deleteTeamVault(vaultId) } }
+                        .onSuccess { shell.notify(str(R.string.vault_deleted)); onBack() }
+                        .onFailure { shell.notify(it.userMessage()) }
+                }
+            },
+            onDismiss = { deleting = false },
+        )
+    }
+    if (adding) {
+        val present = members?.map { it.userId }?.toSet() ?: emptySet()
+        AddVaultMemberDialog(
+            candidates = teamMembers.filter { !it.me && it.userId !in present },
+            onDismiss = { adding = false },
+            onAdd = { userId, access -> adding = false; mutate { shell.repo.read { setTeamVaultAccess(vaultId, userId, access) } } },
+        )
+    }
+    memberMenu?.let { m ->
+        AlertDialog(
+            onDismissRequest = { memberMenu = null },
+            title = { Text(m.displayName ?: m.email) },
+            text = {
+                Column {
+                    listOf(VaultAccess.VIEW, VaultAccess.EDIT, VaultAccess.MANAGE).forEach { a ->
+                        val current = m.access == a
+                        ListRow(
+                            title = a.label() + if (current) stringResource(R.string.sep_current) else "",
+                            subtitle = a.hint(),
+                            titleColor = if (current) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.clickable(enabled = !current) {
+                                memberMenu = null
+                                mutate { shell.repo.read { setTeamVaultAccess(vaultId, m.userId, a) } }
+                            },
+                        )
+                    }
+                    ListRow(
+                        title = stringResource(R.string.revoke_access),
+                        titleColor = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.clickable { memberMenu = null; revoking = m },
+                    )
+                }
+            },
+            confirmButton = {},
+            dismissButton = { TextButton(onClick = { memberMenu = null }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
+    revoking?.let { m ->
+        ConfirmDialog(
+            title = stringResource(R.string.revoke_access_for, m.displayName ?: m.email),
+            text = stringResource(R.string.the_vault_key_is_rotated_on_this_phone),
+            confirm = stringResource(R.string.revoke),
+            onConfirm = { revoking = null; mutate { shell.repo.write { removeTeamVaultAccess(vaultId, m.userId) } } },
+            onDismiss = { revoking = null },
+        )
+    }
+}
+
+@Composable
+private fun AddVaultMemberDialog(
+    candidates: List<TeamMemberCard>,
+    onDismiss: () -> Unit,
+    onAdd: (userId: String, access: VaultAccess) -> Unit,
+) {
+    var picked by remember { mutableStateOf<TeamMemberCard?>(null) }
+    var access by remember { mutableStateOf(VaultAccess.VIEW) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.add_member)) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                if (candidates.isEmpty()) {
+                    Text(
+                        stringResource(R.string.everyone_in_the_team_already_has_access_invite),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                candidates.forEach { m ->
+                    val on = picked?.userId == m.userId
+                    ListRow(
+                        title = m.displayName ?: m.email,
+                        subtitle = if (m.displayName != null) m.email else null,
+                        leading = { IconTile(Icons.Filled.Person, selected = on) },
+                        modifier = Modifier.clickable { picked = m },
+                    )
+                }
+                if (candidates.isNotEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    AccessMenu(current = access, allowNone = false, onPick = { it?.let { a -> access = a } }) { open ->
+                        ListRow(title = stringResource(R.string.access), subtitle = access.hint(), modifier = Modifier.clickable(onClick = open)) {
+                            Text(access.label(), color = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { picked?.let { onAdd(it.userId, access) } }, enabled = picked != null) { Text(stringResource(R.string.add)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
+}

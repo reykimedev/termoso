@@ -12,9 +12,9 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use bytes::Bytes;
+use labterm_core::terminal::SharedTerminal;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, Runtime};
-use termoso_core::terminal::SharedTerminal;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;

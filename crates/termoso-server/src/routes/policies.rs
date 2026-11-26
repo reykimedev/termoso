@@ -4,7 +4,7 @@ use crate::extract::{Auth, Json as Body};
 use crate::state::AppState;
 use axum::Json;
 use axum::extract::{Path, State};
-use termoso_proto::team::{TeamPolicies, TeamPoliciesResponse, UpdateTeamPoliciesRequest};
+use labterm_proto::team::{TeamPolicies, TeamPoliciesResponse, UpdateTeamPoliciesRequest};
 use uuid::Uuid;
 
 use crate::policy;

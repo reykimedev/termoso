@@ -5,7 +5,7 @@ use axum::extract::{Path, Query, State};
 
 use super::paging::PageQuery;
 use chrono::{DateTime, Utc};
-use termoso_proto::team::{TeamDevice, TeamDeviceList};
+use labterm_proto::team::{TeamDevice, TeamDeviceList};
 use uuid::Uuid;
 
 use crate::audit;

@@ -52,7 +52,7 @@ pub async fn require(state: &AppState, token: Option<&str>, ip: Option<&str>) ->
         .ok_or_else(|| {
             Error::new(
                 StatusCode::BAD_REQUEST,
-                termoso_proto::error::codes::TURNSTILE_REQUIRED,
+                labterm_proto::error::codes::TURNSTILE_REQUIRED,
                 "Please complete the captcha",
             )
         })?;

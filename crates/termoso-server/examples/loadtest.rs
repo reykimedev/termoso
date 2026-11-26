@@ -19,21 +19,21 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use chrono::Utc;
-use reqwest::{Client, StatusCode};
-use serde::de::DeserializeOwned;
-use serde_json::json;
-use termoso_crypto::aead::{self, Aad};
-use termoso_crypto::kdf::{Label, derive_key};
-use termoso_crypto::keys::{KeyPair, SymmetricKey};
-use termoso_crypto::opaque;
-use termoso_crypto::recovery::RecoveryKey;
-use termoso_crypto::sealed;
-use termoso_proto::auth::{
+use labterm_crypto::aead::{self, Aad};
+use labterm_crypto::kdf::{Label, derive_key};
+use labterm_crypto::keys::{KeyPair, SymmetricKey};
+use labterm_crypto::opaque;
+use labterm_crypto::recovery::RecoveryKey;
+use labterm_crypto::sealed;
+use labterm_proto::auth::{
     AccountKeysUpload, AuthResponse, DeviceInfo, Platform, RegisterFinishRequest,
     RegisterStartRequest, RegisterStartResponse,
 };
-use termoso_proto::sync::{EntityChange, PullRequest, PullResponse, PushRequest, PushResponse};
-use termoso_proto::vault::{VaultKind, VaultList};
+use labterm_proto::sync::{EntityChange, PullRequest, PullResponse, PushRequest, PushResponse};
+use labterm_proto::vault::{VaultKind, VaultList};
+use reqwest::{Client, StatusCode};
+use serde::de::DeserializeOwned;
+use serde_json::json;
 use uuid::Uuid;
 
 struct Options {

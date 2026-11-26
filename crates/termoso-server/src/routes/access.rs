@@ -8,7 +8,7 @@ use axum::extract::{Path, Query, State};
 
 use super::paging::PageQuery;
 use chrono::{DateTime, Duration, Utc};
-use termoso_proto::team::{
+use labterm_proto::team::{
     AccessRequest, AccessRequestList, CreateAccessRequest, DecideAccessRequest,
 };
 use uuid::Uuid;

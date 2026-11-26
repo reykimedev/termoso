@@ -28,7 +28,7 @@ cask "termoso" do
   auto_updates true
   depends_on macos: ">= :big_sur"
 
-  app "Termoso.app"
+  app "Labterm.app"
 
   zap trash: [
     "~/Library/Application Support/com.termoso.desktop",

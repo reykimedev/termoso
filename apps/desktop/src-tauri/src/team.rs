@@ -2,32 +2,32 @@
 //! here with the account keypair from the store; the webview only sees teams,
 //! members, roles, invitation links and pending states.
 
+use labterm_proto::team as proto;
 use std::collections::HashMap;
-use termoso_proto::team as proto;
 
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter, Manager, Runtime};
-use termoso_core::account as core;
-use termoso_core::api::{ApiClient, AuditQuery};
-use termoso_core::store::LocalVaultKind;
-use termoso_core::termoso_crypto::keys::{SymmetricKey, public_key_from_b64};
-use termoso_core::termoso_crypto::sealed;
-use termoso_proto::team::{
+use labterm_core::account as core;
+use labterm_core::api::{ApiClient, AuditQuery};
+use labterm_core::labterm_crypto::keys::{SymmetricKey, public_key_from_b64};
+use labterm_core::labterm_crypto::sealed;
+use labterm_core::store::LocalVaultKind;
+use labterm_proto::team::{
     AuditEvent, CreateInviteRequest, CreateTeamRequest, Invite, Team, TeamRole,
     UpdateTeamMemberRequest, UpdateTeamRequest,
 };
-use termoso_proto::vault::{
+use labterm_proto::vault::{
     CreateVaultRequest, RotateVaultKeyRequest, SealedKeyFor, UpdateVaultRequest, VaultMemberUpsert,
     VaultRole,
 };
+use serde::{Deserialize, Serialize};
+use tauri::{AppHandle, Emitter, Manager, Runtime};
 use uuid::Uuid;
 
 use crate::account::{SYNC_EVENT, SyncNotice, api};
 use crate::error::{DesktopError, Result};
 use crate::state::AppState;
 
-type CoreError = termoso_core::error::CoreError;
+type CoreError = labterm_core::error::CoreError;
 
 /// Team member as shown in the Team page (public key stays in Rust).
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -219,7 +219,7 @@ pub async fn accept_invite<R: Runtime>(app: &AppHandle<R>, link: &str) -> Result
 async fn members_raw(
     api: &ApiClient,
     team_id: Uuid,
-) -> Result<Vec<termoso_proto::team::TeamMember>> {
+) -> Result<Vec<labterm_proto::team::TeamMember>> {
     Ok(api.team_members(team_id).await?.members)
 }
 
@@ -463,15 +463,15 @@ pub async fn set_role_mappings<R: Runtime>(
 pub async fn ca<R: Runtime>(
     app: &AppHandle<R>,
     team_id: Uuid,
-) -> Result<Option<termoso_proto::ca::TeamCa>> {
+) -> Result<Option<labterm_proto::ca::TeamCa>> {
     Ok(api(app).await?.team_ca(team_id).await?)
 }
 
 pub async fn update_ca<R: Runtime>(
     app: &AppHandle<R>,
     team_id: Uuid,
-    patch: termoso_proto::ca::UpdateTeamCaRequest,
-) -> Result<termoso_proto::ca::TeamCa> {
+    patch: labterm_proto::ca::UpdateTeamCaRequest,
+) -> Result<labterm_proto::ca::TeamCa> {
     let ca = api(app).await?.update_team_ca(team_id, &patch).await?;
     refresh_local_certificates(app).await;
     Ok(ca)
@@ -480,8 +480,8 @@ pub async fn update_ca<R: Runtime>(
 pub async fn delete_ca<R: Runtime>(app: &AppHandle<R>, team_id: Uuid) -> Result<()> {
     api(app).await?.delete_team_ca(team_id).await?;
     let state = app.state::<AppState>();
-    let _ = termoso_core::ca::forget_certificates(&*state.store()?);
-    let _ = termoso_core::policy::clear(&*state.store()?);
+    let _ = labterm_core::ca::forget_certificates(&*state.store()?);
+    let _ = labterm_core::policy::clear(&*state.store()?);
     Ok(())
 }
 
@@ -489,12 +489,12 @@ pub async fn rotate_ca<R: Runtime>(
     app: &AppHandle<R>,
     team_id: Uuid,
     grace_hours: Option<i32>,
-) -> Result<termoso_proto::ca::TeamCa> {
+) -> Result<labterm_proto::ca::TeamCa> {
     let ca = api(app)
         .await?
         .rotate_team_ca(
             team_id,
-            &termoso_proto::ca::RotateTeamCaRequest { grace_hours },
+            &labterm_proto::ca::RotateTeamCaRequest { grace_hours },
         )
         .await?;
     refresh_local_certificates(app).await;
@@ -504,7 +504,7 @@ pub async fn rotate_ca<R: Runtime>(
 pub async fn ca_certificates<R: Runtime>(
     app: &AppHandle<R>,
     team_id: Uuid,
-) -> Result<termoso_proto::ca::IssuedCertificateList> {
+) -> Result<labterm_proto::ca::IssuedCertificateList> {
     Ok(api(app).await?.team_certificates(team_id).await?)
 }
 
@@ -512,7 +512,7 @@ pub async fn ca_revoke<R: Runtime>(
     app: &AppHandle<R>,
     team_id: Uuid,
     certificate_id: Uuid,
-) -> Result<termoso_proto::ca::IssuedCertificate> {
+) -> Result<labterm_proto::ca::IssuedCertificate> {
     Ok(api(app)
         .await?
         .revoke_team_certificate(team_id, certificate_id)
@@ -524,11 +524,11 @@ pub async fn ca_revoke<R: Runtime>(
 pub async fn ca_local<R: Runtime>(
     app: &AppHandle<R>,
     team_id: Uuid,
-) -> Result<Option<termoso_core::ca::CachedCert>> {
+) -> Result<Option<labterm_core::ca::CachedCert>> {
     refresh_local_certificates(app).await;
     let state = app.state::<AppState>();
     let store = state.store()?;
-    Ok(termoso_core::ca::cached(&store)?
+    Ok(labterm_core::ca::cached(&store)?
         .into_iter()
         .find(|c| c.team_id == team_id))
 }
@@ -537,10 +537,10 @@ async fn refresh_local_certificates<R: Runtime>(app: &AppHandle<R>) {
     let Ok(api) = api(app).await else { return };
     let state = app.state::<AppState>();
     let Ok(store) = state.store() else { return };
-    if let Err(e) = termoso_core::ca::refresh_all(&api, &store).await {
+    if let Err(e) = labterm_core::ca::refresh_all(&api, &store).await {
         tracing::debug!("team CA refresh: {e}");
     }
-    if let Err(e) = termoso_core::policy::refresh(&api, &store).await {
+    if let Err(e) = labterm_core::policy::refresh(&api, &store).await {
         tracing::debug!("team policy refresh: {e}");
     }
 }
@@ -885,7 +885,7 @@ pub async fn logs<R: Runtime>(
     app: &AppHandle<R>,
     team_id: Uuid,
     vault_id: Option<Uuid>,
-) -> Result<termoso_proto::logs::LogListResponse> {
+) -> Result<labterm_proto::logs::LogListResponse> {
     Ok(api(app).await?.team_logs(team_id, vault_id).await?)
 }
 

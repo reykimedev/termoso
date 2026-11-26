@@ -9,13 +9,13 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
+use labterm_core::error::CoreError;
+use labterm_core::forward::{Forward, ForwardSpec};
+use labterm_core::model::{Host, PfRule};
+use labterm_core::ssh::SshClient;
+use labterm_core::store::{LocalVaultKind, Store};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager, Runtime};
-use termoso_core::error::CoreError;
-use termoso_core::forward::{Forward, ForwardSpec};
-use termoso_core::model::{Host, PfRule};
-use termoso_core::ssh::SshClient;
-use termoso_core::store::{LocalVaultKind, Store};
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
@@ -44,12 +44,12 @@ pub enum PfKind {
     Dynamic,
 }
 
-impl From<termoso_core::import::PfKind> for PfKind {
-    fn from(k: termoso_core::import::PfKind) -> Self {
+impl From<labterm_core::import::PfKind> for PfKind {
+    fn from(k: labterm_core::import::PfKind) -> Self {
         match k {
-            termoso_core::import::PfKind::Local => Self::Local,
-            termoso_core::import::PfKind::Remote => Self::Remote,
-            termoso_core::import::PfKind::Dynamic => Self::Dynamic,
+            labterm_core::import::PfKind::Local => Self::Local,
+            labterm_core::import::PfKind::Remote => Self::Remote,
+            labterm_core::import::PfKind::Dynamic => Self::Dynamic,
         }
     }
 }
@@ -404,7 +404,7 @@ fn validate(form: &PfRuleForm) -> Result<PfRule> {
 
 fn card(
     forwards: &Forwards,
-    e: &termoso_core::model::Entity<PfRule>,
+    e: &labterm_core::model::Entity<PfRule>,
     hosts: &HashMap<Uuid, String>,
 ) -> Result<PfRuleCard> {
     Ok(PfRuleCard {
@@ -562,7 +562,7 @@ fn emit<R: Runtime>(app: &AppHandle<R>, id: Uuid) {
 pub async fn start<R: Runtime>(app: &AppHandle<R>, id: Uuid) -> Result<PfRuleCard> {
     let state = app.state::<AppState>();
     let e = state.store()?.require::<PfRule>(id)?;
-    if let Some(d) = termoso_core::policy::check_forward(
+    if let Some(d) = labterm_core::policy::check_forward(
         &*state.store()?,
         e.vault_id,
         &e.data.kind,
