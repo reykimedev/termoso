@@ -56,6 +56,10 @@ pub enum CoreError {
     /// SSH failure.
     #[error("ssh: {0}")]
     Ssh(String),
+
+    /// A network a host connects through (NetBird, …): the message names it.
+    #[error("{0}")]
+    Transport(String),
     /// The server presented an unknown or changed host key and the caller did
     /// not trust it.
     #[error("host key rejected for {host}")]
@@ -186,6 +190,7 @@ impl CoreError {
             CoreError::Ws(_) => "websocket",
             CoreError::NotSignedIn => "not_signed_in",
             CoreError::Ssh(_) => "ssh",
+            CoreError::Transport(_) => "transport",
             CoreError::HostKeyRejected { .. } => "host_key_rejected",
             CoreError::AuthFailed { .. } => "auth_failed",
             CoreError::Sftp(_) => "sftp",

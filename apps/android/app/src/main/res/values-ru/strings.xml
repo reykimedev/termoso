@@ -1942,4 +1942,8 @@
     <string name="overlay_use_again">Использовать снова</string>
     <string name="overlay_paused">Команда изменила адрес этого хоста после привязки ваших учётных данных (был %1$s). Они не используются, пока вы не подтвердите.</string>
     <string name="netbird_sign_in_starting">Подключение к серверу NetBird…</string>
+    <string name="netbird_connected_to">Подключено к %1$s</string>
+    <string name="netbird_connecting">Подключение…</string>
+    <string name="netbird_connected">Подключено</string>
+    <string name="netbird_network_settings">Настройки сети</string>
 </resources>

@@ -1902,4 +1902,8 @@
     <string name="overlay_use_again">Use them again</string>
     <string name="overlay_paused">The team changed this host\'s address since you linked your credentials (was %1$s). They are not used until you confirm.</string>
     <string name="netbird_sign_in_starting">Contacting the NetBird server…</string>
+    <string name="netbird_connected_to">Connected to %1$s</string>
+    <string name="netbird_connecting">Connecting…</string>
+    <string name="netbird_connected">Connected</string>
+    <string name="netbird_network_settings">Network settings</string>
 </resources>

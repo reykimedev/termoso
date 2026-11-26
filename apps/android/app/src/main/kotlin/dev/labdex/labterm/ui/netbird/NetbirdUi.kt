@@ -19,10 +19,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Hub
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
@@ -45,10 +47,10 @@ import dev.labdex.labterm.R
 import dev.labdex.labterm.data.VaultRepository
 import dev.labdex.labterm.data.userMessage
 import dev.labdex.labterm.str
-import dev.labdex.labterm.ui.components.ChevronRow
 import dev.labdex.labterm.ui.components.EmptyState
 import dev.labdex.labterm.ui.components.FormField
 import dev.labdex.labterm.ui.components.IconTile
+import dev.labdex.labterm.ui.components.ListRow
 import dev.labdex.labterm.ui.components.RowDivider
 import dev.labdex.labterm.ui.components.SecretField
 import dev.labdex.labterm.ui.components.SectionCard
@@ -78,11 +80,32 @@ fun NetbirdNetworksScreen(shell: ShellViewModel, onBack: () -> Unit) {
     var editing by remember { mutableStateOf<TransportItem?>(null) }
     var signInOnly by remember { mutableStateOf(false) }
     var signingIn by remember { mutableStateOf<TransportItem?>(null) }
+    // Networks being joined from this list, and those running right now.
+    var connecting by remember { mutableStateOf(setOf<String>()) }
+    var running by remember { mutableStateOf(setOf<String>()) }
+
+    fun connect(n: TransportItem) {
+        val id = n.id ?: return
+        if (id in connecting) return
+        connecting = connecting + id
+        scope.launch {
+            runCatching { shell.repo.read { transportConnect(id) } }
+                .onSuccess { running = running + id; shell.notify(str(R.string.netbird_connected_to, n.label)) }
+                .onFailure { shell.notify(it.userMessage()) }
+            connecting = connecting - id
+        }
+    }
+
+    // Tapping a network joins it: signing in first when this device has no peer yet.
+    fun open(n: TransportItem) {
+        if (!n.hasSetupKey && !n.signedIn) signingIn = n else connect(n)
+    }
     LaunchedEffect(vaultId, revision) {
         val v = vaultId ?: return@LaunchedEffect
         runCatching { shell.repo.read { transports(v) to transportSignInOnly(v) } }
             .onSuccess { (list, team) -> networks = list; signInOnly = team }
             .onFailure { shell.notify(it.userMessage()) }
+        running = networks.orEmpty().mapNotNull { n -> n.id?.takeIf { shell.repo.read { transportRunning(it) } } }.toSet()
     }
 
     fun newNetwork(): TransportItem? = vaultId?.let { v ->
@@ -126,18 +149,26 @@ fun NetbirdNetworksScreen(shell: ShellViewModel, onBack: () -> Unit) {
                 SectionCard {
                     list.forEachIndexed { i, n ->
                         if (i > 0) RowDivider()
-                        ChevronRow(
+                        val id = n.id
+                        ListRow(
                             title = n.label,
                             subtitle = (n.managementUrl ?: str(R.string.netbird_cloud)) + " · " + str(
                                 when {
+                                    id in connecting -> R.string.netbird_connecting
+                                    id in running -> R.string.netbird_connected
                                     n.hasSetupKey -> R.string.netbird_joins_with_key
                                     n.signedIn -> R.string.netbird_signed_in
                                     else -> R.string.netbird_not_signed_in
                                 },
                             ),
                             leading = { IconTile(Icons.Filled.Hub) },
-                            modifier = Modifier.clickable { editing = n },
-                        )
+                            modifier = Modifier.clickable { open(n) },
+                        ) {
+                            if (id in connecting) CircularProgressIndicator(Modifier.size(20.dp))
+                            IconButton(onClick = { editing = n }) {
+                                Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.netbird_network_settings))
+                            }
+                        }
                     }
                 }
                 Text(
@@ -173,7 +204,10 @@ fun NetbirdNetworksScreen(shell: ShellViewModel, onBack: () -> Unit) {
     }
 
     signingIn?.let { n ->
-        NetbirdSignInDialog(n, shell.repo, shell::notify) { signingIn = null }
+        NetbirdSignInDialog(n, shell.repo, shell::notify) { ok ->
+            signingIn = null
+            if (ok) connect(n)
+        }
     }
 }
 
