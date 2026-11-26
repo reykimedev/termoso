@@ -93,6 +93,11 @@ export interface KnownHost {
 export interface Tag {
   label: string;
   color?: string | null;
+  /** SSH defaults for hosts carrying the tag; tags rank below groups. */
+  ssh_config_id?: Uuid | null;
+  /** Higher wins when a host's tags set the same field. */
+  priority?: number;
+  [k: string]: unknown;
 }
 
 const byOrder = <T extends { sortOrder: number; label: string }>(a: T, b: T) =>
@@ -126,6 +131,82 @@ function mergeSsh(into: SshConfig, from: SshConfig) {
   if (from.extra_options?.length) into.extra_options = from.extra_options;
 }
 
+/** Byte-wise compare, like Rust's `str::cmp`, so tag order matches the native apps. */
+const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+
+/** A host's tags: its `tag_ids` plus `tag_host` links, deduplicated. */
+function hostTagIds(host: Ent<Host>): Uuid[] {
+  const ids = new Set(host.data.tag_ids ?? []);
+  for (const l of list<{ host_id: Uuid; tag_id: Uuid }>("tag_host", host.vaultId))
+    if (l.data.host_id === host.id) ids.add(l.data.tag_id);
+  return [...ids];
+}
+
+/**
+ * SSH config ids a host inherits, lowest precedence first: its tags (lower priority first), then
+ * its group chain root → leaf; the host's own config goes on top. Among tags the higher priority
+ * wins, then the label (A before Z, ignoring case), then the id. Same as termoso-core's
+ * `Store::defaults_layers`.
+ */
+function defaultsLayers(vaultId: Uuid, groupId: Uuid | null, tagIds: Uuid[]) {
+  const wanted = new Set(tagIds);
+  const tags = list<Tag>("tag", vaultId)
+    .filter((t) => wanted.has(t.id) && t.data.ssh_config_id)
+    .sort(
+      (a, b) =>
+        (b.data.priority ?? 0) - (a.data.priority ?? 0) ||
+        cmp(a.data.label.toLowerCase(), b.data.label.toLowerCase()) ||
+        cmp(a.id, b.id),
+    );
+  const groups = list<Group>("group", vaultId);
+  const groupPath: string[] = [];
+  const chain: Uuid[] = [];
+  let cursor = groupId;
+  for (let hops = 0; cursor && hops < 64; hops++) {
+    const g = groups.find((x) => x.id === cursor);
+    if (!g) break;
+    groupPath.push(g.data.label);
+    if (g.data.ssh_config_id) chain.push(g.data.ssh_config_id);
+    cursor = g.data.parent_id ?? null;
+  }
+  return {
+    groupPath: groupPath.reverse(),
+    ssh: [
+      ...tags
+        .map((t) => t.data.ssh_config_id)
+        .filter((c): c is Uuid => !!c)
+        .reverse(),
+      ...chain.reverse(),
+    ],
+    tags: tags.map((t) => t.data.label),
+  };
+}
+
+/**
+ * Merge configs (lowest first) and find the username to fall back on: the nearest non-empty one
+ * among the layers' identities. Key, password and certificate still come whole from the nearest
+ * layer with an identity.
+ */
+function mergeLayers(vaultId: Uuid, ids: Uuid[]) {
+  const ssh: SshConfig = {};
+  const identities: Uuid[] = [];
+  for (const cid of ids) {
+    const c = get<SshConfig>(cid, "ssh_config");
+    if (c?.vaultId !== vaultId) continue;
+    if (c.data.identity_id) identities.push(c.data.identity_id);
+    mergeSsh(ssh, c.data);
+  }
+  let username: string | null = null;
+  for (const iid of [...identities].reverse()) {
+    const i = get<Identity>(iid, "identity");
+    if (i?.vaultId === vaultId && i.data.username) {
+      username = i.data.username;
+      break;
+    }
+  }
+  return { ssh, username };
+}
+
 export interface Resolved {
   host: Ent<Host>;
   groupPath: string[];
@@ -138,27 +219,17 @@ export interface Resolved {
 
 export function resolve(hostId: Uuid): Resolved {
   const host = require<Host>(hostId, "host");
-  const groups = list<Group>("group", host.vaultId);
-  const groupPath: string[] = [];
-  const chain: Uuid[] = [];
-  let cursor = host.data.group_id ?? null;
-  for (let hops = 0; cursor && hops < 64; hops++) {
-    const g = groups.find((x) => x.id === cursor);
-    if (!g) break;
-    groupPath.push(g.data.label);
-    if (g.data.ssh_config_id) chain.push(g.data.ssh_config_id);
-    cursor = g.data.parent_id ?? null;
-  }
-  groupPath.reverse();
-  const ssh: SshConfig = {};
-  for (const cid of [
-    ...chain.reverse(),
+  const tagIds = hostTagIds(host);
+  const layers = defaultsLayers(host.vaultId, host.data.group_id ?? null, tagIds);
+  const { ssh, username } = mergeLayers(host.vaultId, [
+    ...layers.ssh,
     ...(host.data.ssh_config_id ? [host.data.ssh_config_id] : []),
-  ]) {
-    const c = get<SshConfig>(cid, "ssh_config");
-    if (c?.vaultId === host.vaultId) mergeSsh(ssh, c.data);
-  }
-  const identity = get<Identity>(ssh.identity_id, "identity");
+  ]);
+  let identity = get<Identity>(ssh.identity_id, "identity");
+  // A layer that sets only the key (say the group) still logs in with the username a lower layer
+  // sets (say a tag). On a copy: the stored identity stays as it is.
+  if (identity && !identity.data.username && !identity.data.ssh_id && username)
+    identity = { ...identity, data: { ...identity.data, username } };
   const key = get<SshKey>(identity?.data.ssh_key_id, "ssh_key");
   const certificate =
     get<SshCertificate>(identity?.data.ssh_certificate_id, "ssh_certificate") ??
@@ -167,11 +238,12 @@ export function resolve(hostId: Uuid): Resolved {
           (c) => c.data.ssh_key_id === key.id,
         ) ?? null)
       : null);
-  const tagIds = new Set(host.data.tag_ids ?? []);
+  const wanted = new Set(tagIds);
   const tags = list<Tag>("tag", host.vaultId)
-    .filter((t) => tagIds.has(t.id))
-    .map((t) => t.data.label);
-  return { host, groupPath, ssh, identity, key, certificate, tags };
+    .filter((t) => wanted.has(t.id))
+    .map((t) => t.data.label)
+    .sort();
+  return { host, groupPath: layers.groupPath, ssh, identity, key, certificate, tags };
 }
 
 // ── hosts ─────────────────────────────────────────────────────────────────
@@ -608,9 +680,11 @@ export function groupDelete(id: Uuid, recursive: boolean) {
   return null;
 }
 
-export function inherited(groupId: Uuid | null) {
+/** What a host in `groupId` carrying `tagIds` inherits (groups win over tags). */
+export function inherited(groupId: Uuid | null, vaultId: Uuid | null = null, tagIds: Uuid[] = []) {
   const empty = {
     groupPath: [] as string[],
+    tags: [] as string[],
     port: null as number | null,
     username: null as string | null,
     hasPassword: false,
@@ -629,22 +703,20 @@ export function inherited(groupId: Uuid | null) {
     envVariables: [] as [string, string][],
   };
   const g = get<Group>(groupId, "group");
-  if (!g) return empty;
-  const chain = ancestors(g.vaultId, g.id);
-  const groups = list<Group>("group", g.vaultId);
-  const ssh: SshConfig = {};
-  for (const gid of [...chain].reverse()) {
-    const c = get<SshConfig>(groups.find((x) => x.id === gid)?.data.ssh_config_id, "ssh_config");
-    if (c) mergeSsh(ssh, c.data);
-  }
+  const vault = vaultId ?? g?.vaultId ?? null;
+  if (!vault || (groupId && g?.vaultId !== vault)) return empty;
+  const layers = defaultsLayers(vault, groupId, tagIds);
+  const { ssh, username } = mergeLayers(vault, layers.ssh);
   const i = get<Identity>(ssh.identity_id, "identity");
   const k = get<SshKey>(i?.data.ssh_key_id, "ssh_key");
   return {
     ...empty,
-    groupPath: chain.map((id) => groups.find((x) => x.id === id)?.data.label ?? "").reverse(),
+    groupPath: layers.groupPath,
+    tags: layers.tags,
     port: ssh.port ?? null,
+    // Same fall-through as `resolve`: an empty username takes a lower layer's.
     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- an empty string means unset
-    username: i?.data.username || null,
+    username: i?.data.username || (i?.data.ssh_id ? null : username),
     hasPassword: some(i?.data.password),
     hasTotp: some(i?.data.totp_secret),
     sshKeyId: k?.id ?? null,
@@ -673,6 +745,8 @@ export function tags(vaultId: Uuid | null) {
       label: t.data.label,
       color: t.data.color ?? null,
       hosts: hosts.filter((h) => h.data.tag_ids?.includes(t.id)).length,
+      hasConfig: !!t.data.ssh_config_id,
+      priority: t.data.priority ?? 0,
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
 }

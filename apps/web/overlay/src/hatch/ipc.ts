@@ -211,7 +211,7 @@ const commands: Record<string, Handler> = {
   hosts_move: (a) => m.hostsMove(a.ids, a.groupId ?? null),
   hosts_copy_to_vault: (a) =>
     copy.hostsCopyToVault(a.ids, a.vaultId, !!a.moveHosts, a.withCredentials),
-  host_inherited: (a) => m.inherited(a.groupId ?? null),
+  host_inherited: (a) => m.inherited(a.groupId ?? null, a.vaultId ?? null, a.tagIds ?? []),
   groups_list: (a) => m.groupNodes(a.vaultId ?? null),
   group_save: (a) => m.groupSave(a as Parameters<typeof m.groupSave>[0]),
   group_form: (a) => m.groupForm(a.id),

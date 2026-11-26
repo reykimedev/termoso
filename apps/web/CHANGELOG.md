@@ -20,3 +20,4 @@ Labterm Web's own changes. It started as Hatch (bitsandbricks-ch/hatch).
 - Snippets in the browser: packages, `{{variables}}`, target hosts, copy to another vault, running in open terminals, and quiet runs over an exec channel with output, errors and exit code
 - Connection and command history, kept in this browser only and never synced
 - OpenID (opkssh) keys from the Termoso fork: providers per vault, a sign-in per key in a pop-up, and setting up opkssh on a host; the relay's sign-in no longer offers a certificate to every host
+- Settings on tags (username, key, port and the rest) apply to connections like in the Labterm apps: a host's own settings win, then its groups, then its tags by priority and name, and an empty username falls back to the nearest one set
