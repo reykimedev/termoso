@@ -73,7 +73,7 @@ hmac = "0.12"
 quick-xml = "0.42"
 dirs = "7"
 # Local-network discovery (`_ssh._tcp` / `_sftp-ssh._tcp` over mDNS).
-mdns-sd = { version = "0.21", default-features = false, features = ["async"] }
+mdns-sd = { version = "0.22", default-features = false, features = ["async"] }
 
 [features]
 default = ["keychain", "local-pty", "serial", "fido2", "fido2-ctap"]
