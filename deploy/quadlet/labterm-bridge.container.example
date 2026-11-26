@@ -1,0 +1,30 @@
+# Optional API Bridge (Termius-compatible REST API for automation).
+# Rename to labterm-bridge.container to enable. Needs the credentials file from
+# the cabinet (Account -> API Bridge) at /etc/labterm/bridge.json and
+# LABTERM_BRIDGE_API_KEY in /etc/labterm/bridge.env. The bridge reaches the
+# server through its public URL like any other client.
+[Unit]
+Description=Labterm API Bridge
+Requires=labterm-api.service
+After=labterm-api.service
+
+[Container]
+ContainerName=labterm-bridge
+Image=ghcr.io/reykimedev/labterm-bridge:latest
+#AutoUpdate=registry
+Network=labterm.network
+Environment=LABTERM_BRIDGE_CREDENTIALS=/etc/labterm/bridge.json
+Environment=LABTERM_BRIDGE_LISTEN=0.0.0.0:8080
+EnvironmentFile=/etc/labterm/bridge.env
+Volume=/etc/labterm/bridge.json:/etc/labterm/bridge.json:ro,Z
+PublishPort=127.0.0.1:8081:8080
+ReadOnly=true
+Tmpfs=/tmp
+NoNewPrivileges=true
+
+[Service]
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

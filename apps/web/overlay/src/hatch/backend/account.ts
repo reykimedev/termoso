@@ -1,6 +1,6 @@
-// Termoso account on this browser: sign-in (OPAQUE, second factor, new-device code), the vault
+// Labterm account on this browser: sign-in (OPAQUE, second factor, new-device code), the vault
 // keys, and sync. The password only feeds OPAQUE in labterm-wasm; the server sees OPAQUE messages,
-// public keys and ciphertext, as with every Termoso device.
+// public keys and ciphertext, as with every Labterm device.
 import { emit } from "@tauri-apps/api/event";
 import { ApiError, call, normalizeServer } from "./api";
 import { fail } from "./errors";
@@ -18,7 +18,7 @@ import {
   s,
 } from "./state";
 
-import { TERMOSO_VERSION as APP_VERSION } from "../build";
+import { LABTERM_VERSION as APP_VERSION } from "../build";
 
 interface Session {
   token: string;
@@ -205,7 +205,7 @@ export async function login(form: {
   }
 }
 
-/** A new Termoso account from this browser, as Termoso's own web app creates one. */
+/** A new Labterm account from this browser, as Labterm's own web app creates one. */
 export async function register(form: {
   serverUrl: string;
   email: string;
@@ -324,14 +324,14 @@ export async function signOut(): Promise<null> {
 
 export async function authed<T>(method: string, path: string, body?: unknown): Promise<T> {
   const a = s().account;
-  if (!a) fail("not_signed_in", "Sign in to your Termoso account first");
+  if (!a) fail("not_signed_in", "Sign in to your Labterm account first");
   try {
     return await call<T>(a.serverUrl, method, path, body, a.token);
   } catch (e) {
     if (e instanceof ApiError && e.status === 401) {
       // Session revoked or expired: the vault data stays until the user signs in again.
-      setStatus({ state: "error", lastError: "Your Termoso session ended. Sign in again." });
-      fail("unauthorized", "Your Termoso session ended. Sign in again.");
+      setStatus({ state: "error", lastError: "Your Labterm session ended. Sign in again." });
+      fail("unauthorized", "Your Labterm session ended. Sign in again.");
     }
     return apiFail(e);
   }
@@ -377,7 +377,7 @@ export async function refreshVaults(): Promise<void> {
     const personal = v.kind === "personal";
     // A personal vault key the server could have made up (an anonymous box to our public key) is
     // never used, not even on a new device: everything in that vault would be the server's
-    // choice, its pinned host keys too. Termoso seals personal keys with the account key.
+    // choice, its pinned host keys too. Labterm seals personal keys with the account key.
     if (personal && offered && !offeredSelf) {
       offered = null;
       refusedPersonal = true;

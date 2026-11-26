@@ -924,7 +924,7 @@ fn http_client(
     let mut b = reqwest::Client::builder()
         .connect_timeout(cfg.connect_timeout)
         .redirect(reqwest::redirect::Policy::none())
-        .user_agent(concat!("Termoso/", env!("CARGO_PKG_VERSION")))
+        .user_agent(concat!("Labterm/", env!("CARGO_PKG_VERSION")))
         .http1_only();
     if let Some((name, addrs)) = resolve {
         b = b.resolve_to_addrs(name, addrs);
@@ -2028,7 +2028,7 @@ impl RemoteFs for WebDav {
                 let spool = self
                     .inner
                     .spool_dir
-                    .join(format!("termoso-webdav-{}", uuid::Uuid::new_v4()));
+                    .join(format!("labterm-webdav-{}", uuid::Uuid::new_v4()));
                 let mut file = tokio::fs::OpenOptions::new()
                     .read(true)
                     .write(true)

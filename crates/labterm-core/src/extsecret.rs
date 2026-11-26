@@ -12,7 +12,7 @@
 //! | `env://NAME`                   | environment variable `NAME`                |
 //!
 //! The CLIs authenticate on their own (`op signin` / service-account token,
-//! `BW_SESSION`, gpg-agent); Termoso only runs them with a timeout. Resolved
+//! `BW_SESSION`, gpg-agent); Labterm only runs them with a timeout. Resolved
 //! values are cached in memory for a few minutes so a burst of connections
 //! does not prompt the manager repeatedly. Nothing here is available on
 //! mobile except `env://`.
@@ -274,6 +274,6 @@ mod tests {
     async fn env_and_literal_resolve() {
         assert!(!resolve("env://PATH").await.unwrap().is_empty());
         assert_eq!(resolve("plain").await.unwrap().as_str(), "plain");
-        assert!(resolve("env://TERMOSO_EXTSECRET_MISSING").await.is_err());
+        assert!(resolve("env://LABTERM_EXTSECRET_MISSING").await.is_err());
     }
 }

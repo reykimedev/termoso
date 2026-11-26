@@ -1,5 +1,5 @@
 // Native desktop smoke, injected into the webview of a *debug* build by
-// TERMOSO_SMOKE_SCRIPT (src-tauri/src/smoke.rs). Drives the UI the way a
+// LABTERM_SMOKE_SCRIPT (src-tauri/src/smoke.rs). Drives the UI the way a
 // first-time user would — welcome screen → hosts → local terminal → settings —
 // and checks that a command typed into the terminal comes back through the
 // shell integration. Every step is reported through `smoke_report`; a line
@@ -127,7 +127,7 @@
     }
     await shot("terminal");
 
-    const marker = `termoso-smoke-${Date.now().toString(36)}`;
+    const marker = `labterm-smoke-${Date.now().toString(36)}`;
     const command = `echo ${marker}`;
     textarea.focus();
     const typed = typeInto(textarea, `${command}\n`);

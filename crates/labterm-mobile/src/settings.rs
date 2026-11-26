@@ -28,7 +28,7 @@ fn default_term() -> String {
     "xterm-256color".into()
 }
 fn default_theme() -> String {
-    crate::themes::TERMOSO_DARK.into()
+    crate::themes::LABTERM_DARK.into()
 }
 fn default_cursor() -> String {
     "block".into()

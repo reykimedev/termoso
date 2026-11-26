@@ -50,8 +50,8 @@ fn mosh_server_installed() -> bool {
         .is_ok_and(|s| s.success());
     if !ok {
         assert!(
-            std::env::var("TERMOSO_TEST_REQUIRE_MOSH").is_err(),
-            "mosh-server not installed but TERMOSO_TEST_REQUIRE_MOSH is set"
+            std::env::var("LABTERM_TEST_REQUIRE_MOSH").is_err(),
+            "mosh-server not installed but LABTERM_TEST_REQUIRE_MOSH is set"
         );
         eprintln!("mosh-server not installed; skipping");
     }
@@ -591,7 +591,7 @@ fn keychain_and_identities() {
             vault_id: vault.clone(),
             label: "phone".into(),
             algorithm: KeyAlgorithm::Ed25519,
-            comment: "termoso@phone".into(),
+            comment: "labterm@phone".into(),
             passphrase: Some("pp".into()),
             remember_passphrase: false,
         })
@@ -735,9 +735,9 @@ impl LiveListener for NoLive {
 fn live_links_are_recognised_and_need_an_account() {
     let (app, _dir) = app();
     assert!(is_live_link(
-        "termoso://join/6f1b2c3d-4e5f-4a6b-8c9d-0e1f2a3b4c5d?s=https://x.test#secret".into()
+        "labterm://join/6f1b2c3d-4e5f-4a6b-8c9d-0e1f2a3b4c5d?s=https://x.test#secret".into()
     ));
-    assert!(!is_live_link("termoso://invite/abc".into()));
+    assert!(!is_live_link("labterm://invite/abc".into()));
     assert!(!is_live_link("ssh://root@box".into()));
     let rec = Arc::new(Recorder::default());
     let err = app
@@ -748,7 +748,7 @@ fn live_links_are_recognised_and_need_an_account() {
     // A well-formed link still needs a signed-in account before any network.
     let err = app
         .join_live(
-            "termoso://join/6f1b2c3d-4e5f-4a6b-8c9d-0e1f2a3b4c5d?s=https://x.test#AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".into(),
+            "labterm://join/6f1b2c3d-4e5f-4a6b-8c9d-0e1f2a3b4c5d?s=https://x.test#AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".into(),
             opts(),
             rec,
             Arc::new(NoLive),
@@ -952,14 +952,14 @@ async fn local_shell_session() {
             LocalShell {
                 argv: vec!["/bin/sh".into()],
                 home: dir.path().to_string_lossy().into_owned(),
-                env: vec!["PS1=local$ ".into(), "TERMOSO_TEST=1".into()],
+                env: vec!["PS1=local$ ".into(), "LABTERM_TEST=1".into()],
             },
             opts(),
             rec.clone(),
         )
         .unwrap();
     rec.wait_state(|s| matches!(s, SessionState::Connected));
-    session.write(b"echo $TERMOSO_TEST-$TERM\r".to_vec());
+    session.write(b"echo $LABTERM_TEST-$TERM\r".to_vec());
     wait_text(&session, "1-xterm-256color");
     session.write(b"pwd\r".to_vec());
     wait_text(&session, &dir.path().to_string_lossy());

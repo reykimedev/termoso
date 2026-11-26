@@ -1,6 +1,6 @@
 # Security policy
 
-Termoso holds people's SSH keys and passwords. If you find a way to weaken
+Labterm holds people's SSH keys and passwords. If you find a way to weaken
 that, we want to know first and quietly.
 
 ## Reporting a vulnerability
@@ -30,7 +30,7 @@ approval, escalate team roles, or make a client trust the wrong SSH host key
 are the highest priority.
 
 Out of scope: vulnerabilities in third-party services you self-host next to
-Termoso (PostgreSQL, Redis, MinIO, your reverse proxy), social engineering,
+Labterm (PostgreSQL, Redis, MinIO, your reverse proxy), social engineering,
 and denial of service that needs more traffic than a single machine produces.
 
 ## Verifying a release
@@ -56,7 +56,7 @@ whichever your policy requires; they do not depend on each other.
    attestation naming the workflow, commit and runner that produced it:
 
    ```sh
-   gh attestation verify Termoso_0.9.1_amd64.AppImage -R termoso/termoso
+   gh attestation verify Labterm_0.9.1_amd64.AppImage -R labterm/labterm
    ```
 
 3. **Updater signatures.** Desktop updates (`latest.json`, `*.sig`) are
@@ -72,9 +72,9 @@ whichever your policy requires; they do not depend on each other.
 ## Software bill of materials
 
 Each release ships an SBOM of the exact source tree it was built from, in
-SPDX (`termoso-<version>.spdx.json`) and CycloneDX
-(`termoso-<version>.cdx.json`), covering Cargo, npm and Gradle dependencies.
-Feed it to your scanner of choice (`grype sbom:termoso-<version>.cdx.json`,
+SPDX (`labterm-<version>.spdx.json`) and CycloneDX
+(`labterm-<version>.cdx.json`), covering Cargo, npm and Gradle dependencies.
+Feed it to your scanner of choice (`grype sbom:labterm-<version>.cdx.json`,
 Dependency-Track, Snyk). In CI, `cargo deny` and `npm audit` gate every
 change on advisories, licences and sources (see "Dependencies" above); the
 controls map for auditors lives in [docs/COMPLIANCE.md](docs/COMPLIANCE.md).
@@ -100,7 +100,7 @@ records cannot be swapped between hosts or vaults.
 **Passwords can still be guessed offline — by the operator.** OPAQUE keeps
 the password off the wire and the server never sees it, but the registration
 record it stores plus the server's own OPAQUE key (encrypted at rest under
-`TERMOSO_MASTER_KEY`) are enough for whoever holds *both* — the operator, or an
+`LABTERM_MASTER_KEY`) are enough for whoever holds *both* — the operator, or an
 attacker who took the database and the key — to test password guesses offline
 and, on a hit, unwrap the account key and every vault it opens. A database
 dump alone is not enough: the per-user OPRF key is what stops precomputation.
@@ -110,7 +110,7 @@ not help here — it gates sign-in, not decryption. Clients enforce a minimum
 length only; use a passphrase, and keep the recovery phrase (256 random bits)
 offline.
 
-**The server's master key is part of your data.** `TERMOSO_MASTER_KEY`
+**The server's master key is part of your data.** `LABTERM_MASTER_KEY`
 encrypts the OPAQUE server key and TOTP seeds at rest. If it is lost, or a
 database is restored under a different key, every password sign-in fails.
 Vault contents are not lost: each account's recovery phrase unwraps the
@@ -148,7 +148,7 @@ tab memory and rely on the browser's origin isolation; a malicious extension
 or a compromised browser profile can read it.
 
 **Host trust.** SSH host keys and WebDAV TLS certificates are only as good
-as the first acceptance. Termoso pins them after you accept (known hosts /
+as the first acceptance. Labterm pins them after you accept (known hosts /
 saved certificate fingerprint), shows a security-sensitive prompt with both
 fingerprints when one *changes*, never replaces a changed key silently, and
 offers a one-time connection instead of saving. Clicking "accept" on an

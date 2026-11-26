@@ -1,13 +1,13 @@
-# Termoso self-hosted stack.
+# Labterm self-hosted stack.
 #
-#   cp deploy/.env.example deploy/.env      # set TERMOSO_MASTER_KEY, passwords, public URLs
+#   cp deploy/.env.example deploy/.env      # set LABTERM_MASTER_KEY, passwords, public URLs
 #   docker compose -f deploy/docker-compose.yml up -d --wait
 #
 # Works unchanged with `podman compose`. A systemd/Quadlet variant of the same
 # stack lives in deploy/quadlet/. Full guide: docs/SELF_HOSTING.md.
 #
 # Services
-#   api       Termoso server: REST + WebSocket API under /api/v1 and the web
+#   api       Labterm server: REST + WebSocket API under /api/v1 and the web
 #             cabinet on / (one origin). Stateless; runs migrations on start.
 #   postgres  PostgreSQL 18 — accounts, teams, ciphertext, audit log. Back it up.
 #   redis     Redis 8 — sessions cache, rate limits, realtime pub/sub. Cache only.
@@ -19,32 +19,32 @@
 #
 # Published ports bind to 127.0.0.1 by default so nothing is reachable from the
 # network until a TLS-terminating reverse proxy is in front. Set
-# TERMOSO_LISTEN=0.0.0.0 in .env if the proxy runs on another machine.
+# LABTERM_LISTEN=0.0.0.0 in .env if the proxy runs on another machine.
 
-name: termoso
+name: labterm
 
 services:
   api:
-    image: ghcr.io/termoso/termoso-server:${TERMOSO_VERSION:-latest}
+    image: ghcr.io/reykimedev/labterm-server:${LABTERM_VERSION:-latest}
     build:
       context: ..
       dockerfile: deploy/Dockerfile
     restart: unless-stopped
-    env_file: ${TERMOSO_ENV_FILE:-.env}
+    env_file: ${LABTERM_ENV_FILE:-.env}
     environment:
       # In-stack addresses; everything else comes from .env.
-      TERMOSO_BIND: 0.0.0.0:8080
-      TERMOSO_DATABASE_URL: postgres://termoso:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/termoso
-      TERMOSO_REDIS_URL: redis://redis:6379
-      TERMOSO_S3__ENDPOINT: http://rustfs:9000
-      TERMOSO_S3__BUCKET: ${S3_BUCKET:-termoso-logs}
-      TERMOSO_S3__ACCESS_KEY: ${RUSTFS_ACCESS_KEY:?set RUSTFS_ACCESS_KEY}
-      TERMOSO_S3__SECRET_KEY: ${RUSTFS_SECRET_KEY:?set RUSTFS_SECRET_KEY}
-      TERMOSO_S3__REGION: us-east-1
+      LABTERM_BIND: 0.0.0.0:8080
+      LABTERM_DATABASE_URL: postgres://labterm:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/labterm
+      LABTERM_REDIS_URL: redis://redis:6379
+      LABTERM_S3__ENDPOINT: http://rustfs:9000
+      LABTERM_S3__BUCKET: ${S3_BUCKET:-labterm-logs}
+      LABTERM_S3__ACCESS_KEY: ${RUSTFS_ACCESS_KEY:?set RUSTFS_ACCESS_KEY}
+      LABTERM_S3__SECRET_KEY: ${RUSTFS_SECRET_KEY:?set RUSTFS_SECRET_KEY}
+      LABTERM_S3__REGION: us-east-1
       # The server only ever sits behind a proxy in this stack.
-      TERMOSO_TRUST_PROXY: "true"
+      LABTERM_TRUST_PROXY: "true"
     ports:
-      - "${TERMOSO_LISTEN:-127.0.0.1}:${TERMOSO_PORT:-8080}:8080"
+      - "${LABTERM_LISTEN:-127.0.0.1}:${LABTERM_PORT:-8080}:8080"
     depends_on:
       postgres:
         condition: service_healthy
@@ -54,7 +54,7 @@ services:
         condition: service_healthy
     healthcheck:
       # Hits /readyz (PostgreSQL + Redis) from inside the distroless image.
-      test: ["CMD", "/usr/local/bin/termoso-server", "--healthcheck"]
+      test: ["CMD", "/usr/local/bin/labterm-server", "--healthcheck"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -69,13 +69,13 @@ services:
     image: postgres:18-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: termoso
-      POSTGRES_DB: termoso
+      POSTGRES_USER: labterm
+      POSTGRES_DB: labterm
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
     volumes:
       - postgres:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U termoso -d termoso"]
+      test: ["CMD-SHELL", "pg_isready -U labterm -d labterm"]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -106,8 +106,8 @@ services:
       RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY:?set RUSTFS_SECRET_KEY}
       RUSTFS_CONSOLE_ENABLE: "true"
     ports:
-      - "${TERMOSO_LISTEN:-127.0.0.1}:${RUSTFS_PORT:-9000}:9000"
-      - "${TERMOSO_LISTEN:-127.0.0.1}:${RUSTFS_CONSOLE_PORT:-9001}:9001"
+      - "${LABTERM_LISTEN:-127.0.0.1}:${RUSTFS_PORT:-9000}:9000"
+      - "${LABTERM_LISTEN:-127.0.0.1}:${RUSTFS_CONSOLE_PORT:-9001}:9001"
     volumes:
       - rustfs:/data
     healthcheck:
@@ -120,27 +120,27 @@ services:
 
   # Optional: `docker compose --profile bridge up -d`
   # Needs the credentials file downloaded from the cabinet (Account → API Bridge)
-  # at ${TERMOSO_BRIDGE_CREDENTIALS_FILE} and TERMOSO_BRIDGE_API_KEY in .env
+  # at ${LABTERM_BRIDGE_CREDENTIALS_FILE} and LABTERM_BRIDGE_API_KEY in .env
   # (without the key the bridge starts but logs a loud warning: anyone who can
   # reach the port can write to the vault).
   # The bridge talks to the server through its public URL like any client.
   bridge:
     profiles: ["bridge"]
-    image: ghcr.io/termoso/termoso-bridge:${TERMOSO_VERSION:-latest}
+    image: ghcr.io/reykimedev/labterm-bridge:${LABTERM_VERSION:-latest}
     build:
       context: ..
       dockerfile: deploy/Dockerfile.bridge
     restart: unless-stopped
     environment:
-      TERMOSO_BRIDGE_CREDENTIALS: /etc/termoso/bridge.json
-      TERMOSO_BRIDGE_LISTEN: 0.0.0.0:8080
-      TERMOSO_BRIDGE_API_KEY: ${TERMOSO_BRIDGE_API_KEY:-}
-      TERMOSO_BRIDGE_SYNC_INTERVAL: ${TERMOSO_BRIDGE_SYNC_INTERVAL:-60}
-      RUST_LOG: ${TERMOSO_BRIDGE_LOG:-info}
+      LABTERM_BRIDGE_CREDENTIALS: /etc/labterm/bridge.json
+      LABTERM_BRIDGE_LISTEN: 0.0.0.0:8080
+      LABTERM_BRIDGE_API_KEY: ${LABTERM_BRIDGE_API_KEY:-}
+      LABTERM_BRIDGE_SYNC_INTERVAL: ${LABTERM_BRIDGE_SYNC_INTERVAL:-60}
+      RUST_LOG: ${LABTERM_BRIDGE_LOG:-info}
     volumes:
-      - ${TERMOSO_BRIDGE_CREDENTIALS_FILE:-./bridge.json}:/etc/termoso/bridge.json:ro
+      - ${LABTERM_BRIDGE_CREDENTIALS_FILE:-./bridge.json}:/etc/labterm/bridge.json:ro
     ports:
-      - "${TERMOSO_LISTEN:-127.0.0.1}:${TERMOSO_BRIDGE_PORT:-8081}:8080"
+      - "${LABTERM_LISTEN:-127.0.0.1}:${LABTERM_BRIDGE_PORT:-8081}:8080"
     depends_on:
       api:
         condition: service_healthy
@@ -151,22 +151,22 @@ services:
       - no-new-privileges:true
 
   # Optional, one-shot: `docker compose --profile backup run --rm backup`
-  # Writes termoso-<utc>.dump + .manifest.json to ./backups (TERMOSO_BACKUP_DIR).
-  # Set TERMOSO_BACKUP_AGE_RECIPIENT in .env to get age-encrypted dumps.
+  # Writes labterm-<utc>.dump + .manifest.json to ./backups (LABTERM_BACKUP_DIR).
+  # Set LABTERM_BACKUP_AGE_RECIPIENT in .env to get age-encrypted dumps.
   # Restore: `docker compose --profile backup run --rm backup restore --from /backups/<file> --yes`
   # with the api stopped. See docs/SELF_HOSTING.md → Backups.
   backup:
     profiles: ["backup"]
-    image: ghcr.io/termoso/termoso-backup:${TERMOSO_VERSION:-latest}
+    image: ghcr.io/reykimedev/labterm-backup:${LABTERM_VERSION:-latest}
     build:
       context: ..
       dockerfile: deploy/Dockerfile.backup
-    env_file: ${TERMOSO_ENV_FILE:-.env}
+    env_file: ${LABTERM_ENV_FILE:-.env}
     environment:
-      TERMOSO_DATABASE_URL: postgres://termoso:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/termoso
-      TERMOSO_REDIS_URL: redis://redis:6379
+      LABTERM_DATABASE_URL: postgres://labterm:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/labterm
+      LABTERM_REDIS_URL: redis://redis:6379
     volumes:
-      - ${TERMOSO_BACKUP_DIR:-./backups}:/backups
+      - ${LABTERM_BACKUP_DIR:-./backups}:/backups
     depends_on:
       postgres:
         condition: service_healthy
@@ -174,8 +174,8 @@ services:
       - no-new-privileges:true
 
   # Optional: `docker compose --profile proxy up -d`
-  # Caddy with automatic Let's Encrypt certificates for TERMOSO_DOMAIN (api +
-  # cabinet) and TERMOSO_S3_DOMAIN (pre-signed log uploads). Both names must
+  # Caddy with automatic Let's Encrypt certificates for LABTERM_DOMAIN (api +
+  # cabinet) and LABTERM_S3_DOMAIN (pre-signed log uploads). Both names must
   # resolve to this host and ports 80/443 must be reachable from the internet;
   # Caddy refuses to start while either variable is empty.
   caddy:
@@ -183,8 +183,8 @@ services:
     image: caddy:2-alpine
     restart: unless-stopped
     environment:
-      TERMOSO_DOMAIN: ${TERMOSO_DOMAIN:-}
-      TERMOSO_S3_DOMAIN: ${TERMOSO_S3_DOMAIN:-}
+      LABTERM_DOMAIN: ${LABTERM_DOMAIN:-}
+      LABTERM_S3_DOMAIN: ${LABTERM_S3_DOMAIN:-}
       ACME_EMAIL: ${ACME_EMAIL:-}
     ports:
       - "80:80"

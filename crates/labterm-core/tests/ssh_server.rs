@@ -165,7 +165,7 @@ impl russh::server::Handler for TestHandler {
     }
 
     async fn authentication_banner(&mut self) -> Result<Option<String>, Self::Error> {
-        Ok(Some("Welcome to the termoso test server".into()))
+        Ok(Some("Welcome to the labterm test server".into()))
     }
 
     async fn channel_open_session(
@@ -1221,7 +1221,7 @@ async fn accept_and_save_pins_key_and_changed_key_is_refused() {
     o.auth
         .push(AuthMethod::Password(Zeroizing::new(PASSWORD.into())));
     let c = SshClient::connect(o).await.unwrap();
-    assert_eq!(c.banner(), Some("Welcome to the termoso test server"));
+    assert_eq!(c.banner(), Some("Welcome to the labterm test server"));
     assert_eq!(
         h.kh.check("127.0.0.1", h.port, &h.host_key).unwrap(),
         HostKeyVerdict::Known

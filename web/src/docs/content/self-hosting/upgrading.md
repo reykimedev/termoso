@@ -5,13 +5,13 @@ description: Move to a new release, pin versions, and handle PostgreSQL major up
 
 ## Pin the version
 
-Set `TERMOSO_VERSION` in `deploy/.env` to the release you run (for example `0.7.0`) rather than `latest`. Tags match the [GitHub releases](https://github.com/termoso/termoso/releases).
+Set `LABTERM_VERSION` in `deploy/.env` to the release you run (for example `0.7.0`) rather than `latest`. Tags match the [GitHub releases](https://github.com/termoso/termoso/releases).
 
 ## Upgrade
 
 ```bash
 git pull                                    # compose and .env.example changes
-$EDITOR deploy/.env                         # compare with deploy/.env.example, bump TERMOSO_VERSION
+$EDITOR deploy/.env                         # compare with deploy/.env.example, bump LABTERM_VERSION
 docker compose -f deploy/docker-compose.yml pull
 docker compose -f deploy/docker-compose.yml up -d --wait
 ```
@@ -27,11 +27,11 @@ Apps and servers of neighbouring versions work together. Update the server first
 The stack pins PostgreSQL by major version. A major upgrade is never automatic — the new image refuses an old data directory. Dump with the old image and restore into the new one:
 
 ```bash
-docker compose -f deploy/docker-compose.yml exec postgres pg_dump -U termoso -Fc termoso > pre-upgrade.dump
+docker compose -f deploy/docker-compose.yml exec postgres pg_dump -U labterm -Fc labterm > pre-upgrade.dump
 docker compose -f deploy/docker-compose.yml down
-docker volume rm termoso_postgres          # or move it aside
+docker volume rm labterm_postgres          # or move it aside
 # bump the postgres image tag, then
 docker compose -f deploy/docker-compose.yml up -d --wait postgres
-docker compose -f deploy/docker-compose.yml exec -T postgres pg_restore -U termoso -d termoso --no-owner < pre-upgrade.dump
+docker compose -f deploy/docker-compose.yml exec -T postgres pg_restore -U labterm -d labterm --no-owner < pre-upgrade.dump
 docker compose -f deploy/docker-compose.yml up -d --wait
 ```

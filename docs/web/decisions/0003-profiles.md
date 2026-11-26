@@ -1,7 +1,7 @@
 # 0003 Profiles web-app and service, without the web-app backend
 
 **Context:** Hatch is a web frontend plus a headless relay. The `web-app` profile assumes a Flask
-API, a database and migrations; Hatch has none: the server it talks to is Termoso's own. The
+API, a database and migrations; Hatch has none: the server it talks to is Labterm's own. The
 `service` profile fits the relay (`/healthz`, `/metrics`, config from env, one container).
 
 **Decision:** `profile = ["web-app", "service"]` ([handbook 0011](https://github.com/bitsandbricks-ch/handbook/blob/main/decisions/0011-several-profiles-per-repo.md)).

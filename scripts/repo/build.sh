@@ -25,12 +25,12 @@ prune() { # <dir> <glob>: drop every version but the $keep newest
 
 ### APT ###################################################################
 deb=$out/deb
-mkdir -p "$deb/pool/main/t/termoso" "$deb/dists/stable/main"
+mkdir -p "$deb/pool/main/t/labterm" "$deb/dists/stable/main"
 for f in "$assets"/*_amd64.deb "$assets"/*_arm64.deb; do
   [ -e "$f" ] || { echo "missing $f" >&2; exit 1; }
-  cp -f "$f" "$deb/pool/main/t/termoso/$(basename "$f" | tr 'A-Z' 'a-z')"
+  cp -f "$f" "$deb/pool/main/t/labterm/$(basename "$f" | tr 'A-Z' 'a-z')"
 done
-prune "$deb/pool/main/t/termoso" '*.deb'
+prune "$deb/pool/main/t/labterm" '*.deb'
 (
   cd "$deb"
   for arch in amd64 arm64; do
@@ -41,13 +41,13 @@ prune "$deb/pool/main/t/termoso" '*.deb'
   done
   cat > /tmp/apt-release.conf <<CONF
 APT::FTPArchive::Release {
-  Origin "Termoso";
-  Label "Termoso";
+  Origin "Labterm";
+  Label "Labterm";
   Suite "stable";
   Codename "stable";
   Architectures "amd64 arm64";
   Components "main";
-  Description "Termoso — SSH, SFTP and terminal client (https://termoso.dev)";
+  Description "Labterm — SSH, SFTP and terminal client (https://termoso.dev)";
 };
 CONF
   apt-ftparchive -c /tmp/apt-release.conf release dists/stable > dists/stable/Release
@@ -55,7 +55,7 @@ CONF
   gpg --batch --yes --local-user "$key" --digest-algo SHA256 --clearsign -o dists/stable/InRelease dists/stable/Release
   gpg --batch --yes --local-user "$key" --digest-algo SHA256 -abs -o dists/stable/Release.gpg dists/stable/Release
 )
-echo "deb [signed-by=/usr/share/keyrings/termoso.gpg] https://pkg.termoso.dev/deb stable main" > "$out/termoso.list"
+echo "deb [signed-by=/usr/share/keyrings/labterm.gpg] https://pkg.termoso.dev/deb stable main" > "$out/labterm.list"
 
 ### DNF ###################################################################
 rpm=$out/rpm
@@ -72,9 +72,9 @@ for pair in x86_64:x86_64 aarch64:aarch64; do
   rm -f "$rpm/$arch/repodata/repomd.xml.asc"
   gpg --batch --yes --local-user "$key" --digest-algo SHA256 -abs -o "$rpm/$arch/repodata/repomd.xml.asc" "$rpm/$arch/repodata/repomd.xml"
 done
-cat > "$out/termoso.repo" <<REPO
-[termoso]
-name=Termoso
+cat > "$out/labterm.repo" <<REPO
+[labterm]
+name=Labterm
 baseurl=https://pkg.termoso.dev/rpm/\$basearch
 enabled=1
 gpgcheck=1
@@ -83,8 +83,8 @@ gpgkey=https://pkg.termoso.dev/termoso.asc
 REPO
 
 ### keys + landing ########################################################
-gpg --batch --yes --export --armor "$key" > "$out/termoso.asc"
-gpg --batch --yes --export "$key" > "$out/termoso.gpg"
+gpg --batch --yes --export --armor "$key" > "$out/labterm.asc"
+gpg --batch --yes --export "$key" > "$out/labterm.gpg"
 sed "s/@VERSION@/$version/g; s/@FINGERPRINT@/$(gpg --batch --with-colons --fingerprint "$key" | awk -F: '$1=="fpr"{print $10; exit}')/" \
   "$here/index.html" > "$out/index.html"
 touch "$out/.nojekyll"

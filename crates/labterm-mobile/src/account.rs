@@ -151,7 +151,7 @@ pub struct SsoStarted {
 pub enum SsoOutcome {
     /// Browser round trip not finished yet.
     Pending,
-    /// Known account: unlock with the Termoso password.
+    /// Known account: unlock with the Labterm password.
     LoginRequired {
         email: String,
     },
@@ -1663,15 +1663,15 @@ mod tests {
     #[test]
     fn normalizes_server_url() {
         assert_eq!(
-            normalize_server_url("  https://termoso.example/// ").unwrap(),
-            "https://termoso.example"
+            normalize_server_url("  https://labterm.example/// ").unwrap(),
+            "https://labterm.example"
         );
         assert_eq!(
             normalize_server_url("http://10.0.2.2:8080").unwrap(),
             "http://10.0.2.2:8080"
         );
         assert!(normalize_server_url("").is_err());
-        assert!(normalize_server_url("termoso.example").is_err());
+        assert!(normalize_server_url("labterm.example").is_err());
         assert!(normalize_server_url("https://").is_err());
     }
 
@@ -1702,7 +1702,7 @@ mod tests {
         assert_eq!(s.last_error, None);
     }
 
-    const SERVER: &str = "https://termoso.example";
+    const SERVER: &str = "https://labterm.example";
 
     fn sso_inner(outcome: Option<SsoOutcome>, session: Option<&str>) -> Inner {
         Inner {

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Sanity-check a built Termoso AppImage: it must not ship libwayland (see
+# Sanity-check a built Labterm AppImage: it must not ship libwayland (see
 # linuxdeploy-plugin-appimage.sh) and its GTK hook must leave GDK_BACKEND
-# alone. Usage: verify.sh path/to/Termoso.AppImage
+# alone. Usage: verify.sh path/to/Labterm.AppImage
 set -euo pipefail
 
 appimage="$(readlink -f "${1:?usage: verify.sh <AppImage>}")"

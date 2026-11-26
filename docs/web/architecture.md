@@ -5,7 +5,7 @@ The browser is the SSH endpoint; the relay is a pipe.
 ```text
 Browser (work PC)                         cluster                        home network
   signed loader + service worker  --HTTPS-->  app files (static, signed)
-  labterm-wasm: sign-in, vault     --HTTPS-->  Termoso server (sync, ciphertext only)
+  labterm-wasm: sign-in, vault     --HTTPS-->  Labterm server (sync, ciphertext only)
   labterm-web-wasm: russh in wasm  --WSS---->  labterm-relay  --TCP 22-->  SSH hosts
   Labterm desktop UI (React, MUI, xterm.js)
 ```
@@ -13,7 +13,7 @@ Browser (work PC)                         cluster                        home ne
 1. The loader checks every file against the signed release manifest, then starts the app
    ([0007](decisions/0007-signed-release-manifest.md)).
 2. On first start the user sets a lock password for this browser's encrypted copy
-   ([0008](decisions/0008-browser-copy-and-lock-password.md)), then signs in to their Termoso
+   ([0008](decisions/0008-browser-copy-and-lock-password.md)), then signs in to their Labterm
    account (OPAQUE, an emailed code for the new device) as on any Labterm device. Vaults sync
    both ways.
 3. On the first connect of a browser session the user signs in to Authentik once. The ID token

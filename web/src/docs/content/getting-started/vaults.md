@@ -1,6 +1,6 @@
 ---
 title: Vaults and sync
-description: How Termoso stores hosts, keys and snippets, what syncs and how fast, how to move data between vaults, and what the server can and cannot see.
+description: How Labterm stores hosts, keys and snippets, what syncs and how fast, how to move data between vaults, and what the server can and cannot see.
 ---
 
 Everything you save — hosts, groups, keys, identities, certificates, snippets, port-forwarding rules, workspace templates, known hosts — lives in a **vault**. A vault is encrypted with its own key; switching vaults switches the whole set of data on screen. The vault switcher is the first tab in the title bar on the desktop and the first screen on Android.

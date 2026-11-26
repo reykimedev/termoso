@@ -80,7 +80,7 @@ export function SsoTab({ team }: { team: Team }) {
     return (
       <Alert severity="info">
         {tr(
-          "Per-team identity providers are disabled on this server (TERMOSO_TEAM_IDP=false). Server-wide SSO providers still work.",
+          "Per-team identity providers are disabled on this server (LABTERM_TEAM_IDP=false). Server-wide SSO providers still work.",
         )}
       </Alert>
     );

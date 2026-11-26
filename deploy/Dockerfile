@@ -56,15 +56,15 @@ COPY crates ./crates
 COPY apps/desktop/src-tauri ./apps/desktop/src-tauri
 RUN --mount=type=cache,id=cargo-registry-server,target=/usr/local/cargo/registry \
     --mount=type=cache,id=target-server,target=/src/target \
-    cargo build --release --locked -p termoso-server \
-    && cp target/release/termoso-server /termoso-server
+    cargo build --release --locked -p labterm-server \
+    && cp target/release/labterm-server /labterm-server
 
 # ── runtime ──────────────────────────────────────────────────────────────────
 FROM gcr.io/distroless/cc-debian12:nonroot
-COPY --from=server /termoso-server /usr/local/bin/termoso-server
+COPY --from=server /labterm-server /usr/local/bin/labterm-server
 COPY --from=web /web/dist /app/web
-ENV TERMOSO_BIND=0.0.0.0:8080 \
-    TERMOSO_WEB_DIR=/app/web
+ENV LABTERM_BIND=0.0.0.0:8080 \
+    LABTERM_WEB_DIR=/app/web
 EXPOSE 8080
 USER nonroot
-ENTRYPOINT ["/usr/local/bin/termoso-server"]
+ENTRYPOINT ["/usr/local/bin/labterm-server"]

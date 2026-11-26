@@ -479,7 +479,7 @@ class SessionManager(
     }
 
     /**
-     * Join a `termoso://join/…` link as a viewer. The link is parsed in Rust;
+     * Join a `labterm://join/…` link as a viewer. The link is parsed in Rust;
      * Kotlin never sees the secret in its fragment separately.
      */
     suspend fun joinLive(link: String): TerminalSession {

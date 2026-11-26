@@ -10,7 +10,7 @@ import dev.labdex.labterm.R
 
 /**
  * Launcher long-press shortcuts for the hosts connected to most recently
- * (`termoso://host/<id>`), next to the static "New connection / Local terminal /
+ * (`labterm://host/<id>`), next to the static "New connection / Local terminal /
  * SFTP" ones from `res/xml/shortcuts.xml`. Labels only — never addresses with
  * credentials, never anything from a locked vault.
  */
@@ -19,9 +19,9 @@ object RecentShortcuts {
     private class Action(val id: String, val label: Int, val icon: Int, val link: String)
 
     private val BASE = listOf(
-        Action("action:new", R.string.shortcut_new_connection, R.drawable.ic_shortcut_new, "termoso://new"),
-        Action("action:local", R.string.shortcut_local_terminal, R.drawable.ic_shortcut_terminal, "termoso://local"),
-        Action("action:sftp", R.string.shortcut_sftp, R.drawable.ic_shortcut_sftp, "termoso://sftp"),
+        Action("action:new", R.string.shortcut_new_connection, R.drawable.ic_shortcut_new, "labterm://new"),
+        Action("action:local", R.string.shortcut_local_terminal, R.drawable.ic_shortcut_terminal, "labterm://local"),
+        Action("action:sftp", R.string.shortcut_sftp, R.drawable.ic_shortcut_sftp, "labterm://sftp"),
     )
 
     /**
@@ -53,7 +53,7 @@ object RecentShortcuts {
             .setShortLabel(host.label.ifBlank { host.address })
             .setLongLabel(host.label.ifBlank { host.address })
             .setIcon(IconCompat.createWithResource(context, R.drawable.ic_shortcut_host))
-            .setIntent(Intent(Intent.ACTION_VIEW, Uri.parse("termoso://host/$hostId")).setPackage(context.packageName))
+            .setIntent(Intent(Intent.ACTION_VIEW, Uri.parse("labterm://host/$hostId")).setPackage(context.packageName))
             .build()
         runCatching {
             val max = (ShortcutManagerCompat.getMaxShortcutCountPerActivity(context) - STATIC_COUNT).coerceAtLeast(1)

@@ -14,8 +14,8 @@ GitHub Actions. The keys live in GitHub environments that only a `v*` tag
 | Linux    | `_amd64.deb` / `.x86_64.rpm` / `_amd64.AppImage` (x86_64), `_arm64.deb` / `.aarch64.rpm` / `_aarch64.AppImage` (64-bit ARM) | `*.AppImage` + `*.AppImage.sig` per architecture                                                                                                                          |
 | Windows  | NSIS `*-setup.exe`, `*.msi`                                                                                                 | `*-setup.exe` + `.sig` (preferred), `*.msi` + `.sig`                                                                                                                      |
 | macOS    | `*_aarch64.dmg` (Apple Silicon), `*_x64.dmg` (Intel)                                                                        | `*_aarch64.app.tar.gz` / `*_x64.app.tar.gz` + `.sig`                                                                                                                      |
-| Android  | `termoso-<version>-{arm64-v8a,armeabi-v7a,x86_64,universal}.apk`                                                            | — (no in-app updater on Android; the APKs carry the standard v2/v3 APK signature)                                                                                         |
-| iOS      | `termoso-<version>-ios.ipa` (**unsigned**, sideload)                                                                        | `termoso-altstore.json` — AltStore/SideStore source; the store app signs with the user's Apple ID and refreshes the 7-day profile, see [IOS_SIDELOAD.md](IOS_SIDELOAD.md) |
+| Android  | `labterm-<version>-{arm64-v8a,armeabi-v7a,x86_64,universal}.apk`                                                            | — (no in-app updater on Android; the APKs carry the standard v2/v3 APK signature)                                                                                         |
+| iOS      | `labterm-<version>-ios.ipa` (**unsigned**, sideload)                                                                        | `labterm-altstore.json` — AltStore/SideStore source; the store app signs with the user's Apple ID and refreshes the 7-day profile, see [IOS_SIDELOAD.md](IOS_SIDELOAD.md) |
 
 plus:
 
@@ -80,8 +80,8 @@ see [Dev channel](#dev-channel).
 | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | `TAURI_SIGNING_PRIVATE_KEY`                                                 | minisign private key (contents of the `.key` file)                                                              |
 | `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`                                        | its password                                                                                                    |
-| `ANDROID_KEYSTORE_BASE64`                                                   | Android release keystore, `base64 -w0 termoso-release.jks`                                                      |
-| `ANDROID_KEYSTORE_PASSWORD`                                                 | its store password (the single key uses alias `termoso` and the same password)                                  |
+| `ANDROID_KEYSTORE_BASE64`                                                   | Android release keystore, `base64 -w0 labterm-release.jks`                                                      |
+| `ANDROID_KEYSTORE_PASSWORD`                                                 | its store password (the single key uses alias `labterm` and the same password)                                  |
 | `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY` | _optional_ — Developer ID signing, see [macOS](#macos-signing-and-gatekeeper)                                   |
 | `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID`                               | _optional_ — notarization with `notarytool` (app-specific password)                                             |
 | `TERMOSO_REPO_GPG_KEY`                                                      | armored RSA signing key for the apt/dnf repositories (no passphrase), see [Package channels](#package-channels) |
@@ -106,16 +106,16 @@ key and asking every user to reinstall), and paste the `.key.pub` contents
 into `plugins.updater.pubkey` in `tauri.conf.json`. A tag whose config still
 carries upstream Termoso's key, or whose updater endpoints are not this
 repository's releases, fails the `version consistency` job, and a binary
-with Termoso's key keeps its updater off (`update.rs`). Rotating the key
+with Labterm's key keeps its updater off (`update.rs`). Rotating the key
 requires one release signed with the _old_ key whose binary already carries
 the _new_ public key.
 
 The Android keystore is created once with
 
 ```bash
-keytool -genkeypair -keystore termoso-release.jks -alias termoso \
+keytool -genkeypair -keystore labterm-release.jks -alias labterm \
   -keyalg RSA -keysize 4096 -validity 10950
-base64 -w0 termoso-release.jks | gh secret set ANDROID_KEYSTORE_BASE64 --env release -R $R
+base64 -w0 labterm-release.jks | gh secret set ANDROID_KEYSTORE_BASE64 --env release -R $R
 gh secret set ANDROID_KEYSTORE_PASSWORD --env release -R $R
 ```
 
@@ -123,28 +123,28 @@ Android refuses to update an installed app whose new APK is signed with a
 different key, so back this file up the same way as the minisign key. The
 version code is derived from the workspace version (`MAJOR*10000 + MINOR*100 +
 PATCH`; `apps/android/app/build.gradle.kts`) so every release installs over the
-previous one. Locally, `TERMOSO_ANDROID_KEYSTORE=/path/to.jks
-TERMOSO_ANDROID_KEYSTORE_PASSWORD=… ./gradlew :app:assembleRelease` signs the
+previous one. Locally, `LABTERM_ANDROID_KEYSTORE=/path/to.jks
+LABTERM_ANDROID_KEYSTORE_PASSWORD=… ./gradlew :app:assembleRelease` signs the
 same way; without those variables the release APK is left unsigned.
 
 The signing certificate also powers Android App Links: the app declares
 `https://app.termoso.dev/{invite,join}/…` and Android only lets it claim those
 URLs after fetching `https://app.termoso.dev/.well-known/assetlinks.json` and
 finding the certificate there. Print the fingerprint and put it in the
-server's `TERMOSO_ANDROID_APP_LINKS` (self-hosted servers do the same for
+server's `LABTERM_ANDROID_APP_LINKS` (self-hosted servers do the same for
 their own builds):
 
 ```bash
-keytool -list -v -keystore termoso-release.jks -alias termoso | grep SHA256
+keytool -list -v -keystore labterm-release.jks -alias labterm | grep SHA256
 # or, for a built APK:
-apksigner verify --print-certs termoso-x.y.z-arm64-v8a.apk | grep SHA-256
+apksigner verify --print-certs labterm-x.y.z-arm64-v8a.apk | grep SHA-256
 
-TERMOSO_ANDROID_APP_LINKS="dev.labdex.labterm=AA:BB:…"
+LABTERM_ANDROID_APP_LINKS="dev.labdex.labterm=AA:BB:…"
 ```
 
 Self-hosted servers are still reachable from the app through the same links:
 the web landing pages (`/invite/<token>`, `/join/<id>#<secret>`) offer _Open in
-Termoso_, which hands the link to the installed app over the `termoso://`
+Labterm_, which hands the link to the installed app over the `labterm://`
 scheme, so App Links are an optimisation, not a requirement.
 
 ## Package channels
@@ -160,16 +160,16 @@ published:
 | Channel   | Where                                                                                            | How                                                                                                                                                                                                                                                                         |
 | --------- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | apt + dnf | [termoso/termoso-repo](https://github.com/termoso/termoso-repo) → GitHub Pages `pkg.termoso.dev` | `scripts/repo/build.sh` rebuilds `deb/` (apt-ftparchive, `InRelease` + `Release.gpg`) and `rpm/<arch>/` (rpms re-signed with `rpmsign`, `createrepo_c`, `repomd.xml.asc`), keeps the two newest versions in the pools, pushes over the `TERMOSO_REPO_DEPLOY_KEY` deploy key |
-| Homebrew  | [termoso/homebrew-termoso](https://github.com/termoso/homebrew-termoso)                          | `scripts/repo/cask.sh` renders `Casks/termoso.rb` from `SHA256SUMS.txt` (both dmg architectures), pushes over `HOMEBREW_TAP_DEPLOY_KEY`                                                                                                                                     |
-| winget    | `microsoft/winget-pkgs`, package `Termoso.Termoso`                                               | [Komac](https://github.com/russellbanks/Komac) `update --submit` opens the version PR from the fork owned by `WINGET_TOKEN`; `continue-on-error`, so a winget hiccup never fails the release                                                                                |
+| Homebrew  | [termoso/homebrew-termoso](https://github.com/termoso/homebrew-termoso)                          | `scripts/repo/cask.sh` renders `Casks/labterm.rb` from `SHA256SUMS.txt` (both dmg architectures), pushes over `HOMEBREW_TAP_DEPLOY_KEY`                                                                                                                                     |
+| winget    | `microsoft/winget-pkgs`, package `Labterm.Labterm`                                               | [Komac](https://github.com/russellbanks/Komac) `update --submit` opens the version PR from the fork owned by `WINGET_TOKEN`; `continue-on-error`, so a winget hiccup never fails the release                                                                                |
 
-The repositories are signed with the "Termoso Packages <packages@termoso.dev>"
+The repositories are signed with the "Labterm Packages <packages@termoso.dev>"
 RSA key held in `TERMOSO_REPO_GPG_KEY`; its public half is served as
-`termoso.gpg` / `termoso.asc` next to the repositories. Rotating it means
+`labterm.gpg` / `labterm.asc` next to the repositories. Rotating it means
 replacing the secret and telling users to re-import the key — the previous
 `InRelease` and `repomd.xml.asc` stop verifying.
 
-First-time winget submission is manual (`komac new Termoso.Termoso --version X --urls <msi url> ...`
+First-time winget submission is manual (`komac new Labterm.Labterm --version X --urls <msi url> ...`
 answers a few prompts and opens the PR); the job only handles updates once the
 package exists upstream. Both side repositories are generated — never edit them
 by hand, the next release overwrites everything.
@@ -178,8 +178,8 @@ Everything the job needs can be rebuilt locally against any release:
 
 ```sh
 gh release download v0.8.5 -p '*.deb' -p '*.rpm' -p SHA256SUMS.txt -D assets
-scripts/repo/build.sh assets path/to/termoso-repo 0.8.5 packages@termoso.dev
-scripts/repo/cask.sh assets/SHA256SUMS.txt 0.8.5 > path/to/homebrew-termoso/Casks/termoso.rb
+scripts/repo/build.sh assets path/to/labterm-repo 0.8.5 packages@termoso.dev
+scripts/repo/cask.sh assets/SHA256SUMS.txt 0.8.5 > path/to/homebrew-labterm/Casks/labterm.rb
 ```
 
 ## macOS: signing and Gatekeeper
@@ -190,12 +190,12 @@ bundler signs the app **ad hoc** (`tauri.macos.conf.json` →
 integrity-sealed, so it runs at all on Apple Silicon (which refuses unsigned
 code), but it carries no Developer ID and is not notarized. Gatekeeper
 therefore blocks the first launch of a downloaded copy with a message such as
-_"Termoso" is damaged and can't be opened_ or _Apple could not verify
-"Termoso" is free of malware_. Users clear the quarantine flag once, after
+_"Labterm" is damaged and can't be opened_ or _Apple could not verify
+"Labterm" is free of malware_. Users clear the quarantine flag once, after
 dragging the app to Applications:
 
 ```bash
-xattr -cr /Applications/Termoso.app
+xattr -cr /Applications/Labterm.app
 ```
 
 (or right-click → _Open_, and on macOS 15+ confirm in System Settings →
@@ -204,7 +204,7 @@ workflow say the same. This is a one-time step per download; in-app updates
 extract the new bundle themselves, so they do not pick up the quarantine
 attribute that browsers attach. Because an ad-hoc signature identifies a
 specific build rather than a developer, macOS treats each update as a new
-application for Keychain purposes and may ask once more to allow Termoso to
+application for Keychain purposes and may ask once more to allow Labterm to
 read its master key (_Always Allow_).
 
 To ship builds that open without any of that, add the optional secrets and
@@ -239,7 +239,7 @@ with its own `latest.json`.
 
 - **Its own app.** Labterm Dev (`dev.labdex.labterm.dev`, config overlay
   `apps/desktop/src-tauri/channels/dev.json`) installs next to Labterm, keeps
-  its own profile (`…/termoso/dev`) and keychain entry, and never touches the
+  its own profile (`…/labterm/dev`) and keychain entry, and never touches the
   stable app's vault.
 - **Its own feed and key.** The build bakes in the dev feed and the dev public
   key, so a dev build only updates from `desktop-dev` and a stable build never
@@ -322,7 +322,7 @@ To keep updates entirely on infrastructure you control:
 
 1. Download `latest.json`, the updater artifacts and their `.sig` files from
    the release and put them on any HTTPS static host (the same server that
-   runs `termoso-server`, an S3 bucket, nginx — anything that serves files).
+   runs `labterm-server`, an S3 bucket, nginx — anything that serves files).
 2. Rewrite the `url` fields inside `latest.json` to point at your copies.
    Signatures stay as they are: they cover the artifact bytes, not the URL.
 3. In the app, Settings → Updates → _Release feed_, enter the URL of your
@@ -338,23 +338,23 @@ Clients of a fork trust the fork's key only.
 ```json
 {
   "version": "0.2.0",
-  "notes": "Signed desktop builds of Termoso 0.2.0.",
+  "notes": "Signed desktop builds of Labterm 0.2.0.",
   "pub_date": "2026-09-10T17:00:00Z",
   "platforms": {
     "linux-x86_64": {
-      "url": "https://updates.example.com/termoso/0.2.0/Termoso_0.2.0_amd64.AppImage",
+      "url": "https://updates.example.com/labterm/0.2.0/Labterm_0.2.0_amd64.AppImage",
       "signature": "dW50cnVzdGVkIGNvbW1lbnQ6…"
     },
     "windows-x86_64": {
-      "url": "https://updates.example.com/termoso/0.2.0/Termoso_0.2.0_x64-setup.exe",
+      "url": "https://updates.example.com/labterm/0.2.0/Labterm_0.2.0_x64-setup.exe",
       "signature": "dW50cnVzdGVkIGNvbW1lbnQ6…"
     },
     "darwin-aarch64": {
-      "url": "https://updates.example.com/termoso/0.2.0/Termoso_0.2.0_aarch64.app.tar.gz",
+      "url": "https://updates.example.com/labterm/0.2.0/Labterm_0.2.0_aarch64.app.tar.gz",
       "signature": "dW50cnVzdGVkIGNvbW1lbnQ6…"
     },
     "darwin-x86_64": {
-      "url": "https://updates.example.com/termoso/0.2.0/Termoso_0.2.0_x64.app.tar.gz",
+      "url": "https://updates.example.com/labterm/0.2.0/Labterm_0.2.0_x64.app.tar.gz",
       "signature": "dW50cnVzdGVkIGNvbW1lbnQ6…"
     }
   }

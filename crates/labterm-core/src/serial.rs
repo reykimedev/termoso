@@ -236,7 +236,7 @@ impl SerialTerminal {
         let (tx, rx) = event_channel();
         let t2 = term.clone();
         std::thread::Builder::new()
-            .name("termoso-serial-reader".into())
+            .name("labterm-serial-reader".into())
             .spawn(move || {
                 let mut buf = [0u8; 4096];
                 let mut transcoder = Transcoder::new(enc);
@@ -355,7 +355,7 @@ mod tests {
         cfg.path = if cfg!(windows) {
             "COM255".into()
         } else {
-            "/dev/termoso-no-such-tty".into()
+            "/dev/labterm-no-such-tty".into()
         };
         let err = SerialTerminal::open(&cfg).unwrap_err();
         assert!(matches!(

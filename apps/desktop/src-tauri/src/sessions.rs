@@ -2180,7 +2180,7 @@ mod tests {
 
     #[test]
     fn local_shell_existing_path_with_spaces_is_one_program() {
-        let dir = std::env::temp_dir().join(format!("termoso shell {}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("labterm shell {}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let exe = dir.join("my shell");
         std::fs::write(&exe, b"").unwrap();

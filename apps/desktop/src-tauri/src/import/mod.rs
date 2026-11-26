@@ -1288,7 +1288,7 @@ fn build_chain(
 #[cfg(windows)]
 pub fn export_registry() -> Result<String> {
     use std::process::Command;
-    let dir = std::env::temp_dir().join(format!("termoso-putty-{}.reg", uuid::Uuid::new_v4()));
+    let dir = std::env::temp_dir().join(format!("labterm-putty-{}.reg", uuid::Uuid::new_v4()));
     let mut cmd = Command::new("reg");
     cmd.args([
         "export",

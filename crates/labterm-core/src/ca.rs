@@ -96,7 +96,7 @@ pub fn device_key(store: &Store) -> Result<DeviceKey> {
     if let Some(json) = store.secret_meta(KEY_META)? {
         return Ok(serde_json::from_str(&json)?);
     }
-    let material = keys::generate(KeyAlgorithm::Ed25519, "termoso-team-ca@device", None)?;
+    let material = keys::generate(KeyAlgorithm::Ed25519, "labterm-team-ca@device", None)?;
     let key = DeviceKey {
         private_key: material.private_key,
         public_key: material.public_key,

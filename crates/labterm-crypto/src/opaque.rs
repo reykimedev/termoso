@@ -23,7 +23,7 @@ use zeroize::Zeroizing;
 use crate::CryptoError;
 use crate::encoding::{b64, unb64};
 
-/// The Termoso OPAQUE cipher suite.
+/// The Labterm OPAQUE cipher suite.
 pub struct Suite;
 
 impl CipherSuite for Suite {

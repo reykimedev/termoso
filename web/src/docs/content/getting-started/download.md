@@ -13,19 +13,19 @@ with the rest of your system:
 ```sh
 # Debian / Ubuntu
 sudo install -d -m 0755 /usr/share/keyrings
-curl -fsSL https://pkg.termoso.dev/termoso.gpg | sudo tee /usr/share/keyrings/termoso.gpg > /dev/null
-curl -fsSL https://pkg.termoso.dev/termoso.list | sudo tee /etc/apt/sources.list.d/termoso.list
-sudo apt update && sudo apt install termoso
+curl -fsSL https://pkg.termoso.dev/termoso.gpg | sudo tee /usr/share/keyrings/labterm.gpg > /dev/null
+curl -fsSL https://pkg.termoso.dev/termoso.list | sudo tee /etc/apt/sources.list.d/labterm.list
+sudo apt update && sudo apt install labterm
 
 # Fedora / RHEL / openSUSE
-sudo curl -fsSL -o /etc/yum.repos.d/termoso.repo https://pkg.termoso.dev/termoso.repo
-sudo dnf install termoso
+sudo curl -fsSL -o /etc/yum.repos.d/labterm.repo https://pkg.termoso.dev/termoso.repo
+sudo dnf install labterm
 
 # macOS
-brew install --cask termoso/termoso/termoso
+brew install --cask labterm/labterm/labterm
 
 # Windows
-winget install Termoso.Termoso
+winget install Labterm.Labterm
 ```
 
 The apt and dnf repositories are signed; the key fingerprint is shown at
@@ -44,7 +44,7 @@ follow each release; they are not published to those stores yet.
 | Linux x86_64 / aarch64 | `.deb`, `.rpm`, `.AppImage`                        | The AppImage runs on any recent distribution without installing.                                             |
 | Windows x86_64         | `_x64-setup.exe`, `_x64_en-US.msi`                 | The `.exe` installs per user, the `.msi` suits managed deployments.                                          |
 | Windows ARM64          | `_arm64-setup.exe`, `_arm64_en-US.msi`             | The `.exe` installs per user, the `.msi` suits managed deployments.                                          |
-| macOS                  | `_aarch64.dmg` (Apple Silicon), `_x64.dmg` (Intel) | Ad-hoc signed: on first launch right-click the app → **Open**, or run `xattr -cr /Applications/Termoso.app`. |
+| macOS                  | `_aarch64.dmg` (Apple Silicon), `_x64.dmg` (Intel) | Ad-hoc signed: on first launch right-click the app → **Open**, or run `xattr -cr /Applications/Labterm.app`. |
 
 ### Updates
 
@@ -54,16 +54,16 @@ Nothing is fetched unless you ask. **Settings → Updates** has two modes — **
 
 APKs are signed with the project key and need no Google Play Services:
 
-- `termoso-<version>-arm64-v8a.apk` — almost every phone made since 2017;
-- `termoso-<version>-armeabi-v7a.apk` — older 32-bit devices;
-- `termoso-<version>-x86_64.apk` — emulators and Chromebooks;
-- `termoso-<version>-universal.apk` — all of the above in one larger file.
+- `labterm-<version>-arm64-v8a.apk` — almost every phone made since 2017;
+- `labterm-<version>-armeabi-v7a.apk` — older 32-bit devices;
+- `labterm-<version>-x86_64.apk` — emulators and Chromebooks;
+- `labterm-<version>-universal.apk` — all of the above in one larger file.
 
 Allow installing from your browser or file manager when Android asks. There is no in-app updater: install a newer APK over the old one, your data stays — including the Local vault and an installed [Linux environment](/docs/terminal/linux-on-android). Android 8.0 (API 26) or newer is required; the app targets the current Android release.
 
 ## iOS
 
-There is no App Store listing. Each release has an unsigned `termoso-<version>-ios.ipa` and an AltStore/SideStore source, `termoso-altstore.json`. Add the source in AltStore or SideStore; the store app signs Termoso with your own Apple ID and refreshes it every seven days.
+There is no App Store listing. Each release has an unsigned `labterm-<version>-ios.ipa` and an AltStore/SideStore source, `labterm-altstore.json`. Add the source in AltStore or SideStore; the store app signs Labterm with your own Apple ID and refreshes it every seven days.
 
 > [!NOTE]
 > The iOS app is younger than the others: it has the encrypted local vault, the host editor and the SSH terminal, but not yet account sync, SFTP or port forwarding.

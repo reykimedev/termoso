@@ -112,7 +112,7 @@ export function StartOverFinishPage() {
       <Stack spacing={2}>
         <Alert severity="error" variant="outlined">
           {trx(
-            "{v1} Confirming deletes your encrypted vault on the server: hosts, passwords, keys, snippets and settings. Termoso cannot recover them for you — there is no decryption key on the server. All devices and sessions are signed out and your SSH ID keys are removed. Team vaults need to be shared with you again by a team admin. You start with an empty vault and a new recovery key.",
+            "{v1} Confirming deletes your encrypted vault on the server: hosts, passwords, keys, snippets and settings. Labterm cannot recover them for you — there is no decryption key on the server. All devices and sessions are signed out and your SSH ID keys are removed. Team vaults need to be shared with you again by a team admin. You start with an empty vault and a new recovery key.",
             { v1: <AlertTitle>{tr("Last warning — this cannot be undone")}</AlertTitle> },
           )}
         </Alert>
@@ -192,7 +192,7 @@ export function StartOverCancelPage() {
         />
         <Alert severity="warning">
           {tr(
-            "If you did not request this reset, someone else has access to your mailbox. Change your email password, then sign in to Termoso and review Devices and Security.",
+            "If you did not request this reset, someone else has access to your mailbox. Change your email password, then sign in to Labterm and review Devices and Security.",
           )}
         </Alert>
         <Button variant="contained" onClick={() => void navigate("/login")}>

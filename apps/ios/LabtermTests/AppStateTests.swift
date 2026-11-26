@@ -5,13 +5,13 @@ import XCTest
 
 final class LaunchOptionsTests: XCTestCase {
     func testDefaults() {
-        let options = LaunchOptions(arguments: ["Termoso"])
+        let options = LaunchOptions(arguments: ["Labterm"])
         XCTAssertFalse(options.ephemeralProfile)
         XCTAssertFalse(options.verboseLogging)
     }
 
     func testUITestFlagImpliesVerbose() {
-        let options = LaunchOptions(arguments: ["Termoso", "--ui-test"])
+        let options = LaunchOptions(arguments: ["Labterm", "--ui-test"])
         XCTAssertTrue(options.ephemeralProfile)
         XCTAssertTrue(options.verboseLogging)
     }
@@ -29,10 +29,10 @@ final class AppPreferencesTests: XCTestCase {
         let prefs = AppPreferences.ephemeral()
         prefs.welcomeSeen = true
         prefs.serverChoice = .selfHosted
-        prefs.selfHostedURL = "https://termoso.example"
+        prefs.selfHostedURL = "https://labterm.example"
         XCTAssertTrue(prefs.welcomeSeen)
         XCTAssertEqual(prefs.serverChoice, .selfHosted)
-        XCTAssertEqual(prefs.selfHostedURL, "https://termoso.example")
+        XCTAssertEqual(prefs.selfHostedURL, "https://labterm.example")
     }
 }
 
@@ -73,7 +73,7 @@ final class KeychainMasterKeyStoreTests: XCTestCase {
 final class AppContainerTests: XCTestCase {
     func testUnlockOpensVaultAndWelcomeFlow() async throws {
         let dir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("termoso-container-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("labterm-container-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: dir) }
         let container = AppContainer(
             profileDir: dir,
@@ -101,7 +101,7 @@ final class VaultsModelTests: XCTestCase {
 
     override func setUpWithError() throws {
         dir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("termoso-model-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("labterm-model-\(UUID().uuidString)", isDirectory: true)
         repo = try VaultRepository.open(profileDir: dir, masterKey: KeychainMasterKeyStore.randomKey())
     }
 

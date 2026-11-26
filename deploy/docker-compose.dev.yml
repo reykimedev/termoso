@@ -3,32 +3,32 @@
 # no TLS. Use docker-compose.yml (or deploy/quadlet/) to run a real server.
 #
 #   docker compose -f deploy/docker-compose.dev.yml up -d --wait
-#   cargo run -p termoso-server            # defaults match the addresses below
+#   cargo run -p labterm-server            # defaults match the addresses below
 #   cargo test --workspace                 # picks these services up automatically
 #   docker compose -f deploy/docker-compose.dev.yml down -v   # wipe data
 #
 # Services
-#   postgres  localhost:5432   user/password/db: termoso/termoso/termoso
+#   postgres  localhost:5432   user/password/db: labterm/labterm/labterm
 #   redis     localhost:6379
 #   rustfs    localhost:9000   (console :9001)  minioadmin/minioadmin
 #   mailpit   localhost:1025   SMTP sink; UI at http://localhost:8025
 #
 # Data lives in named volumes so it survives `down`/`up`; `down -v` resets it.
 
-name: termoso-dev
+name: labterm-dev
 
 services:
   postgres:
     image: postgres:18-alpine
     environment:
-      POSTGRES_USER: termoso
-      POSTGRES_PASSWORD: termoso
-      POSTGRES_DB: termoso
+      POSTGRES_USER: labterm
+      POSTGRES_PASSWORD: labterm
+      POSTGRES_DB: labterm
     ports: ["127.0.0.1:5432:5432"]
     volumes:
       - postgres:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U termoso -d termoso"]
+      test: ["CMD-SHELL", "pg_isready -U labterm -d labterm"]
       interval: 2s
       timeout: 3s
       retries: 30

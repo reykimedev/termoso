@@ -1,11 +1,11 @@
 ---
 title: App lock
-description: Require a master password, biometrics or a PIN before Termoso opens your vaults on a device — and what happens to keys in memory when it locks.
+description: Require a master password, biometrics or a PIN before Labterm opens your vaults on a device — and what happens to keys in memory when it locks.
 ---
 
 ## Desktop: master password
 
-Set a master password in **Settings → Security**. From then on **App Lock** is always on: Termoso asks for the password on start before it opens hosts, keys and snippets, and the local database key is wrapped with a key derived from it (Argon2id).
+Set a master password in **Settings → Security**. From then on **App Lock** is always on: Labterm asks for the password on start before it opens hosts, keys and snippets, and the local database key is wrapped with a key derived from it (Argon2id).
 
 ![Security settings](/docs/img/desktop-settings-security.png)
 
@@ -23,13 +23,13 @@ While locked, open terminal sessions keep running (a long `rsync` does not care)
 **Settings → Security** offers:
 
 - **App lock** with biometrics or the device credential, through the system prompt;
-- **App PIN / pattern** — a 6-digit PIN or a pattern asked for when Termoso is locked, in addition to the screen lock. It is stored only on the device, as a salted hash, and locks out for increasing intervals after repeated failures;
+- **App PIN / pattern** — a 6-digit PIN or a pattern asked for when Labterm is locked, in addition to the screen lock. It is stored only on the device, as a salted hash, and locks out for increasing intervals after repeated failures;
 - **Lock after** — immediately or after a delay in the background;
 - **Remember key passphrases in memory** — keep passphrases typed at connect time until the app is locked.
 
 ![App PIN on Android](/docs/img/android-pin.png)
 
-While a lock is on, Termoso blocks screenshots and blurs its window in the recent-apps list, and the notification shade shows only that sessions are active, not their names.
+While a lock is on, Labterm blocks screenshots and blurs its window in the recent-apps list, and the notification shade shows only that sessions are active, not their names.
 
 ## What locking protects
 

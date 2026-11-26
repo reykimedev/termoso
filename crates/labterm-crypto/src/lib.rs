@@ -1,6 +1,6 @@
-//! Termoso zero-knowledge cryptography.
+//! Labterm zero-knowledge cryptography.
 //!
-//! Everything a user stores in Termoso is encrypted on the device before it is
+//! Everything a user stores in Labterm is encrypted on the device before it is
 //! sent to the server. The server only ever sees:
 //!
 //! * the OPAQUE registration record (from which the password cannot be recovered),

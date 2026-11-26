@@ -56,7 +56,7 @@ The same rules appear under **Port forwarding** in the vault and in the **â‹® â†
 
 ![Port forwarding rule on Android](/docs/img/android-pf-rule.png)
 
-Active tunnels are listed in **Connections** next to terminals and SFTP, with their traffic, and in the notification shade with a **Stop** button. They keep running in the foreground service while the app is in the background, so a database client on the phone can use `localhost:5433` while Termoso is not on screen.
+Active tunnels are listed in **Connections** next to terminals and SFTP, with their traffic, and in the notification shade with a **Stop** button. They keep running in the foreground service while the app is in the background, so a database client on the phone can use `localhost:5433` while Labterm is not on screen.
 
 > [!TIP]
 > To check a local rule without another program: start it, then open `http://127.0.0.1:<local port>/` in a browser or run `curl -v` against it. The card's connection counter goes up on every request, and the error line shows what the server said when the destination refused.

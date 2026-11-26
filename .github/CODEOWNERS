@@ -3,11 +3,11 @@
 
 /crates/labterm-crypto/             @rep0rtDev
 /crates/labterm-proto/              @rep0rtDev
-/crates/termoso-server/             @rep0rtDev
+/crates/labterm-server/             @rep0rtDev
 /crates/labterm-core/               @rep0rtDev
 /crates/labterm-client/             @rep0rtDev
 /crates/labterm-mobile/             @rep0rtDev
-/crates/termoso-bridge/             @rep0rtDev
+/crates/labterm-bridge/             @rep0rtDev
 /crates/labterm-wasm/               @rep0rtDev
 
 /apps/desktop/                      @rep0rtDev

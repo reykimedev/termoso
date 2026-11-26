@@ -98,7 +98,7 @@ schema! {
 schema! {
     /// A security-relevant event on the account (`GET /account/security-events`).
     ///
-    /// Termoso reports *to* the user, never *on* the user: this log is visible
+    /// Labterm reports *to* the user, never *on* the user: this log is visible
     /// only to the account owner.
     pub struct SecurityEvent {
         /// Id.
@@ -174,13 +174,13 @@ schema! {
         pub sso_registration: bool,
         /// Configured SSO providers.
         pub sso_providers: Vec<crate::auth::SsoProvider>,
-        /// Teams may bring their own identity provider (`TERMOSO_TEAM_IDP`).
+        /// Teams may bring their own identity provider (`LABTERM_TEAM_IDP`).
         #[serde(default)]
         pub team_idp: bool,
         /// Corporate mode: only SSO sign-in is accepted.
         #[serde(default)]
         pub sso_only: bool,
-        /// Data-residency label of this server (`TERMOSO_DATA_REGION`).
+        /// Data-residency label of this server (`LABTERM_DATA_REGION`).
         #[serde(default)]
         pub region: Option<String>,
         /// Ceiling for per-team audit retention (days).
@@ -202,7 +202,7 @@ schema! {
         /// `<sshid_url>/<handle>` (dedicated origin or `<server>/sshid`).
         #[serde(default)]
         pub sshid_url: String,
-        /// Public URL of the web cabinet (`TERMOSO_WEB_URL`, defaults to the
+        /// Public URL of the web cabinet (`LABTERM_WEB_URL`, defaults to the
         /// API origin). The landing links here when it has its own origin.
         #[serde(default)]
         pub web_url: String,
@@ -211,14 +211,14 @@ schema! {
         #[serde(default = "default_true")]
         pub landing: bool,
         /// This response came from the dedicated landing origin
-        /// (`TERMOSO_LANDING_URL`): only the landing is served here, the
+        /// (`LABTERM_LANDING_URL`): only the landing is served here, the
         /// cabinet lives at `web_url`.
         #[serde(default)]
         pub landing_only: bool,
-        /// Whether the documentation is served (`TERMOSO_DOCS`).
+        /// Whether the documentation is served (`LABTERM_DOCS`).
         #[serde(default = "default_true")]
         pub docs: bool,
-        /// Dedicated documentation origin (`TERMOSO_DOCS_URL`); empty when the
+        /// Dedicated documentation origin (`LABTERM_DOCS_URL`); empty when the
         /// docs live at `/docs` of the landing / cabinet origin.
         #[serde(default)]
         pub docs_url: String,
@@ -252,7 +252,7 @@ schema! {
         /// account, see `GET /account/ai`).
         #[serde(default)]
         pub ai: bool,
-        /// API bridges can be created (`TERMOSO_BRIDGES`). Absent on older
+        /// API bridges can be created (`LABTERM_BRIDGES`). Absent on older
         /// servers, which always offered them.
         #[serde(default)]
         pub bridges: bool,

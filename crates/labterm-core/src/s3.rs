@@ -1337,7 +1337,7 @@ impl RemoteFs for S3 {
                 let spool = self
                     .inner
                     .spool_dir
-                    .join(format!("termoso-s3-{}", uuid::Uuid::new_v4()));
+                    .join(format!("labterm-s3-{}", uuid::Uuid::new_v4()));
                 let mut file = tokio::fs::OpenOptions::new()
                     .read(true)
                     .write(true)

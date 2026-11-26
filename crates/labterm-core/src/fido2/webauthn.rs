@@ -348,8 +348,8 @@ mod tests {
     #[test]
     fn origin_keeps_explicit_port_only() {
         assert_eq!(
-            origin_for(&Url::parse("https://termoso.example.com/api/").unwrap()),
-            "https://termoso.example.com"
+            origin_for(&Url::parse("https://labterm.example.com/api/").unwrap()),
+            "https://labterm.example.com"
         );
         assert_eq!(
             origin_for(&Url::parse("http://localhost:8443").unwrap()),
@@ -380,7 +380,7 @@ mod tests {
             "publicKey": {
                 "challenge": "Y2hhbGxlbmdl",
                 "timeout": 60000,
-                "rpId": "termoso.example.com",
+                "rpId": "labterm.example.com",
                 "allowCredentials": [
                     {"type": "public-key", "id": "AQID"},
                     {"type": "public-key", "id": "BAUG", "transports": ["usb"]}
@@ -389,7 +389,7 @@ mod tests {
             }
         }))
         .unwrap();
-        assert_eq!(o.rp_id(), "termoso.example.com");
+        assert_eq!(o.rp_id(), "labterm.example.com");
         assert_eq!(o.challenge.0, b"challenge");
         assert_eq!(o.allowed_credentials(), vec![&[1u8, 2, 3][..], &[4, 5, 6]]);
         assert!(!o.requires_user_verification());
@@ -400,7 +400,7 @@ mod tests {
     fn creation_options_default_to_required_verification() {
         let o = CreationOptions::parse(&serde_json::json!({
             "publicKey": {
-                "rp": {"name": "Termoso", "id": "termoso.example.com"},
+                "rp": {"name": "Labterm", "id": "labterm.example.com"},
                 "user": {"id": "dXNlcg", "name": "a@b.c", "displayName": "A"},
                 "challenge": "Y2hhbGxlbmdl",
                 "pubKeyCredParams": [{"type": "public-key", "alg": -7}, {"type": "public-key", "alg": -8}],
@@ -411,7 +411,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             o.rp_id("https://other.example").unwrap(),
-            "termoso.example.com"
+            "labterm.example.com"
         );
         assert_eq!(o.algorithms(), vec![-7, -8]);
         assert!(o.requires_user_verification());
@@ -419,7 +419,7 @@ mod tests {
 
         let o = CreationOptions::parse(&serde_json::json!({
             "publicKey": {
-                "rp": {"name": "Termoso"},
+                "rp": {"name": "Labterm"},
                 "user": {"id": "dXNlcg", "name": "a@b.c"},
                 "challenge": "Y2hhbGxlbmdl",
                 "pubKeyCredParams": [{"type": "public-key", "alg": -7}],

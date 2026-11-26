@@ -158,7 +158,7 @@ const steps = [
 
 const faq = [
   {
-    q: "Is Termoso free?",
+    q: "Is Labterm free?",
     a: "Yes. The client and the server are open source under AGPL-3.0. There are no tiers, seats or paid features; the same build serves one person and a whole team.",
   },
   {
@@ -541,7 +541,7 @@ function TerminalMock() {
         {dim("Fast-forward")}
         {dim(" src/server.rs | 14 ++++++++------")}
         <Prompt cmd="cargo build --release" />
-        {dim("   Compiling termoso-server v0.1.0")}
+        {dim("   Compiling labterm-server v0.1.0")}
         {dim("    Finished `release` profile in 41.2s")}
         <Prompt
           cmd={
@@ -1018,7 +1018,7 @@ export function LandingPage() {
               <SectionTitle
                 center
                 title="Security you can read, not just trust"
-                text="Termoso is built so that the operator of the server — even when that is you — cannot read stored hosts, keys or passwords."
+                text="Labterm is built so that the operator of the server — even when that is you — cannot read stored hosts, keys or passwords."
               />
               <Box
                 sx={{

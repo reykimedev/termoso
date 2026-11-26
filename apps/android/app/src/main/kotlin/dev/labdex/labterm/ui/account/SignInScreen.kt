@@ -195,7 +195,7 @@ private fun CredentialsForm(vm: SignInViewModel, onDone: () -> Unit) {
                     value = vm.serverUrl,
                     onChange = vm::editServerUrl,
                     label = stringResource(R.string.server_address),
-                    placeholder = "https://termoso.example.com",
+                    placeholder = "https://labterm.example.com",
                     keyboard = KeyboardType.Uri,
                     enabled = !vm.busy,
                 )
@@ -231,7 +231,7 @@ private fun CredentialsForm(vm: SignInViewModel, onDone: () -> Unit) {
             value = vm.password,
             onChange = { vm.password = it },
             label = when {
-                verified != null -> stringResource(R.string.termoso_password)
+                verified != null -> stringResource(R.string.labterm_password)
                 vm.mode == AuthMode.Register -> stringResource(R.string.master_password)
                 else -> stringResource(R.string.password)
             },
@@ -512,7 +512,7 @@ private fun RecoveryPhrase(vm: SignInViewModel, step: AuthStep.Recovery, onDone:
             }
         }
     }
-    OutlinedButton(onClick = { copyText(context, str(R.string.termoso_recovery_phrase), step.phrase, sensitive = true) }) {
+    OutlinedButton(onClick = { copyText(context, str(R.string.labterm_recovery_phrase), step.phrase, sensitive = true) }) {
         Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(8.dp))
         Text(stringResource(R.string.copy))
@@ -554,7 +554,7 @@ private fun BusyButton(text: String, busy: Boolean, onClick: () -> Unit, enabled
 private fun UpdateRequiredCard(detail: String) {
     val ctx = LocalContext.current
     Column(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(stringResource(R.string.update_termoso_to_sign_in), style = MaterialTheme.typography.titleSmall, textAlign = TextAlign.Center)
+        Text(stringResource(R.string.update_labterm_to_sign_in), style = MaterialTheme.typography.titleSmall, textAlign = TextAlign.Center)
         Spacer(Modifier.height(4.dp))
         Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
         Spacer(Modifier.height(8.dp))

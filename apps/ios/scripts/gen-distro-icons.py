@@ -16,8 +16,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 SOURCE = ROOT / "apps/desktop/src/hosts/distroIcons.ts"
-ASSETS = ROOT / "apps/ios/Termoso/Resources/Assets.xcassets/Distro"
-SWIFT = ROOT / "apps/ios/Termoso/UI/Components/DistroIcons.swift"
+ASSETS = ROOT / "apps/ios/Labterm/Resources/Assets.xcassets/Distro"
+SWIFT = ROOT / "apps/ios/Labterm/UI/Components/DistroIcons.swift"
 
 ENTRY = re.compile(
     r'id:\s*"(?P<id>[^"]+)",\s*title:\s*"(?P<title>[^"]+)",\s*color:\s*"(?P<color>#[0-9A-Fa-f]{6})",\s*path:\s*"(?P<path>[^"]+)"',

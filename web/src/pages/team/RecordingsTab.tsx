@@ -141,7 +141,7 @@ export function RecordingsTab({ team }: { team: Team }) {
       if (!blob) throw new Error(tr("Nothing to export"));
       saveBlob(
         blob,
-        `termoso-recordings-${team.name.replace(/[^\w.-]+/g, "_")}-${new Date().toISOString().slice(0, 10)}.ndjson`,
+        `labterm-recordings-${team.name.replace(/[^\w.-]+/g, "_")}-${new Date().toISOString().slice(0, 10)}.ndjson`,
       );
     },
     onSuccess: () => snack.notify(tr("Export downloaded")),

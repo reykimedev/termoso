@@ -66,7 +66,7 @@ fun PinLockScreen(pin: AppPin, onUnlocked: () -> Unit) {
         ) {
             IconTile(Icons.Filled.Lock, size = 56, tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.height(12.dp))
-            Text(stringResource(R.string.termoso_is_locked), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.labterm_is_locked), style = MaterialTheme.typography.titleMedium)
             Text(
                 error ?: if (retry > 0) wait else stringResource(if (pin.kind == AppPin.Kind.PATTERN) R.string.draw_your_pattern else R.string.enter_your_pin),
                 style = MaterialTheme.typography.bodyMedium,

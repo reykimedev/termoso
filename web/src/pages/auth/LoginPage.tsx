@@ -99,7 +99,7 @@ export function LoginPage() {
         subtitle={
           sso
             ? tr(
-                "Signed in with SSO as {email}. Enter your Termoso password to unlock your encrypted data.",
+                "Signed in with SSO as {email}. Enter your Labterm password to unlock your encrypted data.",
                 { email: sso.email },
               )
             : tr("Your password never leaves this device.")
@@ -237,7 +237,7 @@ export function LoginPage() {
         )}
         {info.data?.registration_open !== false && !ssoOnly && !sso && (
           <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center" }}>
-            {trx("New to Termoso?  {v1}", {
+            {trx("New to Labterm?  {v1}", {
               v1: (
                 <Link
                   component={RouterLink}

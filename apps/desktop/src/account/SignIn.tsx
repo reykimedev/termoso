@@ -243,7 +243,7 @@ export function SignInForm({
         ? tr("Checking server…")
         : where === "cloud"
           ? " "
-          : tr("Enter the address of your Termoso server");
+          : tr("Enter the address of your Labterm server");
 
   return (
     <Stack spacing={2}>
@@ -271,7 +271,7 @@ export function SignInForm({
         <Field label={tr("Server URL")}>
           <TextField
             autoFocus={autoFocus}
-            placeholder="https://termoso.example.com"
+            placeholder="https://labterm.example.com"
             value={serverUrl}
             onChange={(e) => {
               // The cloud address typed under "Own server" is the same thing as the Cloud tab.
@@ -404,17 +404,17 @@ export function SignInForm({
           )}
           {!passwordHidden && (
             <Field
-              label={verified ? tr("Termoso password") : tr("Password")}
+              label={verified ? tr("Labterm password") : tr("Password")}
               hint={
                 mode === "register"
                   ? verified
                     ? tr(
-                        "Choose a password for Termoso, at least 12 characters. It encrypts your vaults and never leaves this device — your identity provider never sees it.",
+                        "Choose a password for Labterm, at least 12 characters. It encrypts your vaults and never leaves this device — your identity provider never sees it.",
                       )
                     : tr("At least 12 characters. It never leaves this device.")
                   : verified
                     ? tr(
-                        "Your Termoso password unlocks the encrypted vaults; it is separate from the identity provider.",
+                        "Your Labterm password unlocks the encrypted vaults; it is separate from the identity provider.",
                       )
                     : null
               }

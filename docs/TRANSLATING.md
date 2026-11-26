@@ -1,4 +1,4 @@
-# Translating Termoso
+# Translating Labterm
 
 English is the source language and lives in code; Russian ships with every
 app. Each app keeps its strings in a Weblate-readable file, so a new language

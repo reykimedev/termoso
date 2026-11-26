@@ -78,7 +78,7 @@ class SftpConnection(
     val cacheDir: File,
     /**
      * Opened by the documents provider for another app, not by the user in
-     * Termoso: stays out of the shade notification (it closes itself when
+     * Labterm: stays out of the shade notification (it closes itself when
      * idle) while still showing up in Connections.
      */
     val background: Boolean = false,

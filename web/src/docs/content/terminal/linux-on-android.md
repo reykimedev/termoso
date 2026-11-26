@@ -3,7 +3,7 @@ title: Linux on Android
 description: A real Alpine or Ubuntu userland for the local terminal on your phone — apt, apk, python, git, ssh — without root.
 ---
 
-The plain Android shell has no package manager and almost no tools. Since 0.8.0 the local terminal can instead run a complete Linux distribution inside the app: an **official Alpine or Ubuntu root filesystem** downloaded from the distribution's own mirror, unpacked into Termoso's private storage and executed under **proot**. Nothing is modified on the phone, root is not needed, and uninstalling the app removes every trace.
+The plain Android shell has no package manager and almost no tools. Since 0.8.0 the local terminal can instead run a complete Linux distribution inside the app: an **official Alpine or Ubuntu root filesystem** downloaded from the distribution's own mirror, unpacked into Labterm's private storage and executed under **proot**. Nothing is modified on the phone, root is not needed, and uninstalling the app removes every trace.
 
 ![Linux environment settings](/docs/img/android-linux-env.png)
 
@@ -51,7 +51,7 @@ ssh deploy@web-01       # keys live in /root/.ssh like on any Linux box
 **Settings → Linux environment → Remove Linux** deletes the root filesystem, installed packages and everything in its home directory, and frees the space immediately. Installing again starts from a fresh tarball — keep your work in `/mnt/sdcard` or push it to a server if you plan to switch distributions.
 
 > [!WARNING]
-> The environment lives in app-private storage. Clearing Termoso's data in Android settings or uninstalling the app removes it together with the Local vault, with no way back. Back up the vault to your account first and copy files you care about out of the environment.
+> The environment lives in app-private storage. Clearing Labterm's data in Android settings or uninstalling the app removes it together with the Local vault, with no way back. Back up the vault to your account first and copy files you care about out of the environment.
 
 > [!NOTE]
-> Nothing about this feature talks to a Termoso server. The two download URLs point at `dl-cdn.alpinelinux.org` and `cdimage.ubuntu.com`, and the checksums the app verifies against are in the [source](https://github.com/termoso/termoso/blob/main/crates/labterm-mobile/src/linux.rs).
+> Nothing about this feature talks to a Labterm server. The two download URLs point at `dl-cdn.alpinelinux.org` and `cdimage.ubuntu.com`, and the checksums the app verifies against are in the [source](https://github.com/termoso/termoso/blob/main/crates/labterm-mobile/src/linux.rs).

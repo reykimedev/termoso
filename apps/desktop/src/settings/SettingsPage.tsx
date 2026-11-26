@@ -217,7 +217,7 @@ function DeepLinksRow() {
   });
   return (
     <SettingRow
-      label={tr("Open ssh://, telnet:// and termoso:// links")}
+      label={tr("Open ssh://, telnet:// and labterm:// links")}
       hint={tr(
         "Installers register the handler already; use this for AppImage or portable builds. Links open a saved host or a quick connection — passwords in URLs are ignored.",
       )}

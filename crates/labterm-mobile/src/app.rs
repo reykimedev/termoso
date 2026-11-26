@@ -88,14 +88,14 @@ pub struct FileCacheHost {
 pub(crate) static RUNTIME: LazyLock<tokio::runtime::Runtime> = LazyLock::new(|| {
     tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
-        .thread_name("termoso-rt")
+        .thread_name("labterm-rt")
         .enable_all()
         .build()
         .expect("tokio runtime")
 });
 
-/// Route Rust `tracing` output to logcat (tag `termoso`) on Android, the
-/// unified log (subsystem `com.termoso`) on iOS, stderr elsewhere.
+/// Route Rust `tracing` output to logcat (tag `labterm`) on Android, the
+/// unified log (subsystem `dev.labdex.labterm`) on iOS, stderr elsewhere.
 /// Idempotent. Never logs secrets: the core masks them.
 #[uniffi::export]
 pub fn init_logging(verbose: bool) {
@@ -107,9 +107,9 @@ pub fn init_logging(verbose: bool) {
     };
     let filter = tracing_subscriber::filter::LevelFilter::from_level(level);
     #[cfg(target_os = "android")]
-    let layer = tracing_android::layer("termoso").ok();
+    let layer = tracing_android::layer("labterm").ok();
     #[cfg(target_os = "ios")]
-    let layer = Some(tracing_oslog::OsLogger::new("com.termoso", "core"));
+    let layer = Some(tracing_oslog::OsLogger::new("dev.labdex.labterm", "core"));
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     let layer = Some(tracing_subscriber::fmt::layer().with_target(false));
     if let Some(layer) = layer {
@@ -1684,7 +1684,7 @@ impl LabtermApp {
         draft.passphrase = None;
         draft.remember_passphrase = false;
         if draft.comment.trim().is_empty() {
-            draft.comment = format!("{handle}@termoso");
+            draft.comment = format!("{handle}@labterm");
         }
         let key = fido2::generate(&fido2::registry(), &self.store, draft, listener)?;
         RUNTIME.block_on(self.account.sshid_attach_security_key(key.id))
@@ -2173,7 +2173,7 @@ impl LabtermApp {
         })
     }
 
-    /// Join somebody's share from a `termoso://join/…` link. Returns a
+    /// Join somebody's share from a `labterm://join/…` link. Returns a
     /// terminal that mirrors theirs; `live_listener` gets participants,
     /// control grants and the end of the share.
     pub fn join_live(

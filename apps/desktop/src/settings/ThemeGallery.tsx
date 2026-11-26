@@ -33,7 +33,7 @@ import { tr } from "@/i18n";
 
 type Filter = "all" | "dark" | "light";
 
-/** Grid of colour scheme cards; `auto` follows the app theme with the Termoso pair. */
+/** Grid of colour scheme cards; `auto` follows the app theme with the Labterm pair. */
 export function ThemeGallery({
   value,
   onChange,

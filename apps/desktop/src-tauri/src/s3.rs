@@ -26,7 +26,7 @@ const CONNECT_TIMEOUT: Duration = Duration::from_secs(20);
 const MAX_SECRET_ATTEMPTS: u32 = 3;
 
 fn spool_dir() -> PathBuf {
-    std::env::temp_dir().join("termoso-s3")
+    std::env::temp_dir().join("labterm-s3")
 }
 
 /// Open the S3 section of `host_id`, asking the user for the secret key or

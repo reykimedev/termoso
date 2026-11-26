@@ -271,7 +271,7 @@ export const tagsMerge = (sources: Uuid[], target: Uuid) =>
 export const serialPorts = () => invoke<SerialPortInfo[]>("serial_ports");
 export const localShells = () => invoke<string[]>("local_shells");
 
-/** Register `termoso://` / `ssh://` / `telnet://` handlers for this user; returns the schemes now registered. */
+/** Register `labterm://` / `ssh://` / `telnet://` handlers for this user; returns the schemes now registered. */
 export const deepLinksRegister = () => invoke<string[]>("deep_links_register");
 /** Files passed on the command line at launch (file associations), reported once. */
 export const launchFiles = () => invoke<string[]>("launch_files");

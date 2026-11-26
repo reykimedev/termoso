@@ -38,7 +38,7 @@ export function AskAiPanel({ pane }: { pane: Pane }) {
         icon={<AutoAwesomeOutlinedIcon />}
         title={tr("Sign in to ask AI")}
         description={tr(
-          "Suggestions come from your Termoso account's server, so it needs an account. Nothing else changes: no telemetry, off until you turn it on.",
+          "Suggestions come from your Labterm account's server, so it needs an account. Nothing else changes: no telemetry, off until you turn it on.",
         )}
         action={
           <Button variant="tonal" onClick={() => goToSettings("account")}>
@@ -64,7 +64,7 @@ export function AskAiPanel({ pane }: { pane: Pane }) {
         icon={<AutoAwesomeOutlinedIcon />}
         title={tr("No AI provider on this server")}
         description={tr(
-          "Self-hosted servers enable suggestions with TERMOSO_AI__API_KEY: your own Chutes key or any OpenAI-compatible endpoint.",
+          "Self-hosted servers enable suggestions with LABTERM_AI__API_KEY: your own Chutes key or any OpenAI-compatible endpoint.",
         )}
       />
     );

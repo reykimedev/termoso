@@ -131,7 +131,7 @@ impl Edits {
 }
 
 fn edit_root() -> PathBuf {
-    std::env::temp_dir().join("termoso-edit")
+    std::env::temp_dir().join("labterm-edit")
 }
 
 #[cfg(unix)]
@@ -355,7 +355,7 @@ pub async fn close_for_sftp<R: Runtime>(app: &AppHandle<R>, sftp_id: Uuid) {
 /// keeps its files.
 pub fn sweep_stale() {
     let cutoff = std::time::SystemTime::now() - Duration::from_secs(24 * 3600);
-    for root in [edit_root(), std::env::temp_dir().join("termoso-drop")] {
+    for root in [edit_root(), std::env::temp_dir().join("labterm-drop")] {
         let Ok(entries) = std::fs::read_dir(&root) else {
             continue;
         };

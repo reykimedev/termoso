@@ -136,16 +136,16 @@ struct SettingsView: View {
             LabeledContent("Version", value: appVersion)
             LabeledContent("Core", value: container.coreVersion)
                 .accessibilityIdentifier("settings.coreVersion")
-            Link(destination: URL(string: "https://github.com/rep0rtDev/termoso")!) {
+            Link(destination: URL(string: "https://github.com/reykimedev/termoso")!) {
                 Label("Source code", systemImage: "chevron.left.forwardslash.chevron.right")
             }
-            Link(destination: URL(string: "https://github.com/rep0rtDev/termoso/blob/main/docs/IOS_SIDELOAD.md")!) {
+            Link(destination: URL(string: "https://github.com/reykimedev/termoso/blob/main/docs/IOS_SIDELOAD.md")!) {
                 Label("Installing & re-signing (7-day sideload)", systemImage: "arrow.triangle.2.circlepath")
             }
         } header: {
             Text("About")
         } footer: {
-            Text("Termoso is free software with no telemetry, no analytics and no paywalls. It reports to you — not on you.")
+            Text("Labterm is free software with no telemetry, no analytics and no paywalls. It reports to you — not on you.")
         }
     }
 

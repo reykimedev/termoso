@@ -79,11 +79,11 @@ Selecting text copies nothing by itself; a right-click on a selection copies it,
 | New host                   | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>N</kbd>                      |
 | New group, New snippet     | palette / **New host ▾** menu                                      |
 | Toggle full screen         | <kbd>F11</kbd> (macOS also <kbd>⌃</kbd>+<kbd>⌘</kbd>+<kbd>F</kbd>) |
-| Quit Termoso               | <kbd>Ctrl</kbd>+<kbd>Q</kbd>                                       |
+| Quit Labterm               | <kbd>Ctrl</kbd>+<kbd>Q</kbd>                                       |
 
 ## Inside the terminal
 
-Keys that are not bound to an action go to the shell unchanged, including <kbd>Ctrl</kbd>+<kbd>C</kbd>, <kbd>Ctrl</kbd>+<kbd>D</kbd>, <kbd>Ctrl</kbd>+<kbd>Z</kbd> and the <kbd>Alt</kbd> chords that Emacs-style editing uses. If a program needs a chord that Termoso has taken (say <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> in a TUI), unbind the action in **Settings → Keyboard**; the key then reaches the program.
+Keys that are not bound to an action go to the shell unchanged, including <kbd>Ctrl</kbd>+<kbd>C</kbd>, <kbd>Ctrl</kbd>+<kbd>D</kbd>, <kbd>Ctrl</kbd>+<kbd>Z</kbd> and the <kbd>Alt</kbd> chords that Emacs-style editing uses. If a program needs a chord that Labterm has taken (say <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> in a TUI), unbind the action in **Settings → Keyboard**; the key then reaches the program.
 
 > [!TIP]
 > On Android there is no chord table — the [key panel](/docs/terminal/mobile#key-panel) provides <kbd>Ctrl</kbd>, <kbd>Alt</kbd>, arrows, function keys and a tmux row, and hardware keyboards work with their ordinary shortcuts.

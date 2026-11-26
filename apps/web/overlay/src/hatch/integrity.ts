@@ -1,6 +1,6 @@
 // What the loader found before the app started (src/loader). The app only reads it: the loader
 // and service worker are what refuse to run unverified code.
-import { HATCH_COMMIT, HATCH_VERSION, TERMOSO_VERSION } from "./build";
+import { HATCH_COMMIT, HATCH_VERSION, LABTERM_VERSION } from "./build";
 
 export interface ManifestFile {
   path: string;
@@ -14,7 +14,7 @@ export interface Integrity {
   status: "verified" | "unsigned" | "dev";
   version: string;
   commit: string;
-  termoso: string;
+  labterm: string;
   /** Fingerprint of the release key that signed the manifest. */
   keyId: string | null;
   /** SHA-256 of manifest.json, the value to compare with the release page. */
@@ -36,7 +36,7 @@ export function integrity(): Integrity {
       status: "dev",
       version: HATCH_VERSION,
       commit: HATCH_COMMIT,
-      termoso: TERMOSO_VERSION,
+      labterm: LABTERM_VERSION,
       keyId: null,
       manifestHash: null,
       files: [],

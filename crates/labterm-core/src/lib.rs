@@ -1,12 +1,12 @@
-//! Termoso client core.
+//! Labterm client core.
 //!
-//! Everything a Termoso client does that is not pixels lives here so the
+//! Everything a Labterm client does that is not pixels lives here so the
 //! desktop (Tauri) and mobile (UniFFI) shells stay thin:
 //!
 //! * [`store`] – encrypted local database (SQLite). Works fully offline with a
 //!   *local vault*; an account only adds synchronisation.
 //! * [`secrets`] – the single local master key, kept in the OS keychain.
-//! * [`api`] – typed client for the Termoso server (OPAQUE login, vaults, sync,
+//! * [`api`] – typed client for the Labterm server (OPAQUE login, vaults, sync,
 //!   history, logs, realtime notifications).
 //! * [`sync`] – bidirectional sync engine between [`store`] and [`api`] with
 //!   optimistic concurrency and deterministic conflict resolution.
@@ -24,7 +24,7 @@
 //!   as hosts.
 //!
 //! Nothing in this crate phones home: the only network peers are the servers
-//! the user connects to, the Termoso server they configured and — only when
+//! the user connects to, the Labterm server they configured and — only when
 //! they ask for a cloud import — the provider API they gave credentials for.
 
 #![forbid(unsafe_code)]

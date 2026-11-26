@@ -1,6 +1,6 @@
 [package]
 name = "labterm-crypto"
-description = "Zero-knowledge cryptography primitives shared by Termoso clients and server"
+description = "Zero-knowledge cryptography primitives shared by Labterm clients and server"
 version.workspace = true
 edition.workspace = true
 publish = false

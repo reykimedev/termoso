@@ -1,6 +1,6 @@
 # Architecture
 
-This document explains how the pieces of Termoso fit together: which crate owns
+This document explains how the pieces of Labterm fit together: which crate owns
 what, how a change made on one device reaches another, and which invariants
 every component must keep. It is written for people who want to change the
 code; the user-facing summary lives in the [README](../README.md).
@@ -19,16 +19,16 @@ code; the user-facing summary lives in the [README](../README.md).
    (React in a Tauri webview, Jetpack Compose, SwiftUI) render state and send
    intents; they do not hold business logic or secrets of their own.
 4. **No phone-home.** The only network peers are the hosts the user connects
-   to, the Termoso server the user configured, and — only on explicit request —
+   to, the Labterm server the user configured, and — only on explicit request —
    a cloud provider API during import or the configured AI endpoint.
 
 ## Crates
 
 ```
-labterm-crypto ─┬─► labterm-proto ─┬─► termoso-server            (axum, sqlx, redis, aws-sdk-s3)
+labterm-crypto ─┬─► labterm-proto ─┬─► labterm-server            (axum, sqlx, redis, aws-sdk-s3)
                 │                  ├─► labterm-core ─┬─► labterm-client ─┬─► apps/desktop/src-tauri
                 │                  │                 │                   ├─► labterm-mobile ─► android / ios
-                │                  │                 │                   └─► termoso-bridge
+                │                  │                 │                   └─► labterm-bridge
                 └─► labterm-wasm ──┘ (browser)       └────────────────────► apps/desktop/src-tauri
 ```
 
@@ -36,11 +36,11 @@ labterm-crypto ─┬─► labterm-proto ─┬─► termoso-server           
 |---|---|---|
 | `labterm-crypto` | Every primitive used by clients and server: OPAQUE (`opaque-ke`), Argon2id KDF, XChaCha20-Poly1305 envelopes with AAD, X25519 sealed boxes, BIP39-style 24-word recovery key, key wrapping. No I/O. | `opaque`, `kdf`, `aead`, `sealed`, `keys`, `recovery`, `live` |
 | `labterm-proto` | Request/response and entity types shared by server and all clients, with `utoipa` schemas. Changing a type here changes the wire protocol — keep it backward compatible (add optional fields, never repurpose). | `auth`, `account`, `vault`, `entities`, `sync`, `team`, `logs`, `ws` |
-| `termoso-server` | Stateless HTTP/WebSocket API. PostgreSQL holds durable state, Redis holds sessions cache, rate limits, short-lived login state and the pub/sub bus for realtime fan-out, S3-compatible storage holds encrypted session logs. | `routes/*`, `session`, `ws`, `events`, `sso`, `live`, `presence`, `audit`, `digest`, `ai`, `metrics` |
+| `labterm-server` | Stateless HTTP/WebSocket API. PostgreSQL holds durable state, Redis holds sessions cache, rate limits, short-lived login state and the pub/sub bus for realtime fan-out, S3-compatible storage holds encrypted session logs. | `routes/*`, `session`, `ws`, `events`, `sso`, `live`, `presence`, `audit`, `digest`, `ai`, `metrics` |
 | `labterm-core` | Client engine: encrypted local store, secrets, API client, sync engine, SSH/SFTP/WebDAV/S3/Mosh/Telnet/Serial/PTY transports, terminal session abstraction, port forwarding, in-process SSH agent, FIDO2/CTAP2, OS detection, cloud import, autocomplete. `#![forbid(unsafe_code)]`. | `store`, `secrets`, `api`, `sync`, `ssh`, `sftp`, `webdav`, `s3`, `remote`, `terminal`, `forward`, `agent`, `keys`, `fido2`, `mosh`, `serial`, `telnet`, `pty`, `live`, `cloud`, `autocomplete` |
 | `labterm-client` | Higher-level repositories over the store used identically by desktop and mobile: hosts with inherited group credentials, keychain façade (keys, identities, certificates), snippets with variables. | `hosts`, `keychain`, `snippets` |
 | `labterm-mobile` | UniFFI façade (`cdylib` + `staticlib`) exposing `labterm-core`/`labterm-client` to Kotlin and Swift. Owns the tokio runtime and terminal emulation (`alacritty_terminal`) so both mobile apps get identical grid frames. | `app`, `connect`, `session`, `sftp`, `webdav`, `forward`, `keys`, `account`, `live`, `presence`, `fido2`, `ai` |
-| `termoso-bridge` | Headless client for automation: pulls a vault, exposes a Termius-compatible REST API for hosts/groups, pushes ciphertext back. See [API_BRIDGE.md](API_BRIDGE.md). | `rest`, `sync` |
+| `labterm-bridge` | Headless client for automation: pulls a vault, exposes a Termius-compatible REST API for hosts/groups, pushes ciphertext back. See [API_BRIDGE.md](API_BRIDGE.md). | `rest`, `sync` |
 | `labterm-wasm` | `labterm-crypto` compiled with `wasm-bindgen` for the web cabinet, so passwords and keys never leave the browser in clear. | — |
 
 `apps/desktop/src-tauri` (`labterm-desktop`) is also a workspace member: it
@@ -135,7 +135,7 @@ the personal vault as "not linked" and applies again if the target returns.
 
 ### Local store (`labterm-core::store`)
 
-One SQLite file per profile (`~/.local/share/termoso/<profile>/` on Linux;
+One SQLite file per profile (`~/.local/share/labterm/<profile>/` on Linux;
 app-private storage on mobile). Tables: `vaults` (vault keys wrapped with the
 device master key), `entities` (payload encrypted with the vault key **in the
 exact envelope the server stores**, so sync is a byte-for-byte copy),
@@ -190,18 +190,18 @@ unreadable.
 
 ### Server storage
 
-PostgreSQL (migrations in `crates/termoso-server/migrations`, applied on start)
+PostgreSQL (migrations in `crates/labterm-server/migrations`, applied on start)
 holds accounts, devices/sessions, MFA material, teams, vault memberships and
 sealed keys, entities, history, session-log metadata, live sessions, audit
 events, bridges and digests. Server-side secrets that must be recoverable
 (OPAQUE server setup, TOTP secrets) are encrypted at rest with
-`TERMOSO_MASTER_KEY`. Redis is a cache and message bus only — losing it logs
+`LABTERM_MASTER_KEY`. Redis is a cache and message bus only — losing it logs
 users out of nothing and loses no data.
 
 ### Public site and e-mail (`routes/web.rs`, `mail.rs`)
 
-The same container serves three origins: the landing (`TERMOSO_LANDING_URL`),
-the docs (`TERMOSO_DOCS_URL`) and the cabinet (`TERMOSO_PUBLIC_URL`). The web
+The same container serves three origins: the landing (`LABTERM_LANDING_URL`),
+the docs (`LABTERM_DOCS_URL`) and the cabinet (`LABTERM_PUBLIC_URL`). The web
 build writes `seo.json` (title/description per public route, from the docs'
 front matter); `Seo::load` renders one HTML shell per public route **once at
 start** — title, description, canonical, Open Graph/Twitter card — and one
@@ -288,7 +288,7 @@ sync_once
   `GET /account/sso` lists links, `DELETE /account/sso/{provider}` (step-up)
   removes one and records an `sso_unlinked` security event.
 * **Account reset** (`start_over.rs`): an e-mail-confirmed "start over" with
-  a 24-hour waiting period (`TERMOSO_START_OVER_DELAY_SECS`) that the owner
+  a 24-hour waiting period (`LABTERM_START_OVER_DELAY_SECS`) that the owner
   can cancel from the notification; completing it wipes the vaults and issues
   fresh keys. It is the only recovery path when password and recovery key
   are both lost.
@@ -311,7 +311,7 @@ transformers with unit tests (`vitest`).
 
 ### Android (`apps/android`)
 
-Two Gradle modules. `:core` runs `cargo ndk` for each ABI in `termoso.abis`,
+Two Gradle modules. `:core` runs `cargo ndk` for each ABI in `labterm.abis`,
 then `uniffi-bindgen` against the built library to generate the Kotlin
 bindings, and packages both into an AAR. `:app` is Jetpack Compose + Material
 3 (dynamic colour on API 31+) with a small hand-rolled DI container
@@ -355,7 +355,7 @@ stream.
   Opt-in per team and per user.
 * **Multiplayer** — a host client creates a live session, encrypts its
   terminal stream with a per-session key and publishes it; viewers join with a
-  `termoso://join/…` or `https://<server>/join/<id>#<secret>` link that
+  `labterm://join/…` or `https://<server>/join/<id>#<secret>` link that
   carries the key in the fragment. The relay (`live.rs`) forwards frames it
   cannot decrypt.
 * **Audit log and digest** — team-relevant events (membership, vault access,
@@ -386,7 +386,7 @@ stream.
 * **Logs never contain secrets or addresses.** Use structured fields and the
   masking helpers; the "no-echo" terminal mode masks typed passwords in
   recordings.
-* **New configuration** goes into `crates/termoso-server/src/config.rs` with a
+* **New configuration** goes into `crates/labterm-server/src/config.rs` with a
   doc comment, into `deploy/.env.example`, into the README table and into
   `deploy/quadlet` if the Compose stack needs it.
 * **New entity kinds** need: the string in `KINDS`, a model in
@@ -396,7 +396,7 @@ stream.
   applies them on start, so a rolling upgrade must keep the previous binary
   working against the new schema.
 * **Tests**: unit tests live next to the code; server integration tests boot
-  a real server against PostgreSQL/Redis (`crates/termoso-server/tests`);
+  a real server against PostgreSQL/Redis (`crates/labterm-server/tests`);
   `labterm-core` tests run against an in-process `russh` server; desktop
   frontend uses `vitest`; Android has JVM unit tests; iOS has XCTest against
   the real core and XCUITest in the simulator; CI runs a macOS runtime smoke

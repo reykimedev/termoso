@@ -2987,14 +2987,14 @@ mod tests {
         sf.bucket = "backups".into();
         sf.port = Some(9000);
         sf.http = true;
-        sf.prefix = "/termoso/".into();
+        sf.prefix = "/labterm/".into();
         let card = save(&s, &f).unwrap();
         assert_eq!(card.protocol, "s3");
         assert_eq!(card.port, 9000);
         assert_eq!(card.username, "AKIA");
         assert_eq!(
             card.s3_url.as_deref(),
-            Some("minio.lan:9000/backups/termoso/")
+            Some("minio.lan:9000/backups/labterm/")
         );
         let identities: Vec<Entity<Identity>> = s.list(Some(vault)).unwrap();
         assert_eq!(identities.len(), 1, "the SSH login is not kept");
@@ -3003,7 +3003,7 @@ mod tests {
         assert!(!f.ssh);
         let sf = f.s3.clone().expect("s3 section");
         assert_eq!(sf.bucket, "backups");
-        assert_eq!(sf.prefix, "termoso");
+        assert_eq!(sf.prefix, "labterm");
         assert_eq!(sf.access_key, "AKIA");
         assert!(sf.has_secret_key);
         assert!(sf.secret_key.is_none());

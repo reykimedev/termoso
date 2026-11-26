@@ -99,7 +99,7 @@ export const sizes = {
 } as const;
 
 export const theme = createTheme({
-  cssVariables: { colorSchemeSelector: "data-termoso-scheme" },
+  cssVariables: { colorSchemeSelector: "data-labterm-scheme" },
   colorSchemes: {
     dark: {
       palette: {

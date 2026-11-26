@@ -234,7 +234,7 @@ private fun TerminalPreview(p: TerminalPalette, family: String, sizeSp: Int, cur
         Row {
             Text("user", color = rgb(p.ansi[2]), fontFamily = font, fontSize = sz, fontWeight = FontWeight.Bold)
             Text("@", color = fg, fontFamily = font, fontSize = sz)
-            Text("termoso", color = rgb(p.ansi[4]), fontFamily = font, fontSize = sz, fontWeight = FontWeight.Bold)
+            Text("labterm", color = rgb(p.ansi[4]), fontFamily = font, fontSize = sz, fontWeight = FontWeight.Bold)
             Text(stringResource(R.string.ls_la), color = fg, fontFamily = font, fontSize = sz)
         }
         Row {
@@ -245,7 +245,7 @@ private fun TerminalPreview(p: TerminalPalette, family: String, sizeSp: Int, cur
             Text("main.rs", color = rgb(p.ansi[6]), fontFamily = font, fontSize = sz)
         }
         Row(verticalAlignment = Alignment.Bottom) {
-            Text("user@termoso:~$ ", color = fg, fontFamily = font, fontSize = sz)
+            Text("user@labterm:~$ ", color = fg, fontFamily = font, fontSize = sz)
             val cur = rgb(p.cursor)
             when (cursor) {
                 "underline" -> Box(Modifier.width((sizeSp * 0.6f).dp).height(2.dp).background(cur))

@@ -147,7 +147,7 @@ async function respond(request, path, navigate) {
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   const path = rel(url);
-  if (e.request.method !== "GET" || path === null) return; // other origins: the relay, Termoso, the identity provider
+  if (e.request.method !== "GET" || path === null) return; // other origins: the relay, Labterm, the identity provider
   if (PASS.has(path) || url.search === "?network") return;
   const navigate = e.request.mode === "navigate" && (path === "" || path === "index.html");
   e.respondWith(respond(e.request, path, navigate));

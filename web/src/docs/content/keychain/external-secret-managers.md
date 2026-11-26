@@ -1,9 +1,9 @@
 ---
 title: External secret managers
-description: Keep host passwords and key passphrases in 1Password, Bitwarden or pass and let Termoso fetch them at connect time.
+description: Keep host passwords and key passphrases in 1Password, Bitwarden or pass and let Labterm fetch them at connect time.
 ---
 
-A password or key passphrase field can hold a **reference** instead of the secret. Termoso resolves it on the machine that opens the connection, right before authenticating, and never writes the value back to the vault or syncs it. The reference itself is an ordinary (encrypted) vault field, so it is shared with the team like any other credential — each member's machine resolves it against *their* manager.
+A password or key passphrase field can hold a **reference** instead of the secret. Labterm resolves it on the machine that opens the connection, right before authenticating, and never writes the value back to the vault or syncs it. The reference itself is an ordinary (encrypted) vault field, so it is shared with the team like any other credential — each member's machine resolves it against *their* manager.
 
 | Reference | Resolved with |
 |---|---|
@@ -16,7 +16,7 @@ Type the reference into the **Password** field of an identity or host, or the **
 
 ## Requirements
 
-- The CLI must be on `PATH` of the Termoso process and already signed in: `op signin` (or `OP_SERVICE_ACCOUNT_TOKEN`), `bw unlock` with `BW_SESSION` exported, a running gpg-agent for `pass`. Termoso only runs the CLI; it never sees the manager's credentials.
+- The CLI must be on `PATH` of the Labterm process and already signed in: `op signin` (or `OP_SERVICE_ACCOUNT_TOKEN`), `bw unlock` with `BW_SESSION` exported, a running gpg-agent for `pass`. Labterm only runs the CLI; it never sees the manager's credentials.
 - A reference that cannot be resolved fails the connection with the CLI's message (not installed, locked, item not found) instead of falling back to another method.
 - Resolved values are cached in memory for 5 minutes, so opening several tabs or running a snippet on many hosts asks the manager once.
 - The CLI may take up to 60 seconds (biometric prompts); after that the connection fails.

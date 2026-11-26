@@ -174,8 +174,8 @@ const card = (over: Partial<HostCard>): HostCard => ({
 });
 
 describe("links", () => {
-  it("builds termoso:// and protocol links without secrets", () => {
-    expect(hostLink({ id: ID })).toBe(`termoso://host/${ID}`);
+  it("builds labterm:// and protocol links without secrets", () => {
+    expect(hostLink({ id: ID })).toBe(`labterm://host/${ID}`);
     expect(protocolLink(card({}))).toBe("ssh://root@example.com");
     expect(protocolLink(card({ port: 2222, username: "a b" }))).toBe(
       "ssh://a%20b@example.com:2222",
@@ -192,9 +192,9 @@ describe("links", () => {
   });
 
   it("parses incoming links", () => {
-    expect(parseLink(`termoso://host/${ID}`)).toEqual({ kind: "host", hostId: ID });
-    expect(parseLink(`termoso://host/${ID.toUpperCase()}/`)).toMatchObject({ kind: "host" });
-    expect(parseLink("termoso://host/not-a-uuid")).toMatchObject({ kind: "unsupported" });
+    expect(parseLink(`labterm://host/${ID}`)).toEqual({ kind: "host", hostId: ID });
+    expect(parseLink(`labterm://host/${ID.toUpperCase()}/`)).toMatchObject({ kind: "host" });
+    expect(parseLink("labterm://host/not-a-uuid")).toMatchObject({ kind: "unsupported" });
     expect(parseLink("ssh://root@example.com:2222")).toEqual({
       kind: "quick",
       target: parseQuickConnect("ssh://root@example.com:2222"),
@@ -206,18 +206,18 @@ describe("links", () => {
 
   it("parses multiplayer join links", () => {
     const secret = "A".repeat(43);
-    const link = `termoso://join/${ID}?s=https%3A%2F%2Fcloud.example.com#${secret}`;
+    const link = `labterm://join/${ID}?s=https%3A%2F%2Fcloud.example.com#${secret}`;
     expect(parseLink(link)).toEqual({ kind: "live", link });
-    expect(parseLink(`termoso://join/${ID}#${secret}`)).toEqual({
+    expect(parseLink(`labterm://join/${ID}#${secret}`)).toEqual({
       kind: "live",
-      link: `termoso://join/${ID}#${secret}`,
+      link: `labterm://join/${ID}#${secret}`,
     });
-    expect(parseLink(`termoso://join/${ID}`)).toMatchObject({ kind: "unsupported" });
-    expect(parseLink(`termoso://join/${ID}#short`)).toMatchObject({ kind: "unsupported" });
-    expect(parseLink(`termoso://join/nope#${secret}`)).toMatchObject({ kind: "unsupported" });
+    expect(parseLink(`labterm://join/${ID}`)).toMatchObject({ kind: "unsupported" });
+    expect(parseLink(`labterm://join/${ID}#short`)).toMatchObject({ kind: "unsupported" });
+    expect(parseLink(`labterm://join/nope#${secret}`)).toMatchObject({ kind: "unsupported" });
     const web = `https://cloud.example.com/join/${ID}#${secret}`;
     expect(parseLink(web)).toEqual({ kind: "live", link: web });
-    expect(parseLink(`https://x.test:8443/termoso/join/${ID}/?s=x#${secret}`)).toMatchObject({
+    expect(parseLink(`https://x.test:8443/labterm/join/${ID}/?s=x#${secret}`)).toMatchObject({
       kind: "live",
     });
     expect(parseLink(`https://cloud.example.com/join/${ID}`)).toMatchObject({
@@ -241,53 +241,53 @@ describe("connect and sftp links (command line)", () => {
     telnetPort: null,
   } as unknown as HostCard;
 
-  it("parses termoso://connect with user, port and protocol", () => {
-    expect(parseLink("termoso://connect?host=edge&user=root&port=2200&protocol=ssh")).toEqual({
+  it("parses labterm://connect with user, port and protocol", () => {
+    expect(parseLink("labterm://connect?host=edge&user=root&port=2200&protocol=ssh")).toEqual({
       kind: "connect",
       host: "edge",
       username: "root",
       port: 2200,
       protocol: "ssh",
     });
-    expect(parseLink("termoso://connect?host=prod+web")).toEqual({
+    expect(parseLink("labterm://connect?host=prod+web")).toEqual({
       kind: "connect",
       host: "prod web",
       username: null,
       port: null,
       protocol: null,
     });
-    expect(parseLink("termoso://connect?host=x&port=99999").kind).toBe("unsupported");
-    expect(parseLink("termoso://connect?host=x&protocol=ftp").kind).toBe("unsupported");
-    expect(parseLink("termoso://connect").kind).toBe("unsupported");
+    expect(parseLink("labterm://connect?host=x&port=99999").kind).toBe("unsupported");
+    expect(parseLink("labterm://connect?host=x&protocol=ftp").kind).toBe("unsupported");
+    expect(parseLink("labterm://connect").kind).toBe("unsupported");
   });
 
-  it("parses termoso://sftp with and without a host", () => {
-    expect(parseLink("termoso://sftp?host=prod-web")).toEqual({
+  it("parses labterm://sftp with and without a host", () => {
+    expect(parseLink("labterm://sftp?host=prod-web")).toEqual({
       kind: "action",
       action: "sftp",
       host: "prod-web",
     });
-    expect(parseLink("termoso://sftp")).toEqual({ kind: "action", action: "sftp" });
+    expect(parseLink("labterm://sftp")).toEqual({ kind: "action", action: "sftp" });
   });
 
   it("matches saved hosts by label, then address", () => {
-    const link = parseLink("termoso://connect?host=prod%20web");
+    const link = parseLink("labterm://connect?host=prod%20web");
     expect(link.kind).toBe("connect");
     if (link.kind !== "connect") return;
     expect(matchConnectHost(link, [prod])).toBe(prod);
-    const byAddr = parseLink("termoso://connect?host=deploy%4010.0.1.12&protocol=ssh");
+    const byAddr = parseLink("labterm://connect?host=deploy%4010.0.1.12&protocol=ssh");
     if (byAddr.kind !== "connect") throw new Error("connect");
     expect(matchConnectHost(byAddr, [prod])).toBe(prod);
-    const otherUser = parseLink("termoso://connect?host=root%4010.0.1.12&protocol=ssh");
+    const otherUser = parseLink("labterm://connect?host=root%4010.0.1.12&protocol=ssh");
     if (otherUser.kind !== "connect") throw new Error("connect");
     expect(matchConnectHost(otherUser, [prod])).toBeNull();
-    const telnet = parseLink("termoso://connect?host=10.0.1.12&protocol=telnet");
+    const telnet = parseLink("labterm://connect?host=10.0.1.12&protocol=telnet");
     if (telnet.kind !== "connect") throw new Error("connect");
     expect(matchConnectHost(telnet, [prod])).toBeNull();
   });
 
   it("falls back to an ad hoc target", () => {
-    const link = parseLink("termoso://connect?host=admin%40edge.example.io%3A2222&protocol=ssh");
+    const link = parseLink("labterm://connect?host=admin%40edge.example.io%3A2222&protocol=ssh");
     if (link.kind !== "connect") throw new Error("connect");
     expect(connectQuickTarget(link)).toEqual({
       kind: "quick",
@@ -296,14 +296,14 @@ describe("connect and sftp links (command line)", () => {
       port: 2222,
       protocol: "ssh",
     });
-    const flags = parseLink("termoso://connect?host=edge&user=root&port=2200&protocol=ssh");
+    const flags = parseLink("labterm://connect?host=edge&user=root&port=2200&protocol=ssh");
     if (flags.kind !== "connect") throw new Error("connect");
     expect(connectQuickTarget(flags)).toMatchObject({
       address: "edge",
       username: "root",
       port: 2200,
     });
-    const label = parseLink("termoso://connect?host=prod+web");
+    const label = parseLink("labterm://connect?host=prod+web");
     if (label.kind !== "connect") throw new Error("connect");
     expect(connectQuickTarget(label)).toBeNull();
   });

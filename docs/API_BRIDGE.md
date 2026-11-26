@@ -1,24 +1,24 @@
 # API Bridge
 
 The API Bridge lets your automation (Ansible, Terraform, a CMDB, an autoscaler)
-create, update and delete hosts and groups in a Termoso vault over a plain REST
-API — without ever sending plaintext to the Termoso server.
+create, update and delete hosts and groups in a Labterm vault over a plain REST
+API — without ever sending plaintext to the Labterm server.
 
 Termius offers a comparable API Bridge on its paid team plans
 (<https://termius.com/pricing>). Ours is free on every server, and the server
 side stays zero-knowledge: the bridge runs **in your infrastructure**, holds
 the vault keys, encrypts everything locally and pushes only ciphertext through
-the ordinary sync API. The Termoso server (cloud or self-hosted) sees the
+the ordinary sync API. The Labterm server (cloud or self-hosted) sees the
 bridge as one more device that syncs opaque blobs — nothing runs server-side
 per bridge or per user.
 
-Availability is a server switch: `TERMOSO_BRIDGES` (default `true`; the
+Availability is a server switch: `LABTERM_BRIDGES` (default `true`; the
 hosted cloud at `app.termoso.dev` has it on). With `false` the cabinet hides
 the page, `/account/bridges*` and `/bridge/me` answer 404 and existing bridge
 tokens are rejected.
 
 ```
- your automation ──REST (plaintext, your network)──▶ termoso-bridge ──sync (ciphertext)──▶ Termoso server
+ your automation ──REST (plaintext, your network)──▶ labterm-bridge ──sync (ciphertext)──▶ Labterm server
                                                     (vault keys live here)                (sees only blobs)
 ```
 
@@ -49,20 +49,20 @@ never receives the account password, recovery key or any other vault's key.
 ## Running the bridge
 
 ```bash
-docker run -d --name termoso-bridge --restart unless-stopped \
+docker run -d --name labterm-bridge --restart unless-stopped \
   -p 127.0.0.1:8080:8080 \
-  -v /srv/termoso/bridge.json:/etc/termoso/bridge.json:ro \
-  -e TERMOSO_BRIDGE_API_KEY="$(openssl rand -hex 32)" \
-  ghcr.io/termoso/termoso-bridge:latest
+  -v /srv/labterm/bridge.json:/etc/labterm/bridge.json:ro \
+  -e LABTERM_BRIDGE_API_KEY="$(openssl rand -hex 32)" \
+  ghcr.io/reykimedev/labterm-bridge:latest
 ```
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `TERMOSO_BRIDGE_CREDENTIALS` | `/etc/termoso/bridge.json` | credentials file downloaded from the cabinet |
-| `TERMOSO_BRIDGE_LISTEN` | `0.0.0.0:8080` | bind address of the local REST API |
-| `TERMOSO_BRIDGE_API_KEY` | *(none)* | shared secret callers must present (`Authorization: Bearer …` or `X-Api-Key`). Strongly recommended unless bound to loopback |
-| `TERMOSO_BRIDGE_SYNC_INTERVAL` | `60` | seconds between background refreshes (`0` disables) |
-| `TERMOSO_BRIDGE_RATE_LIMIT` | `50` | sustained requests/second on `/v1` (burst 2×, `0` disables) |
+| `LABTERM_BRIDGE_CREDENTIALS` | `/etc/labterm/bridge.json` | credentials file downloaded from the cabinet |
+| `LABTERM_BRIDGE_LISTEN` | `0.0.0.0:8080` | bind address of the local REST API |
+| `LABTERM_BRIDGE_API_KEY` | *(none)* | shared secret callers must present (`Authorization: Bearer …` or `X-Api-Key`). Strongly recommended unless bound to loopback |
+| `LABTERM_BRIDGE_SYNC_INTERVAL` | `60` | seconds between background refreshes (`0` disables) |
+| `LABTERM_BRIDGE_RATE_LIMIT` | `50` | sustained requests/second on `/v1` (burst 2×, `0` disables) |
 | `RUST_LOG` | `info` | log filter. Logs never contain addresses, usernames, passwords or keys |
 
 The credentials file is the only secret the bridge needs. Treat it like an SSH
@@ -70,7 +70,7 @@ private key: `chmod 600`, mount read-only, never commit it.
 
 The image is distroless and runs as `nonroot`. Build it yourself with
 `docker build -f deploy/Dockerfile.bridge .` or run the binary directly:
-`cargo run --release -p termoso-bridge`.
+`cargo run --release -p labterm-bridge`.
 
 ## REST API
 
@@ -167,13 +167,13 @@ left alone on update.
 ### Example: Ansible
 
 ```yaml
-- name: Register hosts in Termoso
+- name: Register hosts in Labterm
   hosts: localhost
   tasks:
     - uri:
         url: "http://127.0.0.1:8080/v1/host/{{ item.instance_id }}/"
         method: PUT
-        headers: { Authorization: "Bearer {{ termoso_bridge_key }}" }
+        headers: { Authorization: "Bearer {{ labterm_bridge_key }}" }
         body_format: json
         body:
           group: "{{ item.tags.env }}"
@@ -199,12 +199,12 @@ commands on them. Nothing new is stored server-side: it is the same bridge
 credentials file, the same sealed vault keys and the same zero-knowledge sync.
 
 ```
-termoso-bridge mcp [--credentials bridge.json] [--allow-write] [--allow-exec] [--strict-host-key]
+labterm-bridge mcp [--credentials bridge.json] [--allow-write] [--allow-exec] [--strict-host-key]
 ```
 
 Everything is read-only unless you pass a flag (or set the env equivalent
-`TERMOSO_BRIDGE_MCP_WRITE` / `TERMOSO_BRIDGE_MCP_EXEC` /
-`TERMOSO_BRIDGE_MCP_STRICT_HOST_KEY` to `true`); the client cannot ask for
+`LABTERM_BRIDGE_MCP_WRITE` / `LABTERM_BRIDGE_MCP_EXEC` /
+`LABTERM_BRIDGE_MCP_STRICT_HOST_KEY` to `true`); the client cannot ask for
 more permissions at runtime.
 
 | Tool | Needs | What it does |
@@ -230,16 +230,16 @@ Claude Desktop (`claude_desktop_config.json`) / Cursor (`.cursor/mcp.json`):
 ```json
 {
   "mcpServers": {
-    "termoso": {
+    "labterm": {
       "command": "docker",
-      "args": ["run", "-i", "--rm", "-v", "/path/to/bridge.json:/etc/termoso/bridge.json:ro",
-               "ghcr.io/termoso/termoso-bridge", "mcp", "--allow-exec"]
+      "args": ["run", "-i", "--rm", "-v", "/path/to/bridge.json:/etc/labterm/bridge.json:ro",
+               "ghcr.io/reykimedev/labterm-bridge", "mcp", "--allow-exec"]
     }
   }
 }
 ```
 
-or, with a native build, `"command": "termoso-bridge", "args": ["mcp", "--credentials", "/path/to/bridge.json"]`.
+or, with a native build, `"command": "labterm-bridge", "args": ["mcp", "--credentials", "/path/to/bridge.json"]`.
 Revoking the bridge in the cabinet cuts the assistant off immediately.
 
 ## Threat model in one paragraph
@@ -248,6 +248,6 @@ Whoever can reach the bridge's port with the API key can write to the assigned
 vaults and read their host list (never credentials). Whoever obtains the
 credentials file can do the same **and** read the assigned vaults, so keep it
 off shared file systems and revoke the bridge in the cabinet if it leaks. The
-Termoso server, its operators and anyone with its database see only ciphertext
+Labterm server, its operators and anyone with its database see only ciphertext
 and the metadata every sync client already exposes (entity ids, kinds,
 versions, timestamps, the bridge's last-used time and IP).

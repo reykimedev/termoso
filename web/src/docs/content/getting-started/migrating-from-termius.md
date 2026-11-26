@@ -1,13 +1,13 @@
 ---
 title: Coming from Termius
-description: What maps to what, how to move hosts, keys and snippets over in one afternoon, and the few places where Termoso deliberately works differently.
+description: What maps to what, how to move hosts, keys and snippets over in one afternoon, and the few places where Labterm deliberately works differently.
 ---
 
-Termoso covers the Termius workflow — hosts, groups, tags, keys, identities, snippets with variables, SFTP, port forwarding, team vaults, terminal sharing, mobile gestures — but with every feature in the free build, no per-seat pricing and no telemetry. This page is for people who already know Termius and want the shortest path.
+Labterm covers the Termius workflow — hosts, groups, tags, keys, identities, snippets with variables, SFTP, port forwarding, team vaults, terminal sharing, mobile gestures — but with every feature in the free build, no per-seat pricing and no telemetry. This page is for people who already know Termius and want the shortest path.
 
 ## Vocabulary
 
-| Termius                                   | Termoso                                                                                                |
+| Termius                                   | Labterm                                                                                                |
 | ----------------------------------------- | ------------------------------------------------------------------------------------------------------ |
 | Personal / Team vault                     | **Personal vault** / **team vault** — same idea; plus a **Local vault** that never leaves the device   |
 | Hosts, Groups, Tags                       | Same names; groups inherit settings, tags filter                                                       |
@@ -26,7 +26,7 @@ Termoso covers the Termius workflow — hosts, groups, tags, keys, identities, s
 
 In Termius desktop: **Settings → Export** produces a CSV with hosts, groups and tags (passwords are **not** included by Termius). Private keys have to be exported one by one from the Keychain, or you can reuse the files in `~/.ssh` if that is where they came from.
 
-### 2. Import into Termoso
+### 2. Import into Labterm
 
 **Hosts → New host ▾ → Import… → Termius** reads the CSV template and shows a preview: hosts with address, port, username, group path and tags, duplicates already detected. Pick the target vault and confirm.
 
@@ -40,18 +40,18 @@ Sign in to the same account and the vault appears. For a phone-only start, **Hos
 
 ## Things that work differently — on purpose
 
-- **Nothing is sent in plain text, ever.** Termius encrypts vault data too, but Termoso goes further: the server also never sees your password (OPAQUE sign-in), host names and usernames are ciphertext, and there is no analytics or crash-reporting SDK in any app. See [Privacy](/docs/security/privacy).
-- **Local vault.** You can use Termoso for years without an account. Sync is a choice, not a requirement.
+- **Nothing is sent in plain text, ever.** Termius encrypts vault data too, but Labterm goes further: the server also never sees your password (OPAQUE sign-in), host names and usernames are ciphertext, and there is no analytics or crash-reporting SDK in any app. See [Privacy](/docs/security/privacy).
+- **Local vault.** You can use Labterm for years without an account. Sync is a choice, not a requirement.
 - **Open source, AGPL-3.0.** The server, the apps and the release pipeline are public; the same code runs the free cloud.
 - **Updates are manual by default** on the desktop, and the Android APK comes from GitHub, not a store. Both can be switched to "check at startup" or sideloaded through your own feed.
 - **Autocomplete is local.** Suggestions come from your history and snippets on the device; the optional AI command suggestion is opt-in and can point at your own model endpoint.
 
 ## Not there yet
 
-Honest list of Termius features Termoso does not have today:
+Honest list of Termius features Labterm does not have today:
 
 - iOS is the youngest app: local vault, host editor and SSH terminal, but no sync, SFTP or port forwarding yet.
 - ML-DSA (post-quantum signature) SSH keys — waiting on the Rust SSH stack; the ML-KEM hybrid key _exchange_ is already there.
-- A hosted "cloud terminal" — Termoso connects your device to your hosts; it does not run shells for you.
+- A hosted "cloud terminal" — Labterm connects your device to your hosts; it does not run shells for you.
 
 Everything else from the Termius changelog of the last two years — swipe gestures with the arrow indicator, pasting images and files into the terminal, voice typing and the AI-agent compose box, OSC 8 hyperlinks, Nerd Font glyphs, pinned logs, port forwarding in Connections, desktop focus mode, a Linux environment on Android — is in 0.8.0.

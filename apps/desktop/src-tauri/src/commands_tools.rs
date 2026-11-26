@@ -341,7 +341,7 @@ pub struct OpksshHostSetup {
 
 /// Install opkssh on a saved host (with its current credentials, like
 /// `key_export_to_host`), add the key's provider and allow the signed-in
-/// identity to log in as `principal` (default: the user Termoso logs in as).
+/// identity to log in as `principal` (default: the user Labterm logs in as).
 /// Signs in first when the key has no sign-in on this device.
 #[tauri::command]
 pub async fn key_setup_opkssh_on_host<R: Runtime>(
@@ -1120,7 +1120,7 @@ pub async fn wake_host(mac: String, broadcast: Option<String>) -> Result<usize> 
     Ok(labterm_core::wol::wake(&mac, target).await?)
 }
 
-/// Encrypt the given vaults (all unlocked when empty) into a `.termoso` file.
+/// Encrypt the given vaults (all unlocked when empty) into a `.labterm` file.
 #[tauri::command]
 pub async fn backup_export(
     state: State<'_, AppState>,

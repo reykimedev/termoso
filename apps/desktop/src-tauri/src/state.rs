@@ -22,7 +22,7 @@ use crate::sessions::Sessions;
 use crate::sftp::SftpSessions;
 use crate::sync::Syncs;
 
-pub const PROFILE_ENV: &str = "TERMOSO_PROFILE_DIR";
+pub const PROFILE_ENV: &str = "LABTERM_PROFILE_DIR";
 /// Dev-channel builds keep their own profile (data and keychain entry), so a
 /// build from `main` never migrates or locks the stable app's vault.
 pub const PROFILE_NAME: &str = if crate::update::CHANNEL.is_some() {
@@ -310,7 +310,7 @@ pub struct Settings {
     /// Line height multiplier (1.0 = font's natural height).
     pub terminal_line_height: f32,
     /// Colour scheme id from the client's theme registry; `auto` follows
-    /// `theme` with the Termoso Dark / Light schemes.
+    /// `theme` with the Labterm Dark / Light schemes.
     pub terminal_theme: String,
     pub cursor_blink: bool,
     /// `block` | `underline` | `bar`.

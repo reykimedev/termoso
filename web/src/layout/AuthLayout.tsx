@@ -63,7 +63,7 @@ export function AuthLayout() {
       <Box component="footer" sx={{ textAlign: "center", py: 2.5, color: "text.disabled" }}>
         <Typography variant="caption">
           {trx("{v1} · self-hosted, open source ·  {v2}", {
-            v1: info.data?.name ?? tr("Termoso"),
+            v1: info.data?.name ?? tr("Labterm"),
             v2: (
               <Link
                 href="https://github.com/termoso/termoso"

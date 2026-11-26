@@ -74,7 +74,7 @@ export function ExportCsvDialog({
     const path = await saveFile({
       title: tr("Export hosts"),
       defaultPath:
-        format === "ssh_config" ? `termoso-${slug}-ssh_config` : `termoso-${slug}-hosts.${fmt.ext}`,
+        format === "ssh_config" ? `labterm-${slug}-ssh_config` : `labterm-${slug}-hosts.${fmt.ext}`,
       filters: fmt.ext ? [{ name: fmt.filter, extensions: [fmt.ext] }] : [],
     });
     if (!path) return;
@@ -120,8 +120,8 @@ export function ExportCsvDialog({
             trx(
               trn(
                 hostCount,
-                "{count} host from {vault} in the same column layout Termius and Termoso import. SSH keys, certificates, proxies and jump chains are not part of the file.",
-                "{count} hosts from {vault} in the same column layout Termius and Termoso import. SSH keys, certificates, proxies and jump chains are not part of the file.",
+                "{count} host from {vault} in the same column layout Termius and Labterm import. SSH keys, certificates, proxies and jump chains are not part of the file.",
+                "{count} hosts from {vault} in the same column layout Termius and Labterm import. SSH keys, certificates, proxies and jump chains are not part of the file.",
               ),
               { vault: <b>{vault?.name ?? "—"}</b> },
             )}

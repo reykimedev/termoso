@@ -443,7 +443,7 @@ fun SettingsScreen(
             SectionLabel(stringResource(R.string.about))
             SectionCard {
                 ListRow(
-                    title = stringResource(R.string.termoso_for_android),
+                    title = stringResource(R.string.labterm_for_android),
                     subtitle = stringResource(R.string.core, BuildConfig.VERSION_NAME, coreVersion()),
                     leading = { IconTile(Icons.Filled.Info) },
                 )
@@ -541,7 +541,7 @@ fun SettingsScreen(
             title = { Text(stringResource(R.string.privacy)) },
             text = {
                 Text(
-                    stringResource(R.string.termoso_reports_to_you_not_on_you_no),
+                    stringResource(R.string.labterm_reports_to_you_not_on_you_no),
                     style = MaterialTheme.typography.bodyMedium,
                 )
             },
@@ -554,7 +554,7 @@ fun SettingsScreen(
             title = { Text(stringResource(R.string.open_source_licenses)) },
             text = {
                 Text(
-                    stringResource(R.string.termoso_agpl_3_0_bundled_terminal_fonts_jetbrains),
+                    stringResource(R.string.labterm_agpl_3_0_bundled_terminal_fonts_jetbrains),
                     style = MaterialTheme.typography.bodyMedium,
                 )
             },

@@ -699,7 +699,7 @@ export function NewKeyPanel({
 /** "From SSH agent": keep only the public half of a key whose private half lives in
  *  the system agent (KeePassXC, 1Password, ssh-add…). Pick one from the agent's list,
  *  paste a public key line, or pick a `.pub` file (read in Rust). The agent signs
- *  on connect; Termoso never sees or stores the private key. */
+ *  on connect; Labterm never sees or stores the private key. */
 export function AgentKeyPanel({
   vaultId,
   vaultName,

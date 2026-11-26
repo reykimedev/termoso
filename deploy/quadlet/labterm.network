@@ -1,0 +1,7 @@
+# Private network shared by the Labterm units; containers resolve each other
+# by name (labterm-postgres, labterm-redis, labterm-rustfs, labterm-api).
+[Unit]
+Description=Labterm network
+
+[Network]
+NetworkName=labterm

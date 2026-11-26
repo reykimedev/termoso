@@ -59,7 +59,7 @@ pub type TermSink = mpsc::Sender<TermEvent>;
 /// Buffer between the transport and the UI in events.
 pub const EVENT_BUFFER: usize = 1024;
 
-/// Upper bound on scrollback lines any Termoso terminal keeps, whatever the
+/// Upper bound on scrollback lines any Labterm terminal keeps, whatever the
 /// settings say. A full 100 000 × 200-cell grid is roughly 200 MB in the
 /// alacritty grid, which is where the limit stops being a feature.
 pub const MAX_SCROLLBACK_LINES: u32 = 100_000;

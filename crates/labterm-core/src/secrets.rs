@@ -346,7 +346,7 @@ fn write_atomic(
     Ok(())
 }
 
-/// `<data dir>/termoso/<profile>` (e.g. `~/.local/share/termoso/default`).
+/// `<data dir>/labterm/<profile>` (e.g. `~/.local/share/labterm/default`).
 pub fn default_profile_dir(profile: &str) -> PathBuf {
     dirs::data_dir()
         .unwrap_or_else(|| PathBuf::from("."))

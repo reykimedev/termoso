@@ -3,10 +3,10 @@
 
 use std::fs;
 use std::path::Path;
-use termoso_server::saml::test_support::{
+use labterm_server::saml::test_support::{
     ResponseSpec, build_response_xml, idp_metadata_xml, idp_metadata_xml_with, sp_key,
 };
-use termoso_server::saml::metadata;
+use labterm_server::saml::metadata;
 
 const IDP: &str = "https://idp.example/metadata";
 const SP: &str = "https://sp.example/api/v1/auth/sso/corp/saml/metadata";

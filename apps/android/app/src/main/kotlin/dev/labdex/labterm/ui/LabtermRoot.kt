@@ -72,7 +72,7 @@ fun LabtermRoot(container: AppContainer, vault: VaultState) {
 
     suspend fun prompt(): Boolean {
         val activity = context.findFragmentActivity() ?: return false
-        return when (val r = authenticateDevice(activity, str(R.string.unlock_termoso), str(R.string.use_your_fingerprint_or_screen_lock))) {
+        return when (val r = authenticateDevice(activity, str(R.string.unlock_labterm), str(R.string.use_your_fingerprint_or_screen_lock))) {
             AuthResult.Success -> true
             AuthResult.Cancelled -> false
             is AuthResult.Failed -> {
@@ -184,7 +184,7 @@ private fun LockedScreen(error: String?, manual: Boolean, authRequired: Boolean,
                 manual -> {
                     IconTile(Icons.Filled.Lock, size = 64, tint = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.height(16.dp))
-                    Text(stringResource(R.string.termoso_is_locked), style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
+                    Text(stringResource(R.string.labterm_is_locked), style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
                     Text(
                         error ?: if (authRequired) {
                             stringResource(R.string.unlock_with_your_fingerprint_or_screen_lock_to)

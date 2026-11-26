@@ -7,7 +7,7 @@ import kotlinx.coroutines.withContext
 
 /**
  * Recent log lines of this process for the in-app viewer of debug builds. An app may read
- * its own logcat without a permission, and Rust `tracing` already goes there (tag `termoso`),
+ * its own logcat without a permission, and Rust `tracing` already goes there (tag `labterm`),
  * so this covers Kotlin, Rust and crash traces alike. Lines are redacted before they reach
  * the screen, the clipboard or a share target.
  */

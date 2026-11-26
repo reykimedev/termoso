@@ -550,7 +550,7 @@ function RecoveryKeySection() {
     <Section
       title={tr("Recovery key")}
       description={tr(
-        "A 24-word key that can reset your password if you forget it. It is shown only once and cannot be reset: replacing it requires your password. If both are lost, the encrypted data is gone — Termoso holds no copy of your keys.",
+        "A 24-word key that can reset your password if you forget it. It is shown only once and cannot be reset: replacing it requires your password. If both are lost, the encrypted data is gone — Labterm holds no copy of your keys.",
       )}
       actions={
         <Button variant="outlined" onClick={() => setConfirmOpen(true)}>

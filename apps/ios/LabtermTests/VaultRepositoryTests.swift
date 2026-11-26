@@ -11,7 +11,7 @@ final class VaultRepositoryTests: XCTestCase {
 
     override func setUpWithError() throws {
         dir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("termoso-tests-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("labterm-tests-\(UUID().uuidString)", isDirectory: true)
         key = KeychainMasterKeyStore.randomKey()
     }
 

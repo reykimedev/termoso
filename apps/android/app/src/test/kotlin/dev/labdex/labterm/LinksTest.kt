@@ -10,22 +10,23 @@ class LinksTest {
 
     @Test
     fun inviteLinks() {
-        assertEquals(LinkKind.Invite, classifyLink("termoso://invite/tok_abc"))
+        assertEquals(LinkKind.Invite, classifyLink("labterm://invite/tok_abc"))
         assertEquals(LinkKind.Invite, classifyLink("https://app.termoso.dev/invite/tok_abc"))
-        assertEquals(LinkKind.Invite, classifyLink(" https://host.example:8443/termoso/invite/tok_abc?utm=x "))
-        assertEquals(LinkKind.Other, classifyLink("termoso://invite/"))
-        assertEquals(LinkKind.Other, classifyLink("termoso://invite/a/b"))
+        assertEquals(LinkKind.Invite, classifyLink(" https://host.example:8443/labterm/invite/tok_abc?utm=x "))
+        assertEquals(LinkKind.Other, classifyLink("labterm://invite/"))
+        assertEquals(LinkKind.Other, classifyLink("labterm://invite/a/b"))
         assertEquals(LinkKind.Other, classifyLink("https://app.termoso.dev/invite"))
         assertEquals(LinkKind.Other, classifyLink("http://app.termoso.dev/invite/tok_abc"))
     }
 
     @Test
     fun joinLinks() {
-        assertEquals(LinkKind.Join, classifyLink("termoso://join/$id?s=https%3A%2F%2Fapi.test%2F#$secret"))
-        assertEquals(LinkKind.Join, classifyLink("termoso://join/$id"))
+        assertEquals(LinkKind.Join, classifyLink("labterm://join/$id?s=https%3A%2F%2Fapi.test%2F#$secret"))
+        assertEquals(LinkKind.Join, classifyLink("labterm://join/$id"))
+        assertEquals(LinkKind.Join, classifyLink("termoso://join/$id")) // made before the rename, rename:keep
         assertEquals(LinkKind.Join, classifyLink("https://app.termoso.dev/join/$id#$secret"))
-        assertEquals(LinkKind.Join, classifyLink("https://host.example/termoso/join/$id/#$secret"))
-        assertEquals(LinkKind.Other, classifyLink("termoso://join/$id/extra#$secret"))
+        assertEquals(LinkKind.Join, classifyLink("https://host.example/labterm/join/$id/#$secret"))
+        assertEquals(LinkKind.Other, classifyLink("labterm://join/$id/extra#$secret"))
         assertEquals(LinkKind.Other, classifyLink("https://app.termoso.dev/joined/$id#$secret"))
     }
 
@@ -34,7 +35,7 @@ class LinksTest {
         assertEquals(LinkKind.Other, classifyLink("ssh://root@host"))
         assertEquals(LinkKind.Other, classifyLink("https://app.termoso.dev/"))
         assertEquals(LinkKind.Other, classifyLink("https://app.termoso.dev/login?next=%2Finvite%2Ftok"))
-        assertEquals(LinkKind.Other, classifyLink("termoso://vault/x"))
+        assertEquals(LinkKind.Other, classifyLink("labterm://vault/x"))
         assertEquals(LinkKind.Other, classifyLink("not a link"))
         assertEquals(LinkKind.Other, classifyLink("https://[bad/invite/x"))
         assertEquals(LinkKind.Other, classifyLink("termoso://sso?flow=${"a".repeat(24)}"))
@@ -44,7 +45,7 @@ class LinksTest {
     fun ssoCallback() {
         val flow = "Ab0_-" + "z".repeat(19)
         assertEquals(flow, parseSsoLink("termoso://sso?flow=$flow"))
-        assertEquals(flow, parseSsoLink(" TERMOSO://SSO/?flow=$flow "))
+        assertEquals(flow, parseSsoLink(" LABTERM://SSO/?flow=$flow "))
         assertEquals("a".repeat(16), parseSsoLink("termoso://sso?flow=${"a".repeat(16)}"))
         assertEquals("a".repeat(128), parseSsoLink("termoso://sso?flow=${"a".repeat(128)}"))
     }
@@ -66,15 +67,15 @@ class LinksTest {
             "termoso://sso?flow=$flow#token",
             "termoso://sso/callback?flow=$flow",
             "termoso://sso:1?flow=$flow",
-            "termoso://user@sso?flow=$flow",
+            "labterm://user@sso?flow=$flow",
             "termoso://ssox?flow=$flow",
-            "termoso://invite/$flow",
+            "labterm://invite/$flow",
             "https://sso?flow=$flow",
             "termoso://sso?flow=a b",
             "termoso://sso?flow=${flow}%2F",
             "termoso://sso?flow=${flow}/",
             "termoso://sso?flow=$flow&",
-            "termoso://[bad?flow=$flow",
+            "labterm://[bad?flow=$flow",
         ).forEach { assertNull(it, parseSsoLink(it)) }
     }
 }

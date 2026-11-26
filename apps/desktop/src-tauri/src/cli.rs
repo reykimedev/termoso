@@ -1,6 +1,6 @@
-//! Command line: `termoso ssh deploy@10.0.1.12`, `termoso sftp prod-web`,
-//! `termoso telnet switch.lab:23`, `termoso open <saved host>`. Every form is
-//! turned into a `termoso://` link the web view already routes, so a second
+//! Command line: `labterm ssh deploy@10.0.1.12`, `labterm sftp prod-web`,
+//! `labterm telnet switch.lab:23`, `labterm open <saved host>`. Every form is
+//! turned into a `labterm://` link the web view already routes, so a second
 //! launch hands it to the running window and a first launch opens it once the
 //! window is up. Files and URLs on the command line keep their old meaning.
 
@@ -18,7 +18,7 @@ pub fn help() -> String {
     let mut s = String::new();
     let _ = writeln!(s, "Labterm {}", env!("CARGO_PKG_VERSION"));
     s.push_str(
-        "\nUsage:\n  termoso                          open the app\n  termoso ssh [user@]host[:port]   connect over SSH (saved host by label, or ad hoc)\n  termoso ssh -l user -p port host same, OpenSSH-style flags\n  termoso telnet host[:port]       connect over Telnet\n  termoso sftp <host>              open the SFTP browser on a saved host\n  termoso open <host>              open a saved host (label, address or termoso://host/<id>)\n  termoso local                    open a local terminal\n  termoso new                      new host dialog\n  termoso <file>…                  import a key / theme / ssh_config\n  termoso <ssh:// | telnet:// | termoso:// link>\n\nOptions:\n  -h, --help       show this help\n  -V, --version    print the version\n\nIf Termoso is already running, the command is handed to that window.\n",
+        "\nUsage:\n  labterm                          open the app\n  labterm ssh [user@]host[:port]   connect over SSH (saved host by label, or ad hoc)\n  labterm ssh -l user -p port host same, OpenSSH-style flags\n  labterm telnet host[:port]       connect over Telnet\n  labterm sftp <host>              open the SFTP browser on a saved host\n  labterm open <host>              open a saved host (label, address or labterm://host/<id>)\n  labterm local                    open a local terminal\n  labterm new                      new host dialog\n  labterm <file>…                  import a key / theme / ssh_config\n  labterm <ssh:// | telnet:// | labterm:// link>\n\nOptions:\n  -h, --help       show this help\n  -V, --version    print the version\n\nIf Labterm is already running, the command is handed to that window.\n",
     );
     s
 }
@@ -29,13 +29,13 @@ pub fn early_exit<I: IntoIterator<Item = String>>(args: I) -> Option<EarlyExit> 
     match args.first().map(String::as_str) {
         Some("-h" | "--help" | "help") => Some(EarlyExit::Stdout(help())),
         Some("-V" | "--version" | "version") => Some(EarlyExit::Stdout(format!(
-            "termoso {} ({})",
+            "labterm {} ({})",
             env!("CARGO_PKG_VERSION"),
             env!("LABTERM_BUILD_COMMIT")
         ))),
         Some(cmd) if SUBCOMMANDS.contains(&cmd) && parse(&args).is_none() => {
             Some(EarlyExit::Stderr(format!(
-                "termoso {cmd}: missing or bad target\n\n{}",
+                "labterm {cmd}: missing or bad target\n\n{}",
                 help()
             )))
         }
@@ -53,22 +53,22 @@ fn parse(args: &[String]) -> Option<String> {
     let (cmd, rest) = args.split_first()?;
     let rest: Vec<&str> = rest.iter().map(String::as_str).collect();
     match cmd.as_str() {
-        "local" => Some("termoso://local".into()),
-        "new" => Some("termoso://new".into()),
+        "local" => Some("labterm://local".into()),
+        "new" => Some("labterm://new".into()),
         "ssh" | "telnet" | "open" => connect_link(cmd, &rest),
         "sftp" => {
             let target = positional(&rest)?;
             if target.is_empty() {
-                return Some("termoso://sftp".into());
+                return Some("labterm://sftp".into());
             }
-            Some(format!("termoso://sftp?{}", query(&[("host", target)])))
+            Some(format!("labterm://sftp?{}", query(&[("host", target)])))
         }
         _ => None,
     }
 }
 
 /// `ssh [-p PORT] [-l USER] TARGET`, `telnet TARGET`, `open TARGET`. A full
-/// `termoso://host/<id>` link is passed through.
+/// `labterm://host/<id>` link is passed through.
 fn connect_link(cmd: &str, rest: &[&str]) -> Option<String> {
     let mut user: Option<&str> = None;
     let mut port: Option<&str> = None;
@@ -103,7 +103,7 @@ fn connect_link(cmd: &str, rest: &[&str]) -> Option<String> {
         }
     }
     let target = target.filter(|t| !t.is_empty())?;
-    if target.starts_with("termoso://host/") {
+    if target.starts_with("labterm://host/") {
         return Some(target.to_string());
     }
     if let Some(p) = port
@@ -122,7 +122,7 @@ fn connect_link(cmd: &str, rest: &[&str]) -> Option<String> {
     if cmd != "open" {
         params.push(("protocol", protocol));
     }
-    Some(format!("termoso://connect?{}", query(&params)))
+    Some(format!("labterm://connect?{}", query(&params)))
 }
 
 fn positional<'a>(rest: &[&'a str]) -> Option<&'a str> {
@@ -153,30 +153,30 @@ mod tests {
     fn ssh_forms() {
         assert_eq!(
             links(&["ssh", "deploy@10.0.1.12:2222"]),
-            ["termoso://connect?host=deploy%4010.0.1.12%3A2222&protocol=ssh"]
+            ["labterm://connect?host=deploy%4010.0.1.12%3A2222&protocol=ssh"]
         );
         assert_eq!(
             links(&["ssh", "-l", "root", "-p", "2200", "edge"]),
-            ["termoso://connect?host=edge&user=root&port=2200&protocol=ssh"]
+            ["labterm://connect?host=edge&user=root&port=2200&protocol=ssh"]
         );
         assert_eq!(
             links(&["ssh", "-p2200", "edge"]),
-            ["termoso://connect?host=edge&port=2200&protocol=ssh"]
+            ["labterm://connect?host=edge&port=2200&protocol=ssh"]
         );
         assert_eq!(
             links(&["telnet", "switch.lab:23"]),
-            ["termoso://connect?host=switch.lab%3A23&protocol=telnet"]
+            ["labterm://connect?host=switch.lab%3A23&protocol=telnet"]
         );
         assert_eq!(
             links(&["open", "prod web"]),
-            ["termoso://connect?host=prod+web"]
+            ["labterm://connect?host=prod+web"]
         );
         assert_eq!(
             links(&[
                 "open",
-                "termoso://host/3f2b7c9e-1d4a-4e8b-9c6f-0a1b2c3d4e5f"
+                "labterm://host/3f2b7c9e-1d4a-4e8b-9c6f-0a1b2c3d4e5f"
             ]),
-            ["termoso://host/3f2b7c9e-1d4a-4e8b-9c6f-0a1b2c3d4e5f"]
+            ["labterm://host/3f2b7c9e-1d4a-4e8b-9c6f-0a1b2c3d4e5f"]
         );
     }
 
@@ -184,11 +184,11 @@ mod tests {
     fn sftp_and_actions() {
         assert_eq!(
             links(&["sftp", "prod-web"]),
-            ["termoso://sftp?host=prod-web"]
+            ["labterm://sftp?host=prod-web"]
         );
-        assert_eq!(links(&["sftp"]), ["termoso://sftp"]);
-        assert_eq!(links(&["local"]), ["termoso://local"]);
-        assert_eq!(links(&["new"]), ["termoso://new"]);
+        assert_eq!(links(&["sftp"]), ["labterm://sftp"]);
+        assert_eq!(links(&["local"]), ["labterm://local"]);
+        assert_eq!(links(&["new"]), ["labterm://new"]);
     }
 
     #[test]
@@ -222,7 +222,7 @@ mod tests {
         ));
         assert!(matches!(
             early_exit(["--version".to_string()]),
-            Some(EarlyExit::Stdout(v)) if v.starts_with("termoso ")
+            Some(EarlyExit::Stdout(v)) if v.starts_with("labterm ")
         ));
         assert!(matches!(
             early_exit(["--help".to_string()]),

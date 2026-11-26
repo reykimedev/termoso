@@ -43,13 +43,13 @@ For a fleet, deploy to a group: every host in it is visited in turn and the resu
 
 ## Certificates
 
-Attach an OpenSSH certificate (`*-cert.pub`) to a key and Termoso offers it during authentication, which is what servers with `TrustedUserCAKeys` expect. The Keychain shows the certificate's principals, serial and validity window, and whether it is **valid**, **expired** or **not yet valid**; an expired certificate is skipped and the plain key is tried instead.
+Attach an OpenSSH certificate (`*-cert.pub`) to a key and Labterm offers it during authentication, which is what servers with `TrustedUserCAKeys` expect. The Keychain shows the certificate's principals, serial and validity window, and whether it is **valid**, **expired** or **not yet valid**; an expired certificate is skipped and the plain key is tried instead.
 
 Certificates are vault items too, so a short-lived certificate issued on the desktop is on the phone a second later.
 
 ## System SSH agent
 
-Keys that live in `ssh-agent`, KeePassXC, 1Password, Pageant or a GPG agent can be used without copying them: **From SSH agent** lists the agent's public keys, you pick one, and Termoso asks the agent to sign at login. The private key never enters Termoso. The agent is found through `SSH_AUTH_SOCK` on Linux and macOS and the OpenSSH agent named pipe on Windows.
+Keys that live in `ssh-agent`, KeePassXC, 1Password, Pageant or a GPG agent can be used without copying them: **From SSH agent** lists the agent's public keys, you pick one, and Labterm asks the agent to sign at login. The private key never enters Labterm. The agent is found through `SSH_AUTH_SOCK` on Linux and macOS and the OpenSSH agent named pipe on Windows.
 
 **Agent forwarding** per host passes the agent on to the server (`ssh -A`); it is off by default and should stay off for hosts you do not control.
 
@@ -60,4 +60,4 @@ The Keychain on the phone has the same keys, generation and import (from a file 
 ![Keys on Android](/docs/img/android-keys.png)
 
 > [!WARNING]
-> There is no "forgot passphrase" for a key: a passphrase protects the key with your secret, and Termoso stores the key as you gave it. If you want keys that do not need a passphrase, rely on the vault's encryption and the app lock instead, and generate them without one.
+> There is no "forgot passphrase" for a key: a passphrase protects the key with your secret, and Labterm stores the key as you gave it. If you want keys that do not need a passphrase, rely on the vault's encryption and the app lock instead, and generate them without one.

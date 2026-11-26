@@ -3,7 +3,7 @@ title: Encryption overview
 description: What is encrypted, with which keys, and what the server can and cannot see.
 ---
 
-Termoso is built so that the operator of the server — even when that is you — cannot read stored hosts, keys or passwords.
+Labterm is built so that the operator of the server — even when that is you — cannot read stored hosts, keys or passwords.
 
 ## On the device
 

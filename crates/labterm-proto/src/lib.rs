@@ -1,4 +1,4 @@
-//! Wire types shared by the Termoso server and all clients.
+//! Wire types shared by the Labterm server and all clients.
 //!
 //! Every type here is plain `serde` data. Fields that hold user secrets are
 //! *always* ciphertext envelopes produced by `labterm-crypto` (base64 strings);
@@ -47,3 +47,37 @@ macro_rules! schema {
     };
 }
 pub(crate) use schema;
+
+/// Reads a `LABTERM_*` setting. Deployments made before the rename still set
+/// the old `TERMOSO_*` names, so those are read when the new one is unset. rename:keep
+pub fn setting(name: &str) -> Result<String, std::env::VarError> {
+    setting_from(name, |n| std::env::var(n))
+}
+
+fn setting_from(
+    name: &str,
+    get: impl Fn(&str) -> Result<String, std::env::VarError>,
+) -> Result<String, std::env::VarError> {
+    get(name).or_else(|e| match name.strip_prefix("LABTERM_") {
+        Some(rest) => get(&format!("TERMOSO_{rest}")), // rename:keep
+        None => Err(e),
+    })
+}
+
+#[cfg(test)]
+mod setting_tests {
+    use std::env::VarError;
+
+    #[test]
+    fn falls_back_to_the_old_name() {
+        let env = |n: &str| match n {
+            "TERMOSO_OLD" | "TERMOSO_BOTH" => Ok("old".to_string()), // rename:keep
+            "LABTERM_BOTH" => Ok("new".to_string()),
+            _ => Err(VarError::NotPresent),
+        };
+        assert_eq!(super::setting_from("LABTERM_OLD", env).unwrap(), "old");
+        assert_eq!(super::setting_from("LABTERM_BOTH", env).unwrap(), "new");
+        assert!(super::setting_from("LABTERM_NONE", env).is_err());
+        assert!(super::setting_from("OTHER", env).is_err());
+    }
+}

@@ -30,7 +30,7 @@ class LocalFilesTest {
         companion object {
             val rows = HashMap<String, Array<Any?>>()
             val files = HashMap<String, File>()
-            const val AUTHORITY = "com.termoso.test.docs"
+            const val AUTHORITY = "dev.labdex.labterm.test.docs"
         }
 
         override fun onCreate() = true

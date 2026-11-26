@@ -37,7 +37,7 @@ class UpdateException(message: String, cause: Throwable? = null) : Exception(mes
 
 /**
  * In-app updates for debug-channel builds (fork CI publishes each build to a rolling
- * prerelease). Off unless the build was made with `termoso.debugUpdateUrl`; release
+ * prerelease). Off unless the build was made with `labterm.debugUpdateUrl`; release
  * builds update through their store. Android itself refuses an APK signed with another key.
  */
 object DebugUpdater {

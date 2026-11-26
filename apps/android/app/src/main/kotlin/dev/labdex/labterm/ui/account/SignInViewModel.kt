@@ -55,7 +55,7 @@ sealed interface SsoState {
     /** The browser is open; [url] is what the sign-in screen launches. */
     data class Waiting(val provider: SsoProviderCard, val flowId: String, val url: String) : SsoState
 
-    /** Identity verified; the Termoso password finishes the login / sign-up. */
+    /** Identity verified; the Labterm password finishes the login / sign-up. */
     data class Verified(val provider: SsoProviderCard, val email: String, val displayName: String?, val newAccount: Boolean) : SsoState
 }
 

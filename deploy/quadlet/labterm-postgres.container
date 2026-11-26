@@ -1,0 +1,24 @@
+# PostgreSQL: accounts, teams, ciphertext, audit log. The only state that
+# must be backed up (see docs/SELF_HOSTING.md).
+[Unit]
+Description=Labterm PostgreSQL
+
+[Container]
+ContainerName=labterm-postgres
+Image=docker.io/library/postgres:18-alpine
+Network=labterm.network
+Volume=labterm-postgres.volume:/var/lib/postgresql
+EnvironmentFile=/etc/labterm/stack.env
+NoNewPrivileges=true
+HealthCmd=pg_isready -U labterm -d labterm
+HealthInterval=5s
+HealthTimeout=3s
+HealthRetries=20
+Notify=healthy
+
+[Service]
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

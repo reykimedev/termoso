@@ -14,7 +14,7 @@ export function IrreversibleWarning() {
   return (
     <Alert severity="error" variant="outlined">
       {trx(
-        "{v1} Your hosts, passwords, keys, snippets, settings and other vault contents are encrypted with keys only you hold. Without the password or the recovery key nobody — including Termoso — can decrypt them: the server never has a decryption key. Starting over keeps your email address and team memberships but gives you a {v2}. The old data is deleted and cannot be brought back.",
+        "{v1} Your hosts, passwords, keys, snippets, settings and other vault contents are encrypted with keys only you hold. Without the password or the recovery key nobody — including Labterm — can decrypt them: the server never has a decryption key. Starting over keeps your email address and team memberships but gives you a {v2}. The old data is deleted and cannot be brought back.",
         {
           v1: <AlertTitle>{tr("This permanently destroys your encrypted data")}</AlertTitle>,
           v2: <strong>{tr("new, empty vault")}</strong>,
@@ -98,7 +98,7 @@ export function StartOverPage() {
         <IrreversibleWarning />
         <Alert severity="info">
           {trx(
-            "We emailed you two links: one to {v1} the reset once the waiting period is over, and one to {v2} it. Every signed-in device of the account was notified too. If you still have a signed-in Termoso app, you can cancel from there as well.",
+            "We emailed you two links: one to {v1} the reset once the waiting period is over, and one to {v2} it. Every signed-in device of the account was notified too. If you still have a signed-in Labterm app, you can cancel from there as well.",
             { v1: <strong>{tr("finish")}</strong>, v2: <strong>{tr("cancel")}</strong> },
           )}
         </Alert>

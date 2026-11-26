@@ -1,12 +1,12 @@
 ---
 title: FAQ
-description: Short answers to the questions that come up most — pricing, accounts, what the server sees, platforms, and how Termoso relates to Termius.
+description: Short answers to the questions that come up most — pricing, accounts, what the server sees, platforms, and how Labterm relates to Termius.
 ---
 
 ## General
 
 **Is it really free? What is the catch?**
-Yes, and there is none. Termoso is AGPL-3.0 software; the apps, the server and the release pipeline are public. There are no plans, no seat limits and no "team" or "business" tiers — a feature either exists for everyone or does not exist. The free cloud at `app.termoso.dev` runs the same server you can run yourself.
+Yes, and there is none. Labterm is AGPL-3.0 software; the apps, the server and the release pipeline are public. There are no plans, no seat limits and no "team" or "business" tiers — a feature either exists for everyone or does not exist. The free cloud at `app.termoso.dev` runs the same server you can run yourself.
 
 **Do I need an account?**
 No. Every app starts with a **Local vault** that holds hosts, keys, snippets and known hosts on that device. An account adds sync between your devices and sharing with a team; you can sign in later and move items into your personal vault at any time.
@@ -26,10 +26,10 @@ Your e-mail, your devices, your team memberships, and ciphertext. Host names, us
 No — nobody can, by design. The 24-word recovery key you were given at sign-up is the only way back into an account. Local vaults on your devices stay readable with each device's own lock.
 
 **Where are private keys stored?**
-Encrypted in the vault, like any other item; on Android the database key is wrapped by the Android Keystore, on the desktop by your master password. Keys that live in a hardware token (FIDO2) or in your system SSH agent never enter the vault at all — Termoso only stores the public half.
+Encrypted in the vault, like any other item; on Android the database key is wrapped by the Android Keystore, on the desktop by your master password. Keys that live in a hardware token (FIDO2) or in your system SSH agent never enter the vault at all — Labterm only stores the public half.
 
 **Does the AI feature send my terminal to someone?**
-Only if you turn it on and ask for a suggestion, and then only the prompt you typed plus the context you can see in the dialog. The endpoint is configurable (`TERMOSO_AI__*` on a self-hosted server), so it can be your own model.
+Only if you turn it on and ask for a suggestion, and then only the prompt you typed plus the context you can see in the dialog. The endpoint is configurable (`LABTERM_AI__*` on a self-hosted server), so it can be your own model.
 
 ## Platforms
 
@@ -57,7 +57,7 @@ Put the hosts in a team vault and give them an [identity](/docs/keychain/identit
 Either a [snippet](/docs/terminal/snippets) with targets — pick hosts or a group and run it in all of them — or open them as panes in one tab and turn on **Broadcast input**.
 
 **Can I keep a session alive when the phone is in my pocket?**
-Yes. Sessions run in a foreground service and show up in the notification shade; exclude Termoso from battery optimisation on vendors that are aggressive about background apps. For flaky networks use Mosh, which survives roaming and sleep.
+Yes. Sessions run in a foreground service and show up in the notification shade; exclude Labterm from battery optimisation on vendors that are aggressive about background apps. For flaky networks use Mosh, which survives roaming and sleep.
 
 **Where are session recordings kept?**
 Encrypted on the device that recorded them. On servers with object storage configured they can also be kept on the server, encrypted before upload. See [Session logs](/docs/hosts/session-logs).
@@ -74,7 +74,7 @@ Docker (or Podman), PostgreSQL, Redis, optionally an S3-compatible store for ses
 One account at a time per app, plus the Local vault that is always there. Sign out and in to switch.
 
 **Is there an API?**
-The [API Bridge](/docs/self-hosting/api-bridge) exposes a Termius-compatible REST API for hosts and groups (hosted cloud or self-hosted server), encrypting locally so the server still only sees ciphertext. The server's own HTTP API is documented in Swagger UI when `TERMOSO_SWAGGER_UI` is on.
+The [API Bridge](/docs/self-hosting/api-bridge) exposes a Termius-compatible REST API for hosts and groups (hosted cloud or self-hosted server), encrypting locally so the server still only sees ciphertext. The server's own HTTP API is documented in Swagger UI when `LABTERM_SWAGGER_UI` is on.
 
 **Where do I report a bug?**
 [GitHub issues](https://github.com/termoso/termoso/issues). The [Troubleshooting](/docs/reference/troubleshooting) page covers the common ones first.

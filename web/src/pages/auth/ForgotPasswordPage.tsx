@@ -62,7 +62,7 @@ export function ForgotPasswordPage() {
       <AuthTitle
         title={tr("Reset your password")}
         subtitle={tr(
-          "Termoso cannot email you a reset link: your data is encrypted with keys only you hold. Use your 24-word recovery key instead.",
+          "Labterm cannot email you a reset link: your data is encrypted with keys only you hold. Use your 24-word recovery key instead.",
         )}
       />
       <Stack spacing={2}>

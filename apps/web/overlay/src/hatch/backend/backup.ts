@@ -1,8 +1,8 @@
-// Encrypted `.termoso` backups, readable by the Termoso apps and the other way round. The payload
-// is Termoso's (apps/desktop/src-tauri/src/backup.rs); labterm-web-wasm does the Argon2id and
+// Encrypted `.labterm` backups, readable by the Labterm apps and the other way round. The payload
+// is Labterm's (apps/desktop/src-tauri/src/backup.rs); labterm-web-wasm does the Argon2id and
 // XChaCha20-Poly1305 framing. This is also how vaults move between accounts and servers: export
 // from one, sign in to the other, restore into a vault there.
-import { TERMOSO_VERSION } from "../build";
+import { LABTERM_VERSION } from "../build";
 import { fail } from "./errors";
 import * as files from "./files";
 import * as policy from "./policy";
@@ -117,7 +117,7 @@ export function exportTo(vaultIds: Uuid[], password: string, path: string) {
   if (ids.length === 0) fail("invalid", "no unlocked vault to export");
   const payload: Payload = {
     created_at: new Date().toISOString(),
-    app_version: TERMOSO_VERSION,
+    app_version: LABTERM_VERSION,
     vaults: ids.map(dump),
   };
   const plain = new TextEncoder().encode(JSON.stringify(payload));
@@ -139,11 +139,11 @@ export async function inspect(path: string, password: string) {
   try {
     payload = JSON.parse(new TextDecoder().decode(plain)) as Payload;
   } catch {
-    fail("invalid", "not a Termoso backup file");
+    fail("invalid", "not a Labterm backup file");
   } finally {
     plain.fill(0);
   }
-  if (!Array.isArray(payload.vaults)) fail("invalid", "not a Termoso backup file");
+  if (!Array.isArray(payload.vaults)) fail("invalid", "not a Labterm backup file");
   files.forget(path);
   const id = crypto.randomUUID();
   if (previews.size >= 4) previews.clear();

@@ -23,6 +23,6 @@ reads the vault. Browsers have no built-in way to pin a site's code.
 
 **Consequences:** The first visit is trusted. A tampered `sw.js` can only be warned about on the
 load that sees it, because the browser updates service workers on its own. `config.json` is
-deployment data outside the signature; it names the relay, the identity provider and the Termoso
+deployment data outside the signature; it names the relay, the identity provider and the Labterm
 server, so a changed one can point the pop-up sign-in elsewhere (the pop-up shows its address).
 Until the release key exists, builds show "unsigned development build".
