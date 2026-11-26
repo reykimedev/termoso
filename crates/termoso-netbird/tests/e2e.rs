@@ -4,14 +4,15 @@
 //!
 //! Env: `NB_E2E_LIB` (path to libtermoso_netbird.so), `NB_E2E_MANAGEMENT`,
 //! `NB_E2E_SETUP_KEY`, `NB_E2E_TARGET` (NetBird IP of an echo peer on 2222),
-//! `NB_E2E_TARGET_NAME` (its NetBird DNS name).
+//! `NB_E2E_TARGET_NAME` (its NetBird DNS name), `NB_E2E_SSO_USER` and
+//! `NB_E2E_SSO_PASSWORD` (a user of the server's embedded identity provider).
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use termoso_core::model::{Entity, Transport};
-use termoso_netbird::{Netbird, NetworkConfig, PeerKeys};
+use termoso_netbird::{Netbird, NetworkConfig, PeerKeys, SIGN_IN_NEEDED};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use uuid::Uuid;
 use zeroize::Zeroizing;
@@ -110,4 +111,69 @@ async fn dial_through_embedded_netbird() {
         Err(e) => e.to_string(),
     };
     assert!(err.contains("NetBird"), "{err}");
+}
+
+/// Signs in like the phone does, with `tests/sso-login.py` as the browser.
+async fn sign_in(nb: &Arc<Netbird>, keys: &Arc<MemKeys>, net: &NetworkConfig) -> Option<String> {
+    let pending = nb
+        .sign_in(net, "termoso-e2e-sso", keys.as_ref())
+        .await
+        .expect("sign-in start");
+    assert!(
+        pending.auth_url.contains("code_challenge="),
+        "{}",
+        pending.auth_url
+    );
+    let url = pending.auth_url.clone();
+    let browser = tokio::task::spawn_blocking(move || {
+        std::process::Command::new("python3")
+            .arg(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/sso-login.py"))
+            .arg(url)
+            .arg(env("NB_E2E_SSO_USER"))
+            .arg(env("NB_E2E_SSO_PASSWORD"))
+            .status()
+            .expect("run sso-login.py")
+    });
+    let done = nb
+        .finish_sign_in(pending, net, keys.as_ref(), Duration::from_secs(60))
+        .await
+        .expect("sign-in");
+    assert!(browser.await.unwrap().success(), "browser step failed");
+    done.email
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a NetBird server; run tests/e2e.sh"]
+async fn sign_in_joins_as_own_peer() {
+    let lib = Some(env("NB_E2E_LIB"));
+    let target = env("NB_E2E_TARGET");
+    let keys = Arc::new(MemKeys::default());
+    let nb = Netbird::with_options(lib, Duration::from_secs(2));
+    // A team network: settings only, no setup key.
+    let net = network(Uuid::new_v4(), None);
+
+    // Before signing in, connecting asks for it.
+    assert!(!nb.has_peer(&net, keys.as_ref()));
+    let err = match nb
+        .dialer(net.clone(), "termoso-e2e-sso", keys.clone())
+        .dial(&target, 2222)
+        .await
+    {
+        Ok(_) => panic!("connected without signing in"),
+        Err(e) => e.to_string(),
+    };
+    assert!(err.contains(SIGN_IN_NEEDED), "{err}");
+
+    let email = sign_in(&nb, &keys, &net).await;
+    assert_eq!(email.as_deref(), Some(env("NB_E2E_SSO_USER").as_str()));
+    assert!(nb.has_peer(&net, keys.as_ref()));
+    let first = keys.load(&net.peer_slot()).unwrap();
+    echo(&nb, &keys, net.clone(), &target).await;
+
+    // Signing in again keeps the same peer.
+    nb.stop_all().await;
+    sign_in(&nb, &keys, &net).await;
+    assert_eq!(*keys.load(&net.peer_slot()).unwrap(), *first);
+    echo(&nb, &keys, net.clone(), &env("NB_E2E_TARGET_NAME")).await;
+    nb.stop_all().await;
 }

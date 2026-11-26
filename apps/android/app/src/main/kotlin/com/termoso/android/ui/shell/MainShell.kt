@@ -22,9 +22,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -238,6 +240,14 @@ fun MainShell(
     LaunchedEffect(forwards) { forwards.autoStartOnce() }
     TunnelPromptHost(forwards)
     ReauthHost(account)
+    // A host behind a NetBird network this user has not signed in to yet: sign in, then connect.
+    var netbirdSignIn by remember { mutableStateOf<Pair<com.termoso.core.TransportItem, () -> Unit>?>(null) }
+    netbirdSignIn?.let { (network, then) ->
+        com.termoso.android.ui.netbird.NetbirdSignInDialog(network, shell.repo, shell::notify) { ok ->
+            netbirdSignIn = null
+            if (ok) then()
+        }
+    }
 
     val pendingInvite by container.pendingInvite.collectAsStateWithLifecycle()
     val accountStatus by account.status.collectAsStateWithLifecycle()
@@ -390,7 +400,12 @@ fun MainShell(
     /** "Connect" on a host: a terminal, or the Files browser when the host is WebDAV-only. */
     fun connectHost(hostId: String, transport: Transport = Transport.AUTO) {
         shell.launch {
-            if (!shell.hasTerminal(hostId)) {
+            val signIn = shell.selectedVaultId.value?.let { v ->
+                runCatching { shell.repo.read { hostTransportSignIn(hostId, v) } }.getOrNull()
+            }
+            if (signIn != null) {
+                netbirdSignIn = signIn to { connectHost(hostId, transport) }
+            } else if (!shell.hasTerminal(hostId)) {
                 shell.openSftpHost(hostId)?.let { openSftp(it.id) }
             } else if (shell.connectHost(hostId, transport) != null) {
                 shell.selectedVaultId.value?.let { RecentShortcuts.record(context, shell.repo, hostId, it) }

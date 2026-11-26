@@ -892,6 +892,40 @@ impl TermosoApp {
         Ok(())
     }
 
+    /// Whether networks of this vault are joined by each member signing in
+    /// (team vaults: no setup key) rather than with a setup key.
+    pub fn transport_sign_in_only(&self, vault_id: String) -> Result<bool> {
+        crate::netbird::sign_in_only(&self.store, &vault_id)
+    }
+
+    /// The NetBird network to sign in to before this host can connect, if
+    /// any (no setup key and this device has not joined it yet).
+    pub fn host_transport_sign_in(
+        &self,
+        host_id: String,
+        vault_id: String,
+    ) -> Result<Option<crate::TransportItem>> {
+        let resolved = self.resolve_host_in(&host_id, &vault_id)?;
+        Ok(crate::netbird::needs_sign_in(&self.store, &resolved))
+    }
+
+    /// Start signing in to a NetBird network: open the returned URL in a
+    /// browser (Custom Tab), then call `transport_sign_in_finish`.
+    pub fn transport_sign_in_begin(&self, transport_id: String) -> Result<String> {
+        RUNTIME.block_on(crate::netbird::sign_in_begin(&self.store, &transport_id))
+    }
+
+    /// Wait (up to 5 minutes) for the browser to come back and join the
+    /// network as this user's own peer. Returns the signed-in email if known.
+    pub fn transport_sign_in_finish(&self, transport_id: String) -> Result<Option<String>> {
+        RUNTIME.block_on(crate::netbird::sign_in_finish(&self.store, &transport_id))
+    }
+
+    /// Give up a sign-in in progress.
+    pub fn transport_sign_in_cancel(&self, transport_id: String) {
+        crate::netbird::sign_in_cancel(&transport_id);
+    }
+
     /// Stop the embedded NetBird peers now (they start again on the next
     /// connection through them).
     pub fn stop_transports(&self) {

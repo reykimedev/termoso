@@ -5,18 +5,46 @@ network. The Android app then joins that network by itself, in userspace, for
 the connection: no system VPN, no `VpnService` and no NetBird app. Hosts that
 are not set to use a network connect directly as before.
 
+## Who gets in
+
+Each person joins a network as their own NetBird user, so NetBird's users,
+groups and access policies decide who reaches what. Being in a team vault
+never grants network access by itself:
+
+- **Team vaults** share only the network settings (label, management URL, and
+  which hosts and groups use it). They never hold a setup key: the app refuses
+  to save one there, drops one stored by an older version, and ignores one at
+  connect time. Each member signs in to NetBird on their phone.
+- **Personal vaults** can hold a setup key for your own devices, or leave it
+  empty and sign in too.
+
 ## Setting it up
 
-1. In the NetBird dashboard, create a **setup key**. It is shared by every
-   device that can open the vault, so prefer a reusable, ephemeral key whose
-   auto-group the access policies only let reach SSH on the hosts you need.
-2. In the app: **Vault → NetBird networks → +**. Enter a label, the management
-   URL of a self-hosted server (empty = NetBird's cloud) and the setup key.
-   The network lives in the selected vault; in a team vault the whole team can
-   use it.
-3. Long-press a host (or a group) → **Tunnel** → pick the network. Hosts in a
+1. In the app: **Vault → NetBird networks → +**. Enter a label and the
+   management URL of a self-hosted server (empty = NetBird's cloud). In a
+   personal vault you can add a setup key; leave it empty to sign in.
+2. Long-press a host (or a group) → **Tunnel** → pick the network. Hosts in a
    group use the group's choice unless they set their own. The address is the
    host's NetBird IP or DNS name (`host.netbird.cloud`, or your own domain).
+3. The first connection to such a host asks you to **sign in**: the app opens
+   the sign-in page of the identity provider your NetBird server uses (for
+   example Authentik) in a browser tab. Afterwards the phone is a peer of your
+   NetBird user. You can also sign in from the network's settings.
+
+## Signing in
+
+The app uses the same sign-in as NetBird's own apps: the authorization code
+flow with PKCE, with the settings the management server hands out
+(`GetPKCEAuthorizationFlow`), and the browser returning to a short-lived
+listener on `localhost` (the server's CLI redirect URLs, usually
+`http://localhost:53000/`). The token is used once, to register this phone's
+WireGuard key for the signed-in user; it is not stored. Later connections log
+in with that key alone until the server's peer login expiry runs out; then
+connecting asks to sign in again, which keeps the same peer.
+
+For Authentik, the NetBird application's provider needs the redirect URIs
+`http://localhost:53000/` and `http://localhost:54000/`, as in NetBird's
+Authentik guide; nothing app specific is needed.
 
 ## How it works
 
@@ -30,8 +58,8 @@ are not set to use a network connect directly as before.
   minutes after its last connection closed. Connections of the same network
   share one peer.
 - Each device joins as its own peer. Its WireGuard key is kept in the app's
-  encrypted device store, never synced, so a phone registers once and then
-  logs in with that key; it is forgotten on sign-out.
+  encrypted device store, never synced, so a phone registers once (by sign-in
+  or setup key) and then logs in with that key; it is forgotten on sign-out.
 - The SSH session runs on top as usual: the host key is checked against the
   host's configured name and port, never against the tunnel. NetBird only
   carries ciphertext.
@@ -41,7 +69,6 @@ are not set to use a network connect directly as before.
 
 ## Not yet
 
-- Sign-in with the identity provider (Authentik) instead of a setup key.
 - Team policy: an allowlist of networks and audit entries for connections
   through them.
 - Desktop and iOS: there, hosts set to use a network are dialled directly
@@ -51,5 +78,7 @@ are not set to use a network connect directly as before.
 ## Testing
 
 `crates/termoso-netbird/tests/e2e.sh` builds a NetBird server, a far-end
-peer and the library, and runs the crate's end-to-end test on loopback (CI job
-`netbird`).
+peer and the library, and runs the crate's end-to-end tests on loopback (CI
+job `netbird`): joining with a setup key, and signing in at the server's
+built-in identity provider (`tests/sso-login.py` plays the browser), signing
+in again with the same peer.
