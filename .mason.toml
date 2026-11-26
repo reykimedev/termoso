@@ -1,0 +1,11 @@
+[handbook]
+repo = "bitsandbricks-ch/handbook"
+# Labterm is desktop, mobile, a web app and a relay service, main kind first (handbook decision 0011).
+# TODO: switch to the list once Mason reads it; until then only desktop is checked.
+# profile = ["desktop", "mobile", "web-app", "service"]
+profile = "desktop"
+version = "v1"
+
+# area: labels used on this repo's issues. TODO: move into Mason's own format once the
+# handbook documents one; until then this list is what `area:` means here.
+# areas = ["desktop", "android", "ios", "web", "relay", "core", "server", "plugins", "ci", "docs"]
