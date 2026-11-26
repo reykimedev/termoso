@@ -6,7 +6,7 @@
 Branches started before the rename run this once on their own tree, commit, and
 then merge main: the rename is mechanical, so their remaining conflicts are real.
 
-What changes: the client crates (termoso-{core,client,crypto,proto,mobile,wasm,
+What changes: the client crates (termoso-{core,client,crypto,proto,mobile,wasm,oidc-cert,
 awslc-rsa} and termoso-desktop) become labterm-*; Rust, Kotlin and Swift type and
 package names; the app ids become dev.labdex.labterm (Android debug:
 dev.labdex.labterm.debug); the iOS project, targets and folders.
@@ -29,7 +29,7 @@ import sys
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 APP_ID = "dev.labdex.labterm"
-CRATES = ["core", "client", "crypto", "proto", "mobile", "wasm", "awslc-rsa"]
+CRATES = ["core", "client", "crypto", "proto", "mobile", "wasm", "awslc-rsa", "oidc-cert"]
 
 # Types and identifiers; TermosoCaptcha stays (the server's captcha page calls it).
 IDENTS = {
