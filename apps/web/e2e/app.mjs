@@ -3,8 +3,8 @@
 //      refused while the host key is unknown; pin the key by hand; a shell runs a command.
 //   2. browser B: same account, approved with the emailed code; the host, password and pin
 //      arrive by sync; a shell runs a command; reload, lock screen, unlock.
-// What it needs is in web/e2e/README.md. Every value is test data.
-//   node web/e2e/app.mjs
+// What it needs is in apps/web/e2e/README.md. Every value is test data.
+//   node apps/web/e2e/app.mjs
 import { execSync } from "node:child_process";
 import { existsSync, readFileSync, mkdirSync } from "node:fs";
 import { createRequire } from "node:module";

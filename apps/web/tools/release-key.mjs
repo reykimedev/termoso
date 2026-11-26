@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Makes a new release signing key: writes the private key (PEM, mode 600) to <file> and prints
-// the entry to add to tools/release-keys.json. Run it where the key will live (the release
+// the entry to add to apps/web/tools/release-keys.json. Run it where the key will live (the release
 // environment), not on a shared machine.
-//   node tools/release-key.mjs <file> <id>
+//   node apps/web/tools/release-key.mjs <file> <id>
 import { generateKeyPairSync } from "node:crypto";
 import { writeFileSync } from "node:fs";
 

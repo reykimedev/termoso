@@ -19,7 +19,7 @@ use axum::{Json, Router};
 use base64::Engine as _;
 use ed25519_dalek::SigningKey;
 use futures_util::{SinkExt, StreamExt};
-use hatch_proto::{Claims, TICKET_VERSION};
+use labterm_relay_proto::{Claims, TICKET_VERSION};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddr};
@@ -263,7 +263,7 @@ async fn issue_ticket(
         exp: now() + r.limits.ticket_seconds,
         jti: random_id(),
     };
-    let ticket = hatch_proto::sign(&r.key, &claims);
+    let ticket = labterm_relay_proto::sign(&r.key, &claims);
     r.metrics.tickets_issued.fetch_add(1, Ordering::Relaxed);
     tracing::info!(target: "audit", event = "ticket.issued", sub = %who.sub, user = %who.name,
         groups = ?who.groups, %target, ip = %addr.ip(), port = addr.port(), %origin);
@@ -355,7 +355,12 @@ async fn connect(
     let Ok(Query(q)) = query else {
         return fail(StatusCode::BAD_REQUEST, "ticket", "ticket missing");
     };
-    let claims = match hatch_proto::verify(&r.key.verifying_key(), &q.ticket, &origin, now()) {
+    let claims = match labterm_relay_proto::verify(
+        &r.key.verifying_key(),
+        &q.ticket,
+        &origin,
+        now(),
+    ) {
         Ok(c) => c,
         Err(e) => {
             r.metrics.connect_denied("ticket");

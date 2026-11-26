@@ -73,7 +73,7 @@ export function WebGate({ onSetUp }: { onSetUp: (password: string) => Promise<vo
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {tr(
-                "It encrypts this browser's copy of your vault and unlocks Hatch on this computer. It is not your Termoso account password and never leaves this browser.",
+                "It encrypts this browser's copy of your vault and unlocks Labterm Web on this computer. It is not your Termoso account password and never leaves this browser.",
               )}
             </Typography>
           </Stack>
@@ -139,7 +139,7 @@ export function StartError({ message }: { message: string }) {
       >
         <Stack spacing={2} sx={{ width: 480, maxWidth: "100%" }}>
           <Typography variant="h5" component="h1">
-            {tr("Hatch cannot start")}
+            {tr("Labterm Web cannot start")}
           </Typography>
           <Alert severity="error">{message}</Alert>
         </Stack>

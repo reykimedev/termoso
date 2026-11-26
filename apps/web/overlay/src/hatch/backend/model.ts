@@ -1,12 +1,12 @@
 // The desktop's view of the vault, built from the synced entities: host, group, tag, identity,
 // key and known-host cards, the host and group editors, and what a connection needs. Follows
-// termoso-client (hosts.rs, keychain.rs) and termoso-core's `resolve_host` so a host looks and
+// labterm-client (hosts.rs, keychain.rs) and labterm-core's `resolve_host` so a host looks and
 // connects the same here as on the desktop.
 import { fail } from "./errors";
 import { type Ent, type Uuid, get, list, put, remove, require, s, vault } from "./state";
 import { w } from "./wasm";
 
-// Payloads, as in termoso-proto's `entities::payload`.
+// Payloads, as in labterm-proto's `entities::payload`.
 export interface Host {
   label: string;
   address: string;
@@ -100,7 +100,7 @@ const byOrder = <T extends { sortOrder: number; label: string }>(a: T, b: T) =>
 
 const some = (v: string | null | undefined) => typeof v === "string" && v.length > 0;
 
-// ── resolution (termoso-core `resolve_host`) ──────────────────────────────
+// ── resolution (labterm-core `resolve_host`) ──────────────────────────────
 
 function mergeSsh(into: SshConfig, from: SshConfig) {
   for (const f of [
@@ -1040,7 +1040,7 @@ export function hostKeyPin(a: {
   if (!a.publicKey?.trim())
     fail(
       "unsupported",
-      "Paste the server's public key (ssh-keyscan or /etc/ssh/ssh_host_*.pub). Hatch never trusts a key on first use.",
+      "Paste the server's public key (ssh-keyscan or /etc/ssh/ssh_host_*.pub). Labterm Web never trusts a key on first use.",
     );
   const i = w.inspectPublicKey(a.publicKey) as KeyInfo;
   const hostname = w.hostId(a.host, a.port);

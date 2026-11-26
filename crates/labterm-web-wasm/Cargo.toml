@@ -1,6 +1,6 @@
 [package]
-name = "hatch-wasm"
-description = "The browser side of Hatch in WebAssembly: SSH over the relay, the known-hosts check, key tools, the lock key, and termoso-wasm"
+name = "labterm-web-wasm"
+description = "The browser side of Labterm Web in WebAssembly: SSH over the relay, the known-hosts check, key tools, the lock key, and labterm-wasm"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -11,13 +11,13 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-# Termoso's own browser crypto (OPAQUE, account and vault keys, entity encryption) at the pinned
-# commit, built into the same module so there is one wasm file and one wasm-bindgen version.
-termoso-wasm = { path = "../../web/upstream/crates/termoso-wasm" }
-# opkssh certificates, from the pinned fork. Only the core: the browser does the HTTP itself.
-termoso-oidc-cert = { path = "../../web/upstream/crates/termoso-oidc-cert", default-features = false }
-# The .termoso backup format: same Argon2id and XChaCha20-Poly1305 as the Termoso apps.
-termoso-crypto = { path = "../../web/upstream/crates/termoso-crypto", features = ["wasm"] }
+# Labterm's own browser crypto (OPAQUE, account and vault keys, entity encryption), built into
+# the same module so there is one wasm file and one wasm-bindgen version.
+labterm-wasm = { path = "../labterm-wasm" }
+# opkssh certificates. Only the core: the browser does the HTTP itself.
+labterm-oidc-cert = { workspace = true }
+# The .termoso backup format: same Argon2id and XChaCha20-Poly1305 as the Labterm apps.
+labterm-crypto = { workspace = true, features = ["wasm"] }
 serde_json = { workspace = true }
 argon2 = { version = "0.5", default-features = false, features = ["alloc"] }
 # Same russh as Termoso v0.12.1, with ring instead of aws-lc-rs (aws-lc-sys has no wasm32 build).
@@ -37,5 +37,8 @@ web-sys = { version = "0.3", features = ["WebSocket", "BinaryType", "MessageEven
 url = "2"
 russh-sftp = "4.0.0"
 
-[lints]
-workspace = true
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }

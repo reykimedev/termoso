@@ -1,6 +1,6 @@
 // OpenID Connect sign-ins: authorization code with PKCE in a pop-up, no client secret. The relay's
 // Authentik (config.json) signs in on the first connect of a browser session; an opkssh key signs
-// in with its vault's provider (opkssh.ts). Each nonce commits to a fresh P-256 key in hatch-wasm,
+// in with its vault's provider (opkssh.ts). Each nonce commits to a fresh P-256 key in labterm-web-wasm,
 // so the ID token becomes an opkssh certificate. Tokens stay in memory; a reload signs in again
 // (silently, while the provider's own session lasts).
 import { config } from "./config";
@@ -65,7 +65,7 @@ async function discover(): Promise<Discovery> {
   if (discovery) return discovery;
   const c = config();
   if (!c.oidcIssuer || !c.oidcClientId)
-    fail("not_configured", "This Hatch has no sign-in provider configured (config.json).");
+    fail("not_configured", "This Labterm Web has no sign-in provider configured (config.json).");
   discovery = await discoverIssuer(c.oidcIssuer);
   return discovery;
 }

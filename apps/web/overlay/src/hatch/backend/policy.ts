@@ -1,10 +1,10 @@
-// Team policies the clients enforce themselves (termoso-core's policy.rs): `auth = keys_only`,
+// Team policies the clients enforce themselves (labterm-core's policy.rs): `auth = keys_only`,
 // `jump_host_required` and `export = deny`. The server is the source of truth; this copy is
 // refreshed with the vault list and kept in the sealed state so the rules hold offline.
 import { fail } from "./errors";
 import { type Uuid, changed, s } from "./state";
 
-/** The fields of termoso-proto's `TeamPolicies` that a client enforces. */
+/** The fields of labterm-proto's `TeamPolicies` that a client enforces. */
 export interface TeamPolicies {
   auth?: string;
   jump_host_required?: boolean;

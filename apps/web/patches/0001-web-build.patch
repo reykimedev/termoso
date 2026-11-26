@@ -281,7 +281,7 @@ index e93d4f3..ceb552f 100644
 +          )}
 +          <Typography variant="body2" color="text.secondary">
 +            {tr(
-+              "Check the fingerprint on the server's console. If it is right, trust it in Termoso on your desktop or phone; it syncs here.",
++              "Check the fingerprint on the server's console. If it is right, trust it in Labterm on your desktop or phone; it syncs here.",
 +            )}
 +          </Typography>
 +        </Stack>

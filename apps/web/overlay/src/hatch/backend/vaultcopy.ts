@@ -1,4 +1,4 @@
-// Copy or move hosts, keys and identities into another vault, as termoso-client does
+// Copy or move hosts, keys and identities into another vault, as labterm-client does
 // (hosts.rs `copy_to_vault`, keychain.rs `copy_to_vault` / `copy_identity_to_vault`): what a copy
 // needs comes along (its key, certificate and shared identity, deduplicated in the target), and
 // references the target vault cannot see are dropped.

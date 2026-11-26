@@ -1,8 +1,8 @@
 # Threat model
 
-What Hatch protects, from whom, and where it stops. Update it when a new way in is added.
+What Labterm Web protects, from whom, and where it stops. Update it when a new way in is added.
 
-> The defences below are built and covered by the end-to-end test (`web/e2e`), but Hatch has no
+> The defences below are built and covered by the end-to-end test (`apps/web/e2e`), but Labterm Web has no
 > signed release yet ([milestones](architecture.md#milestones)). Until v0.1.0, don't point a relay
 > at a network you can't afford to expose.
 
@@ -12,7 +12,7 @@ What Hatch protects, from whom, and where it stops. Update it when a new way in 
 | --- | --- |
 | Vault contents: SSH keys, passwords, host list | Encrypted on the Termoso server; decrypted only inside the browser tab |
 | SSH sessions | End to end between the browser and the host; the relay carries ciphertext |
-| Known host keys | The user's Termoso vault, synced from their devices |
+| Known host keys | The user's Labterm vault, synced from their devices |
 | This browser's copy of the vault | IndexedDB, sealed with AES-GCM under a key from the lock password (Argon2id) |
 | Access to the home network | The relay, limited by the allowlist |
 | The integrity of the app's code | Signed release manifest, checked by the loader and service worker |
@@ -28,21 +28,21 @@ What Hatch protects, from whom, and where it stops. Update it when a new way in 
 | A signed-in user | Reach hosts outside their groups; scan the network | Allowlist rules per Authentik group, checked on the resolved address (no DNS rebinding); rate limits per user and target; every connection logged |
 | A malicious page in another tab | Use the relay or read the session | Origin check on ticket and WebSocket; strict CSP; `frame-ancestors 'none'` |
 | A compromised build or a tampered server | Ship code that leaks keys | Reproducible builds, a release manifest signed with a key held by the release environment, SRI, a loader and service worker that check every file |
-| Someone with the unlocked laptop | Use open sessions | Idle lock after the user's Termoso setting; a lock button that closes sessions and forgets the vault key |
+| Someone with the unlocked laptop | Use open sessions | Idle lock after the user's Labterm setting; a lock button that closes sessions and forgets the vault key |
 | Someone with a copy of the browser profile | Read the vault from IndexedDB | Sealed with AES-GCM under the lock password (Argon2id, 64 MiB); the opkssh key is never stored |
 | Another member of a team vault, or the Termoso server | Pin a key for a host they don't own, or hand a new device a personal vault of their own making | Pins count only from the host's own vault, this browser's vault and a personal vault sealed with the account key; a personal key the server could have sealed is never opened ([0010](decisions/0010-who-vouches-for-a-host-key.md)) |
-| A team vault's policy | Is ignored by a client | Hatch enforces `auth = keys_only`, `jump_host_required` and `export = deny` like the Termoso apps; hosts behind a jump host or proxy don't open until Hatch can follow the chain |
+| A team vault's policy | Is ignored by a client | Labterm Web enforces `auth = keys_only`, `jump_host_required` and `export = deny` like the Labterm apps; hosts behind a jump host or proxy don't open until Labterm Web can follow the chain |
 | Whoever can change `config.json` on the server | Point the app at another relay, identity provider or Termoso server | Not signed (it is deployment data). Another relay still only sees ciphertext and fails the host-key check; another identity provider shows its own address in the sign-in pop-up |
 
-## What Hatch does not protect against
+## What Labterm Web does not protect against
 
 - **The first load.** Before the loader is in the browser, nothing checks it. A TLS-inspecting
   proxy on the first visit could serve other code. Only a browser extension or an Isolated Web
   App could close this.
 - **A compromised browser or OS**, a malicious browser extension, or a keylogger on the work PC.
 - **Metadata at the relay**: it sees who connects where, when, and how much.
-- **Termoso itself**: a flaw in the Termoso server or in `termoso-wasm` affects Hatch too.
-- **A replaced service worker after the warning.** The browser updates `sw.js` on its own; Hatch
+- **The rest of Labterm**: a flaw in the Termoso server or in `labterm-wasm` affects Labterm Web too.
+- **A replaced service worker after the warning.** The browser updates `sw.js` on its own; Labterm Web
   warns on the load that sees the change, but the next load runs whatever was installed.
 
 ## Secrets

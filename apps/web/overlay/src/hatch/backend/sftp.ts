@@ -1,4 +1,4 @@
-// SFTP in the browser: hatch-wasm's SFTP session over the relay, with the same host-key check and
+// SFTP in the browser: labterm-web-wasm's SFTP session over the relay, with the same host-key check and
 // sign-in as the terminal. The desktop's "local" side has no disk here: files dropped onto the
 // page wait in memory until they are uploaded, and a download is handed to the browser.
 import { emit } from "@tauri-apps/api/event";

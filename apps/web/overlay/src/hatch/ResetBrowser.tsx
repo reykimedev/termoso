@@ -29,7 +29,7 @@ export function ResetBrowser() {
         <DialogContent>
           <DialogContentText>
             {tr(
-              "Hatch forgets this browser's copy of your vault. Everything synced to your Termoso account comes back when you sign in again; entries kept only in this browser are lost.",
+              "Labterm Web forgets this browser's copy of your vault. Everything synced to your Termoso account comes back when you sign in again; entries kept only in this browser are lost.",
             )}
           </DialogContentText>
         </DialogContent>

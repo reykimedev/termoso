@@ -3,10 +3,10 @@
 //! for the life of the tab, under a slot: "" for the relay's sign-in, an opkssh key's id for that
 //! key's provider. Private keys never reach JavaScript.
 
+use labterm_oidc_cert::flow::{Discovery, LoginRequest, ProviderConfig};
+use labterm_oidc_cert::sshcert::{self, CertOptions};
 use std::cell::RefCell;
 use std::collections::HashMap;
-use termoso_oidc_cert::flow::{Discovery, LoginRequest, ProviderConfig};
-use termoso_oidc_cert::sshcert::{self, CertOptions};
 use wasm_bindgen::prelude::*;
 
 use russh::keys::{Certificate, PrivateKey};
@@ -66,7 +66,7 @@ impl OidcLogin {
             authorization_endpoint: authorization_endpoint.to_string(),
             token_endpoint: token_endpoint.to_string(),
         };
-        let key = termoso_oidc_cert::generate_key().map_err(js)?;
+        let key = labterm_oidc_cert::generate_key().map_err(js)?;
         let req = LoginRequest::new(&cfg, &discovery, &key, redirect_uri).map_err(js)?;
         Ok(Self {
             cfg,

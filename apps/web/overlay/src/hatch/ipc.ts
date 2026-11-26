@@ -1,6 +1,6 @@
 // The desktop's Tauri commands, served in the browser. Termoso's frontend calls `invoke(...)` as
 // on the desktop; mockIPC routes each call to the web backend (vault in IndexedDB, Termoso account
-// over REST, SSH in hatch-wasm through the relay). Commands the browser cannot do (local files,
+// over REST, SSH in labterm-web-wasm through the relay). Commands the browser cannot do (local files,
 // port forwarding, serial, agent, updates) answer empty or with a clear "not in the browser".
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
 import { emit } from "@tauri-apps/api/event";
@@ -88,7 +88,7 @@ async function unlock(password: string) {
   if (integrity().workerChanged)
     fail(
       "integrity",
-      "This Hatch changed on the server outside a signed release. Compare the manifest hash with the release page before you unlock.",
+      "This copy of Labterm Web changed on the server outside a signed release. Compare the manifest hash with the release page before you unlock.",
     );
   if (!(await st.unlock(password))) fail("wrong_password", "Wrong password");
   rememberUi(st.s().settings);
@@ -267,7 +267,7 @@ const commands: Record<string, Handler> = {
   known_hosts_export_text: () => m.knownHostsExportText(),
   known_hosts_default_path: () => null,
   known_hosts_import_text: notInBrowser(
-    "Importing known_hosts (pin keys in the Termoso app or paste one on the host)",
+    "Importing known_hosts (pin keys in the Labterm app or paste one on the host)",
   ),
   known_hosts_import_file: notInBrowser("Importing known_hosts"),
   host_key_pins: (a) => m.hostKeyPins(String(a.host ?? ""), Number(a.port ?? 22)),

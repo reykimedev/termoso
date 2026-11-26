@@ -1,4 +1,4 @@
-//! Known-hosts check, the same rules as Termoso's `termoso_core::hostkey::KnownHosts::check`, so a
+//! Known-hosts check, the same rules as Termoso's `labterm_core::hostkey::KnownHosts::check`, so a
 //! host trusted on the user's desktop is trusted here and nothing else is.
 
 use base64::Engine as _;

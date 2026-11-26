@@ -5,7 +5,7 @@
 // Plain JavaScript on purpose: no bundler between this file and what the browser runs.
 (function () {
   "use strict";
-  /** Release signing keys: [{ id, publicKey (base64, 32 bytes) }]. Filled in by tools/manifest.mjs. */
+  /** Release signing keys: [{ id, publicKey (base64, 32 bytes) }]. Filled in by apps/web/tools/manifest.mjs. */
   var KEYS = /*HATCH_RELEASE_KEYS*/ []; /*END*/
 
   function b64(bytes) {
@@ -38,7 +38,7 @@
     function next() {
       if (i >= KEYS.length)
         return Promise.reject(
-          new Error("The release manifest is not signed by a Hatch release key."),
+          new Error("The release manifest is not signed by a Labterm Web release key."),
         );
       var k = KEYS[i++];
       return crypto.subtle
@@ -113,11 +113,11 @@
       "max-width:520px;margin:15vh auto;padding:24px;font:15px/1.5 system-ui,sans-serif;border:2px solid #c62828;border-radius:12px;color:#c62828;background:#fff";
     var h = document.createElement("h1");
     h.style.cssText = "font-size:20px;margin:0 0 8px";
-    h.textContent = "Hatch did not start";
+    h.textContent = "Labterm Web did not start";
     var p = document.createElement("p");
     p.textContent =
       message +
-      " This copy of Hatch failed its integrity check, so none of it ran. Do not enter a password here; tell whoever runs this Hatch.";
+      " This copy of Labterm Web failed its integrity check, so none of it ran. Do not enter a password here; tell whoever runs it.";
     box.appendChild(h);
     box.appendChild(p);
     root.appendChild(box);

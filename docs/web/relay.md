@@ -1,6 +1,6 @@
 # Relay
 
-`hatch-relay` pipes a WebSocket from the browser to TCP on an allowed host. It never sees
+`labterm-relay` pipes a WebSocket from the browser to TCP on an allowed host. It never sees
 plaintext: the browser runs SSH itself, and the relay only carries its encrypted bytes.
 
 ## Endpoints
@@ -21,12 +21,12 @@ Environment variables. The ones without a default are required.
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `HATCH_RELAY_LISTEN` | `0.0.0.0:8080` | Address to listen on |
-| `HATCH_RELAY_ALLOWLIST_FILE` | | Allowlist (YAML, see `deploy/allowlist.example.yaml`); deny by default |
+| `HATCH_RELAY_ALLOWLIST_FILE` | | Allowlist (YAML, see `deploy/web/kubernetes/allowlist.yaml`); deny by default |
 | `HATCH_RELAY_TICKET_KEY_FILE` | fresh key per start | Ed25519 ticket key, 32 bytes base64. Needed with more than one replica |
-| `HATCH_RELAY_OIDC_ISSUER` | | Authentik application issuer, `https://auth.example.com/application/o/hatch/` |
+| `HATCH_RELAY_OIDC_ISSUER` | | Authentik application issuer, `https://auth.example.com/application/o/labterm-web/` |
 | `HATCH_RELAY_OIDC_AUDIENCE` | | Client id of that application. **The same application the web app uses for opkssh** (`oidcClientId` in `config.json`) |
 | `HATCH_RELAY_OIDC_GROUPS_CLAIM` | `groups` | Claim with the user's groups, for group rules in the allowlist |
-| `HATCH_RELAY_ALLOWED_ORIGINS` | | Comma-separated page origins, `https://hatch.example.com` (`http://localhost…` only for development) |
+| `HATCH_RELAY_ALLOWED_ORIGINS` | | Comma-separated page origins, `https://labterm.example.com` (`http://localhost…` only for development) |
 | `HATCH_RELAY_TICKET_SECONDS` | `30` | Ticket lifetime |
 | `HATCH_RELAY_TICKETS_PER_MINUTE` | `30` | Tickets per user per minute |
 | `HATCH_RELAY_SESSIONS_PER_USER` | `20` | Open sessions per user |
@@ -53,13 +53,13 @@ signed release):
 ```json
 {
   "relayUrl": "https://relay.example.com",
-  "oidcIssuer": "https://auth.example.com/application/o/hatch/",
-  "oidcClientId": "hatch",
+  "oidcIssuer": "https://auth.example.com/application/o/labterm-web/",
+  "oidcClientId": "labterm-web",
   "termosoServer": "https://termoso.example.com",
   "oidcScopes": "offline_access"
 }
 ```
 
 The Authentik application is a public client (no secret) with PKCE and the redirect URI
-`https://hatch.example.com/oidc-callback.html`. A self-hosted Termoso server must list the app's
+`https://labterm.example.com/oidc-callback.html`. A self-hosted Termoso server must list the app's
 origin in `TERMOSO_CORS_ORIGINS`.

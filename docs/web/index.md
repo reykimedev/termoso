@@ -1,6 +1,6 @@
-# Hatch for Termoso
+# Labterm Web
 
-Termoso in the browser, for a computer where you can't install software.
+Labterm in the browser, for a computer where you can't install software.
 
 - [Architecture](architecture.md)
 - [Relay](relay.md)

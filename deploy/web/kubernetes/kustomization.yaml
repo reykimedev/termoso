@@ -3,7 +3,7 @@
 # Change the host names (routes.yaml, config.json, relay.yaml) and pin both images to a sha-<7> tag or digest from the Images workflow.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-namespace: hatch
+namespace: labterm-web
 resources:
   - namespace.yaml
   - web.yaml
@@ -11,14 +11,14 @@ resources:
   - routes.yaml
   - networkpolicies.yaml
 configMapGenerator:
-  - name: hatch-relay-allowlist
+  - name: labterm-relay-allowlist
     files:
       - allowlist.yaml
-  - name: hatch-web-config
+  - name: labterm-web-config
     files:
       - config.json
 images:
-  - name: ghcr.io/bitsandbricks-ch/hatch-web
+  - name: ghcr.io/reykimedev/labterm-web
     newTag: sha-0000000 # TODO: the sha-<7> tag the Images workflow printed
-  - name: ghcr.io/bitsandbricks-ch/hatch-relay
+  - name: ghcr.io/reykimedev/labterm-relay
     newTag: sha-0000000 # TODO: same commit as the web image

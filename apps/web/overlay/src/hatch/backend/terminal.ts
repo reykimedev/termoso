@@ -1,6 +1,6 @@
 // SSH sessions: resolve the host from the vault, get a relay ticket (Authentik ID token), and run
-// SSH in hatch-wasm over the relay's WebSocket. The host key is checked against the synced known
-// hosts inside hatch-wasm before any credential leaves the tab.
+// SSH in labterm-web-wasm over the relay's WebSocket. The host key is checked against the synced known
+// hosts inside labterm-web-wasm before any credential leaves the tab.
 import { emit } from "@tauri-apps/api/event";
 import { config } from "./config";
 import { asDesktopError, fail } from "./errors";
@@ -175,7 +175,8 @@ function planFor(target: Target): Plan {
 
 async function ticket(address: string, port: number): Promise<string> {
   const c = config();
-  if (!c.relayUrl) fail("not_configured", "This Hatch has no relay configured (config.json).");
+  if (!c.relayUrl)
+    fail("not_configured", "This Labterm Web has no relay configured (config.json).");
   const token = await oidc.idToken();
   const res = await fetch(`${c.relayUrl}/v1/tickets`, {
     method: "POST",
@@ -258,7 +259,7 @@ export async function prepare(id: Uuid, target: Target) {
   };
 }
 
-/** Turns what hatch-wasm rejects with into the desktop's errors (and the host-key prompt). */
+/** Turns what labterm-web-wasm rejects with into the desktop's errors (and the host-key prompt). */
 export async function connectFailed(id: Uuid, targetStr: string, e: unknown): Promise<never> {
   const err = e as {
     kind?: string;
@@ -285,7 +286,7 @@ export async function connectFailed(id: Uuid, targetStr: string, e: unknown): Pr
       "host_key",
       v.status === "changed"
         ? "The host key differs from your known hosts. Nothing was sent."
-        : "This host is not in your known hosts. Trust it from Termoso on a trusted device first.",
+        : "This host is not in your known hosts. Trust it from Labterm on a trusted device first.",
     );
   }
   if (err.kind === "auth")

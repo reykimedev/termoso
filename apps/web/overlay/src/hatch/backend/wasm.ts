@@ -1,4 +1,4 @@
-// The one WebAssembly module: hatch-wasm (SSH, known hosts, keys, lock key) with termoso-wasm
+// The one WebAssembly module: labterm-web-wasm (SSH, known hosts, keys, lock key) with labterm-wasm
 // (OPAQUE, account and vault keys, entity encryption) linked in. Its bytes are checked against the
 // signed manifest before they are compiled, also on a first visit before the service worker runs.
 import init, * as w from "../pkg/hatch_wasm";

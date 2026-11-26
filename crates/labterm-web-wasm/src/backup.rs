@@ -11,10 +11,10 @@
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as B64;
+use labterm_crypto::aead::{self, Aad};
+use labterm_crypto::kdf::{self, PasswordParams};
+use labterm_crypto::keys::SymmetricKey;
 use serde::{Deserialize, Serialize};
-use termoso_crypto::aead::{self, Aad};
-use termoso_crypto::kdf::{self, PasswordParams};
-use termoso_crypto::keys::SymmetricKey;
 use wasm_bindgen::prelude::*;
 
 const MAGIC: &[u8] = b"TERMOSO-BACKUP\n";
@@ -88,7 +88,7 @@ pub fn seal(plaintext: &[u8], password: &str) -> Result<Vec<u8>, BackupError> {
         return Err(invalid("backup password must be at least 8 characters"));
     }
     let mut salt = [0u8; kdf::PASSWORD_SALT_LEN];
-    termoso_crypto::random_bytes(&mut salt);
+    labterm_crypto::random_bytes(&mut salt);
     let params = PasswordParams::default();
     let header = Header {
         version: FORMAT_VERSION,

@@ -1,7 +1,7 @@
 //! Hatch relay: pipes a WebSocket from the browser to one TCP port, after checking a signed ticket.
 //! See docs/relay.md for the configuration.
 
-use hatch_relay::{allowlist, config::Config, oidc::Verifier, relay};
+use labterm_relay::{allowlist, config::Config, oidc::Verifier, relay};
 use std::{fs, sync::Arc};
 
 #[tokio::main]
@@ -23,7 +23,7 @@ async fn main() {
         Some(path) => {
             let text = fs::read_to_string(path)
                 .unwrap_or_else(|e| fail(&format!("cannot read {path}: {e}")));
-            hatch_relay::parse_ticket_key(&text).unwrap_or_else(|e| fail(&e))
+            labterm_relay::parse_ticket_key(&text).unwrap_or_else(|e| fail(&e))
         }
         None => {
             tracing::warn!(

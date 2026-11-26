@@ -1,7 +1,7 @@
 // Entry of the web build: deployment config, the wasm module and the browser's IPC, then either
-// the first-start screen (lock password) or Termoso's own app with its lock screen.
+// the first-start screen (lock password) or the desktop app with its lock screen.
 import "./ipc";
-import "@fontsource-variable/inter";
+import "@fontsource-variable/geist";
 import { createRoot, type Root } from "react-dom/client";
 import { loadConfig } from "./backend/config";
 import * as st from "./backend/state";

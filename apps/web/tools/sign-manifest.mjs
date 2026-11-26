@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Signs <dist>/manifest.json with the release key (Ed25519), writing <dist>/manifest.sig.
-//   HATCH_RELEASE_KEY_FILE=release.pem node tools/sign-manifest.mjs <dist>
+//   HATCH_RELEASE_KEY_FILE=release.pem node apps/web/tools/sign-manifest.mjs <dist>
 // The key comes from a file (the release environment's secret); it is never printed. The
-// signature is checked against tools/release-keys.json before it is written.
+// signature is checked against apps/web/tools/release-keys.json before it is written.
 import { createPrivateKey, createPublicKey, sign } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -20,7 +20,7 @@ const pub = createPublicKey(key).export({ format: "der", type: "spki" }).subarra
 const here = dirname(fileURLToPath(import.meta.url));
 const known = JSON.parse(readFileSync(join(here, "release-keys.json"), "utf8"));
 const entry = known.find((k) => k.publicKey === pub);
-if (!entry) throw new Error("this key is not in tools/release-keys.json; the loader would refuse the signature");
+if (!entry) throw new Error("this key is not in apps/web/tools/release-keys.json; the loader would refuse the signature");
 const manifest = readFileSync(join(dist, "manifest.json"));
 writeFileSync(join(dist, "manifest.sig"), sign(null, manifest, key).toString("base64") + "\n");
 console.log(`signed manifest.json with ${entry.id}`);

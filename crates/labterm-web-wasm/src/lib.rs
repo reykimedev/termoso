@@ -14,8 +14,8 @@ mod opk;
 mod sftp;
 mod transport;
 
-// Linked for its exports: termoso-wasm's OPAQUE, key and entity functions end up in this module.
-use termoso_wasm as _;
+// Linked for its exports: labterm-wasm's OPAQUE, key and entity functions end up in this module.
+use labterm_wasm as _;
 
 pub use hostkey::{HostKeyInfo, Pin, Verdict, check, host_id};
 

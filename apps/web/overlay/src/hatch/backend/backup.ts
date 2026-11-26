@@ -1,5 +1,5 @@
 // Encrypted `.termoso` backups, readable by the Termoso apps and the other way round. The payload
-// is Termoso's (apps/desktop/src-tauri/src/backup.rs); hatch-wasm does the Argon2id and
+// is Termoso's (apps/desktop/src-tauri/src/backup.rs); labterm-web-wasm does the Argon2id and
 // XChaCha20-Poly1305 framing. This is also how vaults move between accounts and servers: export
 // from one, sign in to the other, restore into a vault there.
 import { TERMOSO_VERSION } from "../build";
@@ -9,7 +9,7 @@ import * as policy from "./policy";
 import { type Ent, type Uuid, put, s, vault } from "./state";
 import { w } from "./wasm";
 
-/** termoso-proto's `entities::KINDS`, in its order. */
+/** labterm-proto's `entities::KINDS`, in its order. */
 export const KINDS = [
   "group",
   "host",

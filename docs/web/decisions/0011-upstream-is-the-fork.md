@@ -1,6 +1,6 @@
 # 0011 Hatch builds on the Termoso fork
 
-Amends [0006](0006-opkssh-from-the-fork.md).
+Amends [0006](0006-opkssh-from-the-fork.md). Superseded by [0012](0012-in-the-labterm-repo.md).
 
 **Context:** OpenID (opkssh) keys are now a key type of their own in the fork
 `reykimedev/termoso`. Their issuer is set by an `oidc_provider` entity in each vault, so a team

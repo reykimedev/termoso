@@ -1,4 +1,4 @@
-// Snippets and snippet packages, as termoso-client's snippets.rs: `{{variables}}`, targets per
+// Snippets and snippet packages, as labterm-client's snippets.rs: `{{variables}}`, targets per
 // host, packages as a tree, copy to another vault, and running a snippet in open terminals or
 // quietly (an exec channel per host, no terminal).
 import { emit } from "@tauri-apps/api/event";

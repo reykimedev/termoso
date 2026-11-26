@@ -71,10 +71,10 @@ impl Config {
     pub fn from_lookup(env: Env) -> Result<Self, String> {
         let d = Limits::default();
         let ticket_seconds = num(env, "HATCH_RELAY_TICKET_SECONDS", d.ticket_seconds)?;
-        if ticket_seconds == 0 || ticket_seconds > hatch_proto::MAX_TICKET_SECONDS {
+        if ticket_seconds == 0 || ticket_seconds > labterm_relay_proto::MAX_TICKET_SECONDS {
             return Err(format!(
                 "HATCH_RELAY_TICKET_SECONDS must be 1 to {}",
-                hatch_proto::MAX_TICKET_SECONDS
+                labterm_relay_proto::MAX_TICKET_SECONDS
             ));
         }
         let allowed_origins: Vec<String> = req(env, "HATCH_RELAY_ALLOWED_ORIGINS")?

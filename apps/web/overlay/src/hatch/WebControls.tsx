@@ -80,7 +80,7 @@ function IntegrityDialog({ open, onClose }: { open: boolean; onClose: () => void
           {i.workerChanged ? (
             <Alert severity="error" variant="outlined">
               {tr(
-                "sw.js on the server is not the one in the signed manifest. The browser updates the service worker on its own, so Hatch can only warn. Lock now and compare the manifest hash with the release page before you unlock again.",
+                "sw.js on the server is not the one in the signed manifest. The browser updates the service worker on its own, so Labterm Web can only warn. Lock now and compare the manifest hash with the release page before you unlock again.",
               )}
             </Alert>
           ) : i.status === "verified" ? (
@@ -116,7 +116,7 @@ function IntegrityDialog({ open, onClose }: { open: boolean; onClose: () => void
               {i.manifestHash ?? "–"}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Termoso
+              Labterm
             </Typography>
             <Typography variant="body2" sx={{ fontFamily: "monospace" }}>
               {i.termoso}

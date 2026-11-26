@@ -4,7 +4,7 @@
 // release current. A file that fails a check is never served. Plain JavaScript on purpose.
 "use strict";
 
-/** Same keys as loader.js. Filled in by tools/manifest.mjs. */
+/** Same keys as loader.js. Filled in by apps/web/tools/manifest.mjs. */
 const KEYS = /*HATCH_RELEASE_KEYS*/ []; /*END*/
 const PREFIX = "hatch-release-";
 const STATE = "hatch-state";
@@ -136,7 +136,7 @@ async function respond(request, path, navigate) {
   const s = await readState();
   if (s.current) {
     // Controlled by a checked release: anything outside it is refused.
-    return new Response("Not part of this Hatch release", {
+    return new Response("Not part of this Labterm Web release", {
       status: 404,
       headers: { "content-type": "text/plain" },
     });

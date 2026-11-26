@@ -3,11 +3,11 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: hatch-web
+  name: labterm-web
 spec:
   podSelector:
     matchLabels:
-      app.kubernetes.io/name: hatch-web
+      app.kubernetes.io/name: labterm-web
   policyTypes: ["Ingress", "Egress"]
   ingress:
     - from:
@@ -24,11 +24,11 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: hatch-relay
+  name: labterm-relay
 spec:
   podSelector:
     matchLabels:
-      app.kubernetes.io/name: hatch-relay
+      app.kubernetes.io/name: labterm-relay
   policyTypes: ["Ingress", "Egress"]
   ingress:
     - from:

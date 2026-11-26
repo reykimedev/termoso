@@ -1,5 +1,5 @@
 // Termoso account on this browser: sign-in (OPAQUE, second factor, new-device code), the vault
-// keys, and sync. The password only feeds OPAQUE in termoso-wasm; the server sees OPAQUE messages,
+// keys, and sync. The password only feeds OPAQUE in labterm-wasm; the server sees OPAQUE messages,
 // public keys and ciphertext, as with every Termoso device.
 import { emit } from "@tauri-apps/api/event";
 import { ApiError, call, normalizeServer } from "./api";
@@ -83,7 +83,7 @@ function browserName(): string {
           : ua.includes("Linux")
             ? "Linux"
             : "";
-  return `Hatch · ${b}${os ? ` on ${os}` : ""}`;
+  return `Labterm Web · ${b}${os ? ` on ${os}` : ""}`;
 }
 
 function device() {
@@ -386,7 +386,7 @@ export async function refreshVaults(): Promise<void> {
       prev?.key && (!personal || prev.key_self)
         ? { key: prev.key, version: prev.key_version }
         : null;
-    // As termoso-core's account.rs: a key we hold is replaced only by a newer version; the
+    // As labterm-core's account.rs: a key we hold is replaced only by a newer version; the
     // server offering another key for the same version, or an older one, is ignored.
     let key = held?.key ?? offered;
     let keyVersion = held?.version ?? v.key_version;
@@ -421,7 +421,7 @@ export async function refreshVaults(): Promise<void> {
     setStatus({
       state: "error",
       lastError:
-        "The server offered a personal vault key that your account did not seal, so Hatch did not open it. Open Termoso on a device you trust and sync, then try again.",
+        "The server offered a personal vault key that your account did not seal, so Labterm Web did not open it. Open Labterm on a device you trust and sync, then try again.",
     });
   void emit("sync", { kind: "vaultsChanged" });
 }

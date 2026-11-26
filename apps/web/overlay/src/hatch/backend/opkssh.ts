@@ -1,7 +1,7 @@
-// OpenID (opkssh) keys, as termoso-client's oidc.rs: an `ssh_key` of type "opkssh" holds no key
+// OpenID (opkssh) keys, as labterm-client's oidc.rs: an `ssh_key` of type "opkssh" holds no key
 // material, only which `oidc_provider` of its vault it signs in with (plus overrides). Before a
 // connection the browser signs in with that provider in a pop-up; the login's nonce commits to a
-// fresh P-256 key in hatch-wasm, which turns the ID token into an opkssh certificate. Key and
+// fresh P-256 key in labterm-web-wasm, which turns the ID token into an opkssh certificate. Key and
 // certificate stay in this tab's memory until the certificate should not be reused any more.
 import { fail } from "./errors";
 import { type SshKey, keyCard, resolve as resolveHost } from "./model";

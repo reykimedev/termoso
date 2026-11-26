@@ -1,13 +1,13 @@
 # Moving vaults
 
-Hatch reads and writes Termoso's encrypted `.termoso` backup, so a backup made in Hatch restores
-in the Termoso apps and the other way round. That is also how vaults move between accounts, for
+Labterm Web reads and writes Labterm's encrypted `.termoso` backup, so a backup made in Labterm Web restores
+in the Labterm apps and the other way round. That is also how vaults move between accounts, for
 example from Termoso Cloud to your own Termoso server.
 
 ## From one account or server to another
 
-1. Sign in to the old account (in Hatch or a Termoso app), open **Settings → Account & sync →
-   Export…**, pick the vaults and set a backup password (at least 8 characters). Hatch downloads
+1. Sign in to the old account (in Labterm Web or a Labterm app), open **Settings → Account & sync →
+   Export…**, pick the vaults and set a backup password (at least 8 characters). Labterm Web downloads
    the file.
 2. Sign out, sign in to the new account, open **Restore…**, choose the file and enter its password.
 3. Pick a target vault for each vault in the file. Entries keep their ids, so what is already in

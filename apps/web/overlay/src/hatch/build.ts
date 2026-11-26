@@ -1,4 +1,4 @@
-// What this build is, set by web/build.sh. The loader checks the signed manifest against the same
+// What this build is, set by apps/web/build.sh. The loader checks the signed manifest against the same
 // values before the app runs.
 export const HATCH_VERSION: string =
   (import.meta.env.VITE_HATCH_VERSION as string | undefined) ?? "dev";

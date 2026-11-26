@@ -2,10 +2,10 @@
 // Turns Vite's output into a Hatch release: copies the loader and service worker in with the
 // release keys, hashes every file into manifest.json, and rewrites index.html so that it runs
 // only the loader (with SRI) under a strict CSP, with an import map that pins every module's hash.
-//   node tools/manifest.mjs <dist>
+//   node apps/web/tools/manifest.mjs <dist>
 // Environment: HATCH_VERSION, HATCH_COMMIT, HATCH_TERMOSO_VERSION, HATCH_SERIAL (unix seconds,
 // e.g. the commit time; must grow from release to release), HATCH_CSP_CONNECT (connect-src
-// sources, default "'self' https: wss:"). Sign the result with tools/sign-manifest.mjs.
+// sources, default "'self' https: wss:"). Sign the result with apps/web/tools/sign-manifest.mjs.
 import { createHash } from "node:crypto";
 import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
@@ -31,7 +31,7 @@ const withKeys = (src) => {
   if (!marker.test(src)) throw new Error("key marker missing");
   return src.replace(marker, JSON.stringify(keys.map(({ id, publicKey }) => ({ id, publicKey }))));
 };
-const loaderDir = join(here, "..", "web", "overlay", "src", "loader");
+const loaderDir = join(here, "..", "overlay", "src", "loader");
 writeFileSync(join(dist, "loader.js"), withKeys(readFileSync(join(loaderDir, "loader.js"), "utf8")));
 writeFileSync(join(dist, "sw.js"), withKeys(readFileSync(join(loaderDir, "sw.js"), "utf8")));
 
@@ -84,7 +84,7 @@ const head = viteHtml
   .replace(/\s*<script type="module"[^>]*><\/script>/, "")
   .replace(/\s*<link rel="stylesheet"[^>]*>/g, "")
   .replace(/\s*<link rel="modulepreload"[^>]*>/g, "");
-const index = head.replace("<title>Termoso</title>", "<title>Hatch</title>").replace(
+const index = head.replace("<title>Labterm</title>", "<title>Labterm Web</title>").replace(
   "</head>",
   `  <meta http-equiv="Content-Security-Policy" content="${csp}" />
     <script type="importmap">${importMap}</script>

@@ -1,4 +1,4 @@
-// Static server for a built Hatch (web/dist) in local tests, with the deployment's config.json
+// Static server for a built Labterm Web (apps/web/dist) in local tests, with the deployment's config.json
 // taken from a file:   node web/e2e/serve.mjs <dist> <config.json> [port]
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";

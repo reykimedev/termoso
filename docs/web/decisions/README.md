@@ -1,7 +1,7 @@
 # Decision records
 
-Where Hatch settles a question for itself, mostly where it departs from the
-[handbook](https://github.com/bitsandbricks-ch/handbook). Same format as the handbook's:
+Where Labterm Web settles a question for itself. 0001 to 0011 were written for Hatch, the
+separate repository it came from; [0012](0012-in-the-labterm-repo.md) records the move. Format:
 `NNNN-title.md` with Context, Decision, Consequences.
 
 | # | Decision | Date |
@@ -17,3 +17,4 @@ Where Hatch settles a question for itself, mostly where it departs from the
 | [0009](0009-pasted-host-keys.md) | A host key may be pasted by hand (amends 0005) | 2026-11-26 |
 | [0010](0010-who-vouches-for-a-host-key.md) | Which vaults vouch for a host key (amends 0005) | 2026-11-26 |
 | [0011](0011-upstream-is-the-fork.md) | Hatch builds on the Termoso fork (amends 0006) | 2026-11-26 |
+| [0012](0012-in-the-labterm-repo.md) | Labterm Web lives in the Labterm repository (supersedes 0011) | 2026-11-26 |

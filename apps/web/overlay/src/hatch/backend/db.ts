@@ -1,5 +1,5 @@
 // This browser's copy of the account, encrypted at rest: AES-256-GCM under a key derived from
-// the lock password with Argon2id (hatch-wasm). IndexedDB holds only the salt, a check value and
+// the lock password with Argon2id (labterm-web-wasm). IndexedDB holds only the salt, a check value and
 // ciphertext. The key itself is a non-extractable WebCrypto key that lives while the app is
 // unlocked.
 import { w } from "./wasm";
