@@ -24,7 +24,7 @@ keyring = { version = "4", optional = true }
 
 # ssh / sftp / terminals
 russh = { version = "0.65", features = ["rsa"] }
-russh-sftp = "3"
+russh-sftp = "4"
 portable-pty = { version = "0.9", optional = true }
 serialport = { version = "4.9", default-features = false, optional = true }
 encoding_rs = { version = "0.8" }

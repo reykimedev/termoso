@@ -4698,7 +4698,7 @@ dependencies = [
  "reqwest 0.12.28",
  "rusqlite",
  "russh",
- "russh-sftp 3.0.1",
+ "russh-sftp",
  "rustls",
  "rustls-pki-types",
  "serde",
@@ -4849,6 +4849,7 @@ dependencies = [
  "chrono",
  "serde",
  "serde_json",
+ "time",
  "utoipa",
  "uuid",
 ]
@@ -4916,7 +4917,7 @@ dependencies = [
  "labterm-wasm",
  "rand 0.10.3",
  "russh",
- "russh-sftp 4.0.0",
+ "russh-sftp",
  "serde",
  "serde-wasm-bindgen",
  "serde_json",
@@ -7420,26 +7421,6 @@ dependencies = [
  "nix 0.31.3",
  "ssh-encoding",
  "windows-sys 0.61.2",
-]
-
-[[package]]
-name = "russh-sftp"
-version = "3.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9bb17f72aba4314656b359ffba72c68dcbd70ed9e97497898b75498fe7198042"
-dependencies = [
- "bitflags 2.13.2",
- "bytes",
- "chrono",
- "dashmap",
- "gloo-timers",
- "log",
- "serde",
- "serde_bytes",
- "thiserror 2.0.21",
- "tokio",
- "tokio-util",
- "wasm-bindgen-futures",
 ]
 
 [[package]]
