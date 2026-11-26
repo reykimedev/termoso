@@ -109,7 +109,8 @@ pub fn deep_links_register<R: Runtime>(app: AppHandle<R>) -> Result<Vec<String>>
     links
         .register_all()
         .map_err(|e| DesktopError::new("deep_link", e.to_string()))?;
-    Ok(["labterm", "ssh", "telnet"]
+    // termoso:// still opens links from before the rename and the sign-in callback. rename:keep
+    Ok(["labterm", "termoso", "ssh", "telnet"] // rename:keep
         .into_iter()
         .filter(|s| links.is_registered(s).unwrap_or(false))
         .map(str::to_string)

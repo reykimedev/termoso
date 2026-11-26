@@ -64,6 +64,7 @@ The server reads `LABTERM_*` environment variables (nested sections use
 `__`); the complete annotated list is [`deploy/.env.example`](../deploy/.env.example)
 and the source of truth is
 [`crates/labterm-server/src/config.rs`](../crates/labterm-server/src/config.rs).
+Settings from before the rename to Labterm still work: when a `LABTERM_*` name is unset, the server and the bridge read the old `TERMOSO_*` name. rename:keep
 The server validates the configuration at start and refuses to run with an
 invalid `LABTERM_MASTER_KEY`, a non-URL `LABTERM_PUBLIC_URL`, a partial SMTP
 block or an unknown SSO kind.

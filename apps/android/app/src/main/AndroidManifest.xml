@@ -67,21 +67,27 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="labterm" android:host="host" />
+                <data android:scheme="termoso" android:host="host" /> <!-- links from before the rename, rename:keep -->
                 <data android:scheme="labterm" android:host="new" />
+                <data android:scheme="termoso" android:host="new" /> <!-- links from before the rename, rename:keep -->
                 <data android:scheme="labterm" android:host="local" />
+                <data android:scheme="termoso" android:host="local" /> <!-- links from before the rename, rename:keep -->
                 <data android:scheme="labterm" android:host="sftp" />
+                <data android:scheme="termoso" android:host="sftp" /> <!-- links from before the rename, rename:keep -->
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="labterm" android:host="invite" />
+                <data android:scheme="termoso" android:host="invite" /> <!-- links from before the rename, rename:keep -->
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="labterm" android:host="join" />
+                <data android:scheme="termoso" android:host="join" /> <!-- links from before the rename, rename:keep -->
             </intent-filter>
             <!-- Single sign-on callback: the browser comes back with termoso://sso?flow=<id> only. -->
             <intent-filter>

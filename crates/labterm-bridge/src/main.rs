@@ -56,22 +56,22 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         return run_gateway().await;
     }
     let creds_path = PathBuf::from(
-        std::env::var("LABTERM_BRIDGE_CREDENTIALS")
+        labterm_proto::setting("LABTERM_BRIDGE_CREDENTIALS")
             .unwrap_or_else(|_| "/etc/labterm/bridge.json".into()),
     );
-    let listen: SocketAddr = std::env::var("LABTERM_BRIDGE_LISTEN")
+    let listen: SocketAddr = labterm_proto::setting("LABTERM_BRIDGE_LISTEN")
         .unwrap_or_else(|_| "0.0.0.0:8080".into())
         .parse()?;
-    let api_key = std::env::var("LABTERM_BRIDGE_API_KEY")
+    let api_key = labterm_proto::setting("LABTERM_BRIDGE_API_KEY")
         .ok()
         .map(|k| k.trim().to_string())
         .filter(|k| !k.is_empty());
-    let interval: u64 = std::env::var("LABTERM_BRIDGE_SYNC_INTERVAL")
+    let interval: u64 = labterm_proto::setting("LABTERM_BRIDGE_SYNC_INTERVAL")
         .ok()
         .map(|s| s.parse())
         .transpose()?
         .unwrap_or(60);
-    let rate_limit: u32 = std::env::var("LABTERM_BRIDGE_RATE_LIMIT")
+    let rate_limit: u32 = labterm_proto::setting("LABTERM_BRIDGE_RATE_LIMIT")
         .ok()
         .map(|s| s.parse())
         .transpose()?
@@ -167,13 +167,13 @@ fn env_flag(name: &str) -> bool {
 /// hosts of the mirrored vaults for members who cannot reach them directly.
 async fn run_gateway() -> Result<(), Box<dyn std::error::Error>> {
     let creds_path = PathBuf::from(
-        std::env::var("LABTERM_BRIDGE_CREDENTIALS")
+        labterm_proto::setting("LABTERM_BRIDGE_CREDENTIALS")
             .unwrap_or_else(|_| "/etc/labterm/bridge.json".into()),
     );
     let allow = labterm_bridge::gateway::Allow::parse(
-        &std::env::var("LABTERM_GATEWAY_ALLOW").unwrap_or_default(),
+        &labterm_proto::setting("LABTERM_GATEWAY_ALLOW").unwrap_or_default(),
     )?;
-    let interval: u64 = std::env::var("LABTERM_BRIDGE_SYNC_INTERVAL")
+    let interval: u64 = labterm_proto::setting("LABTERM_BRIDGE_SYNC_INTERVAL")
         .ok()
         .map(|s| s.parse())
         .transpose()?
@@ -203,7 +203,7 @@ async fn run_mcp(args: impl Iterator<Item = String>) -> Result<(), Box<dyn std::
         strict_host_key: env_flag("LABTERM_BRIDGE_MCP_STRICT_HOST_KEY"),
     };
     let mut creds_path = PathBuf::from(
-        std::env::var("LABTERM_BRIDGE_CREDENTIALS")
+        labterm_proto::setting("LABTERM_BRIDGE_CREDENTIALS")
             .unwrap_or_else(|_| "/etc/labterm/bridge.json".into()),
     );
     let mut args = args.peekable();

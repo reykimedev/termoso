@@ -137,7 +137,7 @@ async fn shutdown_signal(state: labterm_server::state::AppState) {
     // Give the balancer a couple of probe intervals to notice before the
     // listener closes; connections already open keep being served.
     tokio::time::sleep(std::time::Duration::from_secs(
-        std::env::var("LABTERM_DRAIN_SECS")
+        labterm_proto::setting("LABTERM_DRAIN_SECS")
             .ok()
             .and_then(|v| v.parse().ok())
             .unwrap_or(3),

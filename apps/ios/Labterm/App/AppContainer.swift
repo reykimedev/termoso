@@ -54,11 +54,11 @@ final class AppContainer {
         welcomeSeen = preferences.welcomeSeen
     }
 
-    /// `Application Support/Labterm/profile` — backed up only as ciphertext,
+    /// `Application Support/Termoso/profile` (named before the rename, rename:keep) — backed up only as ciphertext,
     /// the key stays in the Keychain (device-only).
     static func defaultProfileDir() -> URL {
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        return support.appendingPathComponent("Termoso", isDirectory: true)
+        return support.appendingPathComponent("Termoso", isDirectory: true) // data from before the rename, rename:keep
             .appendingPathComponent("profile", isDirectory: true)
     }
 

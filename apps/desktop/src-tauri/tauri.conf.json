@@ -96,7 +96,7 @@
     },
     "deep-link": {
       "desktop": {
-        "schemes": ["labterm", "ssh", "telnet"]
+        "schemes": ["labterm", "termoso", "ssh", "telnet"]
       }
     }
   }

@@ -100,7 +100,7 @@ fn cache() -> &'static Mutex<HashMap<Uuid, Cached>> {
 /// [`Endpoints`]) lets tests and sovereign-cloud users point at other
 /// hosts; production uses the public APIs.
 pub fn endpoints() -> Endpoints {
-    match std::env::var("LABTERM_CLOUD_ENDPOINTS") {
+    match labterm_proto::setting("LABTERM_CLOUD_ENDPOINTS") {
         Ok(raw) if !raw.trim().is_empty() => match serde_json::from_str(&raw) {
             Ok(e) => e,
             Err(err) => {
