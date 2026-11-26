@@ -19,7 +19,7 @@ function idb(): Promise<IDBDatabase> {
     const r = indexedDB.open(DB, 1);
     r.onupgradeneeded = () => r.result.createObjectStore(STORE);
     r.onsuccess = () => resolve(r.result);
-    r.onerror = () => reject(r.error);
+    r.onerror = () => reject(r.error ?? new Error("IndexedDB"));
   });
 }
 
@@ -28,7 +28,7 @@ async function get<T>(key: string): Promise<T | undefined> {
   return new Promise((resolve, reject) => {
     const r = db.transaction(STORE).objectStore(STORE).get(key);
     r.onsuccess = () => resolve(r.result as T | undefined);
-    r.onerror = () => reject(r.error);
+    r.onerror = () => reject(r.error ?? new Error("IndexedDB"));
   });
 }
 
@@ -38,7 +38,7 @@ async function put(key: string, value: unknown): Promise<void> {
     const t = db.transaction(STORE, "readwrite");
     t.objectStore(STORE).put(value, key);
     t.oncomplete = () => resolve();
-    t.onerror = () => reject(t.error);
+    t.onerror = () => reject(t.error ?? new Error("IndexedDB"));
   });
 }
 
@@ -48,7 +48,7 @@ async function del(key: string): Promise<void> {
     const t = db.transaction(STORE, "readwrite");
     t.objectStore(STORE).delete(key);
     t.oncomplete = () => resolve();
-    t.onerror = () => reject(t.error);
+    t.onerror = () => reject(t.error ?? new Error("IndexedDB"));
   });
 }
 
@@ -62,7 +62,9 @@ const unb64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 
 async function seal(key: CryptoKey, text: string): Promise<string> {
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(text)));
+  const ct = new Uint8Array(
+    await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(text)),
+  );
   return b64(iv) + "." + b64(ct);
 }
 

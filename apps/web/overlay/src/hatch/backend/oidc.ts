@@ -26,21 +26,36 @@ let signingIn: Promise<Tokens> | null = null;
 /** The opkssh certificate line of this tab's sign-in, for the keychain view. */
 let opkCertificate: string | null = null;
 
+/** A claim or field as text; objects and missing values are "". */
+const text = (v: unknown): string =>
+  typeof v === "string" || typeof v === "number" ? String(v) : "";
 const now = () => Math.floor(Date.now() / 1000);
 
 function claims(jwt: string): Record<string, unknown> {
   const part = jwt.split(".")[1] ?? "";
-  return JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(part.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0)))) as Record<string, unknown>;
+  return JSON.parse(
+    new TextDecoder().decode(
+      Uint8Array.from(atob(part.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0)),
+    ),
+  ) as Record<string, unknown>;
 }
 
 async function discover(): Promise<Discovery> {
   if (discovery) return discovery;
   const c = config();
-  if (!c.oidcIssuer || !c.oidcClientId) fail("not_configured", "This Hatch has no sign-in provider configured (config.json).");
+  if (!c.oidcIssuer || !c.oidcClientId)
+    fail("not_configured", "This Hatch has no sign-in provider configured (config.json).");
   const res = await fetch(`${c.oidcIssuer.replace(/\/+$/, "")}/.well-known/openid-configuration`);
-  if (!res.ok) fail("oidc", "Cannot read the sign-in provider's configuration (HTTP {status})", { status: res.status });
+  if (!res.ok)
+    fail("oidc", "Cannot read the sign-in provider's configuration (HTTP {status})", {
+      status: res.status,
+    });
   const d = (await res.json()) as Discovery;
-  if (d.issuer !== c.oidcIssuer) fail("oidc", "The provider calls itself {issuer}, not {expected}", { issuer: d.issuer, expected: c.oidcIssuer });
+  if (d.issuer !== c.oidcIssuer)
+    fail("oidc", "The provider calls itself {issuer}, not {expected}", {
+      issuer: d.issuer,
+      expected: c.oidcIssuer,
+    });
   discovery = d;
   return d;
 }
@@ -59,11 +74,15 @@ function waitForRedirect(popup: Window): Promise<string> {
     };
     const onMessage = (e: MessageEvent) => {
       if (e.origin !== location.origin || e.source !== popup) return;
-      const d = e.data as { type?: string; url?: string };
-      if (d?.type === "hatch-oidc" && typeof d.url === "string") done(() => resolve(d.url!));
+      const d = (e.data ?? {}) as { type?: string; url?: string };
+      const url = d.url;
+      if (d.type === "hatch-oidc" && typeof url === "string") done(() => resolve(url));
     };
     const closed = setInterval(() => {
-      if (popup.closed) done(() => reject({ kind: "cancelled", message: tr("Sign-in window closed") }));
+      if (popup.closed)
+        done(() =>
+          reject(Object.assign(new Error(tr("Sign-in window closed")), { kind: "cancelled" })),
+        );
     }, 500);
     window.addEventListener("message", onMessage);
   });
@@ -77,7 +96,10 @@ async function postForm(url: string, form: string): Promise<Record<string, unkno
     credentials: "omit",
   });
   const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-  if (!res.ok) fail("oidc", "Sign-in failed: {reason}", { reason: String(body.error_description ?? body.error ?? res.status) });
+  if (!res.ok)
+    fail("oidc", "Sign-in failed: {reason}", {
+      reason: text(body.error_description) || text(body.error) || String(res.status),
+    });
   return body;
 }
 
@@ -85,8 +107,20 @@ async function interactive(): Promise<Tokens> {
   const c = config();
   const d = await discover();
   await import("./wasm").then((m) => m.loadWasm());
-  const scopes = ["openid", "profile", "email", ...(c.oidcScopes ?? "").split(/\s+/).filter(Boolean)];
-  const login = new w.OidcLogin(c.oidcIssuer, c.oidcClientId, [...new Set(scopes)].join(" "), d.authorization_endpoint, d.token_endpoint, redirectUri());
+  const scopes = [
+    "openid",
+    "profile",
+    "email",
+    ...(c.oidcScopes ?? "").split(/\s+/).filter(Boolean),
+  ];
+  const login = new w.OidcLogin(
+    c.oidcIssuer,
+    c.oidcClientId,
+    [...new Set(scopes)].join(" "),
+    d.authorization_endpoint,
+    d.token_endpoint,
+    redirectUri(),
+  );
   const popup = window.open(login.authorizeUrl, "hatch-oidc", "popup,width=520,height=720");
   if (!popup) {
     login.free();
@@ -97,11 +131,15 @@ async function interactive(): Promise<Tokens> {
     popup.close();
     const code = login.code(redirect);
     const t = await postForm(d.token_endpoint, login.tokenForm(code));
-    const idToken = String(t.id_token ?? "");
+    const idToken = text(t.id_token);
     if (!idToken) fail("oidc", "The provider sent no ID token");
     // Checks issuer, audience, expiry and the nonce that binds the token to the opkssh key.
     opkCertificate = login.finish(idToken, BigInt(now()));
-    return { idToken, exp: Number(claims(idToken).exp ?? 0), refreshToken: typeof t.refresh_token === "string" ? t.refresh_token : null };
+    return {
+      idToken,
+      exp: Number(claims(idToken).exp ?? 0),
+      refreshToken: typeof t.refresh_token === "string" ? t.refresh_token : null,
+    };
   } catch (e) {
     try {
       login.free();
@@ -118,11 +156,19 @@ async function refresh(t: Tokens): Promise<Tokens | null> {
   try {
     const body = await postForm(
       d.token_endpoint,
-      new URLSearchParams({ grant_type: "refresh_token", refresh_token: t.refreshToken, client_id: config().oidcClientId }).toString(),
+      new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: t.refreshToken,
+        client_id: config().oidcClientId,
+      }).toString(),
     );
-    const idToken = String(body.id_token ?? "");
+    const idToken = text(body.id_token);
     if (!idToken) return null;
-    return { idToken, exp: Number(claims(idToken).exp ?? 0), refreshToken: typeof body.refresh_token === "string" ? body.refresh_token : t.refreshToken };
+    return {
+      idToken,
+      exp: Number(claims(idToken).exp ?? 0),
+      refreshToken: typeof body.refresh_token === "string" ? body.refresh_token : t.refreshToken,
+    };
   } catch {
     return null;
   }
@@ -150,7 +196,10 @@ export function signedIn(): boolean {
 export function identity(): { name: string; groups: string[] } | null {
   if (!tokens) return null;
   const c = claims(tokens.idToken);
-  return { name: String(c.preferred_username ?? c.email ?? c.sub ?? ""), groups: Array.isArray(c.groups) ? (c.groups as string[]) : [] };
+  return {
+    name: text(c.preferred_username) || text(c.email) || text(c.sub),
+    groups: Array.isArray(c.groups) ? (c.groups as string[]) : [],
+  };
 }
 
 export function certificate(): string | null {

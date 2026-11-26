@@ -12,7 +12,9 @@ async function checkedBytes(): Promise<ArrayBuffer | string> {
   const want = files.find((f) => f.path === path);
   if (!want) return wasmUrl; // development build without a manifest
   const bytes = await (await fetch(wasmUrl)).arrayBuffer();
-  const got = btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))));
+  const got = btoa(
+    String.fromCharCode(...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))),
+  );
   if (got !== want.sha256) throw new Error(`${path} does not match the signed manifest`);
   return bytes;
 }

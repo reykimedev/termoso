@@ -19,7 +19,13 @@ interface Sess {
   output: OutputChannel | null;
   /** Output that arrived while no channel was attached (pane moving). */
   backlog: Uint8Array[];
-  ssh: { write(d: Uint8Array): void; resize(c: number, r: number): void; keepalive(): void; close(): void; free(): void } | null;
+  ssh: {
+    write(d: Uint8Array): void;
+    resize(c: number, r: number): void;
+    keepalive(): void;
+    close(): void;
+    free(): void;
+  } | null;
   keepalive: ReturnType<typeof setInterval> | null;
   closed: boolean;
 }
@@ -59,7 +65,11 @@ function out(sess: Sess, bytes: Uint8Array) {
 }
 
 /** Shows a desktop prompt for this session and waits for the answer (null when cancelled). */
-function ask(sessionId: Uuid, target: string, request: Record<string, unknown>): Promise<Record<string, unknown> | null> {
+function ask(
+  sessionId: Uuid,
+  target: string,
+  request: Record<string, unknown>,
+): Promise<Record<string, unknown> | null> {
   const id = crypto.randomUUID();
   return new Promise((resolve) => {
     prompts.set(id, resolve);
@@ -93,9 +103,20 @@ function planFor(target: Target): Plan {
   const keepAlive = Number(s().settings.keepAliveSeconds ?? 30);
   if (target.kind === "quick") {
     const t = target as { address: string; username?: string | null; port?: number | null };
-    return { hostId: null, label: t.address, address: t.address, port: t.port ?? 22, username: t.username ?? "", auth: [], env: [], colorScheme: null, keepAlive };
+    return {
+      hostId: null,
+      label: t.address,
+      address: t.address,
+      port: t.port ?? 22,
+      username: t.username ?? "",
+      auth: [],
+      env: [],
+      colorScheme: null,
+      keepAlive,
+    };
   }
-  if (target.kind !== "host") fail("unsupported", "The web app connects to SSH hosts only (no local shell, serial or Mosh).");
+  if (target.kind !== "host")
+    fail("unsupported", "The web app connects to SSH hosts only (no local shell, serial or Mosh).");
   const r: Resolved = resolve((target as { host_id: Uuid }).host_id);
   const auth: Record<string, unknown>[] = [];
   if (r.key) {
@@ -118,7 +139,7 @@ function planFor(target: Target): Plan {
     colorScheme: r.ssh.color_scheme ?? null,
     keepAlive: r.ssh.keep_alive_interval ?? keepAlive,
     ...(r.identity?.data.password ? { password: r.identity.data.password } : {}),
-  } as Plan & { password?: string };
+  };
 }
 
 async function ticket(address: string, port: number): Promise<string> {
@@ -131,8 +152,16 @@ async function ticket(address: string, port: number): Promise<string> {
     body: JSON.stringify({ host: address, port }),
     credentials: "omit",
   }).catch(() => fail("network", "Cannot reach the relay at {url}", { url: c.relayUrl }));
-  const body = (await res.json().catch(() => ({}))) as { ticket?: string; error?: string; message?: string };
-  if (!res.ok || !body.ticket) fail(body.error === "not_allowed" ? "forbidden" : "relay", body.message ?? tr("The relay refused (HTTP {status})", { status: res.status }));
+  const body = (await res.json().catch(() => ({}))) as {
+    ticket?: string;
+    error?: string;
+    message?: string;
+  };
+  if (!res.ok || !body.ticket)
+    fail(
+      body.error === "not_allowed" ? "forbidden" : "relay",
+      body.message ?? tr("The relay refused (HTTP {status})", { status: res.status }),
+    );
   return `${c.relayUrl.replace(/^http/, "ws")}/v1/connect?ticket=${encodeURIComponent(body.ticket)}`;
 }
 
@@ -142,7 +171,8 @@ function hostKeyInfo(k: { host: string; keyType: string; fingerprint: string; pu
 
 async function run(id: Uuid, sess: Sess, target: Target, cols: number, rows: number) {
   const plan = planFor(target) as Plan & { password?: string };
-  const targetStr = () => `${plan.username}@${plan.address}${plan.port === 22 ? "" : `:${plan.port}`}`;
+  const targetStr = () =>
+    `${plan.username}@${plan.address}${plan.port === 22 ? "" : `:${plan.port}`}`;
   if (!plan.username) {
     const a = await ask(id, plan.address, { kind: "username", host: plan.address, retry: false });
     const v = typeof a?.value === "string" ? a.value.trim() : "";
@@ -159,18 +189,34 @@ async function run(id: Uuid, sess: Sess, target: Target, cols: number, rows: num
   if (plan.password) auth.push({ type: "password", password: plan.password });
   auth.push({ type: "keyboardInteractive" }, { type: "askPassword" });
 
-  const onEvent = (e: { type: string; data?: Uint8Array; phase?: string; method?: string; code?: number | null; signal?: string | null; text?: string; reason?: string }) => {
+  const onEvent = (e: {
+    type: string;
+    data?: Uint8Array;
+    phase?: string;
+    method?: string;
+    code?: number | null;
+    signal?: string | null;
+    text?: string;
+    reason?: string;
+  }) => {
     if (sess.closed && e.type !== "closed") return;
     switch (e.type) {
       case "data":
-        out(sess, e.data!);
+        if (e.data) out(sess, e.data);
         break;
       case "progress":
-        if (e.phase === "auth") sessionEvent({ type: "progress", id, hop: null, phase: { kind: "auth", method: e.method } });
-        else if (e.phase === "handshake" || e.phase === "host_key") sessionEvent({ type: "progress", id, hop: null, phase: { kind: e.phase } });
+        if (e.phase === "auth")
+          sessionEvent({
+            type: "progress",
+            id,
+            hop: null,
+            phase: { kind: "auth", method: e.method },
+          });
+        else if (e.phase === "handshake" || e.phase === "host_key")
+          sessionEvent({ type: "progress", id, hop: null, phase: { kind: e.phase } });
         break;
       case "banner":
-        out(sess, enc.encode(e.text!.replace(/\r?\n/g, "\r\n")));
+        out(sess, enc.encode((e.text ?? "").replace(/\r?\n/g, "\r\n")));
         break;
       case "exit":
         sessionEvent({ type: "exit", id, code: e.code ?? null, signal: e.signal ?? null });
@@ -182,11 +228,20 @@ async function run(id: Uuid, sess: Sess, target: Target, cols: number, rows: num
   };
   const prompt = async (kind: string, data: Record<string, unknown>) => {
     if (kind === "password") {
-      const a = await ask(id, targetStr(), { kind: "password", username: plan.username, retry: !!data.retry });
+      const a = await ask(id, targetStr(), {
+        kind: "password",
+        username: plan.username,
+        retry: !!data.retry,
+      });
       return typeof a?.value === "string" ? a.value : null;
     }
     if (kind === "interactive") {
-      const a = await ask(id, targetStr(), { kind: "interactive", name: data.name, instructions: data.instructions, questions: data.questions });
+      const a = await ask(id, targetStr(), {
+        kind: "interactive",
+        name: data.name,
+        instructions: data.instructions,
+        questions: data.questions,
+      });
       return Array.isArray(a?.answers) ? a.answers : null;
     }
     return null;
@@ -201,7 +256,10 @@ async function run(id: Uuid, sess: Sess, target: Target, cols: number, rows: num
         username: plan.username,
         knownHosts: pins(),
         auth,
-        term: String(s().settings.termType ?? "xterm-256color"),
+        term:
+          typeof s().settings.termType === "string"
+            ? (s().settings.termType as string)
+            : "xterm-256color",
         cols,
         rows,
         env: plan.env,
@@ -210,12 +268,27 @@ async function run(id: Uuid, sess: Sess, target: Target, cols: number, rows: num
       prompt,
     );
   } catch (e) {
-    const err = e as { kind?: string; verdict?: { status: string; key?: never; old?: never; new?: never }; tried?: string[]; offered?: string[]; message?: string };
+    const err = e as {
+      kind?: string;
+      verdict?: { status: string; key?: never; old?: never; new?: never };
+      tried?: string[];
+      offered?: string[];
+      message?: string;
+    };
     if (err.kind === "host_key" && err.verdict) {
-      const v = err.verdict as unknown as { status: string; key?: Parameters<typeof hostKeyInfo>[0]; old?: Parameters<typeof hostKeyInfo>[0]; new?: Parameters<typeof hostKeyInfo>[0] };
+      const v = err.verdict as unknown as {
+        status: string;
+        key?: Parameters<typeof hostKeyInfo>[0];
+        old?: Parameters<typeof hostKeyInfo>[0];
+        new?: Parameters<typeof hostKeyInfo>[0];
+      };
       const verdict =
-        v.status === "changed" ? { status: "changed", old: hostKeyInfo(v.old!), new: hostKeyInfo(v.new!) } : { status: "unknown", key: hostKeyInfo(v.key!) };
-      await ask(id, targetStr(), { kind: "host_key", verdict });
+        v.status === "changed" && v.old && v.new
+          ? { status: "changed", old: hostKeyInfo(v.old), new: hostKeyInfo(v.new) }
+          : v.key
+            ? { status: "unknown", key: hostKeyInfo(v.key) }
+            : null;
+      if (verdict) await ask(id, targetStr(), { kind: "host_key", verdict });
       fail(
         "host_key",
         v.status === "changed"
@@ -223,8 +296,13 @@ async function run(id: Uuid, sess: Sess, target: Target, cols: number, rows: num
           : "This host is not in your known hosts. Trust it from Termoso on a trusted device first.",
       );
     }
-    if (err.kind === "auth") fail("auth", "Sign-in refused (tried {tried}; the server offers {offered})", { tried: err.tried?.join(", ") || "–", offered: err.offered?.join(", ") || "–" });
-    if (err.kind === "key" || err.kind === "transport") fail(err.kind, err.message ?? "Connection failed");
+    if (err.kind === "auth")
+      fail("auth", "Sign-in refused (tried {tried}; the server offers {offered})", {
+        tried: err.tried?.length ? err.tried.join(", ") : "–",
+        offered: err.offered?.length ? err.offered.join(", ") : "–",
+      });
+    if (err.kind === "key" || err.kind === "transport")
+      fail(err.kind, err.message ?? "Connection failed");
     throw e;
   }
   if (sess.closed) {
@@ -250,7 +328,13 @@ function finish(id: Uuid) {
   sessionEvent({ type: "closed", id });
 }
 
-export function open(a: { id: Uuid; target: Target; cols: number; rows: number; output: OutputChannel }) {
+export function open(a: {
+  id: Uuid;
+  target: Target;
+  cols: number;
+  rows: number;
+  output: OutputChannel;
+}) {
   let plan: Plan;
   try {
     plan = planFor(a.target);
@@ -271,10 +355,17 @@ export function open(a: { id: Uuid; target: Target; cols: number; rows: number; 
     shell: null,
     shellIntegration: null,
   };
-  const sess: Sess = { info, output: a.output, backlog: [], ssh: null, keepalive: null, closed: false };
+  const sess: Sess = {
+    info,
+    output: a.output,
+    backlog: [],
+    ssh: null,
+    keepalive: null,
+    closed: false,
+  };
   sessions.set(a.id, sess);
   setTimeout(() => sessionEvent({ type: "connecting", id: a.id, info }), 0);
-  void run(a.id, sess, a.target, a.cols, a.rows).catch((e) => {
+  void run(a.id, sess, a.target, a.cols, a.rows).catch((e: unknown) => {
     const err = asDesktopError(e);
     if (!sess.closed) {
       sessionEvent({ type: "error", id: a.id, message: err.message });

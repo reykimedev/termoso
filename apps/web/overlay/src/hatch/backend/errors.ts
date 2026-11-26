@@ -7,16 +7,32 @@ export interface DesktopError {
   message: string;
 }
 
+/** An Error that also carries the desktop's `kind`. */
+export class DesktopFailure extends Error implements DesktopError {
+  constructor(
+    readonly kind: string,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
 export function fail(kind: string, message: string, vars?: Vars): never {
-  throw { kind, message: tr(message, vars) } satisfies DesktopError;
+  throw new DesktopFailure(kind, tr(message, vars));
 }
 
 export function isDesktopError(e: unknown): e is DesktopError {
-  return typeof e === "object" && e !== null && "kind" in e && "message" in e;
+  return (
+    typeof e === "object" &&
+    e !== null &&
+    typeof (e as DesktopError).kind === "string" &&
+    typeof (e as DesktopError).message === "string"
+  );
 }
 
-export function asDesktopError(e: unknown): DesktopError {
-  if (isDesktopError(e)) return e;
-  if (e instanceof Error) return { kind: "internal", message: e.message };
-  return { kind: "internal", message: String(e) };
+export function asDesktopError(e: unknown): DesktopFailure {
+  if (e instanceof DesktopFailure) return e;
+  if (isDesktopError(e)) return new DesktopFailure(e.kind, e.message);
+  if (e instanceof Error) return new DesktopFailure("internal", e.message);
+  return new DesktopFailure("internal", String(e));
 }

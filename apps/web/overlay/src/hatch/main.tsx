@@ -8,7 +8,12 @@ import * as st from "./backend/state";
 import { loadWasm } from "./backend/wasm";
 import { StartError, WebGate } from "./WebGate";
 
-const el = document.getElementById("root")!;
+function root(): HTMLElement {
+  const el = document.getElementById("root");
+  if (!el) throw new Error("#root missing");
+  return el;
+}
+const el = root();
 
 async function start() {
   let gate: Root | null = null;

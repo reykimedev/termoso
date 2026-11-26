@@ -1,7 +1,22 @@
 import { useState } from "react";
 import {
-  Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Stack, Table, TableBody,
-  TableCell, TableHead, TableRow, Tooltip, Typography,
+  Alert,
+  Box,
+  Button,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  Tooltip,
+  Typography,
 } from "@mui/material";
 import VerifiedUserRoundedIcon from "@mui/icons-material/VerifiedUserRounded";
 import GppMaybeRoundedIcon from "@mui/icons-material/GppMaybeRounded";
@@ -40,7 +55,13 @@ export function BuildBadge({ compact = false }: { compact?: boolean }) {
           icon={good ? <VerifiedUserRoundedIcon /> : <GppMaybeRoundedIcon />}
           label={compact ? undefined : label}
           aria-label={`${label}: ${tip}`}
-          sx={{ fontFamily: "monospace", ...(compact && { "& .MuiChip-label": { display: "none" }, "& .MuiChip-icon": { mx: "6px" } }) }}
+          sx={{
+            fontFamily: "monospace",
+            ...(compact && {
+              "& .MuiChip-label": { display: "none" },
+              "& .MuiChip-icon": { mx: "6px" },
+            }),
+          }}
         />
       </Tooltip>
       <IntegrityDialog open={open} onClose={() => setOpen(false)} />
@@ -64,22 +85,42 @@ function IntegrityDialog({ open, onClose }: { open: boolean; onClose: () => void
             </Alert>
           ) : i.status === "verified" ? (
             <Alert severity="success" variant="outlined">
-              {tr("Every file matched the manifest signed for {version} before the app started.", { version: i.version })}
+              {tr("Every file matched the manifest signed for {version} before the app started.", {
+                version: i.version,
+              })}
             </Alert>
           ) : (
             <Alert severity="warning" variant="outlined">
               {tr("This build has no signed manifest. Use it for development only.")}
             </Alert>
           )}
-          <Box sx={{ display: "grid", gridTemplateColumns: "auto 1fr", columnGap: 2, rowGap: 0.75 }}>
-            <Typography variant="body2" color="text.secondary">{tr("Release")}</Typography>
-            <Typography variant="body2" sx={{ fontFamily: "monospace" }}>{i.version} ({i.commit})</Typography>
-            <Typography variant="body2" color="text.secondary">{tr("Signed by")}</Typography>
-            <Typography variant="body2" sx={{ fontFamily: "monospace" }}>{i.keyId ?? "–"}</Typography>
-            <Typography variant="body2" color="text.secondary">{tr("Manifest")}</Typography>
-            <Typography variant="body2" sx={{ fontFamily: "monospace", wordBreak: "break-all" }}>{i.manifestHash ?? "–"}</Typography>
-            <Typography variant="body2" color="text.secondary">Termoso</Typography>
-            <Typography variant="body2" sx={{ fontFamily: "monospace" }}>{i.termoso}</Typography>
+          <Box
+            sx={{ display: "grid", gridTemplateColumns: "auto 1fr", columnGap: 2, rowGap: 0.75 }}
+          >
+            <Typography variant="body2" color="text.secondary">
+              {tr("Release")}
+            </Typography>
+            <Typography variant="body2" sx={{ fontFamily: "monospace" }}>
+              {i.version} ({i.commit})
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {tr("Signed by")}
+            </Typography>
+            <Typography variant="body2" sx={{ fontFamily: "monospace" }}>
+              {i.keyId ?? "–"}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {tr("Manifest")}
+            </Typography>
+            <Typography variant="body2" sx={{ fontFamily: "monospace", wordBreak: "break-all" }}>
+              {i.manifestHash ?? "–"}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Termoso
+            </Typography>
+            <Typography variant="body2" sx={{ fontFamily: "monospace" }}>
+              {i.termoso}
+            </Typography>
           </Box>
           {i.files.length > 0 && (
             <Table size="small">
@@ -93,9 +134,15 @@ function IntegrityDialog({ open, onClose }: { open: boolean; onClose: () => void
               <TableBody>
                 {i.files.map((f) => (
                   <TableRow key={f.path}>
-                    <TableCell sx={{ fontFamily: "monospace", fontSize: 12, wordBreak: "break-all" }}>{f.path}</TableCell>
+                    <TableCell
+                      sx={{ fontFamily: "monospace", fontSize: 12, wordBreak: "break-all" }}
+                    >
+                      {f.path}
+                    </TableCell>
                     <TableCell sx={{ whiteSpace: "nowrap" }}>{size(f.size)}</TableCell>
-                    <TableCell sx={{ fontFamily: "monospace", fontSize: 12 }}>{f.sha256.slice(0, 12)}…</TableCell>
+                    <TableCell sx={{ fontFamily: "monospace", fontSize: 12 }}>
+                      {f.sha256.slice(0, 12)}…
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -107,7 +154,9 @@ function IntegrityDialog({ open, onClose }: { open: boolean; onClose: () => void
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button variant="contained" onClick={onClose}>{tr("Close")}</Button>
+        <Button variant="contained" onClick={onClose}>
+          {tr("Close")}
+        </Button>
       </DialogActions>
     </Dialog>
   );

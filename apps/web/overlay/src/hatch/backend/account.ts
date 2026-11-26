@@ -6,7 +6,16 @@ import { ApiError, call, normalizeServer } from "./api";
 import { fail } from "./errors";
 import { w, loadWasm } from "./wasm";
 import * as db from "./db";
-import { type Account, type Ent, type Uuid, type VaultRec, changed, localVault, s } from "./state";
+import {
+  type Account,
+  type Ent,
+  type Uuid,
+  type VaultRec,
+  changed,
+  drop,
+  localVault,
+  s,
+} from "./state";
 
 import { TERMOSO_VERSION as APP_VERSION } from "../build";
 
@@ -53,13 +62,36 @@ let pending: Pending | null = null;
 
 function browserName(): string {
   const ua = navigator.userAgent;
-  const b = /Edg\//.test(ua) ? "Edge" : /Firefox\//.test(ua) ? "Firefox" : /Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : "Browser";
-  const os = /Windows/.test(ua) ? "Windows" : /Mac OS X/.test(ua) ? "macOS" : /Android/.test(ua) ? "Android" : /iPhone|iPad/.test(ua) ? "iOS" : /Linux/.test(ua) ? "Linux" : "";
+  const b = ua.includes("Edg/")
+    ? "Edge"
+    : ua.includes("Firefox/")
+      ? "Firefox"
+      : ua.includes("Chrome/")
+        ? "Chrome"
+        : ua.includes("Safari/")
+          ? "Safari"
+          : "Browser";
+  const os = ua.includes("Windows")
+    ? "Windows"
+    : ua.includes("Mac OS X")
+      ? "macOS"
+      : ua.includes("Android")
+        ? "Android"
+        : /iPhone|iPad/.test(ua)
+          ? "iOS"
+          : ua.includes("Linux")
+            ? "Linux"
+            : "";
   return `Hatch · ${b}${os ? ` on ${os}` : ""}`;
 }
 
 function device() {
-  return { name: browserName(), platform: "web", app_version: APP_VERSION, client_device_id: db.deviceId() };
+  return {
+    name: browserName(),
+    platform: "web",
+    app_version: APP_VERSION,
+    client_device_id: db.deviceId(),
+  };
 }
 
 export function card(a: Account): AccountCard {
@@ -96,7 +128,11 @@ async function finish(resp: AuthResponse): Promise<LoginOutcome> {
       p.outcome = { step: "deviceApprovalRequired", emailHint: resp.email_hint };
       return p.outcome;
     case "authenticated": {
-      const privateKey = w.unlock_account(p.exportKey, resp.keys.wrapped_private_key, resp.keys.public_key);
+      const privateKey = w.unlock_account(
+        p.exportKey,
+        resp.keys.wrapped_private_key,
+        resp.keys.public_key,
+      );
       pending = null;
       const a: Account = {
         serverUrl: p.server,
@@ -123,19 +159,33 @@ async function finish(resp: AuthResponse): Promise<LoginOutcome> {
   }
 }
 
-export async function login(form: { serverUrl: string; email: string; password: string }): Promise<LoginOutcome> {
+export async function login(form: {
+  serverUrl: string;
+  email: string;
+  password: string;
+}): Promise<LoginOutcome> {
   await loadWasm();
   const server = normalizeServer(form.serverUrl);
   const email = form.email.trim().toLowerCase();
   const state = new w.OpaqueLogin(form.password);
   try {
-    const start = await call<{ login_id: string; opaque_response: string }>(server, "POST", "auth/login/start", {
-      email,
-      opaque_request: state.request,
-      device: device(),
-    }).catch(apiFail);
+    const start = await call<{ login_id: string; opaque_response: string }>(
+      server,
+      "POST",
+      "auth/login/start",
+      {
+        email,
+        opaque_request: state.request,
+        device: device(),
+      },
+    ).catch(apiFail);
     const out = state.finish(form.password, email, start.opaque_response);
-    pending = { server, email, exportKey: out.export_key, outcome: { step: "mfaRequired", methods: [] } };
+    pending = {
+      server,
+      email,
+      exportKey: out.export_key,
+      outcome: { step: "mfaRequired", methods: [] },
+    };
     const finalization = out.finalization;
     out.free();
     const resp = await call<AuthResponse>(server, "POST", "auth/login/finish", {
@@ -146,7 +196,8 @@ export async function login(form: { serverUrl: string; email: string; password: 
   } catch (e) {
     if (!pending?.mfaToken && !pending?.approvalToken) pending = null;
     // OPAQUE fails locally when the password is wrong: say so, not "protocol error".
-    if (!(e && typeof e === "object" && "kind" in e)) fail("invalid_credentials", "Wrong email or password.");
+    if (!(e && typeof e === "object" && "kind" in e))
+      fail("invalid_credentials", "Wrong email or password.");
     throw e;
   } finally {
     state.free();
@@ -187,7 +238,7 @@ export async function register(form: {
     const resp = await call<AuthResponse>(server, "POST", "auth/register/finish", {
       email,
       opaque_upload: upload,
-      display_name: name ? name : undefined,
+      display_name: name || undefined, // eslint-disable-line @typescript-eslint/prefer-nullish-coalescing -- "" means none
       device: device(),
       keys: {
         public_key: keys.publicKey,
@@ -220,7 +271,9 @@ export async function mfa(credential: unknown): Promise<LoginOutcome> {
 
 export async function mfaEmailSend(): Promise<null> {
   if (!pending?.mfaToken) fail("invalid", "No second factor pending");
-  await call(pending.server, "POST", "auth/mfa/email/send", { mfa_token: pending.mfaToken }).catch(apiFail);
+  await call(pending.server, "POST", "auth/mfa/email/send", { mfa_token: pending.mfaToken }).catch(
+    apiFail,
+  );
   return null;
 }
 
@@ -235,7 +288,9 @@ export async function approveDevice(code: string): Promise<LoginOutcome> {
 
 export async function resendDeviceCode(): Promise<null> {
   if (!pending?.approvalToken) fail("invalid", "No device approval pending");
-  await call(pending.server, "POST", "auth/device/approve/resend", { approval_token: pending.approvalToken }).catch(apiFail);
+  await call(pending.server, "POST", "auth/device/approve/resend", {
+    approval_token: pending.approvalToken,
+  }).catch(apiFail);
   return null;
 }
 
@@ -256,7 +311,7 @@ export async function signOut(): Promise<null> {
   const keep = new Set(st.vaults.filter((v) => v.kind === "local").map((v) => v.id));
   st.vaults = st.vaults.filter((v) => keep.has(v.id));
   if (st.vaults.length === 0) st.vaults.push(localVault());
-  for (const [id, e] of Object.entries(st.entities)) if (!keep.has(e.vaultId)) delete st.entities[id];
+  for (const [id, e] of Object.entries(st.entities)) if (!keep.has(e.vaultId)) drop(id);
   changed();
   setStatus({ state: "idle", lastError: null });
   void emit("sync", { kind: "signedOut" });
@@ -319,14 +374,15 @@ export async function refreshVaults(): Promise<void> {
       key_version: v.key_version,
       key,
       // A rotated key means a full pull, so everything is read with the new one.
-      cursor: prev && prev.key_version === v.key_version ? prev.cursor : 0,
+      cursor: prev?.key_version === v.key_version ? prev.cursor : 0,
       is_default: v.kind === "personal",
       session_logging: v.session_logging,
     });
   }
   const gone = new Set([...old.keys()].filter((id) => !next.some((v) => v.id === id)));
-  for (const [id, e] of Object.entries(st.entities)) if (gone.has(e.vaultId)) delete st.entities[id];
-  if (next.some((v) => v.kind === "personal")) for (const v of next) if (v.kind === "local") v.is_default = false;
+  for (const [id, e] of Object.entries(st.entities)) if (gone.has(e.vaultId)) drop(id);
+  if (next.some((v) => v.kind === "personal"))
+    for (const v of next) if (v.kind === "local") v.is_default = false;
   st.vaults = next;
   changed();
   void emit("sync", { kind: "vaultsChanged" });
@@ -361,7 +417,15 @@ export interface SyncStatus {
   conflicts: number;
 }
 
-let status: SyncStatus = { state: "idle", realtime: false, lastSyncAt: null, lastError: null, pushed: 0, pulled: 0, conflicts: 0 };
+let status: SyncStatus = {
+  state: "idle",
+  realtime: false,
+  lastSyncAt: null,
+  lastError: null,
+  pushed: 0,
+  pulled: 0,
+  conflicts: 0,
+};
 
 export function syncStatus(): SyncStatus {
   return status;
@@ -386,7 +450,7 @@ function apply(v: VaultRec, e: SyncEntity, changedVaults: Set<Uuid>): boolean {
   const mine = st.entities[e.id];
   if (e.deleted) {
     if (mine) {
-      delete st.entities[e.id];
+      drop(e.id);
       changedVaults.add(v.id);
     }
     return true;
@@ -400,7 +464,15 @@ function apply(v: VaultRec, e: SyncEntity, changedVaults: Set<Uuid>): boolean {
       return true;
     }
   } else if (mine?.dirty) return true;
-  st.entities[e.id] = { id: e.id, kind: e.kind, vaultId: v.id, version: e.version, updatedAt: e.updated_at, dirty: false, data };
+  st.entities[e.id] = {
+    id: e.id,
+    kind: e.kind,
+    vaultId: v.id,
+    version: e.version,
+    updatedAt: e.updated_at,
+    dirty: false,
+    data,
+  };
   changedVaults.add(v.id);
   return true;
 }
@@ -411,11 +483,11 @@ async function pull(changedVaults: Set<Uuid>): Promise<number> {
     const vaults = s().vaults.filter((v) => v.kind !== "local" && v.key);
     if (vaults.length === 0) return n;
     const cursors = Object.fromEntries(vaults.map((v) => [v.id, v.cursor]));
-    const r = await authed<{ entities: SyncEntity[]; cursors: Record<Uuid, number>; has_more: boolean }>(
-      "POST",
-      "sync/pull",
-      { cursors, limit: 500 },
-    );
+    const r = await authed<{
+      entities: SyncEntity[];
+      cursors: Record<Uuid, number>;
+      has_more: boolean;
+    }>("POST", "sync/pull", { cursors, limit: 500 });
     for (const e of r.entities) {
       const v = vaults.find((x) => x.id === e.vault_id);
       if (v && apply(v, e, changedVaults)) n++;
@@ -432,20 +504,23 @@ async function pull(changedVaults: Set<Uuid>): Promise<number> {
 
 async function push(changedVaults: Set<Uuid>): Promise<{ pushed: number; conflicts: number }> {
   const st = s();
-  const dirty = Object.values(st.entities).filter((e) => e.dirty && st.vaults.find((v) => v.id === e.vaultId)?.key);
+  const dirty = Object.values(st.entities).filter(
+    (e) => e.dirty && st.vaults.find((v) => v.id === e.vaultId)?.key,
+  );
   if (dirty.length === 0) return { pushed: 0, conflicts: 0 };
   const changes: unknown[] = [];
   const deletes: unknown[] = [];
   const order: Ent[] = [];
   for (const e of dirty.filter((x) => !x.deleted)) {
-    const v = st.vaults.find((x) => x.id === e.vaultId)!;
+    const v = st.vaults.find((x) => x.id === e.vaultId);
+    if (!v?.key) continue;
     changes.push({
       id: e.id,
       kind: e.kind,
       vault_id: e.vaultId,
       base_version: e.version > 0 ? e.version : undefined,
       key_version: v.key_version,
-      data: w.encrypt_entity(v.key!, e.kind, e.id, JSON.stringify(e.data)),
+      data: w.encrypt_entity(v.key, e.kind, e.id, JSON.stringify(e.data)),
       updated_at: e.updatedAt,
     });
     order.push(e);
@@ -462,15 +537,17 @@ async function push(changedVaults: Set<Uuid>): Promise<{ pushed: number; conflic
     if (!e) return;
     if (res.status === "ok") {
       pushed++;
-      if (e.deleted) delete st.entities[e.id];
+      if (e.deleted) drop(e.id);
       else {
         e.version = res.version;
         e.dirty = false;
       }
     } else if (res.status === "conflict") {
       conflicts++;
-      const v = st.vaults.find((x) => x.id === e.vaultId)!;
-      if (new Date(e.updatedAt) > new Date(res.server.updated_at) && !res.server.deleted) e.version = res.server.version;
+      const v = st.vaults.find((x) => x.id === e.vaultId);
+      if (!v) return;
+      if (new Date(e.updatedAt) > new Date(res.server.updated_at) && !res.server.deleted)
+        e.version = res.server.version;
       else if (apply(v, res.server, changedVaults)) {
         const mine = st.entities[e.id];
         if (mine) mine.dirty = false;
@@ -493,10 +570,21 @@ export function syncNow(): Promise<void> {
       const pulled = await pull(changedVaults);
       // A second push sends what lost a conflict on the first.
       if (p.conflicts) await push(changedVaults);
-      setStatus({ state: "idle", lastSyncAt: new Date().toISOString(), lastError: null, pushed: p.pushed, pulled, conflicts: p.conflicts });
+      setStatus({
+        state: "idle",
+        lastSyncAt: new Date().toISOString(),
+        lastError: null,
+        pushed: p.pushed,
+        pulled,
+        conflicts: p.conflicts,
+      });
     } catch (e) {
-      const offline = e && typeof e === "object" && "kind" in e && (e as { kind: string }).kind === "network";
-      setStatus({ state: offline ? "offline" : "error", lastError: (e as { message?: string }).message ?? String(e) });
+      const offline =
+        e && typeof e === "object" && "kind" in e && (e as { kind: string }).kind === "network";
+      setStatus({
+        state: offline ? "offline" : "error",
+        lastError: (e as { message?: string }).message ?? String(e),
+      });
     } finally {
       running = null;
       for (const v of changedVaults) void emit("sync", { kind: "entitiesChanged", vaultId: v });

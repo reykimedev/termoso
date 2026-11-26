@@ -151,15 +151,22 @@ export function resolve(hostId: Uuid): Resolved {
   }
   groupPath.reverse();
   const ssh: SshConfig = {};
-  for (const cid of [...chain.reverse(), ...(host.data.ssh_config_id ? [host.data.ssh_config_id] : [])]) {
+  for (const cid of [
+    ...chain.reverse(),
+    ...(host.data.ssh_config_id ? [host.data.ssh_config_id] : []),
+  ]) {
     const c = get<SshConfig>(cid, "ssh_config");
-    if (c && c.vaultId === host.vaultId) mergeSsh(ssh, c.data);
+    if (c?.vaultId === host.vaultId) mergeSsh(ssh, c.data);
   }
   const identity = get<Identity>(ssh.identity_id, "identity");
   const key = get<SshKey>(identity?.data.ssh_key_id, "ssh_key");
   const certificate =
     get<SshCertificate>(identity?.data.ssh_certificate_id, "ssh_certificate") ??
-    (key ? (list<SshCertificate>("ssh_certificate", host.vaultId).find((c) => c.data.ssh_key_id === key.id) ?? null) : null);
+    (key
+      ? (list<SshCertificate>("ssh_certificate", host.vaultId).find(
+          (c) => c.data.ssh_key_id === key.id,
+        ) ?? null)
+      : null);
   const tagIds = new Set(host.data.tag_ids ?? []);
   const tags = list<Tag>("tag", host.vaultId)
     .filter((t) => tagIds.has(t.id))
@@ -170,7 +177,8 @@ export function resolve(hostId: Uuid): Resolved {
 // ── hosts ─────────────────────────────────────────────────────────────────
 
 function protocolOf(h: Host): string {
-  if (h.ssh_config_id || !(h.telnet_config_id || h.webdav_config_id || h.s3_config_id)) return "ssh";
+  if (h.ssh_config_id || !(h.telnet_config_id || h.webdav_config_id || h.s3_config_id))
+    return "ssh";
   if (h.telnet_config_id) return "telnet";
   if (h.webdav_config_id) return "webdav";
   return "s3";
@@ -203,7 +211,8 @@ export function hostCard(id: Uuid) {
     sortOrder: h.data.sort_order ?? 0,
     filesProvider: false,
     updatedAt: h.updatedAt,
-    lastConnected: (s().settings["hatch.lastConnected"] as Record<string, string> | undefined)?.[h.id] ?? null,
+    lastConnected:
+      (s().settings["hatch.lastConnected"] as Record<string, string> | undefined)?.[h.id] ?? null,
     cloudProvider: h.data.cloud_instance_type ?? null,
     dirty: h.dirty,
   };
@@ -262,7 +271,9 @@ export function hostForm(id: Uuid) {
     label: h.data.label,
     address: h.data.address,
     groupId: h.data.group_id ?? null,
-    ssh: ssh !== null || !(h.data.telnet_config_id || h.data.webdav_config_id || h.data.s3_config_id),
+    ssh:
+      ssh !== null ||
+      ![h.data.telnet_config_id, h.data.webdav_config_id, h.data.s3_config_id].some(Boolean),
     port: ssh?.port ?? null,
     username: login.username,
     password: null,
@@ -314,7 +325,12 @@ interface LoginFields {
 }
 
 /** The hidden identity an inline config uses, created, updated or dropped from the form. */
-function inlineIdentity(vaultId: Uuid, current: Uuid | null | undefined, label: string, f: LoginFields): Uuid | null {
+function inlineIdentity(
+  vaultId: Uuid,
+  current: Uuid | null | undefined,
+  label: string,
+  f: LoginFields,
+): Uuid | null {
   if (f.identityId) {
     const prev = get<Identity>(current, "identity");
     if (prev && !prev.data.is_visible && prev.id !== f.identityId) remove(prev.id);
@@ -324,6 +340,7 @@ function inlineIdentity(vaultId: Uuid, current: Uuid | null | undefined, label: 
   const hidden = prev && !prev.data.is_visible ? prev : null;
   const password = f.password === null ? (hidden?.data.password ?? null) : f.password || null;
   const totp = f.totpSecret === null ? (hidden?.data.totp_secret ?? null) : f.totpSecret || null;
+  // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- an empty string means unset
   const wanted = f.username.trim() || password || f.sshKeyId || f.sshCertificateId || f.sshId;
   if (!wanted) {
     if (hidden) remove(hidden.id);
@@ -368,6 +385,7 @@ export function hostSave(f: HostFormIn) {
       forward_x11: f.forwardX11,
       use_mosh: f.useMosh,
       mosh_server_command: f.moshServerCommand,
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- forms from older UI code may omit it
       env_variables: (f.envVariables ?? []).filter(([k]) => k.trim()),
       keep_alive_interval: f.keepAliveInterval,
       timeout: f.timeout,
@@ -387,7 +405,9 @@ export function hostSave(f: HostFormIn) {
     address,
     group_id: f.groupId,
     ssh_config_id: sshId,
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- forms from older UI code may omit it
     tag_ids: f.tagIds ?? [],
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- forms from older UI code may omit it
     notes: f.notes ?? "",
     os_name: f.osName,
     icon: f.icon,
@@ -409,7 +429,8 @@ export function hostDelete(id: Uuid) {
     if (i && !i.data.is_visible) remove(i.id);
     remove(ssh.id);
   }
-  for (const t of list<{ host_id: Uuid }>("tag_host", h.vaultId)) if (t.data.host_id === id) remove(t.id);
+  for (const t of list<{ host_id: Uuid }>("tag_host", h.vaultId))
+    if (t.data.host_id === id) remove(t.id);
   remove(id);
   return null;
 }
@@ -456,7 +477,10 @@ export function groupNodes(vaultId: Uuid | null) {
 
 function groupNode(id: Uuid) {
   const g = require<Group>(id, "group");
-  return groupNodes(g.vaultId).find((n) => n.id === id)!;
+  return (
+    groupNodes(g.vaultId).find((n) => n.id === id) ??
+    fail("not_found", "Not found: {kind}", { kind: "group" })
+  );
 }
 
 function ancestors(vaultId: Uuid, id: Uuid | null): Uuid[] {
@@ -470,12 +494,22 @@ function ancestors(vaultId: Uuid, id: Uuid | null): Uuid[] {
   return out;
 }
 
-export function groupSave(a: { vaultId: Uuid; id: Uuid | null; label: string; parentId: Uuid | null }) {
+export function groupSave(a: {
+  vaultId: Uuid;
+  id: Uuid | null;
+  label: string;
+  parentId: Uuid | null;
+}) {
   const label = a.label.trim();
   if (!label) fail("invalid", "Enter a name");
-  if (a.id && ancestors(a.vaultId, a.parentId).includes(a.id)) fail("invalid", "A group can't be inside itself");
+  if (a.id && ancestors(a.vaultId, a.parentId).includes(a.id))
+    fail("invalid", "A group can't be inside itself");
   const prev = a.id ? require<Group>(a.id, "group") : null;
-  const g = put<Group>("group", a.vaultId, prev?.id ?? null, { ...(prev?.data ?? {}), label, parent_id: a.parentId });
+  const g = put<Group>("group", a.vaultId, prev?.id ?? null, {
+    ...(prev?.data ?? {}),
+    label,
+    parent_id: a.parentId,
+  });
   return groupNode(g.id);
 }
 
@@ -523,11 +557,21 @@ export function groupSaveForm(f: ReturnType<typeof groupForm> & { id: Uuid | nul
     proxy_id: f.proxyId,
     agent_forwarding: f.agentForwarding,
     forward_x11: f.forwardX11,
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- forms from older UI code may omit it
     env_variables: (f.envVariables ?? []).filter(([k]) => k.trim()),
     keep_alive_interval: f.keepAliveInterval,
     timeout: f.timeout,
   };
-  const empty = !ssh.port && !identityId && !ssh.agent_forwarding && !ssh.forward_x11 && !ssh.env_variables?.length && !ssh.keep_alive_interval && !ssh.timeout && !ssh.host_chain_id && !ssh.proxy_id;
+  const empty =
+    !ssh.port &&
+    !identityId &&
+    !ssh.agent_forwarding &&
+    !ssh.forward_x11 &&
+    !ssh.env_variables?.length &&
+    !ssh.keep_alive_interval &&
+    !ssh.timeout &&
+    !ssh.host_chain_id &&
+    !ssh.proxy_id;
   let sshId = prevSsh?.id ?? null;
   if (empty) {
     if (prevSsh) remove(prevSsh.id);
@@ -594,6 +638,7 @@ export function inherited(groupId: Uuid | null) {
     ...empty,
     groupPath: chain.map((id) => groups.find((x) => x.id === id)?.data.label ?? "").reverse(),
     port: ssh.port ?? null,
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- an empty string means unset
     username: i?.data.username || null,
     hasPassword: some(i?.data.password),
     hasTotp: some(i?.data.totp_secret),
@@ -668,7 +713,10 @@ export function identitySave(f: LoginFields & { id: Uuid | null; vaultId: Uuid; 
     ssh_id_key_type: f.sshIdKeyType ?? null,
   };
   const e = put<Identity>("identity", f.vaultId, prev?.id ?? null, data);
-  return identityCards(e.vaultId).find((c) => c.id === e.id)!;
+  return (
+    identityCards(e.vaultId).find((c) => c.id === e.id) ??
+    fail("not_found", "Not found: {kind}", { kind: "identity" })
+  );
 }
 
 // ── keys ──────────────────────────────────────────────────────────────────
@@ -685,14 +733,16 @@ const infoCache = new Map<string, KeyInfo | null>();
 
 function keyInfo(k: Ent<SshKey>): KeyInfo | null {
   const ck = `${k.id}:${k.updatedAt}`;
-  if (!infoCache.has(ck)) {
-    try {
-      infoCache.set(ck, w.inspectKey(k.data.private_key, null) as KeyInfo);
-    } catch {
-      infoCache.set(ck, null);
-    }
+  const hit = infoCache.get(ck);
+  if (hit !== undefined) return hit;
+  let info: KeyInfo | null = null;
+  try {
+    info = w.inspectKey(k.data.private_key, null) as KeyInfo;
+  } catch {
+    /* not readable without its passphrase */
   }
-  return infoCache.get(ck)!;
+  infoCache.set(ck, info);
+  return info;
 }
 
 export interface CertInfo {
@@ -720,7 +770,9 @@ export function certificateInspect(text: string): CertInfo {
 export function keyCard(id: Uuid) {
   const k = require<SshKey>(id, "ssh_key");
   const info = keyInfo(k);
-  const cert = list<SshCertificate>("ssh_certificate", k.vaultId).find((c) => c.data.ssh_key_id === k.id) ?? null;
+  const cert =
+    list<SshCertificate>("ssh_certificate", k.vaultId).find((c) => c.data.ssh_key_id === k.id) ??
+    null;
   let certificate: (CertInfo & { id: Uuid | null }) | null = null;
   let certificateUnreadable = false;
   if (cert) {
@@ -778,7 +830,9 @@ export function keyInspect(text: string) {
 
 function setCertificate(keyId: Uuid, certificate: string | null) {
   const k = require<SshKey>(keyId, "ssh_key");
-  const prev = list<SshCertificate>("ssh_certificate", k.vaultId).find((c) => c.data.ssh_key_id === keyId);
+  const prev = list<SshCertificate>("ssh_certificate", k.vaultId).find(
+    (c) => c.data.ssh_key_id === keyId,
+  );
   if (!certificate?.trim()) {
     if (prev) remove(prev.id);
     return;
@@ -791,7 +845,14 @@ function setCertificate(keyId: Uuid, certificate: string | null) {
   });
 }
 
-export function keyGenerate(f: { vaultId: Uuid; label: string; algorithm: unknown; comment: string; passphrase: string | null; rememberPassphrase: boolean }) {
+export function keyGenerate(f: {
+  vaultId: Uuid;
+  label: string;
+  algorithm: unknown;
+  comment: string;
+  passphrase: string | null;
+  rememberPassphrase: boolean;
+}) {
   if (f.algorithm !== "ed25519") fail("unsupported", "The web app generates Ed25519 keys only");
   const g = w.generateKey(f.comment || f.label, f.passphrase) as KeyInfo & { privateKey: string };
   const e = put<SshKey>("ssh_key", f.vaultId, null, {
@@ -804,7 +865,14 @@ export function keyGenerate(f: { vaultId: Uuid; label: string; algorithm: unknow
   return keyCard(e.id);
 }
 
-export function keyImport(f: { vaultId: Uuid; label: string; privateKey: string; passphrase: string | null; rememberPassphrase: boolean; certificate: string | null }) {
+export function keyImport(f: {
+  vaultId: Uuid;
+  label: string;
+  privateKey: string;
+  passphrase: string | null;
+  rememberPassphrase: boolean;
+  certificate: string | null;
+}) {
   let info: KeyInfo;
   try {
     info = w.inspectKey(f.privateKey, f.passphrase) as KeyInfo;
@@ -839,9 +907,15 @@ export function keyRename(id: Uuid, label: string) {
 export function keyDelete(id: Uuid) {
   const k = get<SshKey>(id, "ssh_key");
   if (!k) return null;
-  for (const c of list<SshCertificate>("ssh_certificate", k.vaultId)) if (c.data.ssh_key_id === id) remove(c.id);
+  for (const c of list<SshCertificate>("ssh_certificate", k.vaultId))
+    if (c.data.ssh_key_id === id) remove(c.id);
   for (const i of list<Identity>("identity", k.vaultId)) {
-    if (i.data.ssh_key_id === id) put<Identity>("identity", i.vaultId, i.id, { ...i.data, ssh_key_id: null, ssh_certificate_id: null });
+    if (i.data.ssh_key_id === id)
+      put<Identity>("identity", i.vaultId, i.id, {
+        ...i.data,
+        ssh_key_id: null,
+        ssh_certificate_id: null,
+      });
   }
   remove(id);
   return null;
@@ -853,7 +927,10 @@ export function keyPublic(id: Uuid): string {
 
 export function keyCertificate(id: Uuid): string | null {
   const k = require<SshKey>(id, "ssh_key");
-  return list<SshCertificate>("ssh_certificate", k.vaultId).find((c) => c.data.ssh_key_id === id)?.data.certificate ?? null;
+  return (
+    list<SshCertificate>("ssh_certificate", k.vaultId).find((c) => c.data.ssh_key_id === id)?.data
+      .certificate ?? null
+  );
 }
 
 export function keySetCertificate(id: Uuid, certificate: string | null) {
@@ -897,7 +974,9 @@ export function knownHostForget(id: Uuid) {
 }
 
 export function knownHostForgetHost(hostname: string) {
-  const pinsFor = list<KnownHost>("known_host").filter((k) => k.data.hostname.toLowerCase() === hostname.toLowerCase());
+  const pinsFor = list<KnownHost>("known_host").filter(
+    (k) => k.data.hostname.toLowerCase() === hostname.toLowerCase(),
+  );
   for (const k of pinsFor) if (vault(k.vaultId).role !== "viewer") remove(k.id);
   return pinsFor.length;
 }
@@ -909,7 +988,13 @@ export function knownHostsExportText(): string {
 }
 
 function pinCard(k: Ent<KnownHost>) {
-  return { id: k.id, vaultId: k.vaultId, keyType: k.data.key_type, fingerprint: k.data.fingerprint, publicKey: `${k.data.key_type} ${k.data.public_key}` };
+  return {
+    id: k.id,
+    vaultId: k.vaultId,
+    keyType: k.data.key_type,
+    fingerprint: k.data.fingerprint,
+    publicKey: `${k.data.key_type} ${k.data.public_key}`,
+  };
 }
 
 export function hostKeyPins(host: string, port: number) {
@@ -924,13 +1009,29 @@ export function hostKeyPins(host: string, port: number) {
  * Pins a server key the user pasted. The desktop can also pin "the key the server shows now";
  * the browser cannot, because that would be trust on first use.
  */
-export function hostKeyPin(a: { vaultId: Uuid; host: string; port: number; publicKey: string | null }) {
+export function hostKeyPin(a: {
+  vaultId: Uuid;
+  host: string;
+  port: number;
+  publicKey: string | null;
+}) {
   if (!a.publicKey?.trim())
-    fail("unsupported", "Paste the server's public key (ssh-keyscan or /etc/ssh/ssh_host_*.pub). Hatch never trusts a key on first use.");
+    fail(
+      "unsupported",
+      "Paste the server's public key (ssh-keyscan or /etc/ssh/ssh_host_*.pub). Hatch never trusts a key on first use.",
+    );
   const i = w.inspectPublicKey(a.publicKey) as KeyInfo;
   const hostname = w.hostId(a.host, a.port);
   const [keyType = "", b64 = ""] = i.publicKey.split(" ");
-  const existing = list<KnownHost>("known_host", a.vaultId).find((k) => k.data.hostname.toLowerCase() === hostname && k.data.public_key === b64);
-  if (!existing) put<KnownHost>("known_host", a.vaultId, null, { hostname, key_type: keyType, public_key: b64, fingerprint: i.fingerprint });
+  const existing = list<KnownHost>("known_host", a.vaultId).find(
+    (k) => k.data.hostname.toLowerCase() === hostname && k.data.public_key === b64,
+  );
+  if (!existing)
+    put<KnownHost>("known_host", a.vaultId, null, {
+      hostname,
+      key_type: keyType,
+      public_key: b64,
+      fingerprint: i.fingerprint,
+    });
   return hostKeyPins(a.host, a.port);
 }

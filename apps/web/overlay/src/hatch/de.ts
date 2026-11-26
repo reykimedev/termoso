@@ -31,13 +31,15 @@ export const de: Readonly<Record<string, string>> = {
   Cancel: "Abbrechen",
   Close: "Schliessen",
   Lock: "Sperren",
-  "Lock: close sessions and forget the vault key": "Sperren: Sitzungen schliessen und den Tresorschlüssel vergessen",
+  "Lock: close sessions and forget the vault key":
+    "Sperren: Sitzungen schliessen und den Tresorschlüssel vergessen",
   "Wrong password": "Falsches Passwort",
 
   // build and integrity
   "Build and integrity": "Build und Integrität",
   "Signed release, every file checked": "Signiertes Release, jede Datei geprüft",
-  "The service worker on the server differs from the signed release": "Der Service Worker auf dem Server weicht vom signierten Release ab",
+  "The service worker on the server differs from the signed release":
+    "Der Service Worker auf dem Server weicht vom signierten Release ab",
   "Unsigned development build": "Unsignierter Entwicklungs-Build",
   "sw.js on the server is not the one in the signed manifest. The browser updates the service worker on its own, so Hatch can only warn. Lock now and compare the manifest hash with the release page before you unlock again.":
     "sw.js auf dem Server ist nicht die Datei aus dem signierten Manifest. Der Browser aktualisiert den Service Worker selbst, deshalb kann Hatch nur warnen. Jetzt sperren und den Manifest-Hash mit der Release-Seite vergleichen, bevor du wieder entsperrst.",
@@ -75,7 +77,8 @@ export const de: Readonly<Record<string, string>> = {
   // connecting
   "Cannot reach the relay at {url}": "Das Relay unter {url} ist nicht erreichbar",
   "The relay refused (HTTP {status})": "Das Relay hat abgelehnt (HTTP {status})",
-  "This Hatch has no relay configured (config.json).": "Für dieses Hatch ist kein Relay konfiguriert (config.json).",
+  "This Hatch has no relay configured (config.json).":
+    "Für dieses Hatch ist kein Relay konfiguriert (config.json).",
   "The web app connects to SSH hosts only (no local shell, serial or Mosh).":
     "Die Web-App verbindet sich nur mit SSH-Hosts (keine lokale Shell, kein Seriell, kein Mosh).",
   "No username": "Kein Benutzername",
@@ -88,7 +91,8 @@ export const de: Readonly<Record<string, string>> = {
     "Für dieses Hatch ist kein Anmeldeanbieter konfiguriert (config.json).",
   "Cannot read the sign-in provider's configuration (HTTP {status})":
     "Die Konfiguration des Anmeldeanbieters kann nicht gelesen werden (HTTP {status})",
-  "The provider calls itself {issuer}, not {expected}": "Der Anbieter nennt sich {issuer}, nicht {expected}",
+  "The provider calls itself {issuer}, not {expected}":
+    "Der Anbieter nennt sich {issuer}, nicht {expected}",
   "Sign-in failed: {reason}": "Anmeldung fehlgeschlagen: {reason}",
   "Sign-in window closed": "Anmeldefenster geschlossen",
   "Allow pop-ups for this page to sign in to your identity provider.":
@@ -102,7 +106,8 @@ export const de: Readonly<Record<string, string>> = {
   "No device approval pending": "Keine Gerätefreigabe ausstehend",
   "Unexpected answer from the server": "Unerwartete Antwort vom Server",
   "Sign in to your Termoso account first": "Zuerst beim Termoso-Konto anmelden",
-  "Your Termoso session ended. Sign in again.": "Deine Termoso-Sitzung ist abgelaufen. Bitte erneut anmelden.",
+  "Your Termoso session ended. Sign in again.":
+    "Deine Termoso-Sitzung ist abgelaufen. Bitte erneut anmelden.",
 
   // vault
   "The vault is locked": "Der Tresor ist gesperrt",
@@ -111,7 +116,8 @@ export const de: Readonly<Record<string, string>> = {
   "This vault is view-only": "Dieser Tresor ist schreibgeschützt",
   "Enter an address": "Adresse eingeben",
   "Enter a name": "Namen eingeben",
-  "Use Move to vault to change the vault": "Zum Wechseln des Tresors «In Tresor verschieben» verwenden",
+  "Use Move to vault to change the vault":
+    "Zum Wechseln des Tresors «In Tresor verschieben» verwenden",
   "A group can't be inside itself": "Eine Gruppe kann nicht in sich selbst liegen",
   "The web app generates Ed25519 keys only": "Die Web-App erzeugt nur Ed25519-Schlüssel",
   "Wrong passphrase": "Falsche Passphrase",
@@ -119,7 +125,8 @@ export const de: Readonly<Record<string, string>> = {
   // not in the browser
   "{what} is not available in the browser.": "{what} ist im Browser nicht verfügbar.",
   "A vault without a lock password": "Ein Tresor ohne Sperrpasswort",
-  "Creating an account (use the Termoso app, then sign in here)": "Ein Konto erstellen (in der Termoso-App, danach hier anmelden)",
+  "Creating an account (use the Termoso app, then sign in here)":
+    "Ein Konto erstellen (in der Termoso-App, danach hier anmelden)",
   "Single sign-on to Termoso": "Single Sign-on bei Termoso",
   "Reading key files from disk": "Schlüsseldateien von der Festplatte lesen",
   "Saving files to disk": "Dateien auf der Festplatte speichern",

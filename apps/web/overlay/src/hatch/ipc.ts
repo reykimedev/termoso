@@ -18,6 +18,8 @@ import { TERMOSO_VERSION } from "./build";
 import { integrity } from "./integrity";
 import { tr } from "@/i18n";
 
+// The UI sends each command's arguments as the desktop's types; they are passed on as such.
+/* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */
 type Args = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 type Handler = (a: Args) => unknown;
 
@@ -43,7 +45,12 @@ function lockedSettings(): Record<string, unknown> {
 }
 
 function vaultStatus() {
-  return { locked: !st.isUnlocked(), passwordProtected: true, masterSource: "password", minPasswordChars: MIN_PASSWORD };
+  return {
+    locked: !st.isUnlocked(),
+    passwordProtected: true,
+    masterSource: "password",
+    minPasswordChars: MIN_PASSWORD,
+  };
 }
 
 // ── idle lock (Settings → Security → lock after) ────────────────────────
@@ -70,19 +77,26 @@ async function unlock(password: string) {
   // The loader saw a service worker on the server that no signed release contains: this load is
   // still the checked one, the next may not be. Don't open the vault on it.
   if (integrity().workerChanged)
-    fail("integrity", "This Hatch changed on the server outside a signed release. Compare the manifest hash with the release page before you unlock.");
+    fail(
+      "integrity",
+      "This Hatch changed on the server outside a signed release. Compare the manifest hash with the release page before you unlock.",
+    );
   if (!(await st.unlock(password))) fail("wrong_password", "Wrong password");
   rememberUi(st.s().settings);
   touch();
   if (st.s().account) {
     account.startSync();
-    void account.refreshVaults().then(() => account.syncNow()).catch(() => undefined);
+    void account
+      .refreshVaults()
+      .then(() => account.syncNow())
+      .catch(() => undefined);
   }
   void emit("vault", { type: "unlocked" });
   return vaultStatus();
 }
 
-const notInBrowser = (what: string) => () => fail("unsupported", "{what} is not available in the browser.", { what: tr(what) });
+const notInBrowser = (what: string) => () =>
+  fail("unsupported", "{what} is not available in the browser.", { what: tr(what) });
 
 const commands: Record<string, Handler> = {
   // window and app
@@ -115,7 +129,8 @@ const commands: Record<string, Handler> = {
   },
   master_password_set: async (a) => {
     const next = String(a.password ?? "");
-    if (next.length < MIN_PASSWORD) fail("invalid", "Use at least {count} characters", { count: MIN_PASSWORD });
+    if (next.length < MIN_PASSWORD)
+      fail("invalid", "Use at least {count} characters", { count: MIN_PASSWORD });
     if (!(await db.unlock(String(a.current ?? "")))) fail("wrong_password", "Wrong password");
     await st.changePassword(next);
     return vaultStatus();
@@ -136,7 +151,7 @@ const commands: Record<string, Handler> = {
     touch();
     return s.settings;
   },
-  workspaces_get: () => (st.s().settings["hatch.workspaces"] as unknown) ?? { templates: [], lastSession: null },
+  workspaces_get: () => st.s().settings["hatch.workspaces"] ?? { templates: [], lastSession: null },
   workspaces_set: (a) => {
     st.s().settings["hatch.workspaces"] = a.workspaces;
     st.changed();
@@ -146,7 +161,8 @@ const commands: Record<string, Handler> = {
   // account
   account_status: () => account.accountStatus(),
   account_server_info: (a) =>
-    call(normalizeServer(String(a.serverUrl || config().termosoServer || "")), "GET", "server/info"),
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- an empty form field means the default
+    call(normalizeServer(String(a.serverUrl || config().termosoServer)), "GET", "server/info"),
   account_login: (a) => account.login(a.form),
   account_mfa: (a) => account.mfa(a.credential),
   account_mfa_email_send: () => account.mfaEmailSend(),
@@ -223,7 +239,9 @@ const commands: Record<string, Handler> = {
   known_host_forget_host: (a) => m.knownHostForgetHost(a.hostname),
   known_hosts_export_text: () => m.knownHostsExportText(),
   known_hosts_default_path: () => null,
-  known_hosts_import_text: notInBrowser("Importing known_hosts (pin keys in the Termoso app or paste one on the host)"),
+  known_hosts_import_text: notInBrowser(
+    "Importing known_hosts (pin keys in the Termoso app or paste one on the host)",
+  ),
   known_hosts_import_file: notInBrowser("Importing known_hosts"),
   host_key_pins: (a) => m.hostKeyPins(String(a.host ?? ""), Number(a.port ?? 22)),
   host_key_pin: (a) => m.hostKeyPin(a as Parameters<typeof m.hostKeyPin>[0]),
@@ -262,7 +280,8 @@ const commands: Record<string, Handler> = {
 };
 
 /** Writes the user made: queue them for the next push to the Termoso server. */
-const WRITE = /(_save|_delete|_duplicate|_move|_generate|_import|_rename|_set_|_remember_|_forget|_pin$|_unpin$|^tag_|^tags_merge)/;
+const WRITE =
+  /(_save|_delete|_duplicate|_move|_generate|_import|_rename|_set_|_remember_|_forget|_pin$|_unpin$|^tag_|^tags_merge)/;
 
 mockWindows("main");
 mockIPC(

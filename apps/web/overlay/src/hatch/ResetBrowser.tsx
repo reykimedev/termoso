@@ -1,5 +1,14 @@
 import { useState } from "react";
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Link, Typography } from "@mui/material";
+import {
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  Link,
+  Typography,
+} from "@mui/material";
 import { tr } from "@/i18n";
 import { resetBrowser } from "./reset";
 
@@ -25,7 +34,9 @@ export function ResetBrowser() {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button color="inherit" onClick={() => setOpen(false)}>{tr("Cancel")}</Button>
+          <Button color="inherit" onClick={() => setOpen(false)}>
+            {tr("Cancel")}
+          </Button>
           <Button
             color="error"
             variant="contained"

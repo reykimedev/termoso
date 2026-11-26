@@ -151,9 +151,17 @@ export async function reset(): Promise<void> {
 // ── entity helpers ──────────────────────────────────────────────────────
 
 export function list<T>(kind: string, vaultId?: Uuid | null): Ent<T>[] {
-  const unlockedVaults = new Set(s().vaults.filter((v) => v.kind === "local" || v.key).map((v) => v.id));
+  const unlockedVaults = new Set(
+    s()
+      .vaults.filter((v) => v.kind === "local" || v.key)
+      .map((v) => v.id),
+  );
   return Object.values(s().entities).filter(
-    (e) => e.kind === kind && !e.deleted && unlockedVaults.has(e.vaultId) && (!vaultId || e.vaultId === vaultId),
+    (e) =>
+      e.kind === kind &&
+      !e.deleted &&
+      unlockedVaults.has(e.vaultId) &&
+      (!vaultId || e.vaultId === vaultId),
   ) as Ent<T>[];
 }
 
@@ -195,10 +203,17 @@ export function put<T>(kind: string, vaultId: Uuid, id: Uuid | null, data: T): E
   return e as Ent<T>;
 }
 
+/** Forgets an entity in this browser only (no delete is pushed). */
+export function drop(id: Uuid): void {
+  // The store is a record keyed by entity id; JSON keeps it as one object in the sealed state.
+  // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+  delete s().entities[id];
+}
+
 export function remove(id: Uuid): void {
   const e = s().entities[id];
   if (!e) return;
-  if (e.version === 0 || vault(e.vaultId).kind === "local") delete s().entities[id];
+  if (e.version === 0 || vault(e.vaultId).kind === "local") drop(id);
   else {
     e.deleted = true;
     e.dirty = true;
@@ -208,5 +223,12 @@ export function remove(id: Uuid): void {
 
 /** Entity in the desktop's IPC shape. */
 export function view<T>(e: Ent<T>) {
-  return { id: e.id, vault_id: e.vaultId, version: e.version, updated_at: e.updatedAt, dirty: e.dirty, data: e.data };
+  return {
+    id: e.id,
+    vault_id: e.vaultId,
+    version: e.version,
+    updated_at: e.updatedAt,
+    dirty: e.dirty,
+    data: e.data,
+  };
 }
