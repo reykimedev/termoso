@@ -1,0 +1,60 @@
+# Public: the work PC reaches both over the internet. One certificate per host, no wildcard.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: hatch-web
+spec:
+  secretName: hatch-web-tls
+  issuerRef:
+    name: ${CLUSTER_ISSUER}
+    kind: ClusterIssuer
+  dnsNames:
+    - hatch.example.com # TODO: your public name for the app
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: hatch-relay
+spec:
+  secretName: hatch-relay-tls
+  issuerRef:
+    name: ${CLUSTER_ISSUER}
+    kind: ClusterIssuer
+  dnsNames:
+    - relay.hatch.example.com # TODO: your public name for the relay
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: hatch-web
+  labels:
+    traefik-instance: public
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`hatch.example.com`)
+      kind: Rule
+      services:
+        - name: hatch-web
+          port: 80
+  tls:
+    secretName: hatch-web-tls
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: hatch-relay
+  labels:
+    traefik-instance: public
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`relay.hatch.example.com`)
+      kind: Rule
+      services:
+        - name: hatch-relay
+          port: 80
+  tls:
+    secretName: hatch-relay-tls
