@@ -6,6 +6,11 @@
 #   wasm ───┴─> web ──> runtime (distroless)
 
 ARG WASM_PACK_VERSION=0.15.0
+# CI builds the binaries and the web cabinet on the runner, where its Rust cache survives between
+# runs (.github/actions/server-prebuilt), and passes SERVER_STAGE=server-prebuilt and WEB_STAGE=web-prebuilt; a plain `docker build` compiles
+# everything here.
+ARG SERVER_STAGE=server
+ARG WEB_STAGE=web
 
 # ── labterm-crypto → WebAssembly for the browser ─────────────────────────────
 FROM rust:1-bookworm AS wasm
@@ -59,10 +64,18 @@ RUN --mount=type=cache,id=cargo-registry-server,target=/usr/local/cargo/registry
     cargo build --release --locked -p labterm-server \
     && cp target/release/labterm-server /labterm-server
 
+# ── prebuilt by CI (only used when selected above) ──────────────────────────
+FROM scratch AS server-prebuilt
+COPY deploy/prebuilt/labterm-server /labterm-server
+FROM scratch AS web-prebuilt
+COPY deploy/prebuilt/web /web/dist
+FROM ${SERVER_STAGE} AS server-out
+FROM ${WEB_STAGE} AS web-out
+
 # ── runtime ──────────────────────────────────────────────────────────────────
 FROM gcr.io/distroless/cc-debian12:nonroot
-COPY --from=server /labterm-server /usr/local/bin/labterm-server
-COPY --from=web /web/dist /app/web
+COPY --from=server-out /labterm-server /usr/local/bin/labterm-server
+COPY --from=web-out /web/dist /app/web
 ENV LABTERM_BIND=0.0.0.0:8080 \
     LABTERM_WEB_DIR=/app/web
 EXPOSE 8080

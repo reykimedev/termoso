@@ -42,16 +42,16 @@ jobs:
           files=$(git diff --name-only HEAD^1 HEAD)
           printf 'Changed files:\n%s\n' "$files"
           # What the Dockerfiles copy, plus this workflow.
-          if grep -qE '^(crates/|Cargo\.(toml|lock)$|apps/desktop/src-tauri/|web/|deploy/Dockerfile|\.dockerignore$|\.github/workflows/server-images\.yml$)' <<<"$files"; then
+          if grep -qE '^(crates/|Cargo\.(toml|lock)$|apps/desktop/src-tauri/|web/|deploy/Dockerfile|\.dockerignore$|\.github/workflows/server-images\.yml$|\.github/actions/server-prebuilt/)' <<<"$files"; then
             echo "build=true" | tee -a "$GITHUB_OUTPUT"
           else
             echo "build=false" | tee -a "$GITHUB_OUTPUT"
           fi
 
-  # One job per architecture builds all three images one after another in the same builder, so
-  # the Rust release build is shared: backup's build stage is identical to the server's and comes
-  # straight from the builder's cache, and bridge reuses the server's cargo cache mounts for the
-  # dependencies they have in common. Before, six jobs each compiled the workspace from scratch.
+  # One job per architecture builds the release binaries and the web cabinet once, on the runner
+  # with the Rust cache (.github/actions/server-prebuilt), then packs all three images from them.
+  # Compiling inside Docker started cold on every run (GitHub's runners keep no cargo cache mounts),
+  # six times over.
   build:
     name: build (${{ matrix.arch }})
     needs: changes
@@ -60,17 +60,26 @@ jobs:
     permissions:
       contents: read
       packages: write
+    # Same as ci.yml's docker job, whose PR builds then start from this Rust cache.
+    env:
+      CARGO_TERM_COLOR: always
+      RUSTFLAGS: ""
     strategy:
       fail-fast: false
       matrix:
         arch: [amd64, arm64]
         include:
+          # 22.04: glibc 2.35, older than the images' bookworm (2.36).
           - arch: amd64
-            runner: ubuntu-latest
+            runner: ubuntu-22.04
           - arch: arm64
-            runner: ubuntu-24.04-arm
+            runner: ubuntu-22.04-arm
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/server-prebuilt
+        with:
+          packages: labterm-server labterm-bridge
+          web: "true"
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
@@ -87,6 +96,9 @@ jobs:
           platforms: linux/${{ matrix.arch }}
           # Uploaded untagged, by digest; publish assembles the multi-arch manifest.
           outputs: type=image,name=${{ steps.image.outputs.prefix }}-server,push-by-digest=true,name-canonical=true,push=true
+          build-args: |
+            SERVER_STAGE=server-prebuilt
+            WEB_STAGE=web-prebuilt
           cache-from: type=gha,scope=server-${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=server-${{ matrix.arch }}
       - id: backup
@@ -97,6 +109,8 @@ jobs:
           platforms: linux/${{ matrix.arch }}
           # Uploaded untagged, by digest; publish assembles the multi-arch manifest.
           outputs: type=image,name=${{ steps.image.outputs.prefix }}-backup,push-by-digest=true,name-canonical=true,push=true
+          build-args: |
+            SERVER_STAGE=server-prebuilt
           cache-from: type=gha,scope=backup-${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=backup-${{ matrix.arch }}
       - id: bridge
@@ -107,6 +121,8 @@ jobs:
           platforms: linux/${{ matrix.arch }}
           # Uploaded untagged, by digest; publish assembles the multi-arch manifest.
           outputs: type=image,name=${{ steps.image.outputs.prefix }}-bridge,push-by-digest=true,name-canonical=true,push=true
+          build-args: |
+            BRIDGE_STAGE=bridge-prebuilt
           cache-from: type=gha,scope=bridge-${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=bridge-${{ matrix.arch }}
       - name: Export digests
