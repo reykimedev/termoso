@@ -974,7 +974,9 @@ async fn connect<R: Runtime>(
             vault_id,
             protocol,
         } => {
-            let resolved = state.store()?.resolve_host_in(*host_id, *vault_id)?;
+            let resolved = state
+                .store()?
+                .resolve_host_to_connect(*host_id, *vault_id)?;
             let label = resolved.host.data.label.clone();
             if host_protocol(&resolved, protocol.as_deref())? == "telnet" {
                 let telnet = resolved.telnet.clone().unwrap_or_default();
@@ -1215,7 +1217,7 @@ pub async fn connect_host<R: Runtime>(
     vault_id: Option<Uuid>,
 ) -> Result<HostConnection> {
     let state = app.state::<AppState>();
-    let resolved = state.store()?.resolve_host_in(host_id, vault_id)?;
+    let resolved = state.store()?.resolve_host_to_connect(host_id, vault_id)?;
     if !has_ssh(&resolved) {
         return Err(DesktopError::invalid(
             "SFTP and port forwarding need an SSH section on the host",
@@ -1521,7 +1523,7 @@ async fn ssh_connect<R: Runtime>(
     for link in chain {
         let hop_resolved = state
             .store()?
-            .resolve_host_in(link.id, Some(link.vault_id))?;
+            .resolve_host_to_connect(link.id, Some(link.vault_id))?;
         let hop_target = SshTarget {
             host: hop_resolved.host.data.address.clone(),
             port: hop_resolved.port(),
@@ -2031,12 +2033,17 @@ fn remember_on_identity(
         return;
     };
     let result = (|| -> labterm_core::error::Result<()> {
-        if let Some(ident) = &resolved.identity {
+        if let Some(ident) = resolved.rememberable_identity() {
             // Re-read: the resolved copy may carry a username that falls
             // through from a tag, which must not be written into this one.
-            let mut data = store.require::<Identity>(ident.id)?.data;
+            let mut data = store.require::<Identity>(ident)?.data;
             edit(&mut data);
-            return store.update(ident.id, &data);
+            return store.update(ident, &data);
+        }
+        if !resolved.may_remember_in_host_vault() {
+            // A personal overlay is in use: never copy what was typed into
+            // the team vault. The user can add it to their own credentials.
+            return Ok(());
         }
         let vault_id = resolved.host.vault_id;
         let mut identity = Identity {

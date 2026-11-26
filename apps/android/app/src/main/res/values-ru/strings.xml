@@ -1913,4 +1913,23 @@
     <string name="openid_account_hint">Входить под этим пользователем, например под учётной записью администратора. Ключи с разными учётными записями входят отдельно. Пусто: любой пользователь.</string>
     <string name="netbird_account">Учётная запись (необязательно)</string>
     <string name="netbird_account_hint">Входить под этим пользователем. Labterm отклонит вход под другим. Запоминается только на этом устройстве.</string>
+
+    <!-- Own credentials on team hosts (personal overlays) -->
+    <string name="overlay_title">Мои учётные данные</string>
+    <string name="overlay_hint_host">Подключаться к этому хосту команды со своими учётными данными вместо командных.</string>
+    <string name="overlay_hint_group">Подключаться ко всем хостам этой группы своим ключом.</string>
+    <string name="overlay_hint_tag">Подключаться ко всем хостам с этим тегом своим ключом.</string>
+    <string name="overlay_hint_vault">Подключаться ко всем хостам этого командного хранилища своим ключом.</string>
+    <string name="overlay_credentials">Учётные данные</string>
+    <string name="overlay_openid_key">Ключ OpenID (opkssh)</string>
+    <string name="overlay_keys_only">Предлагаются только учётные данные с ключом: какие хосты входят сюда, решает команда.</string>
+    <string name="overlay_private">Из вашего личного хранилища. Администраторы команды не видят и не могут их изменить.</string>
+    <string name="overlay_agent_forwarding">Проброс агента</string>
+    <string name="overlay_x11_forwarding">Проброс X11</string>
+    <string name="overlay_use_mine">Использовать мои</string>
+    <string name="overlay_use_team">Использовать командные</string>
+    <string name="overlay_linked">Ваши учётные данные привязаны</string>
+    <string name="overlay_removed">Снова используются командные учётные данные</string>
+    <string name="overlay_use_again">Использовать снова</string>
+    <string name="overlay_paused">Команда изменила адрес этого хоста после привязки ваших учётных данных (был %1$s). Они не используются, пока вы не подтвердите.</string>
 </resources>

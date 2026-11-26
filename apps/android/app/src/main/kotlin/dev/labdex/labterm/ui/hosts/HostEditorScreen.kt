@@ -266,6 +266,7 @@ fun HostEditorScreen(
         val presence = rememberVaultPresence(shell, vault)
         val viewers = remember(presence, draft.id) { draft.id?.let { viewersByHost(presence)[it] } ?: emptyList() }
         HostForm(
+            shell = shell,
             repo = shell.repo,
             state = state,
             draft = draft,
@@ -307,6 +308,7 @@ fun draftLink(d: HostDraft): String {
 
 @Composable
 private fun HostForm(
+    shell: ShellViewModel,
     repo: VaultRepository,
     state: HostEditorState,
     draft: HostDraft,
@@ -365,6 +367,10 @@ private fun HostForm(
         if (draft.ssh) {
             ProtocolHeader("SSH", removable = sections > 1) { vm.update { it.copy(ssh = false) } }
             SshSection(state, draft, vm, inherited, identity)
+            draft.id?.let { id ->
+                Spacer(Modifier.height(16.dp))
+                MyCredentialsCard(shell, draft.vaultId, OVERLAY_SCOPE_HOST, id)
+            }
         }
 
         if (telnet != null) {

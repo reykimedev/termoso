@@ -336,7 +336,7 @@ async fn open_once(
     settings: &MobileSettings,
 ) -> Result<Live> {
     // A rule only ever tunnels through a host of its own vault.
-    let resolved = store.resolve_host_in(rule.data.host_id, Some(rule.vault_id))?;
+    let resolved = store.resolve_host_to_connect(rule.data.host_id, Some(rule.vault_id))?;
     if resolved.protocol() != "ssh" {
         return Err(MobileError::invalid("telnet hosts cannot forward ports"));
     }

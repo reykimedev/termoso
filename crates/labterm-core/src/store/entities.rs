@@ -218,6 +218,13 @@ impl Store {
         if !is_known_kind(kind) {
             return Err(CoreError::Invalid(format!("unknown entity kind {kind}")));
         }
+        if labterm_proto::entities::is_personal_only_kind(kind)
+            && self.vault(vault_id)?.kind == super::LocalVaultKind::Team
+        {
+            return Err(CoreError::Invalid(format!(
+                "a {kind} belongs in your personal or local vault, not a team vault"
+            )));
+        }
         let (ct, key_version) = self.encrypt_payload(vault_id, kind, id, data)?;
         let dirty = self.writable_vault(vault_id)?.kind.is_synced();
         self.conn().execute(
@@ -821,6 +828,9 @@ impl Store {
             s3_identity,
             group_path,
             tags,
+            credential_vault_id: None,
+            overlay_id: None,
+            paused_overlay_id: None,
         })
     }
 }

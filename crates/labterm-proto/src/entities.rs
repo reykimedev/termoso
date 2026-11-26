@@ -41,7 +41,26 @@ pub const KINDS: &[&str] = &[
     "color_scheme",
     "oidc_provider",
     "transport",
+    "host_overlay",
 ];
+
+/// Kinds that may only live in a personal (or the device-local) vault: a
+/// team vault must never hold them. Servers refuse them in team vaults.
+pub const PERSONAL_ONLY_KINDS: &[&str] = &["host_overlay"];
+
+/// Whether `kind` is one of [`PERSONAL_ONLY_KINDS`].
+pub fn is_personal_only_kind(kind: &str) -> bool {
+    PERSONAL_ONLY_KINDS.contains(&kind)
+}
+
+/// [`HostOverlay::scope`] values.
+pub const OVERLAY_SCOPE_HOST: &str = "host";
+/// Every host of a group, and of its subgroups.
+pub const OVERLAY_SCOPE_GROUP: &str = "group";
+/// Every host carrying a tag.
+pub const OVERLAY_SCOPE_TAG: &str = "tag";
+/// Every host of the team vault.
+pub const OVERLAY_SCOPE_VAULT: &str = "vault";
 
 /// Whether `kind` is a known entity kind.
 pub fn is_known_kind(kind: &str) -> bool {
@@ -824,6 +843,45 @@ pub mod payload {
             /// Target group for imported hosts.
             #[serde(default, skip_serializing_if = "Option::is_none")]
             pub group_id: Option<Uuid>,
+        }
+    }
+
+    schema! {
+        /// A member's own credentials for hosts of a team vault. Lives only
+        /// in the member's personal or local vault and points at the team
+        /// item by id; team items never point back. See
+        /// `docs/personal-overlays.md`.
+        #[derive(Default, PartialEq, Eq)]
+        pub struct HostOverlay {
+            /// Label.
+            #[serde(default)]
+            pub label: String,
+            /// The team vault whose hosts this applies to.
+            pub target_vault_id: Uuid,
+            /// [`super::OVERLAY_SCOPE_HOST`], `group`, `tag` or `vault`.
+            pub scope: String,
+            /// Host, group or tag in the team vault; `None` for `vault`.
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            pub target_id: Option<Uuid>,
+            /// Credentials in the overlay's own vault.
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            pub identity_id: Option<Uuid>,
+            /// OpenID (opkssh) key in the overlay's own vault.
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            pub oidc_key_id: Option<Uuid>,
+            /// `host` scope: the address the overlay was made for. When the
+            /// team changes the host's address the overlay pauses.
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            pub pinned_address: Option<String>,
+            /// `host` scope: the SSH port the overlay was made for.
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            pub pinned_port: Option<u16>,
+            /// Forward the SSH agent. Never taken from the team's settings.
+            #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+            pub agent_forwarding: bool,
+            /// Forward X11. Never taken from the team's settings.
+            #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+            pub forward_x11: bool,
         }
     }
 

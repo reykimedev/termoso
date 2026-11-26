@@ -15,6 +15,7 @@ import { asDesktopError, fail } from "./backend/errors";
 import * as m from "./backend/model";
 import * as oidc from "./backend/oidc";
 import * as opkssh from "./backend/opkssh";
+import * as overlays from "./backend/overlays";
 import { defaultSettings } from "./backend/settings";
 import * as snippets from "./backend/snippets";
 import * as st from "./backend/state";
@@ -236,6 +237,11 @@ const commands: Record<string, Handler> = {
     st.remove(a.id);
     return null;
   },
+  overlays_list: () => overlays.overlayCards(),
+  overlay_for_target: (a) => overlays.overlayFor(a.targetVaultId, a.scope, a.targetId ?? null),
+  overlay_save: (a) => overlays.overlaySave(a.form),
+  overlay_confirm: (a) => overlays.overlayConfirm(a.id),
+  overlay_delete: (a) => overlays.overlayDelete(a.id),
   keys_list: (a) => m.keyCards(a.vaultId ?? null),
   key_inspect: (a) => m.keyInspect(String(a.text ?? "")),
   certificate_inspect: (a) => m.certificateInspect(String(a.text ?? "")),

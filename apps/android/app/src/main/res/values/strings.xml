@@ -1873,4 +1873,23 @@
     <string name="openid_account_hint">Sign in as this user, for example your admin account. Keys with different accounts sign in separately. Empty: whoever signs in.</string>
     <string name="netbird_account">Account (optional)</string>
     <string name="netbird_account_hint">Sign in as this user. Labterm refuses a sign-in as anyone else. Remembered on this device only.</string>
+
+    <!-- Own credentials on team hosts (personal overlays) -->
+    <string name="overlay_title">My own credentials</string>
+    <string name="overlay_hint_host">Connect to this team host with your own credentials instead of the team\'s.</string>
+    <string name="overlay_hint_group">Connect to every host in this group with your own key.</string>
+    <string name="overlay_hint_tag">Connect to every host with this tag with your own key.</string>
+    <string name="overlay_hint_vault">Connect to every host in this team vault with your own key.</string>
+    <string name="overlay_credentials">Credentials</string>
+    <string name="overlay_openid_key">OpenID key (opkssh)</string>
+    <string name="overlay_keys_only">Only credentials with a key are offered: the team decides which hosts are in it.</string>
+    <string name="overlay_private">From your personal vault. Team admins can\'t see or change them.</string>
+    <string name="overlay_agent_forwarding">Agent forwarding</string>
+    <string name="overlay_x11_forwarding">X11 forwarding</string>
+    <string name="overlay_use_mine">Use my credentials</string>
+    <string name="overlay_use_team">Use team credentials</string>
+    <string name="overlay_linked">Your own credentials are linked</string>
+    <string name="overlay_removed">Back to the team\'s credentials</string>
+    <string name="overlay_use_again">Use them again</string>
+    <string name="overlay_paused">The team changed this host\'s address since you linked your credentials (was %1$s). They are not used until you confirm.</string>
 </resources>

@@ -4,7 +4,8 @@
 // fresh P-256 key in labterm-web-wasm, which turns the ID token into an opkssh certificate. Key and
 // certificate stay in this tab's memory until the certificate should not be reused any more.
 import { fail } from "./errors";
-import { type SshKey, keyCard, resolve as resolveHost } from "./model";
+import { type SshKey, keyCard } from "./model";
+import { resolveToConnect as resolveHost } from "./overlays";
 import { type Provider, popupLogin } from "./oidc";
 import { execOnHost } from "./snippets";
 import * as st from "./state";

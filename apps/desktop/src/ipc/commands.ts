@@ -63,6 +63,9 @@ import type {
   HostKeyPin,
   IdentityCard,
   IdentityForm,
+  OverlayCard,
+  OverlayForm,
+  OverlayScope,
   ImportApplyReport,
   ImportKeyFileForm,
   ImportKeyForm,
@@ -532,6 +535,12 @@ export const identitiesList = (vaultId?: Uuid | null) =>
   invoke<IdentityCard[]>("identities_list", { vaultId: vaultId ?? null });
 export const identitySave = (form: IdentityForm) => invoke<IdentityCard>("identity_save", { form });
 export const identityDelete = (id: Uuid) => invoke<null>("identity_delete", { id });
+export const overlaysList = () => invoke<OverlayCard[]>("overlays_list");
+export const overlayForTarget = (targetVaultId: Uuid, scope: OverlayScope, targetId: Uuid | null) =>
+  invoke<OverlayCard | null>("overlay_for_target", { targetVaultId, scope, targetId });
+export const overlaySave = (form: OverlayForm) => invoke<OverlayCard>("overlay_save", { form });
+export const overlayConfirm = (id: Uuid) => invoke<OverlayCard>("overlay_confirm", { id });
+export const overlayDelete = (id: Uuid) => invoke<null>("overlay_delete", { id });
 export const identityCopyToVault = (id: Uuid, vaultId: Uuid, moveIdentity: boolean) =>
   invoke<IdentityCard>("identity_copy_to_vault", { id, vaultId, moveIdentity });
 

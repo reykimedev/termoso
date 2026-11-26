@@ -1199,6 +1199,43 @@ export interface IdentityCard {
   updatedAt: string;
 }
 
+/** Where a personal overlay applies inside a team vault. */
+export type OverlayScope = "host" | "group" | "tag" | "vault";
+
+/** The member's own credentials for team hosts, kept in their personal or local vault. */
+export interface OverlayCard {
+  id: Uuid;
+  vaultId: Uuid;
+  targetVaultId: Uuid;
+  targetVaultName: string | null;
+  scope: OverlayScope;
+  targetId: Uuid | null;
+  targetLabel: string | null;
+  identityId: Uuid | null;
+  identityLabel: string | null;
+  oidcKeyId: Uuid | null;
+  oidcKeyLabel: string | null;
+  agentForwarding: boolean;
+  forwardX11: boolean;
+  /** The team host, group or tag still exists and its vault is unlocked. */
+  linked: boolean;
+  /** Host link whose address or port the team changed: not used until confirmed. */
+  paused: boolean;
+  pinnedAddress: string | null;
+}
+
+export interface OverlayForm {
+  id: Uuid | null;
+  vaultId: Uuid;
+  targetVaultId: Uuid;
+  scope: OverlayScope;
+  targetId: Uuid | null;
+  identityId: Uuid | null;
+  oidcKeyId: Uuid | null;
+  agentForwarding: boolean;
+  forwardX11: boolean;
+}
+
 export interface IdentityForm {
   id: Uuid | null;
   vaultId: Uuid;
