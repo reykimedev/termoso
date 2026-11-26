@@ -19,6 +19,9 @@ use crate::{Error, Result};
 const DONE_PAGE: &str = "<!doctype html><meta charset=utf-8><title>Signed in</title>\
 <p>Signed in. You can close this tab and return to Labterm.</p>";
 
+/// How long one connection to the redirect port may take to send its request.
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
+
 /// A listener on the first free port of a list.
 pub struct Loopback {
     listener: TcpListener,
@@ -60,7 +63,11 @@ impl Loopback {
     pub async fn wait(&self) -> Result<Url> {
         loop {
             let (mut sock, _) = self.listener.accept().await?;
-            match read_target(&mut sock).await {
+            // One slow or silent local client must not hold up the browser.
+            let target = tokio::time::timeout(REQUEST_TIMEOUT, read_target(&mut sock))
+                .await
+                .unwrap_or_else(|_| Err(Error::Authorization("redirect request timed out".into())));
+            match target {
                 Ok(target) if target.split('?').next() == Some(self.path.as_str()) => {
                     respond(&mut sock, "200 OK", DONE_PAGE).await;
                     let base =

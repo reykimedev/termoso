@@ -10,6 +10,12 @@ const PREFIX = "hatch-release-";
 const STATE = "hatch-state";
 // Deployment files that are not part of a release: passed through, never cached.
 const PASS = new Set(["config.json", "sw.js"]);
+// What the loader may ask the server for past this cache ("?network"), to compare with the signed
+// release. Only these, and only as data: a page or script fetched that way would run unchecked.
+const NETWORK = new Set(["manifest.json", "manifest.sig", "sw.js"]);
+// fetch() and XHR have an empty destination; a page, frame, script or worker does not. The
+// server is not trusted to choose what runs here, so anything that would run comes from the cache.
+const isData = (request) => request.destination === "";
 const CHECK_EVERY_MS = 5 * 60 * 1000;
 
 const scope = new URL(self.registration.scope);
@@ -148,7 +154,8 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   const path = rel(url);
   if (e.request.method !== "GET" || path === null) return; // other origins: the relay, Labterm, the identity provider
-  if (PASS.has(path) || url.search === "?network") return;
+  if (isData(e.request) && (PASS.has(path) || (url.search === "?network" && NETWORK.has(path))))
+    return;
   const navigate = e.request.mode === "navigate" && (path === "" || path === "index.html");
   e.respondWith(respond(e.request, path, navigate));
 });

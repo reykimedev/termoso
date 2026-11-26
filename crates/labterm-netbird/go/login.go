@@ -291,11 +291,13 @@ func beginLogin(o loginOptions) (*pendingLogin, string, error) {
 		q := r.URL.Query()
 		var err error
 		switch {
-		case q.Get("error") != "":
-			err = fmt.Errorf("sign-in failed: %s %s", q.Get("error"), q.Get("error_description"))
+		// State first: without it, any page open in the browser could end
+		// this sign-in by requesting the redirect URL with an error.
 		case subtle.ConstantTimeCompare([]byte(q.Get("state")), []byte(p.state)) != 1:
 			http.Error(w, "invalid state", http.StatusBadRequest)
 			return
+		case q.Get("error") != "":
+			err = fmt.Errorf("sign-in failed: %s %s", q.Get("error"), q.Get("error_description"))
 		case q.Get("code") == "":
 			err = errors.New("sign-in failed: no code")
 		}

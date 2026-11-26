@@ -108,12 +108,58 @@ impl NetworkConfig {
         })
     }
 
+    /// The management server must be reached over TLS (plain HTTP only on
+    /// this machine, for tests). Editors check this when saving, but a
+    /// network synced from a team vault was written by someone else, and the
+    /// setup key, the peer key and the sign-in all travel to this server.
+    pub fn check(&self) -> Result<()> {
+        if web_url(&self.management_url) {
+            Ok(())
+        } else {
+            Err(CoreError::Invalid(format!(
+                "NetBird \"{}\": the management URL must use https://",
+                self.label
+            )))
+        }
+    }
+
     /// Key under which [`PeerKeys`] keeps this device's peer: a peer belongs
     /// to one management server, so moving the network to another server
     /// registers anew.
     pub fn peer_slot(&self) -> String {
         format!("{}@{}", self.id, self.management_url)
     }
+}
+
+/// `https://…`, or `http://` on this machine: what may be fetched or handed
+/// to the browser. The management server names the sign-in page, and the
+/// system opens it, so no other scheme (`file:`, an app's own) may pass.
+fn web_url(url: &str) -> bool {
+    let rest = |prefix: &str| {
+        url.get(..prefix.len())
+            .filter(|p| p.eq_ignore_ascii_case(prefix))
+            .map(|_| &url[prefix.len()..])
+    };
+    let host = |rest: &str| {
+        let authority = rest.split(['/', '?', '#']).next().unwrap_or_default();
+        // No userinfo: `http://localhost@evil.example.com` is not this machine.
+        (!authority.contains('@')).then(|| {
+            match authority.strip_prefix('[') {
+                Some(v6) => v6.split(']').next().unwrap_or_default(),
+                None => authority.split(':').next().unwrap_or_default(),
+            }
+            .to_ascii_lowercase()
+        })
+    };
+    if url.chars().any(|c| c.is_whitespace() || c.is_control()) {
+        return false;
+    }
+    if let Some(r) = rest("https://") {
+        return host(r).is_some_and(|h| !h.is_empty());
+    }
+    rest("http://")
+        .and_then(host)
+        .is_some_and(|h| matches!(h.as_str(), "localhost" | "127.0.0.1" | "::1"))
 }
 
 /// Start of the error when a network needs its user to sign in (no setup
@@ -305,6 +351,7 @@ impl Netbird {
         device_name: &str,
         keys: &dyn PeerKeys,
     ) -> Result<Arc<Node>> {
+        config.check()?;
         let mut nodes = self.nodes.lock().await;
         if let Some(n) = nodes.get(&config.id) {
             if n.config == *config {
@@ -392,6 +439,7 @@ impl Netbird {
         account: Option<&str>,
         keys: &dyn PeerKeys,
     ) -> Result<SignIn> {
+        config.check()?;
         let saved = keys.load(&config.peer_slot());
         let options = Zeroizing::new(
             serde_json::to_string(&LoginOptions {
@@ -417,6 +465,16 @@ impl Netbird {
         }
         let begin: Begin = serde_json::from_str(&out)
             .map_err(|e| CoreError::Transport(format!("netbird: bad sign-in result: {e}")))?;
+        if !web_url(&begin.auth_url) {
+            // The app opens this URL; the server chose it.
+            if let Ok(lib) = ffi::library(self.library_path.as_deref()) {
+                lib.login_cancel(handle);
+            }
+            return Err(CoreError::Transport(format!(
+                "NetBird \"{}\": the server's sign-in page is not an https:// address",
+                config.label
+            )));
+        }
         Ok(SignIn {
             auth_url: begin.auth_url,
             handle,
@@ -593,6 +651,41 @@ impl AsyncWrite for Tracked {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_https_or_this_machine() {
+        for ok in [
+            "https://netbird.example.com",
+            "HTTPS://netbird.example.com:443/x?y",
+            "http://localhost:8080",
+            "http://127.0.0.1:33073/a",
+            "http://[::1]:33073",
+        ] {
+            assert!(web_url(ok), "{ok}");
+        }
+        for bad in [
+            "http://netbird.example.com",
+            "http://localhost@evil.example.com/",
+            "http://localhost.evil.example.com/",
+            "file:///etc/passwd",
+            "javascript:alert(1)",
+            "smb://files.example.com/x",
+            "https://",
+            "https://a.example.com/\nx",
+            "",
+        ] {
+            assert!(!web_url(bad), "{bad}");
+        }
+        let mut c = NetworkConfig::from_entity(&entity(
+            "netbird",
+            Some("http://netbird.example.com"),
+            None,
+        ))
+        .unwrap();
+        assert!(c.check().is_err());
+        c.management_url = DEFAULT_MANAGEMENT_URL.into();
+        assert!(c.check().is_ok());
+    }
     fn entity(provider: &str, url: Option<&str>, key: Option<&str>) -> Entity<Transport> {
         Entity {
             id: Uuid::nil(),

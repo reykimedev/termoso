@@ -41,14 +41,28 @@ pub struct ProviderConfig {
     pub account: Option<String>,
 }
 
+/// A URL the login may fetch or hand to the browser: `https`, or `http` for
+/// a provider on this machine (tests, a local Dex). The issuer and what its
+/// discovery document names can come from a vault a team shares, and the
+/// authorization endpoint is opened by the system, so no other scheme
+/// (`file:`, `javascript:`, an app's own) may get that far.
+pub fn web_url(what: &str, raw: &str) -> std::result::Result<Url, String> {
+    let url = Url::parse(raw).map_err(|e| format!("{what} is not a URL: {e}"))?;
+    let loopback = matches!(
+        url.host_str(),
+        Some("localhost") | Some("127.0.0.1") | Some("[::1]")
+    );
+    match url.scheme() {
+        "https" if url.host_str().is_some() => Ok(url),
+        "http" if loopback => Ok(url),
+        _ => Err(format!("{what} must be an https:// URL")),
+    }
+}
+
 impl ProviderConfig {
     /// Check the fields are usable.
     pub fn validate(&self) -> Result<()> {
-        let issuer = Url::parse(&self.issuer)
-            .map_err(|e| Error::Config(format!("issuer is not a URL: {e}")))?;
-        if !matches!(issuer.scheme(), "https" | "http") {
-            return Err(Error::Config("issuer must be an http(s) URL".into()));
-        }
+        web_url("issuer", &self.issuer).map_err(Error::Config)?;
         if self.client_id.trim().is_empty() {
             return Err(Error::Config("client ID is empty".into()));
         }
@@ -127,7 +141,15 @@ impl Discovery {
                 d.issuer, cfg.issuer
             )));
         }
+        d.validate()?;
         Ok(d)
+    }
+
+    /// The endpoints must be web URLs, see [`web_url`].
+    pub fn validate(&self) -> Result<()> {
+        web_url("authorization_endpoint", &self.authorization_endpoint).map_err(Error::Provider)?;
+        web_url("token_endpoint", &self.token_endpoint).map_err(Error::Provider)?;
+        Ok(())
     }
 }
 
@@ -179,6 +201,8 @@ impl LoginRequest {
         redirect_uri: &str,
     ) -> Result<Self> {
         cfg.validate()?;
+        // Again here: callers may build a `Discovery` themselves (the web app).
+        discovery.validate()?;
         let cic = Cic::new(key)?;
         let pkce = Pkce::new();
         let state = pkce::random_token(16);
@@ -365,6 +389,44 @@ mod tests {
         url.query_pairs()
             .find(|(k, _)| k == name)
             .map(|(_, v)| v.into_owned())
+    }
+
+    #[test]
+    fn only_web_urls_reach_the_browser() {
+        for bad in [
+            "file:///etc/passwd",
+            "javascript:alert(1)",
+            "smb://files.example.com/x",
+            "http://auth.example.com/authorize",
+        ] {
+            let d = Discovery {
+                authorization_endpoint: bad.into(),
+                ..disc()
+            };
+            let json = serde_json::to_vec(&d).unwrap();
+            assert!(Discovery::parse(&cfg(), &json).is_err(), "{bad}");
+            let key = crate::generate_key().unwrap();
+            assert!(
+                LoginRequest::new(&cfg(), &d, &key, "http://localhost:3000/login-callback")
+                    .is_err(),
+                "{bad}"
+            );
+            let c = ProviderConfig {
+                issuer: bad.into(),
+                ..cfg()
+            };
+            assert!(c.validate().is_err(), "{bad}");
+        }
+        for ok in [
+            "http://localhost:9000/authorize",
+            "http://127.0.0.1:9000/authorize",
+        ] {
+            let d = Discovery {
+                authorization_endpoint: ok.into(),
+                ..disc()
+            };
+            assert!(d.validate().is_ok(), "{ok}");
+        }
     }
 
     #[test]
