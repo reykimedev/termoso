@@ -1818,8 +1818,8 @@
     <string name="debug_update_available_notice">Debug build %1$d is available: Settings → About</string>
     <string name="openid_no_keys">No OpenID keys in this vault: create one in the keychain</string>
     <string name="openid_key_for_host">OpenID key</string>
-    <string name="openid_key_for_host_hint">Tried before the host's credentials, which stay as the fallback. Hosts without one use their group's.</string>
-    <string name="openid_none_inherit">None (use the group's)</string>
+    <string name="openid_key_for_host_hint">Tried before the host\u2019s credentials, which stay as the fallback. Hosts without one use their group\u2019s.</string>
+    <string name="openid_none_inherit">None (use the group\u2019s)</string>
     <string name="openid_key_for_host_saved">OpenID key saved</string>
 
     <!-- NetBird networks and the host/group tunnel choice -->
