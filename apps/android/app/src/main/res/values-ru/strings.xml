@@ -569,6 +569,15 @@
     <string name="attach_certificate">Прикрепить сертификат</string>
     <string name="openssh_certificate_attached">Сертификат OpenSSH прикреплён</string>
     <string name="optional_signed_public_key_from_your_ca">Необязательный подписанный открытый ключ от вашего CA</string>
+    <string name="openid_sign_in">Вход через OpenID (opkssh)</string>
+    <string name="openid_sign_in_off">При подключении получать краткосрочный сертификат у провайдера удостоверений</string>
+    <string name="openid_sign_in_hint">При подключении в браузере откроется страница входа провайдера, и Termoso предъявит этот ключ с сертификатом opkssh. Укажите издателя и client ID из /etc/opk/providers на хостах.</string>
+    <string name="use_openid_sign_in">Использовать вход через OpenID</string>
+    <string name="openid_issuer">URL издателя</string>
+    <string name="openid_client_id">Client ID</string>
+    <string name="openid_client_secret">Client secret (необязательно)</string>
+    <string name="openid_sign_in_turned_on">Вход через OpenID включён</string>
+    <string name="openid_sign_in_turned_off">Вход через OpenID выключен</string>
     <string name="export_key_handle">Экспортировать дескриптор ключа</string>
     <string name="export_private_key">Экспортировать закрытый ключ</string>
     <string name="useless_without_the_security_key_confirmation_required">Бесполезен без ключа безопасности — требуется подтверждение</string>

@@ -61,11 +61,18 @@ import com.termoso.android.ui.components.SwitchRow
 import com.termoso.android.ui.hosts.ConfirmDialog
 import com.termoso.android.ui.shell.ShellViewModel
 import com.termoso.core.KeyItem
+import com.termoso.core.OidcSignIn
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private enum class Sheet { RENAME, PASSPHRASE, CERTIFICATE, EXPORT, TO_HOST, DELETE }
+private enum class Sheet { RENAME, PASSPHRASE, CERTIFICATE, OIDC, EXPORT, TO_HOST, DELETE }
+
+/** opkssh certifies ECDSA P-256 keys only (Rust checks again on save). */
+private fun oidcCapable(key: KeyItem): Boolean {
+    val t = key.keyType.lowercase()
+    return !t.startsWith("sk-") && (t.contains("ecdsa") || t.contains("nistp")) && key.bits == 256u
+}
 
 /** Details and actions for one stored SSH key. */
 @Composable
@@ -198,6 +205,14 @@ fun KeyDetailScreen(shell: ShellViewModel, keyId: String, onBack: () -> Unit) {
                     subtitle = if (key.hasCertificate) stringResource(R.string.openssh_certificate_attached) else stringResource(R.string.optional_signed_public_key_from_your_ca),
                     modifier = Modifier.clickable(enabled = !key.unreadable) { sheet = Sheet.CERTIFICATE },
                 )
+                if (oidcCapable(key)) {
+                    RowDivider()
+                    ChevronRow(
+                        title = stringResource(R.string.openid_sign_in),
+                        subtitle = s.oidc?.issuer ?: stringResource(R.string.openid_sign_in_off),
+                        modifier = Modifier.clickable(enabled = !key.unreadable) { sheet = Sheet.OIDC },
+                    )
+                }
                 RowDivider()
                 ChevronRow(
                     title = if (s.securityKey != null) stringResource(R.string.export_key_handle) else stringResource(R.string.export_private_key),
@@ -238,6 +253,10 @@ fun KeyDetailScreen(shell: ShellViewModel, keyId: String, onBack: () -> Unit) {
                 sheet = null
             }
         }
+        Sheet.OIDC -> OidcSignInDialog(s.oidc, onDismiss = { sheet = null }) { value ->
+            vm.setOidcSignIn(value)
+            sheet = null
+        }
         Sheet.EXPORT -> key?.let { k ->
             ExportDialog(k, vm, onNotify = shell::notify, onDismiss = { sheet = null })
         }
@@ -254,6 +273,40 @@ fun KeyDetailScreen(shell: ShellViewModel, keyId: String, onBack: () -> Unit) {
         )
         null -> {}
     }
+}
+
+@Composable
+private fun OidcSignInDialog(current: OidcSignIn?, onDismiss: () -> Unit, onSave: (OidcSignIn?) -> Unit) {
+    var enabled by remember { mutableStateOf(current != null) }
+    var issuer by remember { mutableStateOf(current?.issuer.orEmpty()) }
+    var clientId by remember { mutableStateOf(current?.clientId.orEmpty()) }
+    var clientSecret by remember { mutableStateOf(current?.clientSecret.orEmpty()) }
+    val valid = !enabled || (issuer.isNotBlank() && clientId.isNotBlank())
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.openid_sign_in)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    stringResource(R.string.openid_sign_in_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                SwitchRow(title = stringResource(R.string.use_openid_sign_in), checked = enabled, onCheckedChange = { enabled = it })
+                if (enabled) {
+                    FormField(issuer, { issuer = it }, stringResource(R.string.openid_issuer))
+                    FormField(clientId, { clientId = it }, stringResource(R.string.openid_client_id))
+                    SecretField(clientSecret, { clientSecret = it }, stringResource(R.string.openid_client_secret))
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(enabled = valid, onClick = {
+                onSave(if (enabled) OidcSignIn(issuer.trim(), clientId.trim(), clientSecret.trim().ifEmpty { null }) else null)
+            }) { Text(stringResource(R.string.save)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
 }
 
 @Composable

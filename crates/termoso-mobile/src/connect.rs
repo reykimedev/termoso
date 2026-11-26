@@ -760,6 +760,11 @@ async fn ssh_connect(
                     certificate,
                 });
             } else {
+                // OpenID keys present a fresh opkssh certificate first; the
+                // plain key (and its own certificate) stays as the fallback.
+                if let Some(m) = crate::oidc::auth_method(store, key, passphrase.as_ref()).await {
+                    auth.push(m);
+                }
                 auth.push(AuthMethod::Key {
                     private_key: Zeroizing::new(key.data.private_key.clone()),
                     passphrase: passphrase.clone(),

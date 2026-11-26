@@ -818,6 +818,25 @@ impl TermosoApp {
         Ok(keychain::set_certificate(&self.store, parse_id(&id)?, certificate)?.into())
     }
 
+    /// OpenID sign-in settings of a key (opkssh certificates), if switched on.
+    pub fn key_oidc_sign_in(&self, id: String) -> Result<Option<crate::OidcSignIn>> {
+        let settings = termoso_client::oidc::settings(&self.store, parse_id(&id)?)?;
+        Ok(settings.map(crate::OidcSignIn::from_settings))
+    }
+
+    /// Switch OpenID sign-in on (`Some`) or off (`None`) for an ECDSA P-256
+    /// key. Device-local: not synced.
+    pub fn set_key_oidc_sign_in(
+        &self,
+        id: String,
+        sign_in: Option<crate::OidcSignIn>,
+    ) -> Result<()> {
+        let id = parse_id(&id)?;
+        let previous = termoso_client::oidc::settings(&self.store, id)?;
+        let value = sign_in.map(|s| s.into_settings(previous));
+        Ok(termoso_client::oidc::set_settings(&self.store, id, value)?)
+    }
+
     pub fn delete_key(&self, id: String) -> Result<()> {
         let id = parse_id(&id)?;
         self.secrets.forget_passphrase(id);

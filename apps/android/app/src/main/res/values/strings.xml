@@ -563,6 +563,15 @@
     <string name="attach_certificate">Attach certificate</string>
     <string name="openssh_certificate_attached">OpenSSH certificate attached</string>
     <string name="optional_signed_public_key_from_your_ca">Optional signed public key from your CA</string>
+    <string name="openid_sign_in">OpenID sign-in (opkssh)</string>
+    <string name="openid_sign_in_off">Get a short-lived certificate from your identity provider on connect</string>
+    <string name="openid_sign_in_hint">On connect your browser opens the sign-in page of the provider, and Termoso presents this key with an opkssh certificate. Use the issuer and client ID from /etc/opk/providers on the hosts.</string>
+    <string name="use_openid_sign_in">Use OpenID sign-in</string>
+    <string name="openid_issuer">Issuer URL</string>
+    <string name="openid_client_id">Client ID</string>
+    <string name="openid_client_secret">Client secret (optional)</string>
+    <string name="openid_sign_in_turned_on">OpenID sign-in on</string>
+    <string name="openid_sign_in_turned_off">OpenID sign-in off</string>
     <string name="export_key_handle">Export key handle</string>
     <string name="export_private_key">Export private key</string>
     <string name="useless_without_the_security_key_confirmation_required">Useless without the security key — confirmation required</string>

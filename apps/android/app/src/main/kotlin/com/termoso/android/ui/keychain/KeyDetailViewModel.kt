@@ -7,6 +7,7 @@ import com.termoso.android.data.VaultRepository
 import com.termoso.android.data.userMessage
 import com.termoso.android.str
 import com.termoso.core.KeyItem
+import com.termoso.core.OidcSignIn
 import com.termoso.core.SecurityKeyCard
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,6 +20,8 @@ data class KeyDetailState(
     val key: KeyItem? = null,
     val publicKey: String = "",
     val securityKey: SecurityKeyCard? = null,
+    /** OpenID sign-in (opkssh certificates); device-local, null when off. */
+    val oidc: OidcSignIn? = null,
     val working: Boolean = false,
     val deleted: Boolean = false,
     val notice: String? = null,
@@ -41,13 +44,15 @@ class KeyDetailViewModel(private val repo: VaultRepository, private val id: Stri
         runCatching {
             repo.read {
                 val key = keys(null).firstOrNull { it.id == id } ?: error(str(R.string.key_not_found))
-                Triple(
-                    key,
-                    runCatching { publicKey(id) }.getOrDefault(key.publicKey),
-                    if (key.keyType.startsWith("sk-")) runCatching { securityKeyInfo(id) }.getOrNull() else null,
+                KeyDetailState(
+                    loading = false,
+                    key = key,
+                    publicKey = runCatching { publicKey(id) }.getOrDefault(key.publicKey),
+                    securityKey = if (key.keyType.startsWith("sk-")) runCatching { securityKeyInfo(id) }.getOrNull() else null,
+                    oidc = runCatching { keyOidcSignIn(id) }.getOrNull(),
                 )
             }
-        }.onSuccess { (k, pub, sk) -> _state.update { it.copy(loading = false, key = k, publicKey = pub, securityKey = sk) } }
+        }.onSuccess { l -> _state.update { it.copy(loading = false, key = l.key, publicKey = l.publicKey, securityKey = l.securityKey, oidc = l.oidc) } }
             .onFailure { e -> _state.update { it.copy(loading = false, notice = e.userMessage()) } }
     }
 
@@ -72,6 +77,11 @@ class KeyDetailViewModel(private val repo: VaultRepository, private val id: Stri
     fun setCertificate(text: String?) =
         mutate(if (text == null) str(R.string.certificate_removed) else str(R.string.certificate_attached)) {
             repo.write { setKeyCertificate(id, text?.trim()?.takeIf { it.isNotEmpty() }) }
+        }
+
+    fun setOidcSignIn(value: OidcSignIn?) =
+        mutate(if (value == null) str(R.string.openid_sign_in_turned_off) else str(R.string.openid_sign_in_turned_on)) {
+            repo.write { setKeyOidcSignIn(id, value) }
         }
 
     fun delete() {

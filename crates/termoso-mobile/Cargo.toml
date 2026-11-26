@@ -14,7 +14,7 @@ name = "termoso_mobile"
 
 [dependencies]
 termoso-core = { workspace = true, features = ["local-pty", "fido2-ctap"] }
-termoso-client = { workspace = true }
+termoso-client = { workspace = true, features = ["oidc-cert"] }
 termoso-proto = { workspace = true }
 termoso-crypto = { workspace = true }
 
