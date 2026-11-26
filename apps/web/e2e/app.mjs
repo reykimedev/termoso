@@ -252,6 +252,50 @@ try {
     `snippet with a package, targets and a quiet run; history kept (${JSON.stringify(snip)})`,
   );
 
+  // ── OpenID (opkssh) key: a provider in the host's vault, a sign-in, a certificate offered ──
+  const sshdLog = process.env.HATCH_E2E_SSHD_LOG ?? "/tmp/claude-0/sshd/sshd.log";
+  const logBefore = existsSync(sshdLog) ? readFileSync(sshdLog, "utf8").length : 0;
+  const opk = await b.evaluate(async () => {
+    const ipc = window.__TAURI_INTERNALS__;
+    const [host] = (await ipc.invoke("hosts_list", { vaultId: null })).filter((h) => h.label === "test-vm");
+    const vaultId = host.vaultId ?? host.vault_id;
+    const provider = await ipc.invoke("oidc_provider_save", {
+      vaultId,
+      id: null,
+      provider: { label: "", issuer: "http://localhost:9400/", client_id: "hatch", default: true },
+    });
+    const key = await ipc.invoke("key_create_opkssh", { form: { vaultId, label: "work sign-in", oidc: {} } });
+    const signedIn = await ipc.invoke("key_oidc_sign_in", { id: key.id });
+    const session = await ipc.invoke("key_oidc_session", { id: key.id });
+    const form = await ipc.invoke("host_form", { id: host.id });
+    const before = form.sshKeyId;
+    await ipc.invoke("host_save", { form: { ...form, sshKeyId: key.id, password: null, totpSecret: null } });
+    const snippet = await ipc.invoke("snippet_save", { form: { id: null, vaultId, label: "who", script: "whoami" } });
+    const run = await ipc.invoke("snippet_run_quiet", { id: snippet.id, hostIds: [host.id], vars: {} });
+    await ipc.invoke("snippet_delete", { id: snippet.id });
+    const again = await ipc.invoke("host_form", { id: host.id });
+    await ipc.invoke("host_save", { form: { ...again, sshKeyId: before, password: null, totpSecret: null } });
+    await ipc.invoke("key_oidc_sign_out", { id: key.id });
+    const after = await ipc.invoke("key_oidc_session", { id: key.id });
+    await ipc.invoke("key_delete", { id: key.id });
+    await ipc.invoke("oidc_provider_delete", { id: provider.id });
+    return {
+      label: provider.data.label,
+      opkssh: key.opkssh,
+      identity: signedIn.identity,
+      session: session?.identity,
+      exit: run.results[0].exitCode,
+      error: run.results[0].error,
+      signedOut: after === null,
+    };
+  });
+  const offered = existsSync(sshdLog) && /ECDSA-CERT/.test(readFileSync(sshdLog, "utf8").slice(logBefore));
+  check(
+    opk.label === "http://localhost:9400/" && opk.opkssh && opk.identity === "dev@example.com" &&
+      opk.session === "dev@example.com" && opk.exit === 0 && opk.error === null && opk.signedOut && offered,
+    `OpenID key signs in with its vault's provider and offers an opkssh certificate (${JSON.stringify({ ...opk, offered })})`,
+  );
+
   // ── Migration: an encrypted backup from B restores in a browser without an account ──
   const openAccountPage = async (page) => {
     await page.getByText("Settings", { exact: true }).first().click();

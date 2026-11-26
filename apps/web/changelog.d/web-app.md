@@ -10,3 +10,4 @@ SFTP in the browser over the relay, with the same host-key check: browse, upload
 The example Kubernetes manifests configure the real app: `config.json` from a ConfigMap, the relay's Authentik and origin settings, and its egress to Authentik.
 Snippets in the browser: packages, `{{variables}}`, target hosts, copy to another vault, running in open terminals, and quiet runs over an exec channel with output, errors and exit code
 Connection and command history, kept in this browser only and never synced
+OpenID (opkssh) keys from the Termoso fork: providers per vault, a sign-in per key in a pop-up, and setting up opkssh on a host; the relay's sign-in no longer offers a certificate to every host

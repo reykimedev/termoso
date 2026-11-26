@@ -1,8 +1,8 @@
-// Authentik (any OpenID Connect provider) on the first connect of a browser session:
-// authorization code with PKCE in a pop-up, no client secret. The nonce commits to a fresh opkssh
-// key (hatch-wasm), so the one sign-in gives the relay its ID token and the hosts an opkssh
-// certificate. Tokens stay in memory; a reload signs in again (silently, while Authentik's own
-// session lasts).
+// OpenID Connect sign-ins: authorization code with PKCE in a pop-up, no client secret. The relay's
+// Authentik (config.json) signs in on the first connect of a browser session; an opkssh key signs
+// in with its vault's provider (opkssh.ts). Each nonce commits to a fresh P-256 key in hatch-wasm,
+// so the ID token becomes an opkssh certificate. Tokens stay in memory; a reload signs in again
+// (silently, while the provider's own session lasts).
 import { config } from "./config";
 import { fail } from "./errors";
 import { tr } from "@/i18n";
@@ -23,8 +23,6 @@ interface Tokens {
 let discovery: Discovery | null = null;
 let tokens: Tokens | null = null;
 let signingIn: Promise<Tokens> | null = null;
-/** The opkssh certificate line of this tab's sign-in, for the keychain view. */
-let opkCertificate: string | null = null;
 
 /** A claim or field as text; objects and missing values are "". */
 const text = (v: unknown): string =>
@@ -40,24 +38,36 @@ function claims(jwt: string): Record<string, unknown> {
   ) as Record<string, unknown>;
 }
 
-async function discover(): Promise<Discovery> {
-  if (discovery) return discovery;
-  const c = config();
-  if (!c.oidcIssuer || !c.oidcClientId)
-    fail("not_configured", "This Hatch has no sign-in provider configured (config.json).");
-  const res = await fetch(`${c.oidcIssuer.replace(/\/+$/, "")}/.well-known/openid-configuration`);
+const discoveries = new Map<string, Discovery>();
+
+/** The provider's discovery document; its `issuer` must be the one we asked for. */
+export async function discoverIssuer(issuer: string): Promise<Discovery> {
+  const hit = discoveries.get(issuer);
+  if (hit) return hit;
+  const res = await fetch(`${issuer.replace(/\/+$/, "")}/.well-known/openid-configuration`, {
+    credentials: "omit",
+  }).catch(() => fail("network", "Cannot reach the sign-in provider at {url}", { url: issuer }));
   if (!res.ok)
     fail("oidc", "Cannot read the sign-in provider's configuration (HTTP {status})", {
       status: res.status,
     });
   const d = (await res.json()) as Discovery;
-  if (d.issuer !== c.oidcIssuer)
+  if (d.issuer !== issuer)
     fail("oidc", "The provider calls itself {issuer}, not {expected}", {
       issuer: d.issuer,
-      expected: c.oidcIssuer,
+      expected: issuer,
     });
-  discovery = d;
+  discoveries.set(issuer, d);
   return d;
+}
+
+async function discover(): Promise<Discovery> {
+  if (discovery) return discovery;
+  const c = config();
+  if (!c.oidcIssuer || !c.oidcClientId)
+    fail("not_configured", "This Hatch has no sign-in provider configured (config.json).");
+  discovery = await discoverIssuer(c.oidcIssuer);
+  return discovery;
 }
 
 export function redirectUri(): string {
@@ -103,19 +113,24 @@ async function postForm(url: string, form: string): Promise<Record<string, unkno
   return body;
 }
 
-async function interactive(): Promise<Tokens> {
-  const c = config();
-  const d = await discover();
+export interface Provider {
+  issuer: string;
+  clientId: string;
+  /** Besides openid, profile and email. */
+  scopes: string[];
+}
+
+/** One pop-up sign-in; `finish` checks the ID token against the login's key and keeps the key. */
+export async function popupLogin<T>(
+  p: Provider,
+  finish: (login: InstanceType<typeof w.OidcLogin>, idToken: string) => T,
+): Promise<{ result: T; idToken: string; refreshToken: string | null }> {
+  const d = await discoverIssuer(p.issuer);
   await import("./wasm").then((m) => m.loadWasm());
-  const scopes = [
-    "openid",
-    "profile",
-    "email",
-    ...(c.oidcScopes ?? "").split(/\s+/).filter(Boolean),
-  ];
+  const scopes = ["openid", "profile", "email", ...p.scopes.filter(Boolean)];
   const login = new w.OidcLogin(
-    c.oidcIssuer,
-    c.oidcClientId,
+    p.issuer,
+    p.clientId,
     [...new Set(scopes)].join(" "),
     d.authorization_endpoint,
     d.token_endpoint,
@@ -134,10 +149,10 @@ async function interactive(): Promise<Tokens> {
     const idToken = text(t.id_token);
     if (!idToken) fail("oidc", "The provider sent no ID token");
     // Checks issuer, audience, expiry and the nonce that binds the token to the opkssh key.
-    opkCertificate = login.finish(idToken, BigInt(now()));
+    const result = finish(login, idToken);
     return {
+      result,
       idToken,
-      exp: Number(claims(idToken).exp ?? 0),
       refreshToken: typeof t.refresh_token === "string" ? t.refresh_token : null,
     };
   } catch (e) {
@@ -148,6 +163,23 @@ async function interactive(): Promise<Tokens> {
     }
     throw e;
   }
+}
+
+async function interactive(): Promise<Tokens> {
+  const c = config();
+  const r = await popupLogin(
+    {
+      issuer: c.oidcIssuer,
+      clientId: c.oidcClientId,
+      scopes: (c.oidcScopes ?? "").split(/\s+/),
+    },
+    (login, idToken) => login.finish(idToken, BigInt(now())),
+  );
+  return {
+    idToken: r.idToken,
+    exp: Number(claims(r.idToken).exp ?? 0),
+    refreshToken: r.refreshToken,
+  };
 }
 
 async function refresh(t: Tokens): Promise<Tokens | null> {
@@ -202,13 +234,8 @@ export function identity(): { name: string; groups: string[] } | null {
   };
 }
 
-export function certificate(): string | null {
-  return opkCertificate;
-}
-
 export function forget(): void {
   tokens = null;
-  opkCertificate = null;
   try {
     w.forgetOpkssh();
   } catch {

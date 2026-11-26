@@ -1,9 +1,10 @@
-//! opkssh sign-in: one Authentik login per browser session gives both the relay's ID token and an
-//! opkssh certificate. The login's nonce commits to a fresh P-256 key (OpenPubkey), so the ID
-//! token itself becomes the certificate's proof. The key lives in this module's memory for the
-//! life of the tab and never reaches JavaScript.
+//! opkssh sign-in. The login's nonce commits to a fresh P-256 key (OpenPubkey), so the ID token
+//! itself becomes the certificate's proof. Each key and certificate lives in this module's memory
+//! for the life of the tab, under a slot: "" for the relay's sign-in, an opkssh key's id for that
+//! key's provider. Private keys never reach JavaScript.
 
 use std::cell::RefCell;
+use std::collections::HashMap;
 use termoso_oidc_cert::flow::{Discovery, LoginRequest, ProviderConfig};
 use termoso_oidc_cert::sshcert::{self, CertOptions};
 use wasm_bindgen::prelude::*;
@@ -11,12 +12,22 @@ use wasm_bindgen::prelude::*;
 use russh::keys::{Certificate, PrivateKey};
 
 thread_local! {
-    static CURRENT: RefCell<Option<(PrivateKey, Certificate)>> = const { RefCell::new(None) };
+    static SLOTS: RefCell<HashMap<String, (PrivateKey, Certificate)>> = RefCell::new(HashMap::new());
 }
 
-/// The opkssh key and certificate of this tab, if the user has signed in.
-pub fn current() -> Option<(PrivateKey, Certificate)> {
-    CURRENT.with(|c| c.borrow().clone())
+/// The opkssh key and certificate in `slot`, if signed in there.
+pub fn current(slot: &str) -> Option<(PrivateKey, Certificate)> {
+    SLOTS.with(|c| c.borrow().get(slot).cloned())
+}
+
+/// What a sign-in vouched for, for the page.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Signed {
+    certificate: String,
+    identity: String,
+    iat: Option<u64>,
+    exp: Option<u64>,
 }
 
 fn js(e: impl std::fmt::Display) -> JsValue {
@@ -88,19 +99,64 @@ impl OidcLogin {
     /// Checks the ID token (issuer, audience, the nonce that commits to our key, expiry), builds
     /// the opkssh certificate and keeps it with the key for this tab. Returns the certificate line.
     pub fn finish(self, id_token: &str, now: u64) -> Result<String, JsValue> {
+        Ok(self
+            .sign("", id_token, now, CertOptions::default())?
+            .certificate)
+    }
+
+    /// As `finish`, kept in `slot` (an opkssh key's id) with these principals (none: opkssh's
+    /// wildcard). Returns `{certificate, identity, iat, exp}`.
+    #[wasm_bindgen(js_name = finishFor)]
+    pub fn finish_for(
+        self,
+        slot: &str,
+        id_token: &str,
+        now: u64,
+        principals: Vec<String>,
+    ) -> Result<JsValue, JsValue> {
+        let mut opts = CertOptions::default();
+        if !principals.is_empty() {
+            opts.principals = principals;
+        }
+        let signed = self.sign(slot, id_token, now, opts)?;
+        serde_wasm_bindgen::to_value(&signed).map_err(js)
+    }
+
+    fn sign(
+        self,
+        slot: &str,
+        id_token: &str,
+        now: u64,
+        opts: CertOptions,
+    ) -> Result<Signed, JsValue> {
         let pkt = self
             .req
             .finish(&self.cfg, &self.key, id_token, now)
             .map_err(js)?;
-        let cert = sshcert::certificate(&pkt, &self.key, &CertOptions::default()).map_err(js)?;
-        let line = cert.to_openssh().map_err(js)?;
-        CURRENT.with(|c| *c.borrow_mut() = Some((self.key, cert)));
-        Ok(line)
+        let cert = sshcert::certificate(&pkt, &self.key, &opts).map_err(js)?;
+        let signed = Signed {
+            certificate: cert.to_openssh().map_err(js)?,
+            identity: pkt
+                .claims
+                .email
+                .clone()
+                .unwrap_or_else(|| pkt.claims.sub.clone()),
+            iat: pkt.claims.iat,
+            exp: pkt.claims.exp,
+        };
+        SLOTS.with(|c| c.borrow_mut().insert(slot.to_string(), (self.key, cert)));
+        Ok(signed)
     }
 }
 
-/// Forgets the opkssh key (lock, sign-out).
+/// Forgets every opkssh key (lock, sign-out).
 #[wasm_bindgen(js_name = forgetOpkssh)]
 pub fn forget() {
-    CURRENT.with(|c| *c.borrow_mut() = None);
+    SLOTS.with(|c| c.borrow_mut().clear());
+}
+
+/// Forgets the opkssh key in `slot` (signing out of one key).
+#[wasm_bindgen(js_name = forgetOpksshSlot)]
+pub fn forget_slot(slot: &str) {
+    SLOTS.with(|c| c.borrow_mut().remove(slot));
 }

@@ -6,10 +6,11 @@ import { config } from "./config";
 import { asDesktopError, fail } from "./errors";
 import { tr } from "@/i18n";
 import * as oidc from "./oidc";
+import * as opkssh from "./opkssh";
 import * as history from "./history";
 import * as policy from "./policy";
-import { type Resolved, pins, resolve } from "./model";
-import { type Uuid, changed, isUnlocked, s } from "./state";
+import { type Resolved, type SshKey, pins, resolve } from "./model";
+import { type Uuid, changed, isUnlocked, require, s } from "./state";
 import { loadWasm, w } from "./wasm";
 
 interface OutputChannel {
@@ -145,7 +146,9 @@ function planFor(target: Target): Plan {
     fail("forbidden", "team policy requires a jump host for this host; add one to its chain");
   const keysOnly = policy.keysOnly(r.host.vaultId);
   const auth: Record<string, unknown>[] = [];
-  if (r.key) {
+  // An OpenID key signs in with its provider right before connecting (`prepare`).
+  if (r.key && opkssh.isOpkssh(r.key.data)) auth.push({ type: "opksshKey", keyId: r.key.id });
+  else if (r.key) {
     auth.push({
       type: "publicKey",
       privateKey: r.key.data.private_key,
@@ -210,8 +213,11 @@ export async function prepare(id: Uuid, target: Target) {
   }
   await loadWasm();
   const url = await ticket(plan.address, plan.port);
-  const auth = [...plan.auth];
-  if (oidc.certificate()) auth.push({ type: "opkssh" });
+  const auth: Record<string, unknown>[] = [];
+  for (const m of plan.auth) {
+    if (m.type !== "opksshKey") auth.push(m);
+    else auth.push(await opkssh.preConnect(require<SshKey>(String(m.keyId), "ssh_key")));
+  }
   if (!plan.keysOnly) {
     if (plan.password) auth.push({ type: "password", password: plan.password });
     auth.push({ type: "keyboardInteractive" }, { type: "askPassword" });
