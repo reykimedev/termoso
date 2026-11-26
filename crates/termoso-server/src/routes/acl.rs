@@ -10,7 +10,7 @@ use axum::Json;
 use axum::extract::{Path, Query, State};
 
 use super::paging::PageQuery;
-use termoso_proto::team::{
+use labterm_proto::team::{
     EntityAclResponse, EntityAclRule, MyAclResponse, MyAclRule, UpsertEntityAclRequest,
 };
 use uuid::Uuid;

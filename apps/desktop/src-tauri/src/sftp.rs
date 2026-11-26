@@ -10,14 +10,14 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use chrono::{DateTime, Utc};
+use labterm_core::error::CoreError;
+use labterm_core::offline_fs::{CacheTarget, CachingFs, OfflineFs};
+use labterm_core::remote::{RemoteCapabilities, RemoteFs, RemoteProtocol, relay_file};
+use labterm_core::sftp::{EntryKind, Progress, RemoteEntry, Sftp, TransferOptions};
+use labterm_core::ssh::SshClient;
+use labterm_proto::entities::payload::Host;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager, Runtime};
-use termoso_core::error::CoreError;
-use termoso_core::offline_fs::{CacheTarget, CachingFs, OfflineFs};
-use termoso_core::remote::{RemoteCapabilities, RemoteFs, RemoteProtocol, relay_file};
-use termoso_core::sftp::{EntryKind, Progress, RemoteEntry, Sftp, TransferOptions};
-use termoso_core::ssh::SshClient;
-use termoso_proto::entities::payload::Host;
 use tokio::sync::Semaphore;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
@@ -1660,7 +1660,7 @@ async fn read_side(state: &AppState, side: &DiffSide) -> Result<Vec<u8>> {
         Some(id) => {
             let fs = state.sftp.sftp(id)?;
             let entry = fs.stat(&side.path).await?;
-            if entry.kind == termoso_core::sftp::EntryKind::Dir {
+            if entry.kind == labterm_core::sftp::EntryKind::Dir {
                 return Err(DesktopError::invalid(format!(
                     "{} is a directory",
                     side.path

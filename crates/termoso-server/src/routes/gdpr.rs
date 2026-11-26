@@ -5,7 +5,7 @@
 use axum::Json;
 use axum::extract::{Path, State};
 use chrono::{DateTime, Duration, Utc};
-use termoso_proto::team::{ScheduleTeamDeletionRequest, TeamDataStatus, TeamRole};
+use labterm_proto::team::{ScheduleTeamDeletionRequest, TeamDataStatus, TeamRole};
 use uuid::Uuid;
 
 use crate::audit;

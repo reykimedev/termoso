@@ -64,7 +64,7 @@ Distribution notes:
 
 * **macOS** builds are ad-hoc signed unless the release is configured with a
   Developer ID, so the first launch needs right-click → *Open* (or
-  `xattr -cr /Applications/Termoso.app`). Details in
+  `xattr -cr /Applications/Labterm.app`). Details in
   [docs/RELEASING.md](docs/RELEASING.md#macos-signing-and-gatekeeper).
 * **iOS** has no App Store listing. Every release ships an unsigned `.ipa` and
   an AltStore/SideStore source (`termoso-altstore.json`); the store app signs
@@ -78,15 +78,15 @@ Distribution notes:
 ```
 Cargo.toml              Rust workspace (edition 2024, rust-version 1.94)
 crates/
-  termoso-crypto        OPAQUE, Argon2id, XChaCha20-Poly1305, X25519 sealed boxes, BIP39-style recovery key
-  termoso-proto         API request/response types shared by server and clients
+  labterm-crypto        OPAQUE, Argon2id, XChaCha20-Poly1305, X25519 sealed boxes, BIP39-style recovery key
+  labterm-proto         API request/response types shared by server and clients
   termoso-server        API server: axum + PostgreSQL (sqlx) + Redis + S3-compatible storage
-  termoso-core          client engine: encrypted SQLite store, SSH/SFTP/WebDAV/S3/Mosh/Telnet/Serial/PTY,
+  labterm-core          client engine: encrypted SQLite store, SSH/SFTP/WebDAV/S3/Mosh/Telnet/Serial/PTY,
                         port forwarding, SSH agent, FIDO2 (CTAP2 over HID/NFC), account + sync client
-  termoso-client        higher-level client modules shared by desktop and mobile (keychain, snippets, …)
-  termoso-mobile        UniFFI façade over termoso-core for Android (JNI) and iOS (Swift)
+  labterm-client        higher-level client modules shared by desktop and mobile (keychain, snippets, …)
+  labterm-mobile        UniFFI façade over labterm-core for Android (JNI) and iOS (Swift)
   termoso-bridge        API Bridge: headless client with a Termius-compatible REST API and an MCP server
-  termoso-wasm          termoso-crypto compiled to WebAssembly for the web cabinet
+  labterm-wasm          labterm-crypto compiled to WebAssembly for the web cabinet
 apps/
   desktop/              Tauri 2 app: Rust owns state, storage and sessions; React + MUI renders
   android/              Gradle project; :core builds the Rust library with cargo-ndk, :app is Compose
@@ -109,11 +109,11 @@ scripts/check.sh        runs the same checks as CI, per component
 ```
  ┌────────────── clients ──────────────┐        ┌──────────── server ────────────┐
  │ desktop (Tauri)   React/MUI webview │        │ termoso-server (axum)          │
- │   └─ termoso-core ──────────────────┼─ HTTPS ┼─► /api/v1  REST + WebSocket    │
- │ android (Compose) ─ termoso-mobile  │  + WS  │   PostgreSQL  accounts, teams, │
- │ ios (SwiftUI) ───── termoso-mobile  │        │               ciphertext, logs │
- │ bridge (headless) ─ termoso-core    │        │   Redis       sessions cache,  │
- │ web cabinet ─────── termoso-wasm    │        │               rate limits, bus │
+ │   └─ labterm-core ──────────────────┼─ HTTPS ┼─► /api/v1  REST + WebSocket    │
+ │ android (Compose) ─ labterm-mobile  │  + WS  │   PostgreSQL  accounts, teams, │
+ │ ios (SwiftUI) ───── labterm-mobile  │        │               ciphertext, logs │
+ │ bridge (headless) ─ labterm-core    │        │   Redis       sessions cache,  │
+ │ web cabinet ─────── labterm-wasm    │        │               rate limits, bus │
  └─────────────────────────────────────┘        │   S3          session logs     │
         every client encrypts locally           └────────────────────────────────┘
         with per-vault keys; the server            stateless: scale by replicas
@@ -121,14 +121,14 @@ scripts/check.sh        runs the same checks as CI, per component
 ```
 
 * **Clients are the source of truth.** Hosts, keys, snippets and settings live
-  in an encrypted SQLite store on the device (`termoso-core::store`). Sync is
+  in an encrypted SQLite store on the device (`labterm-core::store`). Sync is
   optional and works offline-first: changes queue locally and reconcile by
   version with tombstones.
 * **The server never sees plaintext vault data.** It authenticates, stores
   ciphertext, hands out sealed vault keys to members and fans out change
   notifications over Redis pub/sub to WebSocket subscribers.
-* **One core, three UIs.** `termoso-core` is used directly by the desktop
-  (Tauri commands) and the bridge, and through `termoso-mobile` (UniFFI) by
+* **One core, three UIs.** `labterm-core` is used directly by the desktop
+  (Tauri commands) and the bridge, and through `labterm-mobile` (UniFFI) by
   Android and iOS. Feature parity gaps are UI work, not protocol work.
 
 A longer walk-through of the crates, the sync protocol and the client runtime
@@ -313,11 +313,11 @@ and run with `TERMOSO_WEB_DIR=web/dist`.
 ```bash
 cd web
 npm ci
-npm run wasm      # builds crates/termoso-wasm → src/crypto/pkg (generated, git-ignored)
+npm run wasm      # builds crates/labterm-wasm → src/crypto/pkg (generated, git-ignored)
 npm run dev       # http://localhost:5173, proxies /api to the server on :8080
 ```
 
-Re-run `npm run wasm` after changing `termoso-crypto` or `termoso-wasm`. The
+Re-run `npm run wasm` after changing `labterm-crypto` or `labterm-wasm`. The
 cabinet talks to `/api/v1` on its own origin only — there are no third-party
 scripts, fonts or analytics (the one exception is the optional Cloudflare
 Turnstile captcha on sign-up, loaded only when the operator configured keys).
@@ -382,13 +382,13 @@ signing certificate through `TERMOSO_ANDROID_APP_LINKS`.
 
 ```bash
 cd apps/ios
-./build-core.sh                 # Rust → TermosoCoreFFI.xcframework + TermosoCore.swift (simulator)
-xcodegen generate               # Termoso.xcodeproj
-open Termoso.xcodeproj          # or: xcodebuild -scheme Termoso -destination 'platform=iOS Simulator,name=iPhone 16'
+./build-core.sh                 # Rust → LabtermCoreFFI.xcframework + LabtermCore.swift (simulator)
+xcodegen generate               # Labterm.xcodeproj
+open Labterm.xcodeproj          # or: xcodebuild -scheme Labterm -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
 
 `./build-core.sh --release --device` produces the device slice used by the
-release workflow. Generated files (`Termoso.xcodeproj`, the xcframework, the
+release workflow. Generated files (`Labterm.xcodeproj`, the xcframework, the
 Swift bindings) are git-ignored.
 
 ## Tests and checks

@@ -17,7 +17,7 @@ val rustNdkHome: String? = System.getenv("ANDROID_NDK_HOME")
         ?.let { sdk -> File(sdk, "ndk").listFiles()?.filter { it.isDirectory }?.maxByOrNull { it.name }?.absolutePath }
 
 android {
-    namespace = "com.termoso.core"
+    namespace = "dev.labdex.labterm.core"
     compileSdk = 36
 
     defaultConfig {
@@ -35,7 +35,7 @@ android {
 }
 
 /**
- * `cargo ndk build` of crates/termoso-mobile for every ABI in `termoso.abis`.
+ * `cargo ndk build` of crates/labterm-mobile for every ABI in `termoso.abis`.
  * Always runs (cargo is incremental itself and tracks the whole workspace). An unstripped
  * copy of the first ABI's library is kept for uniffi-bindgen (it reads the UniFFI metadata
  * from the symbol table); the packaged libraries are stripped with the NDK's llvm-strip —
@@ -59,7 +59,7 @@ abstract class CargoNdkBuild @Inject constructor(private val exec: ExecOperation
     fun run() {
         val args = mutableListOf("cargo", "ndk")
         abis.get().forEach { args += listOf("-t", it) }
-        args += listOf("-o", outDir.get().asFile.absolutePath, "build", "-p", "termoso-mobile")
+        args += listOf("-o", outDir.get().asFile.absolutePath, "build", "-p", "labterm-mobile")
         // The workspace release profile strips the symbol table, which also drops the UniFFI metadata.
         if (release.get()) args += listOf("--release", "--config", "profile.release.strip=\"debuginfo\"")
         outDir.get().asFile.deleteRecursively()
@@ -82,7 +82,7 @@ abstract class CargoNdkBuild @Inject constructor(private val exec: ExecOperation
     }
 }
 
-/** Kotlin bindings from the compiled library's UniFFI metadata; crates/termoso-mobile/uniffi.toml sets the package. */
+/** Kotlin bindings from the compiled library's UniFFI metadata; crates/labterm-mobile/uniffi.toml sets the package. */
 abstract class UniffiBindgen @Inject constructor(private val exec: ExecOperations) : DefaultTask() {
     @get:Internal abstract val workspace: DirectoryProperty
     @get:InputFile @get:PathSensitive(PathSensitivity.NONE) abstract val library: RegularFileProperty
@@ -109,7 +109,7 @@ androidComponents {
         val cap = variant.name.replaceFirstChar { it.uppercase() }
         val cargo = tasks.register<CargoNdkBuild>("cargoNdkBuild$cap") {
             group = "rust"
-            description = "cargo ndk build of termoso-mobile (${variant.name})"
+            description = "cargo ndk build of labterm-mobile (${variant.name})"
             abis.set(rustAbis)
             release.set(isRelease)
             ndkHome.set(rustNdkHome)
@@ -119,7 +119,7 @@ androidComponents {
         }
         val bindgen = tasks.register<UniffiBindgen>("uniffiBindgen$cap") {
             group = "rust"
-            description = "Generate Kotlin bindings for termoso-mobile (${variant.name})"
+            description = "Generate Kotlin bindings for labterm-mobile (${variant.name})"
             workspace.set(workspaceDir)
             library.set(cargo.flatMap { it.metaLibrary })
             outDir.set(layout.buildDirectory.dir("rust/${variant.name}/kotlin"))

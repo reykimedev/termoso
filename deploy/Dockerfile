@@ -7,7 +7,7 @@
 
 ARG WASM_PACK_VERSION=0.15.0
 
-# ── termoso-crypto → WebAssembly for the browser ─────────────────────────────
+# ── labterm-crypto → WebAssembly for the browser ─────────────────────────────
 FROM rust:1-bookworm AS wasm
 ARG WASM_PACK_VERSION
 WORKDIR /src
@@ -30,8 +30,8 @@ COPY crates ./crates
 COPY apps/desktop/src-tauri ./apps/desktop/src-tauri
 RUN --mount=type=cache,id=cargo-registry-wasm,target=/usr/local/cargo/registry \
     --mount=type=cache,id=target-wasm,target=/src/target \
-    wasm-pack build crates/termoso-wasm --release --target web \
-      --out-dir /out/pkg --out-name termoso_wasm
+    wasm-pack build crates/labterm-wasm --release --target web \
+      --out-dir /out/pkg --out-name labterm_wasm
 
 # ── web cabinet (Vite) ───────────────────────────────────────────────────────
 FROM node:22-bookworm-slim AS web

@@ -1,15 +1,15 @@
 //! Master password and App Lock.
 //!
 //! The vault is always encrypted with a random device key; the password only
-//! wraps that key on disk (`master.pw`, see `termoso_core::secrets`). While the
+//! wraps that key on disk (`master.pw`, see `labterm_core::secrets`). While the
 //! vault is locked the `Store` — and with it the key — is gone from memory, so
 //! every vault command fails with `locked` until the password is entered.
 
+use labterm_core::secrets::{MIN_PASSWORD_CHARS, MasterKeySource};
 use serde::Serialize;
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager, Runtime, State};
-use termoso_core::secrets::{MIN_PASSWORD_CHARS, MasterKeySource};
 use zeroize::Zeroizing;
 
 use crate::error::{DesktopError, Result};

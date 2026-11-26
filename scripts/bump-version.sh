@@ -43,7 +43,7 @@ f=packaging/flatpak/dev.termoso.Termoso.yml
 sed -i "s|/archive/refs/tags/v$old\.tar\.gz|/archive/refs/tags/v$new.tar.gz|; s|^\(        sha256: \).*|\1REPLACE_WITH_RELEASE_TARBALL_SHA256|" "$f"
 sed -i "s|raw.githubusercontent.com/termoso/termoso/v$old/|raw.githubusercontent.com/termoso/termoso/v$new/|g; s|  <releases>|  <releases>\n    <release version=\"$new\" date=\"$today\" />|" packaging/flatpak/dev.termoso.Termoso.metainfo.xml
 
-f=packaging/fdroid/com.termoso.android.yml
+f=packaging/fdroid/dev.labdex.labterm.yml
 python3 - "$f" "$old" "$new" "$code" <<'PY'
 import re, sys
 path, old, new, code = sys.argv[1:]

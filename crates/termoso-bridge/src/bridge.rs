@@ -4,14 +4,14 @@
 use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
-use serde::Serialize;
-use termoso_crypto::keys::KeyPair;
-use termoso_crypto::sealed;
-use termoso_proto::bridge::BridgeSelf;
-use termoso_proto::entities::payload::{
+use labterm_crypto::keys::KeyPair;
+use labterm_crypto::sealed;
+use labterm_proto::bridge::BridgeSelf;
+use labterm_proto::entities::payload::{
     Group, Host, Identity, S3Config, Snippet, SshConfig, SshKey, Tag, TelnetConfig, WebDavConfig,
 };
-use termoso_proto::sync::{EntityChange, EntityDelete, PullRequest, PushRequest, PushResult};
+use labterm_proto::sync::{EntityChange, EntityDelete, PullRequest, PushRequest, PushResult};
+use serde::Serialize;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
@@ -111,7 +111,7 @@ impl Bridge {
             .vaults
             .get(&vault_id)
             .ok_or_else(|| BridgeError::NotFound("vault".into()))?;
-        let h: termoso_proto::entities::payload::Host = v
+        let h: labterm_proto::entities::payload::Host = v
             .get(host_id, "host")
             .ok_or_else(|| BridgeError::NotFound("host".into()))?;
         let port = crate::exec::effective_ssh(v, &h)

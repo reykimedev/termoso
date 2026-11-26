@@ -1,7 +1,7 @@
-import init, * as wasm from "./pkg/termoso_wasm";
+import init, * as wasm from "./pkg/labterm_wasm";
 import wasmUrl from "./pkg/termoso_wasm_bg.wasm?url";
 
-export type { GeneratedKeyPair, NewAccountKeys, RecoveryRotation } from "./pkg/termoso_wasm";
+export type { GeneratedKeyPair, NewAccountKeys, RecoveryRotation } from "./pkg/labterm_wasm";
 
 let ready: Promise<void> | null = null;
 

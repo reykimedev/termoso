@@ -1,14 +1,14 @@
 //! Fine-grained team permissions. A member holds exactly one role; a role is a
-//! set of `domain.action` keys (see `termoso_proto::team::PERMISSIONS`). The
+//! set of `domain.action` keys (see `labterm_proto::team::PERMISSIONS`). The
 //! owner always has everything regardless of role contents.
 
 use std::collections::HashSet;
 
-use sqlx::PgExecutor;
-use termoso_proto::error::codes;
-use termoso_proto::team::{
+use labterm_proto::error::codes;
+use labterm_proto::team::{
     CLIENT_ENFORCED_PERMISSIONS, PERMISSIONS, PermissionInfo, RoleRef, TeamRole,
 };
+use sqlx::PgExecutor;
 use uuid::Uuid;
 
 use crate::error::{ApiResult, Error};
@@ -108,7 +108,7 @@ pub async fn require(
 /// Validate a permission set for a custom/admin role: known keys only, no
 /// owner-only keys, deduplicated and sorted.
 pub fn normalize_permissions(perms: &[String]) -> ApiResult<Vec<String>> {
-    use termoso_proto::team::{OWNER_ONLY_PERMISSIONS, is_permission};
+    use labterm_proto::team::{OWNER_ONLY_PERMISSIONS, is_permission};
     let mut set = HashSet::new();
     for p in perms {
         let p = p.trim();
@@ -813,7 +813,7 @@ mod tests {
         for (slug, _, _, perms, _) in BUILTIN_ROLES {
             for p in *perms {
                 assert!(
-                    *p == "*" || termoso_proto::team::is_permission(p),
+                    *p == "*" || labterm_proto::team::is_permission(p),
                     "{slug}: unknown {p}"
                 );
             }
@@ -826,7 +826,7 @@ mod tests {
         for (slug, _, _, perms, _) in BUILTIN_ROLES {
             for p in *perms {
                 assert!(
-                    *p == "*" || termoso_proto::team::is_permission(p),
+                    *p == "*" || labterm_proto::team::is_permission(p),
                     "{slug}: {p}"
                 );
             }

@@ -7,18 +7,18 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter, Manager, Runtime};
-use termoso_core::account::{
+use labterm_core::account::{
     self as core, LoginFlow, LoginStep, ReauthFlow, ReauthStep, RegisterInput,
 };
-use termoso_core::api::ApiClient;
-use termoso_core::store::{EntityFilter, LocalVault, StoredAccount};
-use termoso_core::sync::{SyncEngine, SyncEvent, SyncOptions, SyncReport};
-use termoso_proto::account::ServerInfo;
-use termoso_proto::auth::{Device, MfaCredential, MfaMethod, SsoResult};
-use termoso_proto::entities::is_credential_kind;
-use termoso_proto::vault::VaultMember;
+use labterm_core::api::ApiClient;
+use labterm_core::store::{EntityFilter, LocalVault, StoredAccount};
+use labterm_core::sync::{SyncEngine, SyncEvent, SyncOptions, SyncReport};
+use labterm_proto::account::ServerInfo;
+use labterm_proto::auth::{Device, MfaCredential, MfaMethod, SsoResult};
+use labterm_proto::entities::is_credential_kind;
+use labterm_proto::vault::VaultMember;
+use serde::{Deserialize, Serialize};
+use tauri::{AppHandle, Emitter, Manager, Runtime};
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
@@ -287,7 +287,7 @@ fn device_name() -> String {
         .unwrap_or_else(|| "Termoso Desktop".into())
 }
 
-fn device(state: &AppState) -> Result<termoso_proto::auth::DeviceInfo> {
+fn device(state: &AppState) -> Result<labterm_proto::auth::DeviceInfo> {
     Ok(core::device_info(
         &*state.store()?,
         &device_name(),
@@ -423,7 +423,7 @@ pub async fn login<R: Runtime>(app: &AppHandle<R>, form: LoginForm) -> Result<Lo
     // The SSO session is single-use on the server; keep it only for the
     // captcha retry, which repeats this very request.
     if form.sso
-        && !matches!(&started, Err(e) if e.is_api_code(termoso_proto::error::codes::TURNSTILE_REQUIRED))
+        && !matches!(&started, Err(e) if e.is_api_code(labterm_proto::error::codes::TURNSTILE_REQUIRED))
     {
         inner.sso = None;
     }
@@ -441,7 +441,7 @@ pub async fn login<R: Runtime>(app: &AppHandle<R>, form: LoginForm) -> Result<Lo
 pub async fn sso_discover(
     server_url: &str,
     email: &str,
-) -> Result<termoso_proto::auth::SsoDiscoverResponse> {
+) -> Result<labterm_proto::auth::SsoDiscoverResponse> {
     let server_url = normalize_url(server_url)?;
     let api = ApiClient::new(&server_url)?;
     Ok(api.sso_discover(email.trim()).await?)
@@ -757,7 +757,7 @@ pub async fn register<R: Runtime>(app: &AppHandle<R>, form: RegisterForm) -> Res
     // The SSO session is single-use on the server; keep it only for the
     // captcha retry, which repeats this very request.
     if form.sso
-        && !matches!(&attempt, Err(e) if e.is_api_code(termoso_proto::error::codes::TURNSTILE_REQUIRED))
+        && !matches!(&attempt, Err(e) if e.is_api_code(labterm_proto::error::codes::TURNSTILE_REQUIRED))
     {
         inner.sso = None;
     }

@@ -8,8 +8,8 @@
 
 use std::path::Path;
 
+use labterm_core::model::ColorScheme;
 use serde::Serialize;
-use termoso_core::model::ColorScheme;
 
 use crate::error::{DesktopError, Result};
 

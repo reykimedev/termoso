@@ -1,8 +1,8 @@
-# xcodegen spec — `xcodegen generate` produces Termoso.xcodeproj (not checked in).
-# Run ./build-core.sh first so the TermosoCore package has its xcframework.
-name: Termoso
+# xcodegen spec — `xcodegen generate` produces Labterm.xcodeproj (not checked in).
+# Run ./build-core.sh first so the LabtermCore package has its xcframework.
+name: Labterm
 options:
-  bundleIdPrefix: com.termoso
+  bundleIdPrefix: dev.labdex
   deploymentTarget:
     iOS: "17.0"
   xcodeVersion: "15.0"
@@ -26,22 +26,22 @@ settings:
     DEVELOPMENT_TEAM: ""
 
 packages:
-  TermosoCore:
-    path: TermosoCore
+  LabtermCore:
+    path: LabtermCore
 
 targets:
-  Termoso:
+  Labterm:
     type: application
     platform: iOS
     sources:
-      - path: Termoso
+      - path: Labterm
     dependencies:
-      - package: TermosoCore
+      - package: LabtermCore
     info:
-      path: Termoso/Resources/Info.plist
+      path: Labterm/Resources/Info.plist
       properties:
         CFBundleDisplayName: Termoso
-        CFBundleName: Termoso
+        CFBundleName: Labterm
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
@@ -54,49 +54,49 @@ targets:
         LSApplicationCategoryType: public.app-category.developer-tools
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.termoso.ios
+        PRODUCT_BUNDLE_IDENTIFIER: dev.labdex.labterm
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         OTHER_LDFLAGS: ["-lresolv"]
 
-  TermosoTests:
+  LabtermTests:
     type: bundle.unit-test
     platform: iOS
     sources:
-      - path: TermosoTests
+      - path: LabtermTests
     dependencies:
-      - target: Termoso
+      - target: Labterm
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.termoso.ios.tests
+        PRODUCT_BUNDLE_IDENTIFIER: dev.labdex.labterm.tests
         GENERATE_INFOPLIST_FILE: YES
 
-  TermosoUITests:
+  LabtermUITests:
     type: bundle.ui-testing
     platform: iOS
     sources:
-      - path: TermosoUITests
+      - path: LabtermUITests
     dependencies:
-      - target: Termoso
+      - target: Labterm
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.termoso.ios.uitests
+        PRODUCT_BUNDLE_IDENTIFIER: dev.labdex.labterm.uitests
         GENERATE_INFOPLIST_FILE: YES
 
 schemes:
-  Termoso:
+  Labterm:
     build:
       targets:
-        Termoso: all
-        TermosoTests: [test]
-        TermosoUITests: [test]
+        Labterm: all
+        LabtermTests: [test]
+        LabtermUITests: [test]
     run:
       config: Debug
     test:
       config: Debug
       gatherCoverageData: false
       targets:
-        - TermosoTests
-        - TermosoUITests
+        - LabtermTests
+        - LabtermUITests
     archive:
       config: Release

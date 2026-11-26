@@ -6,11 +6,11 @@
 use std::collections::HashSet;
 
 use chrono::{DateTime, Utc};
+use labterm_core::model::{Host, PfRule};
+use labterm_core::store::LocalVaultKind;
+use labterm_proto::account::UserProfile;
+use labterm_proto::team::{PresenceSession, TeamPresence};
 use tauri::{AppHandle, Manager, Runtime};
-use termoso_core::model::{Host, PfRule};
-use termoso_core::store::LocalVaultKind;
-use termoso_proto::account::UserProfile;
-use termoso_proto::team::{PresenceSession, TeamPresence};
 use uuid::Uuid;
 
 use crate::error::Result;

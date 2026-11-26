@@ -4,8 +4,8 @@
 mod common;
 
 use common::*;
+use labterm_proto::admin::{AdminUpdateUserRequest, AdminUser};
 use reqwest::{Method, StatusCode};
-use termoso_proto::admin::{AdminUpdateUserRequest, AdminUser};
 
 fn change(is_admin: Option<bool>, disabled: Option<bool>) -> AdminUpdateUserRequest {
     AdminUpdateUserRequest {

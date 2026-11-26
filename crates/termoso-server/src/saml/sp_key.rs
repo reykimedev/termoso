@@ -1,16 +1,16 @@
 //! The SP's RSA private key.
 //!
 //! Private-key operations run in AWS-LC (constant-time RSA): decryption of
-//! `EncryptedAssertion` key transport through `termoso-awslc-rsa`, and
+//! `EncryptedAssertion` key transport through `labterm-awslc-rsa`, and
 //! AuthnRequest signing through `aws-lc-rs`. The RustCrypto `rsa` crate,
 //! whose private-key arithmetic leaks timing (RUSTSEC-2023-0071), is used
 //! only for parsing PEM and for public-key operations.
 
 use aws_lc_rs::signature::{KeyPair as _, RSA_PKCS1_SHA256, RsaKeyPair};
+pub use labterm_awslc_rsa::{DecryptError, Hash, Padding};
 use rsa::pkcs1::{DecodeRsaPrivateKey, DecodeRsaPublicKey};
 use rsa::pkcs8::{DecodePrivateKey, EncodePrivateKey};
 use rsa::{RsaPrivateKey, RsaPublicKey};
-pub use termoso_awslc_rsa::{DecryptError, Hash, Padding};
 
 #[derive(Debug, thiserror::Error)]
 pub enum KeyError {
@@ -19,11 +19,11 @@ pub enum KeyError {
     #[error("private key rejected: {0}")]
     Rejected(String),
     #[error(transparent)]
-    Decrypt(#[from] termoso_awslc_rsa::KeyError),
+    Decrypt(#[from] labterm_awslc_rsa::KeyError),
 }
 
 pub struct SpKey {
-    decrypt: termoso_awslc_rsa::PrivateKey,
+    decrypt: labterm_awslc_rsa::PrivateKey,
     sign: RsaKeyPair,
     public: RsaPublicKey,
 }
@@ -58,7 +58,7 @@ impl SpKey {
     }
 
     pub fn from_pkcs8_der(der: &[u8]) -> Result<Self, KeyError> {
-        let decrypt = termoso_awslc_rsa::PrivateKey::from_pkcs8_der(der)?;
+        let decrypt = labterm_awslc_rsa::PrivateKey::from_pkcs8_der(der)?;
         let sign = RsaKeyPair::from_pkcs8(der).map_err(|e| KeyError::Rejected(e.to_string()))?;
         let public = RsaPublicKey::from_pkcs1_der(sign.public_key().as_ref())
             .map_err(|e| KeyError::Rejected(e.to_string()))?;
@@ -181,12 +181,12 @@ mod tests {
         ));
         assert!(matches!(
             SpKey::from_pkcs8_der(&[0x30, 0x03, 0x02, 0x01, 0x00]),
-            Err(KeyError::Decrypt(termoso_awslc_rsa::KeyError::Malformed))
+            Err(KeyError::Decrypt(labterm_awslc_rsa::KeyError::Malformed))
         ));
         let small = RsaPrivateKey::new(&mut rand_core::OsRng, 1024).unwrap();
         assert!(matches!(
             SpKey::from_rsa(&small),
-            Err(KeyError::Decrypt(termoso_awslc_rsa::KeyError::TooSmall(
+            Err(KeyError::Decrypt(labterm_awslc_rsa::KeyError::TooSmall(
                 1024
             )))
         ));
