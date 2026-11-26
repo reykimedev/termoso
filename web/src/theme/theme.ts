@@ -18,47 +18,59 @@ declare module "@mui/material/Button" {
   }
 }
 
-export const emerald = {
-  main: "#2BB884",
-  dark: "#1F8F66",
-  light: "#5FD0A4",
+/** labdex's lantern orange: the brand accent, kept for the main action. Text on it is dark ink. */
+export const lantern = {
+  main: "#F59A23",
+  dark: "#E8870E",
+  light: "#F7A93F",
+  ink: "#1A1206",
 };
 
+/** Status colours from labdex's Blueprint tokens; each means one thing. */
+export const ok = { dark: "#3ECF8E", light: "#15803D" };
+export const warn = { dark: "#F5C84C", light: "#A16207" };
+export const err = { dark: "#F2555A", light: "#C2410C" };
+
 export const sky = {
-  main: "#5AA9E6",
-  dark: "#3D86BF",
-  light: "#8CC5F0",
+  main: "#5AA9FF",
+  dark: "#2563EB",
+  light: "#8CC5FF",
 };
+
+/** Old name of the accent, kept so code from before the Labterm theme still builds. */
+export const emerald = lantern;
 
 /** Four stacked layers, lowest → highest. Cards never draw borders; they sit one layer up. */
 export const dark = {
-  lowest: "#141826",
-  base: "#1C2032",
-  high: "#262B3F",
-  highest: "#30364C",
-  strong: "#3E4459",
-  disabled: "#5A5E73",
-  secondary: "#8D91A5",
-  text: "#F1F3F8",
+  lowest: "#0B0B0A",
+  base: "#141413",
+  high: "#1E1E1C",
+  highest: "#272725",
+  strong: "#363633",
+  disabled: "#5F5F5C",
+  secondary: "#A3A39E",
+  text: "#ECECEA",
 };
 
 export const light = {
-  lowest: "#EEF1F5",
-  base: "#F7F9FB",
+  lowest: "#F0F0ED",
+  base: "#F7F7F5",
   high: "#FFFFFF",
-  highest: "#E7EBF1",
-  strong: "#C9D0DB",
-  disabled: "#9AA3B2",
-  secondary: "#626D80",
-  text: "#171B26",
+  highest: "#E3E3E0",
+  strong: "#D3D3CF",
+  disabled: "#9A9A96",
+  secondary: "#5F5F5C",
+  text: "#1A1A19",
 };
 
-const grey = "#8D91A5";
+const grey = "#A3A39E";
+/** Light-theme lines and hovers: labdex's ink at low alpha. */
+const inkLight = "#1A1A19";
 const popoverShadow = "0 8px 24px rgba(0,0,0,0.35)";
 
 const fontFamily = [
-  "'Inter Variable'",
-  "Inter",
+  "'Geist Variable'",
+  "Geist",
   "system-ui",
   "-apple-system",
   "'Segoe UI'",
@@ -92,20 +104,20 @@ export const theme = createTheme({
       palette: {
         mode: "dark",
         primary: {
-          main: emerald.main,
-          dark: emerald.dark,
-          light: emerald.light,
-          contrastText: "#08170F",
+          main: lantern.main,
+          dark: lantern.dark,
+          light: lantern.light,
+          contrastText: lantern.ink,
         },
         secondary: {
           main: sky.main,
-          dark: sky.dark,
+          dark: "#3D8FE6",
           light: sky.light,
-          contrastText: "#0A1420",
+          contrastText: lantern.ink,
         },
-        error: { main: "#F25E61" },
-        warning: { main: "#F8AA4B" },
-        success: { main: emerald.main },
+        error: { main: err.dark, contrastText: lantern.ink },
+        warning: { main: warn.dark, contrastText: lantern.ink },
+        success: { main: ok.dark, contrastText: lantern.ink },
         info: { main: sky.main },
         background: { default: dark.lowest, paper: dark.base },
         surface: {
@@ -128,7 +140,7 @@ export const theme = createTheme({
         action: {
           hover: alpha(grey, 0.1),
           selected: alpha(grey, 0.16),
-          focus: alpha(emerald.main, 0.24),
+          focus: alpha(lantern.main, 0.24),
           disabledBackground: alpha(grey, 0.1),
         },
       },
@@ -137,20 +149,20 @@ export const theme = createTheme({
       palette: {
         mode: "light",
         primary: {
-          main: emerald.dark,
-          dark: "#166B4C",
-          light: emerald.main,
-          contrastText: "#FFFFFF",
+          main: lantern.dark,
+          dark: "#D97A06",
+          light: lantern.main,
+          contrastText: lantern.ink,
         },
         secondary: {
           main: sky.dark,
-          dark: "#2C6B9C",
-          light: sky.main,
+          dark: "#1D4ED8",
+          light: "#3B82F6",
           contrastText: "#FFFFFF",
         },
-        error: { main: "#D93F42" },
-        warning: { main: "#C67D1A" },
-        success: { main: emerald.dark },
+        error: { main: err.light },
+        warning: { main: warn.light },
+        success: { main: ok.light },
         info: { main: sky.dark },
         background: { default: light.lowest, paper: light.base },
         surface: {
@@ -160,8 +172,8 @@ export const theme = createTheme({
           highest: light.highest,
         },
         border: {
-          light: alpha("#3B4557", 0.08),
-          basic: alpha("#3B4557", 0.18),
+          light: alpha(inkLight, 0.08),
+          basic: alpha(inkLight, 0.18),
           strong: light.strong,
         },
         text: {
@@ -169,11 +181,11 @@ export const theme = createTheme({
           secondary: light.secondary,
           disabled: light.disabled,
         },
-        divider: alpha("#3B4557", 0.12),
+        divider: alpha(inkLight, 0.12),
         action: {
-          hover: alpha("#3B4557", 0.06),
-          selected: alpha("#3B4557", 0.1),
-          focus: alpha(emerald.dark, 0.2),
+          hover: alpha(inkLight, 0.06),
+          selected: alpha(inkLight, 0.1),
+          focus: alpha(lantern.dark, 0.2),
         },
       },
     },
@@ -201,7 +213,7 @@ export const theme = createTheme({
       styleOverrides: {
         body: { minHeight: "100vh" },
         code: { fontFamily: monoFontFamily },
-        "::selection": { backgroundColor: alpha(emerald.main, 0.35) },
+        "::selection": { backgroundColor: alpha(lantern.main, 0.35) },
       },
     },
     MuiButton: {
@@ -427,9 +439,9 @@ export const theme = createTheme({
           borderRadius: 6,
           backgroundColor: t.vars.palette.surface.highest,
           "&.MuiChip-colorPrimary": {
-            backgroundColor: alpha(emerald.main, 0.16),
-            color: emerald.light,
-            ...t.applyStyles("light", { color: emerald.dark }),
+            backgroundColor: alpha(lantern.main, 0.16),
+            color: lantern.light,
+            ...t.applyStyles("light", { color: "#A85A00" }),
           },
           "&.MuiChip-colorSecondary": {
             backgroundColor: alpha(sky.main, 0.16),
@@ -437,19 +449,19 @@ export const theme = createTheme({
             ...t.applyStyles("light", { color: sky.dark }),
           },
           "&.MuiChip-colorSuccess": {
-            backgroundColor: alpha(emerald.main, 0.16),
-            color: emerald.light,
-            ...t.applyStyles("light", { color: emerald.dark }),
+            backgroundColor: alpha(ok.dark, 0.16),
+            color: ok.dark,
+            ...t.applyStyles("light", { color: ok.light }),
           },
           "&.MuiChip-colorWarning": {
-            backgroundColor: alpha("#F8AA4B", 0.16),
-            color: "#F8AA4B",
-            ...t.applyStyles("light", { color: "#9A5F0C" }),
+            backgroundColor: alpha(warn.dark, 0.16),
+            color: warn.dark,
+            ...t.applyStyles("light", { color: warn.light }),
           },
           "&.MuiChip-colorError": {
-            backgroundColor: alpha("#F25E61", 0.16),
-            color: "#F25E61",
-            ...t.applyStyles("light", { color: "#B32C2F" }),
+            backgroundColor: alpha(err.dark, 0.16),
+            color: err.dark,
+            ...t.applyStyles("light", { color: err.light }),
           },
         }),
         sizeSmall: { height: 22, fontSize: "0.75rem" },
@@ -578,9 +590,9 @@ export const theme = createTheme({
         standard: ({ theme: t }) => ({
           color: t.vars.palette.text.primary,
           "&.MuiAlert-colorInfo": { backgroundColor: alpha(sky.main, 0.12) },
-          "&.MuiAlert-colorWarning": { backgroundColor: alpha("#F8AA4B", 0.14) },
-          "&.MuiAlert-colorError": { backgroundColor: alpha("#F25E61", 0.14) },
-          "&.MuiAlert-colorSuccess": { backgroundColor: alpha(emerald.main, 0.14) },
+          "&.MuiAlert-colorWarning": { backgroundColor: alpha(warn.dark, 0.14) },
+          "&.MuiAlert-colorError": { backgroundColor: alpha(err.dark, 0.14) },
+          "&.MuiAlert-colorSuccess": { backgroundColor: alpha(ok.dark, 0.14) },
         }),
         outlined: ({ theme: t }) => ({
           color: t.vars.palette.text.primary,
@@ -588,7 +600,7 @@ export const theme = createTheme({
           "& .MuiAlert-icon": { color: t.vars.palette.text.secondary },
           "&.MuiAlert-colorError": {
             borderColor: t.vars.palette.error.main,
-            backgroundColor: alpha("#F25E61", 0.08),
+            backgroundColor: alpha(err.dark, 0.08),
             "& .MuiAlert-icon, & .MuiAlertTitle-root": { color: t.vars.palette.error.main },
           },
         }),
@@ -606,7 +618,7 @@ export const theme = createTheme({
             "&.Mui-checked": {
               transform: "translateX(16px)",
               color: "#fff",
-              "& + .MuiSwitch-track": { opacity: 1, backgroundColor: emerald.main },
+              "& + .MuiSwitch-track": { opacity: 1, backgroundColor: lantern.main },
             },
             "&.Mui-disabled + .MuiSwitch-track": { opacity: 0.4 },
           },
