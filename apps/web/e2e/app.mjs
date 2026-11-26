@@ -213,6 +213,45 @@ try {
     `SFTP upload, list, rename, download and delete (${JSON.stringify(sftpOk)})`,
   );
 
+  // ── Snippets: a package, a variable, targets, a quiet run; history on this device ──
+  const snip = await b.evaluate(async () => {
+    const ipc = window.__TAURI_INTERNALS__;
+    const [host] = (await ipc.invoke("hosts_list", { vaultId: null })).filter((h) => h.label === "test-vm");
+    const vaultId = host.vaultId ?? host.vault_id;
+    const pkg = await ipc.invoke("snippet_package_save", { vaultId, id: null, label: "e2e", parentId: null });
+    const card = await ipc.invoke("snippet_save", {
+      form: { id: null, vaultId, label: "greet", script: "echo {{word}}; echo oops >&2; exit 3", packageId: pkg.id },
+    });
+    const targeted = await ipc.invoke("snippet_set_targets", { id: card.id, hostIds: [host.id, host.id] });
+    const missing = await ipc.invoke("snippet_run_quiet", { id: card.id, hostIds: [host.id], vars: {} }).then(() => false, () => true);
+    const quiet = await ipc.invoke("snippet_run_quiet", { id: card.id, hostIds: [host.id], vars: { word: "hatch-snippet" } });
+    await ipc.invoke("snippet_package_delete", { id: pkg.id });
+    const moved = (await ipc.invoke("snippets_list", { vaultId })).find((x) => x.id === card.id);
+    await ipc.invoke("snippet_delete", { id: card.id });
+    await ipc.invoke("history_record_command", { hostId: host.id, command: "uptime" });
+    const cmds = await ipc.invoke("history_commands", { limit: 10 });
+    const conns = await ipc.invoke("history_connections", { limit: 10 });
+    const r = quiet.results[0];
+    return {
+      vars: card.variables.join(","),
+      targets: targeted.targetHostIds.length,
+      missing,
+      stdout: r.stdout.trim(),
+      stderr: r.stderr.trim(),
+      exit: r.exitCode,
+      error: r.error,
+      movedUp: moved?.packageId === null,
+      cmd: cmds[0]?.data.command,
+      conn: conns.some((c) => c.data.host_id === host.id && c.vault_id === vaultId),
+    };
+  });
+  check(
+    snip.vars === "word" && snip.targets === 1 && snip.missing && snip.stdout === "hatch-snippet" &&
+      snip.stderr === "oops" && snip.exit === 3 && snip.error === null && snip.movedUp &&
+      snip.cmd === "uptime" && snip.conn,
+    `snippet with a package, targets and a quiet run; history kept (${JSON.stringify(snip)})`,
+  );
+
   // ── Migration: an encrypted backup from B restores in a browser without an account ──
   const openAccountPage = async (page) => {
     await page.getByText("Settings", { exact: true }).first().click();

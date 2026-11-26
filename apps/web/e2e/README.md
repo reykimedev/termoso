@@ -4,8 +4,8 @@
 relay, a stand-in identity provider and an SSH server. It creates an account, adds a host, checks
 that an unknown host key is refused, pins the key, opens a shell, then signs in from a second
 browser with the emailed device code and connects with what synced. It also copies a host to
-another vault, moves a file up and down over SFTP, and restores an encrypted backup in a third
-browser that has no account.
+another vault, moves a file up and down over SFTP, runs a snippet quietly on the host (output,
+errors and exit code), and restores an encrypted backup in a third browser that has no account.
 
 It needs, on one machine:
 

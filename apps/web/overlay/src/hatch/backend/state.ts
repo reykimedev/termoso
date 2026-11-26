@@ -4,6 +4,7 @@
 import * as db from "./db";
 import { fail } from "./errors";
 import { emit } from "@tauri-apps/api/event";
+import type { History } from "./history";
 import type { TeamPolicies } from "./policy";
 import { defaultSettings } from "./settings";
 
@@ -65,6 +66,8 @@ export interface State {
   workspaces?: unknown;
   /** Team id → the team's client-enforced policies (policy.ts). */
   teamPolicies?: Record<Uuid, TeamPolicies>;
+  /** Connections and commands on this device (history.ts); never synced. */
+  history?: History;
 }
 
 /** The device-only vault every Termoso install has; it never syncs. */
