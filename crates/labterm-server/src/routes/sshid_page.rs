@@ -116,10 +116,10 @@ fn requires(t: SshIdKeyType) -> &'static str {
 }
 
 const CSS: &str = r#"
-:root{--bg:#0F1320;--surface:#1C2032;--raised:#262B3F;--line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.14);--text:#F1F3F8;--muted:#8D91A5;--dim:#5A5E73;--accent:#2BB884;--accent2:#1F8F66;--sky:#5AA9E6;--mono:'JetBrains Mono','SF Mono',Menlo,Consolas,monospace}
+:root{--bg:#0B0B0A;--surface:#141413;--raised:#1E1E1C;--line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.14);--text:#ECECEA;--muted:#A3A39E;--dim:#5F5F5C;--accent:#F59A23;--accent2:#E8870E;--sky:#5AA9FF;--mono:'JetBrains Mono','SF Mono',Menlo,Consolas,monospace}
 *{box-sizing:border-box}
 html{background:var(--bg);color:var(--text);font:16px/1.55 'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;-webkit-font-smoothing:antialiased}
-body{margin:0;background:radial-gradient(900px 420px at 50% -120px,rgba(43,184,132,.14),transparent 70%),var(--bg)}
+body{margin:0;background:radial-gradient(900px 420px at 50% -120px,rgba(245,154,35,.12),transparent 70%),var(--bg)}
 a{color:inherit;text-decoration:none}
 .wrap{max-width:760px;margin:0 auto;padding:28px 24px 56px}
 header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:56px}
@@ -128,8 +128,8 @@ header{display:flex;align-items:center;justify-content:space-between;gap:16px;ma
 .brand b{display:block;font-size:17px;font-weight:700;letter-spacing:-.01em;line-height:1.2}
 .brand small{display:block;color:var(--muted);font-size:13px;line-height:1.2}
 .btn{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 18px;border-radius:10px;font-weight:600;font-size:14px;border:1px solid transparent;cursor:pointer;white-space:nowrap}
-.btn-primary{background:var(--accent);color:#0B1A14}
-.btn-primary:hover{background:#3BC893}
+.btn-primary{background:var(--accent);color:#1A1206}
+.btn-primary:hover{background:#F7A93F}
 h1{font-size:40px;line-height:1.15;font-weight:600;letter-spacing:-.02em;margin:0 0 12px}
 h1 .at{color:var(--accent)}
 .lead{color:var(--muted);margin:0 0 28px;font-size:17px}
@@ -219,7 +219,7 @@ else{var r=document.createRange();r.selectNodeContents(el);var s=getSelection();
 })();
 "#;
 
-const LOGO: &str = r##"<svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#12151F"/><path d="M16 20h32v8H36v20h-8V28H16z" fill="#2BB884"/><rect x="42" y="40" width="8" height="8" rx="2" fill="#5AA9E6"/></svg>"##;
+const LOGO: &str = r##"<svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#141413"/><rect x=".5" y=".5" width="31" height="31" rx="6.5" fill="none" stroke="#fff" stroke-opacity=".1"/><path d="M13.2 7.6a2.8 2.8 0 0 1 5.6 0" fill="none" stroke="#f59a23" stroke-width="1.8" stroke-linecap="round"/><path d="M11.4 8.2h9.2l2.4 3H9z" fill="#f59a23"/><path d="M10.2 11.2h11.6v12.3a1.8 1.8 0 0 1-1.8 1.8h-8a1.8 1.8 0 0 1-1.8-1.8z" fill="none" stroke="#f59a23" stroke-width="2"/><path d="M12.9 15.3l2.7 2.7-2.7 2.7" fill="none" stroke="#f59a23" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.9 20.7h2.2" fill="none" stroke="#f59a23" stroke-width="1.9" stroke-linecap="round"/><path d="M8.6 25.6h14.8" stroke="#f59a23" stroke-width="2.2" stroke-linecap="round"/></svg>"##;
 
 const COPY_ICON: &str = r#"<svg class="c" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="y" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>"#;
 
@@ -231,7 +231,7 @@ fn document(title: &str, description: &str, body: &str, nonce: &str) -> String {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#0F1320">
+<meta name="theme-color" content="#0B0B0A">
 <meta name="robots" content="noindex">
 <meta name="description" content="{description}">
 <title>{title}</title>
