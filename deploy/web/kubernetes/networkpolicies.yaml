@@ -62,3 +62,8 @@ spec:
             cidr: 192.0.2.0/24 # TODO: your home ranges, as routed into the cluster
       ports:
         - { port: 22, protocol: TCP }
+    - to: # the issuer's discovery document and keys, to check ID tokens
+        - ipBlock:
+            cidr: 192.0.2.10/32 # TODO: your Authentik, or a namespace selector if it runs in the cluster
+      ports:
+        - { port: 443, protocol: TCP }

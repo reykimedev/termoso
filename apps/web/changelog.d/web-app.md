@@ -7,3 +7,4 @@ Encrypted .termoso backups (export as a download, restore from a file), compatib
 Team policies apply in the browser: keys only, jump host required, no export
 Host keys count only from the host's own vault, this browser and the account-sealed personal vault; a changed key type is refused; a personal vault key the server could have sealed is never opened
 SFTP in the browser over the relay, with the same host-key check: browse, upload files dropped onto the page, download to the browser, rename, delete, change permissions, copy between servers
+The example Kubernetes manifests configure the real app: `config.json` from a ConfigMap, the relay's Authentik and origin settings, and its egress to Authentik.

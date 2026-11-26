@@ -1,7 +1,7 @@
 // The desktop's Tauri commands, served in the browser. Termoso's frontend calls `invoke(...)` as
 // on the desktop; mockIPC routes each call to the web backend (vault in IndexedDB, Termoso account
 // over REST, SSH in hatch-wasm through the relay). Commands the browser cannot do (local files,
-// SFTP, port forwarding, serial, agent, updates) answer empty or with a clear "not in the browser".
+// port forwarding, serial, agent, updates) answer empty or with a clear "not in the browser".
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
 import { emit } from "@tauri-apps/api/event";
 import * as account from "./backend/account";
