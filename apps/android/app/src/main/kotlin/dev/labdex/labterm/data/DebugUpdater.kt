@@ -43,7 +43,7 @@ object DebugUpdater {
     suspend fun install(context: Context, update: DebugUpdate) {
         val apk = withContext(Dispatchers.IO) {
             val dir = File(context.cacheDir, "updates").apply { mkdirs() }
-            val file = File(dir, "termoso-debug.apk")
+            val file = File(dir, "labterm-debug.apk")
             val digest = MessageDigest.getInstance("SHA-256")
             fetch(URL(update.apkUrl)).use { input ->
                 file.outputStream().use { out ->

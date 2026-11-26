@@ -105,14 +105,16 @@ jobs:
         run: |
           out="$RUNNER_TEMP/channel"
           mkdir -p "$out"
-          cp apps/android/app/build/outputs/apk/debug/*.apk "$out/termoso-debug.apk"
-          sha=$(sha256sum "$out/termoso-debug.apk" | cut -d' ' -f1)
+          cp apps/android/app/build/outputs/apk/debug/*.apk "$out/labterm-debug.apk"
+          sha=$(sha256sum "$out/labterm-debug.apk" | cut -d' ' -f1)
           jq -n --argjson build "$BUILD" --arg commit "$COMMIT" --arg sha "$sha" \
-            '{build: $build, commit: $commit, apk: "termoso-debug.apk", sha256: $sha}' > "$out/latest.json"
+            '{build: $build, commit: $commit, apk: "labterm-debug.apk", sha256: $sha}' > "$out/latest.json"
           if ! gh release view "$CHANNEL_TAG" >/dev/null 2>&1; then
             gh release create "$CHANNEL_TAG" --prerelease --target "$COMMIT" \
               --title "Labterm Debug (rolling, $CHANNEL_TAG)" \
               --notes "Debug builds for testing; the app updates itself from here. Not for production use."
           fi
-          gh release upload "$CHANNEL_TAG" "$out/termoso-debug.apk" "$out/latest.json" --clobber
+          gh release upload "$CHANNEL_TAG" "$out/labterm-debug.apk" "$out/latest.json" --clobber
+          # The asset was called termoso-debug.apk before the rename; installed builds follow latest.json.
+          gh release delete-asset "$CHANNEL_TAG" termoso-debug.apk --yes 2>/dev/null || true
           gh release edit "$CHANNEL_TAG" --title "Labterm Debug (rolling, $CHANNEL_TAG)" --notes "Debug build $BUILD from $COMMIT. The app updates itself from here."

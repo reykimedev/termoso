@@ -1870,6 +1870,8 @@
     <string name="debug_update_downloading">Загрузка…</string>
     <string name="debug_update_current">Установлена последняя версия (сборка %1$d)</string>
     <string name="debug_update_available_notice">Доступна отладочная сборка %1$d: Настройки → О приложении</string>
+    <string name="debug_log">Журнал отладки</string>
+    <string name="debug_log_hint">Недавние журналы приложения и ядра без секретов. Скопируйте или отправьте их для отчёта об ошибке.</string>
     <string name="openid_no_keys">В этом хранилище нет ключей OpenID: создайте ключ в связке ключей</string>
     <string name="openid_key_for_host">Ключ OpenID</string>
     <string name="openid_key_for_host_hint">Используется раньше учётных данных хоста, которые остаются запасным вариантом. Хосты без ключа используют ключ своей группы.</string>
