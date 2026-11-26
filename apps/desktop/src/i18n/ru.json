@@ -2868,5 +2868,17 @@
   "Weekly": "Еженедельно",
   "What a tab for a saved host shows: the host's label (its name when it has none), or the title the shell sets, such as the working directory or the running program. Local shells always follow the shell.": "Что показывает вкладка сохранённого хоста: метку хоста (или его имя, если метки нет) либо заголовок, который задаёт оболочка, например рабочий каталог или запущенную программу. Локальные оболочки всегда следуют за оболочкой.",
   "ProxyCommand": "ProxyCommand",
-  "Program that carries the connection, like OpenSSH ProxyCommand: %h, %p and %r expand to host, port and user. Stored on this device only, never synced. Overrides the proxy above.": "Программа, через которую идёт соединение, как ProxyCommand в OpenSSH: %h, %p и %r заменяются на хост, порт и пользователя. Хранится только на этом устройстве, не синхронизируется. Имеет приоритет над прокси выше."
+  "Program that carries the connection, like OpenSSH ProxyCommand: %h, %p and %r expand to host, port and user. Stored on this device only, never synced. Overrides the proxy above.": "Программа, через которую идёт соединение, как ProxyCommand в OpenSSH: %h, %p и %r заменяются на хост, порт и пользователя. Хранится только на этом устройстве, не синхронизируется. Имеет приоритет над прокси выше.",
+  "A username set here is used even when a group supplies the key or password.": "Заданное здесь имя пользователя используется, даже если ключ или пароль задаёт группа.",
+  "Has settings": "Есть настройки",
+  "Hosts with this tag inherit its settings": "Хосты с этим тегом наследуют его настройки",
+  "Hosts with this tag use these settings when neither the host nor its groups set them. When several tags set the same thing, the higher priority wins, then the name in A to Z order.": "Хосты с этим тегом используют эти настройки, если их не задают ни сам хост, ни его группы. Если одно и то же задают несколько тегов, побеждает более высокий приоритет, затем имя по алфавиту.",
+  "Sent with every session to hosts with this tag.": "Передаются в каждом сеансе на хосты с этим тегом.",
+  "Set on this tag": "Задано на этом теге",
+  "Settings for {label}": "Настройки {label}",
+  "Settings for tag “{label}”": "Настройки тега «{label}»",
+  "Settings on a tag (username, key, port…) apply to its hosts below their own and their groups' settings.": "Настройки тега (имя пользователя, ключ, порт…) действуют на его хосты с меньшим приоритетом, чем настройки самих хостов и их групп.",
+  "Tag": "Тег",
+  "tag “{label}”": "тег «{label}»",
+  "Tag saved": "Тег сохранён"
 }

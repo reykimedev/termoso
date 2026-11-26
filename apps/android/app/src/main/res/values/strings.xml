@@ -1775,4 +1775,18 @@
     <string name="local_copies_settings_summary">Encrypted offline copies of remote files</string>
     <string name="clear_local_copies">Clear local copies?</string>
     <string name="clear_local_copies_text">Removes all offline copies of remote files from this device (%1$s). Hosts keep their settings.</string>
+    <string name="group_settings">Group settings</string>
+    <string name="tag_settings">Tag settings</string>
+    <string name="priority">Priority</string>
+    <string name="group_settings_hint">Hosts in this group use these when their own settings are left empty. Groups win over tags.</string>
+    <string name="tag_settings_hint">Hosts with this tag use these when neither the host nor its groups set them. When several tags set the same thing, the higher priority wins, then the name in A to Z order.</string>
+    <string name="defaults_use_shared_identity">Credentials come from a shared identity. Change it on the desktop app.</string>
+    <string name="inherited_value">Inherited: %1$s</string>
+    <string name="settings_saved">Settings saved</string>
+    <string name="settings_for">Settings for %1$s</string>
+    <string name="tag_has_settings">has settings</string>
+    <plurals name="tag_host_count">
+        <item quantity="one">%d host</item>
+        <item quantity="other">%d hosts</item>
+    </plurals>
 </resources>

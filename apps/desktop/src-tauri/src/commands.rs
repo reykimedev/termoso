@@ -17,7 +17,7 @@ use uuid::Uuid;
 use crate::account;
 use crate::edits::{self, EditInfo};
 use crate::error::{DesktopError, Result};
-use crate::hosts::{self, GroupForm, GroupNode, HostCard, HostForm, Inherited, TagInfo};
+use crate::hosts::{self, GroupForm, GroupNode, HostCard, HostForm, Inherited, TagForm, TagInfo};
 use crate::prompts::PromptAnswer;
 use crate::sessions::{self, OpenTarget, SessionInfo};
 use crate::sftp::{self, Conflict, Direction, Listing, SftpInfo, SftpTarget, TransferInfo};
@@ -355,8 +355,14 @@ pub async fn local_shells() -> Result<Vec<String>> {
 pub async fn host_inherited(
     state: State<'_, AppState>,
     group_id: Option<Uuid>,
+    vault_id: Option<Uuid>,
+    tag_ids: Option<Vec<Uuid>>,
 ) -> Result<Inherited> {
-    hosts::inherited(&*state.store()?, group_id)
+    let store = state.store()?;
+    match vault_id {
+        Some(v) => hosts::inherited_for(&store, v, group_id, &tag_ids.unwrap_or_default()),
+        None => hosts::inherited(&store, group_id),
+    }
 }
 
 #[tauri::command]
@@ -420,6 +426,16 @@ pub async fn tag_update(
     color: Option<String>,
 ) -> Result<TagInfo> {
     hosts::tag_update(&*state.store()?, id, label, color)
+}
+
+#[tauri::command]
+pub async fn tag_form(state: State<'_, AppState>, id: Uuid) -> Result<TagForm> {
+    hosts::tag_form(&*state.store()?, id)
+}
+
+#[tauri::command]
+pub async fn tag_save_form(state: State<'_, AppState>, form: TagForm) -> Result<TagInfo> {
+    hosts::save_tag_form(&*state.store()?, &form)
 }
 
 #[tauri::command]

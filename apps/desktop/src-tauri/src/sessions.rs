@@ -2005,7 +2005,9 @@ fn remember_on_identity(
     };
     let result = (|| -> termoso_core::error::Result<()> {
         if let Some(ident) = &resolved.identity {
-            let mut data = ident.data.clone();
+            // Re-read: the resolved copy may carry a username that falls
+            // through from a tag, which must not be written into this one.
+            let mut data = store.require::<Identity>(ident.id)?.data;
             edit(&mut data);
             return store.update(ident.id, &data);
         }

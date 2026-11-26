@@ -36,6 +36,7 @@ import {
   type Uuid,
 } from "@/ipc/types";
 import { tr } from "@/i18n";
+import { inheritedSource } from "./inheritedSource";
 
 /** The credential slice shared by the host and group editors. */
 export interface CredentialValues {
@@ -107,7 +108,7 @@ export function CredentialsFields({
 
   const identity = (identities.data ?? []).find((i) => i.id === value.identityId) ?? null;
   const usingIdentity = value.identityId !== null;
-  const from = inherited && inherited.groupPath.length > 0 ? inherited.groupPath.join(" / ") : null;
+  const from = inheritedSource(inherited);
   const inheritedKey = inherited?.sshKeyLabel ?? null;
   const allKeys = (sshKeys.data ?? []).filter((k) => !denyLocalKeys || !k.agentBacked);
   const selectedKey = value.sshKeyId
@@ -683,7 +684,7 @@ export function X11ForwardingRow({
   onChange: (patch: Pick<CredentialValues, "forwardX11">) => void;
   inherited?: Inherited | null;
 }) {
-  const from = inherited && inherited.groupPath.length > 0 ? inherited.groupPath.join(" / ") : null;
+  const from = inheritedSource(inherited);
   return (
     <SettingRow
       label={tr("X11 forwarding")}
@@ -712,7 +713,7 @@ export function AgentForwardingRow({
   onChange: (patch: Pick<CredentialValues, "agentForwarding">) => void;
   inherited?: Inherited | null;
 }) {
-  const from = inherited && inherited.groupPath.length > 0 ? inherited.groupPath.join(" / ") : null;
+  const from = inheritedSource(inherited);
   return (
     <SettingRow
       label={tr("Agent forwarding")}

@@ -1101,6 +1101,7 @@ fn ensure_tags(
                     &Tag {
                         label: label.to_string(),
                         color: None,
+                        ..Default::default()
                     },
                 )?;
                 existing.tags.insert(key, id);

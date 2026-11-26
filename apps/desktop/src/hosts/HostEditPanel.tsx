@@ -79,6 +79,7 @@ import { ConnectedNowCard, useVaultPresence } from "./PresenceViews";
 import { tr, trn, msg } from "@/i18n";
 import { requirePerm } from "@/team/perms";
 import { LocalCopiesSection } from "./LocalCopiesSection";
+import { inheritedSource } from "./inheritedSource";
 
 const IP_VERSIONS: { value: IpVersion; label: string }[] = [
   { value: "auto", label: msg("Auto") },
@@ -292,9 +293,9 @@ function HostEditor({
     setSeen(initial);
     if (!touched) setForm(initial);
   }
-  const inherited = useInherited(form.groupId);
+  const inherited = useInherited(form.groupId, form.vaultId, form.tagIds);
   const inh = inherited.data ?? null;
-  const inheritedFrom = inh && inh.groupPath.length > 0 ? inh.groupPath.join(" / ") : null;
+  const inheritedFrom = inheritedSource(inh);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [more, setMore] = useState(
     initial.hostChainId !== null ||

@@ -188,6 +188,8 @@ pub fn run() {
             commands::group_delete,
             commands::tags_list,
             commands::tag_update,
+            commands::tag_form,
+            commands::tag_save_form,
             commands::tag_delete,
             commands::tags_merge,
             commands::history_connections,

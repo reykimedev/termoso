@@ -100,6 +100,10 @@ schema! {
     }
 }
 
+fn is_zero(v: &i32) -> bool {
+    *v == 0
+}
+
 /// Plaintext payload schemas (what `SyncEntity::data` decrypts to).
 ///
 /// These mirror the feature set of the desktop client one-to-one. Optional
@@ -654,6 +658,15 @@ pub mod payload {
             /// Color (hex).
             #[serde(default, skip_serializing_if = "Option::is_none")]
             pub color: Option<String>,
+            /// SSH defaults for hosts carrying the tag. Tags rank below
+            /// groups: host > group chain (nearest first) > tags > defaults.
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            pub ssh_config_id: Option<Uuid>,
+            /// Order among a host's tags when several set the same field:
+            /// the higher priority wins, then the label (A before Z), then
+            /// the id.
+            #[serde(default, skip_serializing_if = "is_zero")]
+            pub priority: i32,
         }
     }
 

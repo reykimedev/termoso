@@ -814,13 +814,8 @@ export interface GroupNode {
 }
 
 /** Group editor model: name, parent and the SSH defaults its hosts inherit. */
-export interface GroupForm {
-  id: Uuid | null;
-  vaultId: Uuid;
-  label: string;
-  parentId: Uuid | null;
-  /** User-chosen icon id or `custom:data:`; null shows the default folder. */
-  icon: string | null;
+/** SSH defaults a group or tag hands down to its hosts (shared by both editors). */
+export interface SshDefaultsForm {
   port: number | null;
   username: string;
   password: string | null;
@@ -843,13 +838,27 @@ export interface GroupForm {
   timeout: number | null;
 }
 
-export function emptyGroupForm(vaultId: Uuid, parentId: Uuid | null): GroupForm {
+export interface GroupForm extends SshDefaultsForm {
+  id: Uuid | null;
+  vaultId: Uuid;
+  label: string;
+  parentId: Uuid | null;
+  /** User-chosen icon id or `custom:data:`; null shows the default folder. */
+  icon: string | null;
+}
+
+/** A tag's settings; tags rank below groups (host > groups > tags). */
+export interface TagForm extends SshDefaultsForm {
+  id: Uuid;
+  vaultId: Uuid;
+  label: string;
+  color: string | null;
+  /** Higher wins when a host's tags set the same field. */
+  priority: number;
+}
+
+export function emptySshDefaults(): SshDefaultsForm {
   return {
-    id: null,
-    vaultId,
-    label: "",
-    parentId,
-    icon: null,
     port: null,
     username: "",
     password: null,
@@ -871,9 +880,22 @@ export function emptyGroupForm(vaultId: Uuid, parentId: Uuid | null): GroupForm 
   };
 }
 
+export function emptyGroupForm(vaultId: Uuid, parentId: Uuid | null): GroupForm {
+  return {
+    id: null,
+    vaultId,
+    label: "",
+    parentId,
+    icon: null,
+    ...emptySshDefaults(),
+  };
+}
+
 /** What a host inherits from its group chain (placeholders in the editor). */
 export interface Inherited {
   groupPath: string[];
+  /** The host's tags that carry settings, the winner first. */
+  tags: string[];
   port: number | null;
   username: string | null;
   hasPassword: boolean;
@@ -900,6 +922,10 @@ export interface TagInfo {
   color: string | null;
   /** Hosts carrying the tag. */
   hosts: number;
+  /** The tag carries SSH defaults its hosts inherit. */
+  hasConfig: boolean;
+  /** Order among a host's tags; higher wins. */
+  priority: number;
 }
 
 export interface Entity<T> {
