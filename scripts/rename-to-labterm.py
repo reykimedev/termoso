@@ -108,6 +108,8 @@ def rules(path, s):
     server_only = path.startswith(SERVER_ONLY)
     s = CRATE_HYPHEN.sub(lambda m: f"labterm-{m.group(1)}", s)
     s = CRATE_SNAKE.sub(lambda m: f"labterm_{m.group(1)}", s)
+    # build outputs named after a crate: libtermoso_mobile.so/.a, termoso_wasm_bg.wasm
+    s = s.replace("libtermoso_mobile", "liblabterm_mobile").replace("termoso_wasm_bg", "labterm_wasm_bg")
     if server_only:
         return s
     s = IDENT_RE.sub(lambda m: IDENTS[m.group(1)], s)

@@ -115,7 +115,7 @@ androidComponents {
             ndkHome.set(rustNdkHome)
             workspace.set(workspaceDir)
             outDir.set(layout.buildDirectory.dir("rust/${variant.name}/jniLibs"))
-            metaLibrary.set(layout.buildDirectory.file("rust/${variant.name}/meta/libtermoso_mobile.so"))
+            metaLibrary.set(layout.buildDirectory.file("rust/${variant.name}/meta/liblabterm_mobile.so"))
         }
         val bindgen = tasks.register<UniffiBindgen>("uniffiBindgen$cap") {
             group = "rust"

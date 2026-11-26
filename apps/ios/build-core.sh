@@ -54,7 +54,7 @@ for t in "${targets[@]}"; do
   (cd "$root" && cargo build "${cargo_flags[@]}" --target "$t")
 done
 
-lib_name=libtermoso_mobile.a
+lib_name=liblabterm_mobile.a
 first_lib="$root/target/${targets[0]}/$profile/$lib_name"
 
 work="$(mktemp -d "${TMPDIR:-/tmp}/termoso-ios.XXXXXX")"
