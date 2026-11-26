@@ -11,7 +11,7 @@
 use axum::Json;
 use axum::extract::{Path, State};
 use chrono::{DateTime, Utc};
-use termoso_proto::team::{
+use labterm_proto::team::{
     AccessReview, AccessReviewDetail, AccessReviewItem, AccessReviewList,
     CompleteAccessReviewRequest, DecideAccessReviewItemRequest,
 };

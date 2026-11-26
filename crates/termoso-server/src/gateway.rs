@@ -219,7 +219,7 @@ async fn close_with(socket: &mut WebSocket, code: &str, message: &str) -> anyhow
 
 // ───────────────────────── listing ─────────────────────────
 
-pub use termoso_proto::bridge::{GatewayInfo, GatewayList};
+pub use labterm_proto::bridge::{GatewayInfo, GatewayList};
 
 /// `GET /gateways` — bridges that share a vault with the caller and have ever
 /// run as a gateway, with their online state.

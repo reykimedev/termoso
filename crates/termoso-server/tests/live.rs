@@ -6,10 +6,10 @@ use std::time::Duration;
 
 use common::*;
 use futures::{SinkExt, StreamExt};
+use labterm_crypto::live::{self, Direction, FrameKind, LiveSecret};
+use labterm_proto::live::*;
+use labterm_proto::team::{CreateTeamRequest, Team, UpdateTeamRequest};
 use reqwest::{Method, StatusCode};
-use termoso_crypto::live::{self, Direction, FrameKind, LiveSecret};
-use termoso_proto::live::*;
-use termoso_proto::team::{CreateTeamRequest, Team, UpdateTeamRequest};
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 use uuid::Uuid;

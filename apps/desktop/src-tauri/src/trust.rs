@@ -3,10 +3,10 @@
 //! (`prompts.rs`); this façade never accepts a key on the UI's behalf.
 
 use chrono::{DateTime, Utc};
+use labterm_core::hostkey::KnownHosts;
+use labterm_core::model::KnownHost;
+use labterm_core::store::Store;
 use serde::Serialize;
-use termoso_core::hostkey::KnownHosts;
-use termoso_core::model::KnownHost;
-use termoso_core::store::Store;
 use uuid::Uuid;
 
 use crate::error::{DesktopError, Result};
@@ -38,7 +38,7 @@ fn known_hosts(state: &AppState) -> Result<KnownHosts> {
     ))
 }
 
-fn card(e: termoso_core::model::Entity<KnownHost>) -> KnownHostCard {
+fn card(e: labterm_core::model::Entity<KnownHost>) -> KnownHostCard {
     KnownHostCard {
         id: e.id,
         vault_id: e.vault_id,
@@ -125,7 +125,7 @@ mod tests {
     use std::sync::Arc;
 
     use super::*;
-    use termoso_core::termoso_crypto::keys::SymmetricKey;
+    use labterm_core::labterm_crypto::keys::SymmetricKey;
 
     const KEY: &str =
         "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH7t5lVvmEL4L7DMiC5J2RzzAz76OMaRqQmDH/anAAbv";

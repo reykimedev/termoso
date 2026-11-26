@@ -14,10 +14,10 @@
     }
   },
   "innosetup": false,
-  "bin": "termoso-desktop.exe",
+  "bin": "labterm-desktop.exe",
   "shortcuts": [
     [
-      "termoso-desktop.exe",
+      "labterm-desktop.exe",
       "Termoso"
     ]
   ],

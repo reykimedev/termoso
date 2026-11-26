@@ -12,10 +12,10 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 
+use labterm_core::keys;
+use labterm_core::model::{Group, HostChain, Identity, PfRule, Proxy, SshKey, Tag};
+use labterm_core::store::Store;
 use serde::{Deserialize, Serialize};
-use termoso_core::keys;
-use termoso_core::model::{Group, HostChain, Identity, PfRule, Proxy, SshKey, Tag};
-use termoso_core::store::Store;
 use uuid::Uuid;
 
 use crate::error::{DesktopError, Result};
@@ -24,7 +24,7 @@ use crate::hosts::{self, HostForm, TelnetForm};
 use crate::keychain;
 use crate::state::AppState;
 use crate::trust;
-pub use termoso_core::import::{
+pub use labterm_core::import::{
     ImportPreview, ImportSource, ImportedHost, ImportedKey, ImportedKnownHost, ImportedProxy,
     MAX_TEXT_FILE, PfKind, csv, default_ssh_dir, display, expand_tilde, iterm2, mobaxterm, putty,
     read_text, royalts, securecrt, ssh_config, tabby, winscp, xshell, zoc,
@@ -241,13 +241,13 @@ fn parse_known_hosts(contents: &str, out: &mut Vec<ImportedKnownHost>) -> usize 
             hashed += 1;
             continue;
         }
-        let Ok(key) = termoso_core::hostkey::parse_public_key(&format!("{algo} {blob}")) else {
+        let Ok(key) = labterm_core::hostkey::parse_public_key(&format!("{algo} {blob}")) else {
             continue;
         };
         if key.algorithm().as_str() != algo {
             continue;
         }
-        let fingerprint = termoso_core::hostkey::fingerprint(&key);
+        let fingerprint = labterm_core::hostkey::fingerprint(&key);
         for h in hosts.split(',') {
             if h.is_empty() || h.contains('*') || h.contains('?') {
                 continue;
@@ -1304,7 +1304,7 @@ pub fn export_registry() -> Result<String> {
     }
     let bytes = std::fs::read(&dir)?;
     let _ = std::fs::remove_file(&dir);
-    Ok(termoso_core::import::decode_text(&bytes))
+    Ok(labterm_core::import::decode_text(&bytes))
 }
 
 #[cfg(not(windows))]
@@ -1317,7 +1317,7 @@ pub fn export_registry() -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use termoso_core::import::{ImportedHost, decode_text};
+    use labterm_core::import::{ImportedHost, decode_text};
 
     #[test]
     fn jump_specs_split() {
@@ -1404,13 +1404,13 @@ broken line
     #[test]
     fn pub_only_identity_files_become_agent_backed_keys() {
         const PRIVATE: &str =
-            include_str!("../../../../../crates/termoso-core/testdata/keys/ed25519_openssh");
+            include_str!("../../../../../crates/labterm-core/testdata/keys/ed25519_openssh");
         const PUBLIC: &str =
-            include_str!("../../../../../crates/termoso-core/testdata/keys/ed25519_openssh.pub");
+            include_str!("../../../../../crates/labterm-core/testdata/keys/ed25519_openssh.pub");
         const OTHER_PUBLIC: &str =
-            include_str!("../../../../../crates/termoso-core/testdata/keys/rsa_openssh.pub");
+            include_str!("../../../../../crates/labterm-core/testdata/keys/rsa_openssh.pub");
         const CERT: &str =
-            include_str!("../../../../../crates/termoso-core/testdata/keys/ed25519-cert.pub");
+            include_str!("../../../../../crates/labterm-core/testdata/keys/ed25519-cert.pub");
 
         let dir = tempfile::tempdir().unwrap();
         let ssh = dir.path().join(".ssh");
@@ -1477,7 +1477,7 @@ broken line
 
         let key_of = |label: &str| {
             let host = store
-                .list::<termoso_core::model::Host>(Some(vault))
+                .list::<labterm_core::model::Host>(Some(vault))
                 .unwrap()
                 .into_iter()
                 .find(|h| h.data.label == label)

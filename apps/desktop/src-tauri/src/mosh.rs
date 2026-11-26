@@ -12,9 +12,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use termoso_core::pty::{LocalShellOptions, LocalTerminal};
-use termoso_core::ssh::{IpVersion, SshClient};
-use termoso_core::terminal::{TermEvents, TermSize};
+use labterm_core::pty::{LocalShellOptions, LocalTerminal};
+use labterm_core::ssh::{IpVersion, SshClient};
+use labterm_core::terminal::{TermEvents, TermSize};
 use zeroize::Zeroizing;
 
 use crate::error::{DesktopError, Result};

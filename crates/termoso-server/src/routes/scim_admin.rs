@@ -5,7 +5,7 @@ use axum::extract::{Path, Query, State};
 
 use super::paging::PageQuery;
 use chrono::{DateTime, Utc};
-use termoso_proto::team::{
+use labterm_proto::team::{
     CreateScimTokenRequest, CreatedScimToken, ScimGroupInfo, ScimGroupList, ScimGroupVault,
     ScimToken, ScimTokenList, SetScimGroupVaultsRequest,
 };

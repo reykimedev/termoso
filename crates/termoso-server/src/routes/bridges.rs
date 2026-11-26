@@ -10,9 +10,9 @@
 use axum::Json;
 use axum::extract::{Path, State};
 use chrono::{DateTime, Utc};
-use termoso_crypto::encoding::unb64;
-use termoso_proto::bridge::*;
-use termoso_proto::vault::VaultKind;
+use labterm_crypto::encoding::unb64;
+use labterm_proto::bridge::*;
+use labterm_proto::vault::VaultKind;
 use uuid::Uuid;
 
 use crate::audit;

@@ -5,9 +5,9 @@ use axum::extract::{Path, Query, State};
 
 use super::paging::PageQuery;
 use chrono::{DateTime, Utc};
+use labterm_proto::team::*;
+use labterm_proto::vault::VaultRole;
 use sqlx::{PgExecutor, Postgres, Transaction};
-use termoso_proto::team::*;
-use termoso_proto::vault::VaultRole;
 use uuid::Uuid;
 
 use crate::audit;
@@ -915,7 +915,7 @@ pub async fn create_invite(
     if !crate::policy::domain_allowed(&pol.sso_domains, &email) {
         return Err(Error::new(
             axum::http::StatusCode::BAD_REQUEST,
-            termoso_proto::error::codes::DOMAIN_NOT_ALLOWED,
+            labterm_proto::error::codes::DOMAIN_NOT_ALLOWED,
             "This team only accepts members from its SSO domains",
         )
         .with_details(serde_json::json!({ "domains": pol.sso_domains })));

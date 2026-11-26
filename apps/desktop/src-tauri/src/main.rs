@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    termoso_desktop_lib::run()
+    labterm_desktop_lib::run()
 }

@@ -54,20 +54,20 @@ export const TERMOSO_LIGHT = "termoso-light";
 export const AUTO_THEME = "auto";
 
 // prettier-ignore
-const termosoDark = t(TERMOSO_DARK, "Termoso Dark", appDark.lowest, appDark.text, emerald.main, "#2BB88452", [
+const labtermDark = t(TERMOSO_DARK, "Termoso Dark", appDark.lowest, appDark.text, emerald.main, "#2BB88452", [
   "#1A1E2B", "#F25E61", "#2BB884", "#F2C94C", "#5AA9E6", "#C58AF9", "#4FD1C5", "#C9CDDA",
   "#5A6076", "#FF8285", "#5FD0A4", "#FFDB7A", "#8CC5F0", "#DBB3FF", "#84E7DD", "#F2F4FA",
 ]);
 // prettier-ignore
-const termosoLight = t(TERMOSO_LIGHT, "Termoso Light", appLight.high, appLight.text, emerald.dark, "#1F8F6647", [
+const labtermLight = t(TERMOSO_LIGHT, "Termoso Light", appLight.high, appLight.text, emerald.dark, "#1F8F6647", [
   "#171B26", "#C93B3E", "#1F8F66", "#B08A12", "#2C6B9C", "#8A4FCF", "#1C8C82", "#9AA3B2",
   "#5F6B7C", "#F25E61", "#2BB884", "#D6A81C", "#3D86BF", "#A66BE8", "#28A89C", "#CBD2DC",
 ]);
 
 // prettier-ignore
 export const terminalThemes: readonly TerminalTheme[] = [
-  termosoDark,
-  termosoLight,
+  labtermDark,
+  labtermLight,
   t("flexoki-dark", "Flexoki Dark", "#100f0f", "#cecdc3", "#cecdc3", "#cecdc380", [
     "#100f0f", "#af3029", "#66800b", "#ad8301", "#205ea6", "#a02f6f", "#24837b", "#878580",
     "#6f6e69", "#d14d41", "#879a39", "#d0a215", "#4385be", "#ce5d97", "#3aa99f", "#cecdc3",
@@ -360,7 +360,7 @@ export function resolveTerminalTheme(
   id: string | undefined,
   scheme: "dark" | "light",
 ): TerminalTheme {
-  const fallback = scheme === "light" ? termosoLight : termosoDark;
+  const fallback = scheme === "light" ? labtermLight : labtermDark;
   if (!id || id === AUTO_THEME) return fallback;
   return byId.get(id) ?? custom.get(id) ?? fallback;
 }

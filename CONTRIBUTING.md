@@ -140,10 +140,10 @@ author.
 * **Database changes** are new numbered files in
   `crates/termoso-server/migrations/`; never edit an applied migration.
 * **New synced data** is a new entity kind in
-  `crates/termoso-proto/src/entities.rs`, encrypted like the others; the
+  `crates/labterm-proto/src/entities.rs`, encrypted like the others; the
   server must not gain a column that decrypts it.
-* **Client features** live in Rust (`termoso-core` / `termoso-client`) and
-  are exposed through `termoso-mobile` (UniFFI) and `apps/desktop/src-tauri`
+* **Client features** live in Rust (`labterm-core` / `labterm-client`) and
+  are exposed through `labterm-mobile` (UniFFI) and `apps/desktop/src-tauri`
   commands; TypeScript, Kotlin and Swift are presentation layers.
 * **Tests** accompany behaviour: Rust unit/integration tests, Vitest for the
   desktop webview, Android unit tests, XCTest for iOS. Server tests run

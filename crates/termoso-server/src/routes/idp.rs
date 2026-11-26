@@ -7,9 +7,9 @@ use crate::sso::{self, TeamIdpRow};
 use crate::state::AppState;
 use axum::Json;
 use axum::extract::{Path, Query, State};
+use labterm_proto::auth::SsoDiscoverResponse;
+use labterm_proto::team::{TeamIdp, TeamIdpResponse, UpdateTeamIdpRequest};
 use serde::Deserialize;
-use termoso_proto::auth::SsoDiscoverResponse;
-use termoso_proto::team::{TeamIdp, TeamIdpResponse, UpdateTeamIdpRequest};
 use uuid::Uuid;
 
 const KINDS: &[&str] = &["oidc", "saml"];

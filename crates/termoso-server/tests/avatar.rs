@@ -5,10 +5,10 @@ mod common;
 
 use common::*;
 use image::{ImageFormat, Rgb, RgbImage};
+use labterm_proto::account::UserProfile;
+use labterm_proto::team::{CreateTeamRequest, Team, TeamMemberList};
 use reqwest::{Method, StatusCode, header};
 use std::io::Cursor;
-use termoso_proto::account::UserProfile;
-use termoso_proto::team::{CreateTeamRequest, Team, TeamMemberList};
 
 #[derive(serde::Deserialize)]
 struct AccountResponse {

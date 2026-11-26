@@ -4,7 +4,7 @@
 
 use arbitrary::Arbitrary;
 use libfuzzer_sys::fuzz_target;
-use termoso_mobile::{Emulator, TerminalPalette};
+use labterm_mobile::{Emulator, TerminalPalette};
 
 #[derive(Arbitrary, Debug)]
 struct Input {

@@ -684,7 +684,7 @@ export const SERIAL_BAUD_RATES = [
   115200, 9600, 19200, 38400, 57600, 230400, 460800, 921600, 1200, 2400, 4800,
 ] as const;
 
-/** Mirrors `termoso_core::serial::COMMON_CHARSETS`. */
+/** Mirrors `labterm_core::serial::COMMON_CHARSETS`. */
 export const SERIAL_CHARSETS: readonly { value: string; label: string }[] = [
   { value: "utf-8", label: "UTF-8" },
   { value: "iso-8859-1", label: "ISO-8859-1 (Latin-1)" },
@@ -2114,7 +2114,7 @@ export function isPostQuantumKex(a: SshAlgorithms | null): boolean {
   return !!a && (a.kex.includes("mlkem") || a.kex.includes("sntrup"));
 }
 
-/** Stage of an SSH connection attempt (see `ConnectPhase` in termoso-core). */
+/** Stage of an SSH connection attempt (see `ConnectPhase` in labterm-core). */
 export type ConnectPhase =
   | { kind: "resolving" }
   | { kind: "connecting"; via: string }
@@ -2745,7 +2745,7 @@ export interface IssuedCertificateList {
   certificates: IssuedCertificate[];
 }
 
-/** This device's cached certificate for a team (termoso_core::ca::CachedCert). */
+/** This device's cached certificate for a team (labterm_core::ca::CachedCert). */
 export interface LocalTeamCertificate {
   team_id: Uuid;
   certificate?: string | null;

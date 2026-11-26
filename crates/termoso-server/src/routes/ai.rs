@@ -1,10 +1,10 @@
 //! AI command suggestions: per-account opt-in, daily quota, one relayed
-//! request. See `termoso_proto::ai` for what does (and does not) travel.
+//! request. See `labterm_proto::ai` for what does (and does not) travel.
 
 use axum::Json;
 use axum::extract::State;
 use chrono::{Duration as ChronoDuration, Utc};
-use termoso_proto::ai::{AiCommandRequest, AiCommandResponse, AiSettingsRequest, AiStatus};
+use labterm_proto::ai::{AiCommandRequest, AiCommandResponse, AiSettingsRequest, AiStatus};
 use uuid::Uuid;
 
 use crate::ai::Ai;

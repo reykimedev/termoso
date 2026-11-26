@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Build the Rust core (`termoso-mobile`) for iOS and package it as the
-# `TermosoCore` Swift package: static libraries → `TermosoCoreFFI.xcframework`
-# plus the UniFFI-generated `TermosoCore.swift`.
+# Build the Rust core (`labterm-mobile`) for iOS and package it as the
+# `LabtermCore` Swift package: static libraries → `LabtermCoreFFI.xcframework`
+# plus the UniFFI-generated `LabtermCore.swift`.
 #
 #   ./build-core.sh                      # debug, simulator (arm64) only
 #   ./build-core.sh --release --device   # release, device + simulator
@@ -13,7 +13,7 @@ set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 root="$(cd "$here/../.." && pwd)"
-pkg="$here/TermosoCore"
+pkg="$here/LabtermCore"
 
 profile=debug
 device=0
@@ -38,7 +38,7 @@ targets=()
 [[ $device -eq 1 ]] && targets+=(aarch64-apple-ios)
 [[ $sim -eq 1 ]] && targets+=(aarch64-apple-ios-sim)
 
-cargo_flags=(--locked -p termoso-mobile --lib)
+cargo_flags=(--locked -p labterm-mobile --lib)
 [[ $profile == release ]] && cargo_flags+=(--release)
 
 installed="$(rustup target list --installed)"
@@ -54,7 +54,7 @@ for t in "${targets[@]}"; do
   (cd "$root" && cargo build "${cargo_flags[@]}" --target "$t")
 done
 
-lib_name=libtermoso_mobile.a
+lib_name=liblabterm_mobile.a
 first_lib="$root/target/${targets[0]}/$profile/$lib_name"
 
 work="$(mktemp -d "${TMPDIR:-/tmp}/termoso-ios.XXXXXX")"
@@ -65,12 +65,12 @@ echo "==> uniffi-bindgen (swift)"
   --library "$first_lib" --language swift --no-format \
   --out-dir "$work/bindings")
 
-# UniFFI emits TermosoCore.swift + TermosoCoreFFI.h + TermosoCoreFFI.modulemap.
+# UniFFI emits LabtermCore.swift + LabtermCoreFFI.h + LabtermCoreFFI.modulemap.
 # The xcframework wants the module map named module.modulemap next to the header.
 headers="$work/headers"
 mkdir -p "$headers"
-cp "$work/bindings/TermosoCoreFFI.h" "$headers/"
-cp "$work/bindings/TermosoCoreFFI.modulemap" "$headers/module.modulemap"
+cp "$work/bindings/LabtermCoreFFI.h" "$headers/"
+cp "$work/bindings/LabtermCoreFFI.modulemap" "$headers/module.modulemap"
 
 xc_args=()
 for t in "${targets[@]}"; do
@@ -78,10 +78,10 @@ for t in "${targets[@]}"; do
 done
 
 echo "==> xcodebuild -create-xcframework"
-rm -rf "$pkg/TermosoCoreFFI.xcframework"
-xcodebuild -create-xcframework "${xc_args[@]}" -output "$pkg/TermosoCoreFFI.xcframework" >/dev/null
+rm -rf "$pkg/LabtermCoreFFI.xcframework"
+xcodebuild -create-xcframework "${xc_args[@]}" -output "$pkg/LabtermCoreFFI.xcframework" >/dev/null
 
-mkdir -p "$pkg/Sources/TermosoCore"
-cp "$work/bindings/TermosoCore.swift" "$pkg/Sources/TermosoCore/TermosoCore.swift"
+mkdir -p "$pkg/Sources/LabtermCore"
+cp "$work/bindings/LabtermCore.swift" "$pkg/Sources/LabtermCore/LabtermCore.swift"
 
-echo "==> done: $pkg/TermosoCoreFFI.xcframework + Sources/TermosoCore/TermosoCore.swift"
+echo "==> done: $pkg/LabtermCoreFFI.xcframework + Sources/LabtermCore/LabtermCore.swift"

@@ -20,8 +20,8 @@ use axum::extract::{Path, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use chrono::{DateTime, Utc};
-use termoso_crypto::encoding::unb64;
-use termoso_proto::sshid::*;
+use labterm_crypto::encoding::unb64;
+use labterm_proto::sshid::*;
 use uuid::Uuid;
 
 use crate::config::Config;
@@ -737,7 +737,7 @@ mod tests {
         blob.extend_from_slice(b"ssh-ed25519");
         blob.extend_from_slice(&32u32.to_be_bytes());
         blob.extend_from_slice(&[0u8; 32]);
-        let b64 = termoso_crypto::encoding::b64(&blob);
+        let b64 = labterm_crypto::encoding::b64(&blob);
         let line = format!("ssh-ed25519 {b64} me@laptop");
         assert_eq!(
             normalize_public_key(SshIdKeyType::Ed25519, &line).unwrap(),

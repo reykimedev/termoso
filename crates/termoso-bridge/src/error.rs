@@ -41,7 +41,7 @@ pub enum BridgeError {
     Credentials(String),
     /// Local encryption / decryption failure.
     #[error("crypto: {0}")]
-    Crypto(#[from] termoso_crypto::CryptoError),
+    Crypto(#[from] labterm_crypto::CryptoError),
     /// JSON (de)serialisation failure.
     #[error("json: {0}")]
     Json(#[from] serde_json::Error),
