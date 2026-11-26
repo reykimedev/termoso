@@ -679,6 +679,36 @@ mod tests {
     }
 
     #[test]
+    fn a_team_vault_never_stores_a_setup_key() {
+        let f = fx();
+        let t = Transport {
+            label: "net".into(),
+            provider: "netbird".into(),
+            management_url: None,
+            setup_key: Some("example-setup-key".into()),
+        };
+        // However it gets there (editor, restored backup, copy): dropped.
+        let in_team = f.s.insert(f.team, &t).unwrap();
+        assert_eq!(
+            f.s.require::<Transport>(in_team).unwrap().data.setup_key,
+            None
+        );
+        let raw = serde_json::to_value(&t).unwrap();
+        let id = Uuid::new_v4();
+        f.s.put_raw(f.team, "transport", id, &raw).unwrap();
+        assert_eq!(f.s.require::<Transport>(id).unwrap().data.setup_key, None);
+        // A personal vault keeps it.
+        let mine = f.s.insert(f.personal, &t).unwrap();
+        assert!(
+            f.s.require::<Transport>(mine)
+                .unwrap()
+                .data
+                .setup_key
+                .is_some()
+        );
+    }
+
+    #[test]
     fn overlays_are_never_read_from_or_stored_in_a_team_vault() {
         let f = fx();
         let (me, _) = my_key_identity(&f, "mike", None);
