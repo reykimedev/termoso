@@ -1,19 +1,23 @@
 // The desktop's Tauri commands, served in the browser. Termoso's frontend calls `invoke(...)` as
 // on the desktop; mockIPC routes each call to the web backend (vault in IndexedDB, Termoso account
 // over REST, SSH in hatch-wasm through the relay). Commands the browser cannot do (local files,
-// SFTP, port forwarding, serial, agent, updates) answer empty or with a clear "not in the browser".
+// port forwarding, serial, agent, updates) answer empty or with a clear "not in the browser".
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
 import { emit } from "@tauri-apps/api/event";
 import * as account from "./backend/account";
+import * as backup from "./backend/backup";
 import { call, normalizeServer } from "./backend/api";
 import { config } from "./backend/config";
 import * as db from "./backend/db";
+import * as files from "./backend/files";
 import { asDesktopError, fail } from "./backend/errors";
 import * as m from "./backend/model";
 import * as oidc from "./backend/oidc";
 import { defaultSettings } from "./backend/settings";
 import * as st from "./backend/state";
+import * as sftp from "./backend/sftp";
 import * as term from "./backend/terminal";
+import * as copy from "./backend/vaultcopy";
 import { TERMOSO_VERSION } from "./build";
 import { integrity } from "./integrity";
 import { tr } from "@/i18n";
@@ -68,6 +72,7 @@ async function lockNow() {
   if (idle) clearTimeout(idle);
   idle = null;
   term.closeAll();
+  sftp.closeAll();
   account.stopSync();
   oidc.forget();
   await st.lock();
@@ -102,6 +107,9 @@ const commands: Record<string, Handler> = {
   // window and app
   "plugin:window|is_maximized": () => false,
   "plugin:window|is_fullscreen": () => false,
+  // file dialogs: the browser's file picker, and downloads (backend/files.ts)
+  "plugin:dialog|open": (a) => files.open(a.options),
+  "plugin:dialog|save": (a) => files.save(a.options),
   app_info: () => ({
     version: TERMOSO_VERSION,
     profileDir: "",
@@ -197,6 +205,8 @@ const commands: Record<string, Handler> = {
   },
   host_duplicate: (a) => m.hostDuplicate(a.id),
   hosts_move: (a) => m.hostsMove(a.ids, a.groupId ?? null),
+  hosts_copy_to_vault: (a) =>
+    copy.hostsCopyToVault(a.ids, a.vaultId, !!a.moveHosts, a.withCredentials),
   host_inherited: (a) => m.inherited(a.groupId ?? null),
   groups_list: (a) => m.groupNodes(a.vaultId ?? null),
   group_save: (a) => m.groupSave(a as Parameters<typeof m.groupSave>[0]),
@@ -212,6 +222,7 @@ const commands: Record<string, Handler> = {
   // keychain
   identities_list: (a) => m.identityCards(a.vaultId ?? null),
   identity_save: (a) => m.identitySave(a.form),
+  identity_copy_to_vault: (a) => copy.identityCopyToVault(a.id, a.vaultId, !!a.moveIdentity),
   identity_delete: (a) => {
     st.remove(a.id);
     return null;
@@ -223,6 +234,7 @@ const commands: Record<string, Handler> = {
   key_import: (a) => m.keyImport(a.form),
   key_rename: (a) => m.keyRename(a.id, a.label),
   key_delete: (a) => m.keyDelete(a.id),
+  key_copy_to_vault: (a) => copy.keyCopyToVault(a.id, a.vaultId, !!a.moveKey),
   key_public: (a) => m.keyPublic(a.id),
   key_certificate: (a) => m.keyCertificate(a.id),
   key_set_certificate: (a) => m.keySetCertificate(a.id, a.certificate ?? null),
@@ -250,6 +262,12 @@ const commands: Record<string, Handler> = {
     return null;
   },
 
+  // encrypted .termoso backups: also how vaults move between accounts and servers
+  backup_export: (a) => backup.exportTo(a.vaultIds ?? [], String(a.password ?? ""), String(a.path)),
+  backup_inspect: (a) => backup.inspect(String(a.path), String(a.password ?? "")),
+  backup_discard: (a) => backup.discard(a.previewId),
+  backup_restore: (a) => backup.restore(a.previewId, Number(a.source), a.vaultId),
+
   // terminal
   terminal_open: (a) => term.open(a as Parameters<typeof term.open>[0]),
   terminal_attach: (a) => term.attach(a as Parameters<typeof term.attach>[0]),
@@ -265,8 +283,9 @@ const commands: Record<string, Handler> = {
   history_record_command: () => null,
 
   // what a browser tab has no access to
-  local_list: () => ({ path: "/", parent: null, entries: [] }),
-  local_home: () => "/",
+  // The "local" side of SFTP: downloads go to the browser, uploads come from dropped files.
+  local_list: () => ({ path: "/Downloads", parent: null, entries: [] }),
+  local_home: () => "/Downloads",
   local_drives: () => [],
   local_shells: () => [],
   edits_list: () => [],
@@ -274,14 +293,33 @@ const commands: Record<string, Handler> = {
   file_cache_settings: () => ({ enabled: false, maxMb: 0 }),
   ai_status: () => ({ enabled: false, available: false }),
   multiplayer_info: () => null,
-  sftp_open: notInBrowser("SFTP"),
+
+  // SFTP
+  sftp_sessions_list: () => sftp.sessions(),
+  sftp_open: (a) => sftp.open(a.id, a.target),
+  sftp_close: (a) => sftp.close(a.id),
+  sftp_offline_available: () => false,
+  sftp_list: (a) => sftp.list(a.id, a.path ?? null),
+  sftp_stat: (a) => sftp.stat(a.id, a.path),
+  sftp_mkdir: (a) => sftp.mkdir(a.id, a.path),
+  sftp_rename: (a) => sftp.rename(a.id, a.from, a.to),
+  sftp_remove: (a) => sftp.remove(a.id, a.path, !!a.recursive),
+  sftp_chmod: (a) => sftp.chmod(a.id, a.path, Number(a.mode)),
+  transfer_start: (a) => sftp.start(a as Parameters<typeof sftp.start>[0]),
+  transfer_probe: (a) => sftp.probe(a as Parameters<typeof sftp.probe>[0]),
+  transfer_cancel: (a) => sftp.cancel(a.id),
+  transfer_pause: () => false,
+  transfer_forget: () => null,
+  drop_begin: () => sftp.dropBegin(),
+  drop_mkdir: (a) => sftp.dropMkdir(a.dir, a.rel),
+  drop_abort: (a) => sftp.dropAbort(a.dir),
   pf_start: notInBrowser("Port forwarding"),
   snippet_run: notInBrowser("Running snippets on several hosts"),
 };
 
 /** Writes the user made: queue them for the next push to the Termoso server. */
 const WRITE =
-  /(_save|_delete|_duplicate|_move|_generate|_import|_rename|_set_|_remember_|_forget|_pin$|_unpin$|^tag_|^tags_merge)/;
+  /(_save|_delete|_duplicate|_move|_generate|_import|_rename|_set_|_remember_|_forget|_pin$|_unpin$|_to_vault$|^backup_restore$|^tag_|^tags_merge)/;
 
 mockWindows("main");
 mockIPC(
@@ -303,3 +341,37 @@ mockIPC(
   },
   { shouldMockEvents: true },
 );
+
+// drop_write sends the file's bytes as the body and its place in headers, which mockIPC drops.
+{
+  type Invoke = (
+    cmd: string,
+    args: unknown,
+    options?: { headers?: Record<string, string> },
+  ) => Promise<unknown>;
+  const internals = (window as unknown as { __TAURI_INTERNALS__: { invoke: Invoke } })
+    .__TAURI_INTERNALS__;
+  const invoke = internals.invoke.bind(internals);
+  const unb64 = (v: string) =>
+    new TextDecoder().decode(Uint8Array.from(atob(v), (c) => c.charCodeAt(0)));
+  internals.invoke = (
+    cmd: string,
+    args: unknown,
+    options?: { headers?: Record<string, string> },
+  ) => {
+    if (cmd !== "drop_write") return invoke(cmd, args, options);
+    const h = options?.headers ?? {};
+    try {
+      return Promise.resolve(
+        sftp.dropWrite(
+          unb64(h["x-drop-dir"] ?? ""),
+          unb64(h["x-drop-path"] ?? ""),
+          args as Uint8Array,
+          h["x-drop-append"] === "1",
+        ),
+      );
+    } catch (e) {
+      return Promise.reject(asDesktopError(e));
+    }
+  };
+}

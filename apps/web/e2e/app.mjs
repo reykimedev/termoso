@@ -152,6 +152,115 @@ try {
   await b.getByRole("button", { name: "Unlock" }).click();
   await hostCard(b).waitFor({ timeout: 20000 });
   check(true, "reload, wrong password refused, unlock keeps the vault");
+
+  // ── Copy to another vault: the host takes its login along ───────────────
+  const copied = await b.evaluate(async () => {
+    const ipc = window.__TAURI_INTERNALS__;
+    const vaults = await ipc.invoke("vaults_list");
+    const local = vaults.find((v) => v.kind === "local");
+    const [host] = (await ipc.invoke("hosts_list", { vaultId: null })).filter((h) => h.label === "test-vm");
+    const [id] = await ipc.invoke("hosts_copy_to_vault", { ids: [host.id], vaultId: local.id, moveHosts: false, withCredentials: true });
+    const form = await ipc.invoke("host_form", { id });
+    await ipc.invoke("host_delete", { id });
+    return form.vaultId === local.id && form.hasPassword && form.username.length > 0;
+  });
+  check(copied, "host copied into another vault with its login");
+
+  // ── SFTP over the relay: upload a dropped file, list, download, rename, delete ──
+  const sftpOk = await b.evaluate(async () => {
+    const ipc = window.__TAURI_INTERNALS__;
+    const [host] = (await ipc.invoke("hosts_list", { vaultId: null })).filter((h) => h.label === "test-vm");
+    const id = crypto.randomUUID();
+    const info = await ipc.invoke("sftp_open", { id, target: { kind: "host", host_id: host.id } });
+    const dir = `${info.home}/hatch-e2e-sftp`;
+    await ipc.invoke("sftp_mkdir", { id, path: dir });
+    const drop = await ipc.invoke("drop_begin");
+    const b64 = (s) => btoa(s);
+    const body = new TextEncoder().encode("hello from the browser\n".repeat(100000));
+    await ipc.invoke("drop_write", body.slice(0, 1500000), {
+      headers: { "x-drop-dir": b64(drop), "x-drop-path": b64("up.txt"), "x-drop-append": "0" },
+    });
+    await ipc.invoke("drop_write", body.slice(1500000), {
+      headers: { "x-drop-dir": b64(drop), "x-drop-path": b64("up.txt"), "x-drop-append": "1" },
+    });
+    const done = new Promise((resolve) => {
+      window.__hatchTransfers = resolve;
+    });
+    await ipc.invoke("plugin:event|listen", {
+      event: "transfer",
+      handler: ipc.transformCallback((e) => {
+        if (["finished", "failed"].includes(e.payload.type)) window.__hatchTransfers?.(e.payload);
+      }),
+    });
+    await ipc.invoke("transfer_start", { sftpId: id, direction: "upload", local: `${drop}/up.txt`, remote: `${dir}/up.txt` });
+    const up = await done;
+    const listing = await ipc.invoke("sftp_list", { id, path: dir });
+    const size = listing.entries.find((e) => e.name === "up.txt")?.size;
+    await ipc.invoke("sftp_rename", { id, from: `${dir}/up.txt`, to: `${dir}/renamed.txt` });
+    const again = new Promise((resolve) => {
+      window.__hatchTransfers = resolve;
+    });
+    await ipc.invoke("transfer_start", { sftpId: id, direction: "download", local: "/Downloads/renamed.txt", remote: `${dir}/renamed.txt` });
+    const down = await again;
+    await ipc.invoke("sftp_remove", { id, path: dir, recursive: true });
+    const gone = await ipc.invoke("sftp_stat", { id, path: dir }).then(() => false, () => true);
+    await ipc.invoke("sftp_close", { id });
+    return { up: up.type, size, expected: body.length, down: down.type, downBytes: down.bytes, gone };
+  });
+  check(
+    sftpOk.up === "finished" && sftpOk.size === sftpOk.expected && sftpOk.down === "finished" &&
+      sftpOk.downBytes === sftpOk.expected && sftpOk.gone,
+    `SFTP upload, list, rename, download and delete (${JSON.stringify(sftpOk)})`,
+  );
+
+  // ── Migration: an encrypted backup from B restores in a browser without an account ──
+  const openAccountPage = async (page) => {
+    await page.getByText("Settings", { exact: true }).first().click();
+    await page.getByText("Account & sync", { exact: true }).click();
+  };
+  await openAccountPage(b);
+  await b.getByRole("button", { name: "Export…" }).click();
+  const ex = b.getByRole("dialog").filter({ hasText: "Export encrypted backup" });
+  await ex.locator("input[type=password]").nth(0).fill("backup-pass-123");
+  await ex.locator("input[type=password]").nth(1).fill("backup-pass-123");
+  const [dl] = await Promise.all([
+    b.waitForEvent("download"),
+    ex.getByRole("button", { name: "Save backup…" }).click(),
+  ]);
+  const backupFile = `${OUT}/e2e-${run}.termoso`;
+  await dl.saveAs(backupFile);
+  const bytes = readFileSync(backupFile);
+  check(
+    bytes.subarray(0, 15).toString() === "TERMOSO-BACKUP\n" && !bytes.includes(SSH_PASSWORD),
+    "encrypted backup downloaded, no password in the clear",
+  );
+
+  const c = await (await browser.newContext({ viewport: { width: 1280, height: 800 } })).newPage();
+  c.on("pageerror", (e) => console.log("[C pageerror]", e.message));
+  await firstStart(c, "third-lock-123");
+  await openAccountPage(c);
+  const [chooser] = await Promise.all([
+    c.waitForEvent("filechooser"),
+    c.getByRole("button", { name: "Restore…" }).click(),
+  ]);
+  await chooser.setFiles(backupFile);
+  const rd = c.getByRole("dialog").filter({ hasText: "Restore from backup" });
+  await rd.locator("input[type=password]").fill("wrong-backup-pass");
+  await rd.getByRole("button", { name: "Unlock" }).click();
+  await c.getByText("wrong password or damaged backup").waitFor();
+  await rd.locator("input[type=password]").fill("backup-pass-123");
+  await rd.getByRole("button", { name: "Unlock" }).click();
+  await rd.getByRole("button", { name: "Restore", exact: true }).click();
+  await c.getByRole("heading", { name: "Restore complete" }).waitFor();
+  await c.getByRole("dialog").filter({ hasText: "Restore complete" }).getByRole("button").last().click();
+  await c.getByRole("button", { name: "Close settings" }).click();
+  await hostCard(c).waitFor({ timeout: 20000 });
+  await hostCard(c).click({ button: "right" });
+  await c.getByRole("menuitem", { name: "Connect" }).hover();
+  await c.getByRole("menuitem", { name: "with SSH" }).click();
+  await c.waitForTimeout(5000);
+  check(await proveShell(c, "c"), "backup restored in a browser without an account: shell with its login and pin");
+  await c.screenshot({ path: `${OUT}/c-terminal.png` });
   if (process.env.HATCH_E2E_SIGNED === "1") {
     const badge = await b.getByRole("button", { name: /Signed release, every file checked/ }).count();
     check(badge === 1, "build badge says signed and checked");

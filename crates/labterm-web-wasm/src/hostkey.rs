@@ -57,36 +57,48 @@ fn info(host: &str, port: u16, key: &PublicKey) -> HostKeyInfo {
     }
 }
 
+fn pin_info(p: &Pin) -> HostKeyInfo {
+    HostKeyInfo {
+        host: p.hostname.clone(),
+        key_type: p.key_type.clone(),
+        fingerprint: p.fingerprint.clone(),
+        public_key: p.public_key.clone(),
+    }
+}
+
 /// A pin of the same type that holds a different key wins over a matching one elsewhere: a team
-/// pin can't be overridden by another vault.
+/// pin can't be overridden by another vault. A host that is pinned, but not with a key of the type
+/// it shows now, counts as changed rather than unknown: a server that suddenly offers another key
+/// type is what a machine in the middle looks like. The caller passes only the pins it trusts for
+/// this host (see `trustedPinVaults` in the web backend).
 pub fn check(pins: &[Pin], host: &str, port: u16, key: &PublicKey) -> Verdict {
     let presented = info(host, port, key);
     let mut known = false;
+    let mut other_type: Option<&Pin> = None;
     for p in pins
         .iter()
         .filter(|p| p.hostname.eq_ignore_ascii_case(&presented.host))
     {
         if p.key_type != presented.key_type {
+            other_type.get_or_insert(p);
             continue;
         }
         if p.public_key.trim() == presented.public_key {
             known = true;
         } else {
             return Verdict::Changed {
-                old: HostKeyInfo {
-                    host: p.hostname.clone(),
-                    key_type: p.key_type.clone(),
-                    fingerprint: p.fingerprint.clone(),
-                    public_key: p.public_key.clone(),
-                },
+                old: pin_info(p),
                 new: presented,
             };
         }
     }
-    if known {
-        Verdict::Known
-    } else {
-        Verdict::Unknown { key: presented }
+    match (known, other_type) {
+        (true, _) => Verdict::Known,
+        (false, Some(p)) => Verdict::Changed {
+            old: pin_info(p),
+            new: presented,
+        },
+        (false, None) => Verdict::Unknown { key: presented },
     }
 }
 
@@ -145,6 +157,26 @@ mod tests {
             check(&pins, "nas.lan.example.com", 22, &key(ED_A)),
             Verdict::Changed { .. }
         ));
+    }
+
+    #[test]
+    fn another_key_type_is_a_change() {
+        let mut rsa_pin = pin("nas.lan.example.com", "AAAAB3NzaC1yc2EAAAADAQABAAABAQ");
+        rsa_pin.key_type = "ssh-rsa".into();
+        assert!(matches!(
+            check(&[rsa_pin.clone()], "nas.lan.example.com", 22, &key(ED_A)),
+            Verdict::Changed { .. }
+        ));
+        // A matching pin of the presented type still counts, whatever else is pinned.
+        assert_eq!(
+            check(
+                &[rsa_pin, pin("nas.lan.example.com", ED_A)],
+                "nas.lan.example.com",
+                22,
+                &key(ED_A)
+            ),
+            Verdict::Known
+        );
     }
 
     #[test]

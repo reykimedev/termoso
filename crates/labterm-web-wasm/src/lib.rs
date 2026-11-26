@@ -6,10 +6,12 @@
 
 #![cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 
+mod backup;
 mod hostkey;
 mod keys;
 mod lock;
 mod opk;
+mod sftp;
 mod transport;
 
 // Linked for its exports: termoso-wasm's OPAQUE, key and entity functions end up in this module.
@@ -44,7 +46,9 @@ struct Options {
     auth: Vec<AuthMethod>,
     #[serde(default = "default_term")]
     term: String,
+    #[serde(default)]
     cols: u32,
+    #[serde(default)]
     rows: u32,
     #[serde(default)]
     env: Vec<(String, String)>,
@@ -225,16 +229,15 @@ enum Event<'a> {
 /// shell. `on_event` gets progress, `data` (as `{type: "data", data: Uint8Array}`), `exit` and
 /// `closed`. `prompt(kind, data)` asks the user: `"interactive"` ({name, instructions, questions})
 /// answers with a promise of strings, `"password"` ({username, retry}) with a string; null gives up.
-#[wasm_bindgen]
-pub async fn connect(
-    options: JsValue,
-    on_event: Function,
-    prompt: Option<Function>,
-) -> Result<Session, JsValue> {
-    let o: Options =
-        serde_wasm_bindgen::from_value(options).map_err(|e| transport(format!("options: {e}")))?;
+/// WebSocket to the relay, SSH over it, the host-key check, then sign-in. Nothing is sent that a
+/// host could use before its key matched a pin.
+async fn establish(
+    o: &Options,
+    on_event: &Function,
+    prompt: Option<&Function>,
+) -> Result<client::Handle<Handler>, JsValue> {
     emit(
-        &on_event,
+        on_event,
         &Event::Progress {
             phase: "connecting",
             method: None,
@@ -242,7 +245,7 @@ pub async fn connect(
     );
     let stream = transport::websocket(&o.url).await?;
     emit(
-        &on_event,
+        on_event,
         &Event::Progress {
             phase: "handshake",
             method: None,
@@ -254,7 +257,7 @@ pub async fn connect(
     let handler = Handler {
         host: o.host.clone(),
         port: o.port,
-        pins: o.known_hosts,
+        pins: o.known_hosts.clone(),
         verdict: verdict.clone(),
         banners: banners.clone(),
     };
@@ -275,7 +278,7 @@ pub async fn connect(
         (Err(e), _) => return Err(transport(e)),
     };
     emit(
-        &on_event,
+        on_event,
         &Event::Progress {
             phase: "host_key",
             method: None,
@@ -312,7 +315,7 @@ pub async fn connect(
                     Err(message) => return Err(reject(ConnectError::Key { message })),
                     Ok(Some(cert)) => {
                         emit(
-                            &on_event,
+                            on_event,
                             &Event::Progress {
                                 phase: "auth",
                                 method: Some("publickey (certificate)"),
@@ -327,7 +330,7 @@ pub async fn connect(
                     }
                     Ok(None) => {
                         emit(
-                            &on_event,
+                            on_event,
                             &Event::Progress {
                                 phase: "auth",
                                 method: Some("publickey"),
@@ -343,7 +346,7 @@ pub async fn connect(
             }
             AuthMethod::Password { password } => {
                 emit(
-                    &on_event,
+                    on_event,
                     &Event::Progress {
                         phase: "auth",
                         method: Some("password"),
@@ -355,7 +358,7 @@ pub async fn connect(
                 )
             }
             AuthMethod::AskPassword => {
-                let Some(f) = prompt.as_ref() else { continue };
+                let Some(f) = prompt else { continue };
                 let mut last = Ok(russh::client::AuthResult::Failure {
                     remaining_methods: russh::MethodSet::empty(),
                     partial_success: false,
@@ -369,7 +372,7 @@ pub async fn connect(
                         break;
                     };
                     emit(
-                        &on_event,
+                        on_event,
                         &Event::Progress {
                             phase: "auth",
                             method: Some("password"),
@@ -387,7 +390,7 @@ pub async fn connect(
                     continue;
                 };
                 emit(
-                    &on_event,
+                    on_event,
                     &Event::Progress {
                         phase: "auth",
                         method: Some("publickey (opkssh)"),
@@ -402,13 +405,13 @@ pub async fn connect(
             }
             AuthMethod::KeyboardInteractive => {
                 emit(
-                    &on_event,
+                    on_event,
                     &Event::Progress {
                         phase: "auth",
                         method: Some("keyboard-interactive"),
                     },
                 );
-                let r = keyboard_interactive(&mut handle, &o.username, prompt.as_ref()).await;
+                let r = keyboard_interactive(&mut handle, &o.username, prompt).await;
                 ("keyboard-interactive", r)
             }
         };
@@ -433,9 +436,21 @@ pub async fn connect(
         return Err(reject(ConnectError::Auth { tried, offered }));
     }
     for b in banners.lock().unwrap_or_else(|e| e.into_inner()).drain(..) {
-        emit(&on_event, &Event::Banner { text: &b });
+        emit(on_event, &Event::Banner { text: &b });
     }
 
+    Ok(handle)
+}
+
+#[wasm_bindgen]
+pub async fn connect(
+    options: JsValue,
+    on_event: Function,
+    prompt: Option<Function>,
+) -> Result<Session, JsValue> {
+    let o: Options =
+        serde_wasm_bindgen::from_value(options).map_err(|e| transport(format!("options: {e}")))?;
+    let handle = establish(&o, &on_event, prompt.as_ref()).await?;
     let ch = handle.channel_open_session().await.map_err(transport)?;
     for (k, v) in &o.env {
         // Servers refuse most variables (AcceptEnv); that is not an error.

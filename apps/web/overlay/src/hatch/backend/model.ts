@@ -361,7 +361,12 @@ function inlineIdentity(
   return put<Identity>("identity", vaultId, hidden?.id ?? null, data).id;
 }
 
-type HostFormIn = ReturnType<typeof hostForm> & { id: Uuid | null };
+/** The host editor's form as the UI sends it back (a new host has no id yet). */
+export type HostFormIn = Omit<ReturnType<typeof hostForm>, "id" | "password" | "totpSecret"> & {
+  id: Uuid | null;
+  password: string | null;
+  totpSecret: string | null;
+};
 
 export function hostSave(f: HostFormIn) {
   const address = f.address.trim();
@@ -444,7 +449,7 @@ export function hostDuplicate(id: Uuid) {
     id: null,
     label: `${f.label} (copy)`,
     password: hidden && !hidden.data.is_visible ? (hidden.data.password ?? null) : null,
-  } as unknown as HostFormIn);
+  });
 }
 
 export function hostsMove(ids: Uuid[], groupId: Uuid | null) {
@@ -958,14 +963,29 @@ export function knownHostCards() {
   }));
 }
 
-/** Every pin from every unlocked vault, for the connection's host-key check. */
-export function pins() {
-  return list<KnownHost>("known_host").map((k) => ({
-    hostname: k.data.hostname,
-    keyType: k.data.key_type,
-    publicKey: k.data.public_key,
-    fingerprint: k.data.fingerprint,
-  }));
+/**
+ * The pins a connection may trust: those of the vault that holds the host, of this browser, and
+ * of a personal vault whose key we know is ours. A pin in some other vault (another team's, or
+ * one the server could have made up) says nothing about this host.
+ */
+export function trustedPinVaults(hostVaultId: Uuid | null): Set<Uuid> {
+  const out = new Set<Uuid>();
+  for (const v of s().vaults)
+    if (v.kind === "local" || (v.kind === "personal" && v.key_self) || v.id === hostVaultId)
+      out.add(v.id);
+  return out;
+}
+
+export function pins(hostVaultId: Uuid | null) {
+  const trusted = trustedPinVaults(hostVaultId);
+  return list<KnownHost>("known_host")
+    .filter((k) => trusted.has(k.vaultId))
+    .map((k) => ({
+      hostname: k.data.hostname,
+      keyType: k.data.key_type,
+      publicKey: k.data.public_key,
+      fingerprint: k.data.fingerprint,
+    }));
 }
 
 export function knownHostForget(id: Uuid) {

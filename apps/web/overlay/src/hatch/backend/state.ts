@@ -4,6 +4,7 @@
 import * as db from "./db";
 import { fail } from "./errors";
 import { emit } from "@tauri-apps/api/event";
+import type { TeamPolicies } from "./policy";
 import { defaultSettings } from "./settings";
 
 export type Uuid = string;
@@ -32,6 +33,11 @@ export interface VaultRec {
   key_version: number;
   /** Opened vault key (base64); null while our copy is pending. */
   key: string | null;
+  /**
+   * The key came sealed with our own account key, so the server cannot have made it up. Only
+   * such a personal vault (and this browser's vault) can vouch for host keys of other vaults.
+   */
+  key_self?: boolean;
   cursor: number;
   is_default: boolean;
   session_logging: boolean;
@@ -57,6 +63,8 @@ export interface State {
   vaults: VaultRec[];
   entities: Record<Uuid, Ent>;
   workspaces?: unknown;
+  /** Team id → the team's client-enforced policies (policy.ts). */
+  teamPolicies?: Record<Uuid, TeamPolicies>;
 }
 
 /** The device-only vault every Termoso install has; it never syncs. */

@@ -3,7 +3,9 @@
 `app.mjs` drives the built app in headless Chromium against real services: a Termoso server, the
 relay, a stand-in identity provider and an SSH server. It creates an account, adds a host, checks
 that an unknown host key is refused, pins the key, opens a shell, then signs in from a second
-browser with the emailed device code and connects with what synced.
+browser with the emailed device code and connects with what synced. It also copies a host to
+another vault, moves a file up and down over SFTP, and restores an encrypted backup in a third
+browser that has no account.
 
 It needs, on one machine:
 
@@ -13,7 +15,7 @@ It needs, on one machine:
 | Mail sink | `node web/e2e/smtp-sink.mjs 1025 /tmp/hatch-e2e/mail.log` | The test reads the device code from it |
 | Identity provider | `node web/e2e/dev-oidc.mjs 9400` | Signs in anyone; test machines only |
 | Relay | `hatch-relay` on `127.0.0.1:8090` | Issuer `http://localhost:9400/`, audience `hatch`, origin `http://localhost:5173`, allowlist with the SSH server |
-| SSH server | `sshd` on `192.0.2.2:2222` | User `hatchtest`, password `hatch-test-pw`; host key at `/tmp/hatch-e2e/sshd/host_ed25519.pub` |
+| SSH server | `sshd` on `192.0.2.2:2222` | User `hatchtest`, password `hatch-test-pw`; host key at `/tmp/hatch-e2e/sshd/host_ed25519.pub`; `Subsystem sftp internal-sftp` |
 | The app | `./web/build.sh` then `node web/e2e/serve.mjs web/dist <config.json> 5173` | `config.json` points at the services above |
 
 ```json

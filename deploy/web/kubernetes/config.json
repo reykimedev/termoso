@@ -1,0 +1,7 @@
+{
+  "relayUrl": "https://relay.hatch.example.com",
+  "oidcIssuer": "https://auth.example.com/application/o/hatch/",
+  "oidcClientId": "hatch",
+  "termosoServer": "https://termoso.example.com",
+  "oidcScopes": "offline_access"
+}

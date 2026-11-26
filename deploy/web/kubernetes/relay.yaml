@@ -32,6 +32,15 @@ spec:
               value: "0.0.0.0:8080"
             - name: HATCH_RELAY_ALLOWLIST_FILE
               value: /etc/hatch/allowlist.yaml
+            # The Authentik application the web app signs in with (config.json's oidcIssuer and
+            # oidcClientId). TODO: your issuer and client id.
+            - name: HATCH_RELAY_OIDC_ISSUER
+              value: https://auth.example.com/application/o/hatch/
+            - name: HATCH_RELAY_OIDC_AUDIENCE
+              value: hatch
+            # TODO: the app's public origin, as in routes.yaml.
+            - name: HATCH_RELAY_ALLOWED_ORIGINS
+              value: https://hatch.example.com
             - name: RUST_LOG
               value: info
           resources:

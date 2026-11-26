@@ -8,10 +8,11 @@ WebSocket to TCP. The UI is Termoso's own desktop frontend at a pinned release.
 
 Hatch is an independent project and not part of Termoso.
 
-> **Status:** early. The web app runs on a demo backend with example data; SSH, the relay's
-> tickets and the vault come in the next milestones ([architecture](docs/architecture.md)).
+> **Status:** early. The web app signs in to a Termoso server, unlocks and syncs vaults, and runs
+> SSH and SFTP through the relay ([architecture](docs/architecture.md)). There is no demo mode:
+> it needs a Termoso server, an OpenID Connect provider and a relay ([deploy](docs/deploy.md)).
 
-<!-- TODO: screenshot from the demo build (example data only) -->
+<!-- TODO: screenshot (example data only) -->
 
 ## Run it
 

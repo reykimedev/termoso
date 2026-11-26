@@ -17,6 +17,9 @@ termoso-wasm = { path = "../../web/upstream/crates/termoso-wasm" }
 # opkssh certificates from the Authentik sign-in. Lives in the Termoso fork until it is upstream;
 # pinned to a commit. Only the core: the browser does the HTTP itself.
 termoso-oidc-cert = { git = "https://github.com/reykimedev/termoso", rev = "f77dc6bb9a791b71efbaf1988ccfdb5d04e39610", default-features = false }
+# The .termoso backup format: same Argon2id and XChaCha20-Poly1305 as the Termoso apps.
+termoso-crypto = { path = "../../web/upstream/crates/termoso-crypto", features = ["wasm"] }
+serde_json = { workspace = true }
 argon2 = { version = "0.5", default-features = false, features = ["alloc"] }
 # Same russh as Termoso v0.12.1, with ring instead of aws-lc-rs (aws-lc-sys has no wasm32 build).
 russh = { version = "=0.65.1", default-features = false, features = ["ring", "rsa"] }
@@ -33,6 +36,7 @@ wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
 web-sys = { version = "0.3", features = ["WebSocket", "BinaryType", "MessageEvent", "CloseEvent", "Event"] }
 url = "2"
+russh-sftp = "4.0.0"
 
 [lints]
 workspace = true

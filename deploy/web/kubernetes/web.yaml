@@ -38,9 +38,17 @@ spec:
               drop: ["ALL"]
           volumeMounts:
             - { name: tmp, mountPath: /tmp }
+            # Deployment data next to index.html; not part of the signed release.
+            - name: config
+              mountPath: /usr/share/nginx/html/config.json
+              subPath: config.json
+              readOnly: true
       volumes:
         - name: tmp
           emptyDir: {}
+        - name: config
+          configMap:
+            name: hatch-web-config
 ---
 apiVersion: v1
 kind: Service

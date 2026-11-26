@@ -15,3 +15,4 @@ Where Hatch settles a question for itself, mostly where it departs from the
 | [0007](0007-signed-release-manifest.md) | A signed release manifest, checked by a loader and a service worker | 2026-11-26 |
 | [0008](0008-browser-copy-and-lock-password.md) | The browser keeps an encrypted copy, unlocked by a lock password | 2026-11-26 |
 | [0009](0009-pasted-host-keys.md) | A host key may be pasted by hand (amends 0005) | 2026-11-26 |
+| [0010](0010-who-vouches-for-a-host-key.md) | Which vaults vouch for a host key (amends 0005) | 2026-11-26 |
