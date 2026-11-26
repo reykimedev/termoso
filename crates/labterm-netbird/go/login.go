@@ -18,10 +18,12 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/netbirdio/netbird/client/iface/netstack"
 	"github.com/netbirdio/netbird/client/system"
 	mgm "github.com/netbirdio/netbird/shared/management/client"
 	"golang.org/x/oauth2"
@@ -57,16 +59,18 @@ type loginResult struct {
 }
 
 type pendingLogin struct {
-	opts     loginOptions
-	key      wgtypes.Key
-	oauth    oauth2.Config
-	useID    bool
-	state    string
-	verifier string
-	server   *http.Server
-	codes    chan string
-	errs     chan error
-	once     sync.Once
+	// Extra listener on [::1]: browsers may try that first for "localhost".
+	listener6 net.Listener
+	opts      loginOptions
+	key       wgtypes.Key
+	oauth     oauth2.Config
+	useID     bool
+	state     string
+	verifier  string
+	server    *http.Server
+	codes     chan string
+	errs      chan error
+	once      sync.Once
 }
 
 // Sign-ins in progress by handle. A map rather than cgo.Handle so a late
@@ -82,6 +86,9 @@ func (p *pendingLogin) close() {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 		_ = p.server.Shutdown(ctx)
+		if p.listener6 != nil {
+			p.listener6.Close()
+		}
 	})
 }
 
@@ -112,6 +119,17 @@ func randomHex(n int) (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(b), nil
+}
+
+// The library only ever runs NetBird in userspace, so say so before any
+// dial, not just when embed.New runs. On Android, NetBird's dialer otherwise
+// expects a VpnService socket protector that this app never sets, and every
+// dial to the management server fails until the 30 s deadline: sign-in on a
+// fresh start hit exactly that, while setup-key starts (embed.New first)
+// worked.
+func init() {
+	_ = os.Setenv(netstack.EnvUseNetstackMode, "true")
+	_ = os.Setenv(netstack.EnvSkipProxy, "true")
 }
 
 func mgmClient(ctx context.Context, o loginOptions, key wgtypes.Key) (*mgm.GrpcClient, error) {
@@ -251,8 +269,17 @@ func beginLogin(o loginOptions) (*pendingLogin, string, error) {
 		fmt.Fprint(w, page("Signed in. You can go back to Labterm."))
 	})
 	p.server = &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
+	if l6, err := net.Listen("tcp", net.JoinHostPort("::1", listenerPort(listener))); err == nil {
+		p.listener6 = l6
+		go func() { _ = p.server.Serve(l6) }()
+	}
 	go func() { _ = p.server.Serve(listener) }()
 	return p, authURL, nil
+}
+
+func listenerPort(l net.Listener) string {
+	_, port, _ := net.SplitHostPort(l.Addr().String())
+	return port
 }
 
 func scopes(s string) []string {
