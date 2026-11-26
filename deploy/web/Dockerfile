@@ -2,7 +2,7 @@
 #   docker build -f deploy/web/Dockerfile --target relay -t labterm-relay .
 #   docker build -f deploy/web/Dockerfile --target web   -t labterm-web .
 
-FROM rust:1.97.0-slim-bookworm AS relay-build
+FROM rust:1.99.1-slim-bookworm AS relay-build
 WORKDIR /src
 # The whole workspace, so cargo can resolve it; only labterm-relay is built.
 COPY Cargo.toml Cargo.lock ./
@@ -17,7 +17,7 @@ EXPOSE 8080
 ENTRYPOINT ["/usr/local/bin/labterm-relay"]
 
 # The browser's wasm module (labterm-web-wasm with labterm-wasm linked in).
-FROM rust:1.97.0-slim-bookworm AS wasm-build
+FROM rust:1.99.1-slim-bookworm AS wasm-build
 RUN apt-get update && apt-get install -y --no-install-recommends clang=1:14.0-55.7~deb12u1 && rm -rf /var/lib/apt/lists/*
 RUN rustup target add wasm32-unknown-unknown
 WORKDIR /src
