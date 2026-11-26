@@ -14,7 +14,7 @@ name: Desktop release
 # Secrets live in the GitHub environment `release`, which only `v*` tags may deploy to, so
 # no branch, pull request or manual run can sign with them (see docs/RELEASING.md):
 #   TAURI_SIGNING_PRIVATE_KEY           stable updater key (from `tauri signer generate`); the dev
-#                                       channel (desktop-dev-channel.yml) has its own key
+#                                       channel (devel.yml) has its own key
 #   TAURI_SIGNING_PRIVATE_KEY_PASSWORD  its password
 #   ANDROID_KEYSTORE_BASE64             release keystore (`base64 -w0 labterm-release.jks`)
 #   ANDROID_KEYSTORE_PASSWORD           its store/key password (alias `labterm`)

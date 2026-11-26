@@ -1,22 +1,23 @@
 # Builds and publishes the sync server images (labterm-server, labterm-bridge, labterm-backup) for
-# amd64 and arm64 on native runners: on pushes to main that change their inputs, on `v*` tags and
-# by hand. Tags: the branch name (`main`) and `latest` from main; `X.Y.Z` and `X.Y` from a tag.
+# amd64 and arm64 on native runners: on pushes to main that change their inputs (as a stage of
+# devel.yml, after lint and tests passed), on `v*` tags and by hand. Tags: the branch name (`main`) and `latest` from main; `X.Y.Z` and `X.Y` from a tag.
 # Pull requests only build them, in ci.yml (`docker image (...)`), reading the layer cache that
 # this workflow writes from main.
 name: Server images
 
 on:
+  workflow_call:
   push:
-    branches: [main]
     tags: ["v*"]
   workflow_dispatch:
 
 permissions:
   contents: read
 
-# Publishing runs always finish; a newer push to main waits and supersedes any older waiting one.
+# Publishing runs always finish. Called from devel.yml every commit gets a group of its own, so
+# no devel run is cancelled; tag and manual runs share one per ref.
 concurrency:
-  group: server-images-${{ github.ref }}
+  group: server-images-${{ github.workflow != 'Server images' && github.run_id || github.ref }}
   cancel-in-progress: false
 
 jobs:

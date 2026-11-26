@@ -1,5 +1,5 @@
 name: Build Labterm Dev
-description: Builds unsigned Labterm Dev bundles for one platform and uploads them as a workflow artifact (desktop-dev-channel.yml).
+description: Builds unsigned Labterm Dev bundles for one platform and uploads them as a workflow artifact (devel.yml).
 inputs:
   bundles:
     description: Tauri bundle types, comma separated

@@ -1,8 +1,10 @@
 name: CI
 
 on:
+  # Pushes to main run this workflow as the first stage of devel.yml, which builds and publishes
+  # only after it passes.
+  workflow_call:
   push:
-    branches: [main]
     tags: ["v*"]
   pull_request:
     # ready_for_review starts the heavy jobs that were skipped while the PR was a draft.
@@ -13,11 +15,11 @@ on:
   workflow_dispatch:
 
 # A new push to a pull request cancels that PR's older queued or running CI, so scarce runners
-# go to the latest commit. Pushes to main share one group that never cancels: the running one
-# finishes (its caches save) and only the newest waiting push stays queued.
-# Tags, nightly and manual runs get a group of their own per run, so they always run.
+# go to the latest commit. Everything else gets a group of its own per run and is never cancelled:
+# tags, nightly and manual runs, and each devel.yml call for a push to main (every commit gets its
+# devel release, and finished jobs save their caches).
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || (github.event_name == 'push' && github.ref == 'refs/heads/main') && 'main' || github.run_id }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:

@@ -17,7 +17,7 @@ use crate::state::AppState;
 pub const UPDATE_EVENT: &str = "update";
 
 /// Release channel, set at build time: unset for stable releases, `dev` for
-/// the rolling builds from `main` (`.github/workflows/desktop-dev-channel.yml`).
+/// the rolling builds from `main` (`.github/workflows/devel.yml`).
 /// Each channel has its own feed and its own signing key.
 pub const CHANNEL: Option<&str> = option_env!("LABTERM_CHANNEL");
 

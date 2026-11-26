@@ -1,8 +1,8 @@
 # Releasing the desktop and Android apps
 
 Desktop and Android builds are produced by `.github/workflows/release.yml`,
-and the rolling desktop dev builds from `main` by
-`.github/workflows/desktop-dev-channel.yml` ([Dev channel](#dev-channel)).
+and a devel release of every commit on `main` by `.github/workflows/devel.yml`
+([Devel releases](#devel-releases-every-commit-on-main)).
 Nothing is built on a developer machine and no private key ever leaves
 GitHub Actions. The keys live in GitHub environments that only a `v*` tag
 (`release`) or `main` (`desktop-dev`) can deploy to.
@@ -74,7 +74,7 @@ pull requests, branches and manual runs never see the keys and build unsigned
 (desktop bundles without updater signatures, APKs unsigned). Adding yourself as a
 required reviewer on the environment makes every release wait for one click
 before anything is signed. The dev channel has its own environment and key,
-see [Dev channel](#dev-channel).
+see [Devel releases](#devel-releases-every-commit-on-main).
 
 | Secret                                                                      | Purpose                                                                                                         |
 | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
@@ -229,13 +229,42 @@ Locally, `npm run tauri build -- --bundles app,dmg` on a Mac produces the
 same ad-hoc bundle; `--target x86_64-apple-darwin` (with that Rust target
 installed) cross-builds the Intel one on an Apple Silicon machine.
 
-## Dev channel
+## Devel releases (every commit on main)
 
-Every push to `main` builds **Labterm Dev** for Linux x86_64 (AppImage, deb),
-Windows x86_64 (NSIS installer) and macOS Apple Silicon (dmg) and publishes it
-to the rolling prerelease
-[`desktop-dev`](https://github.com/reykimedev/termoso/releases/tag/desktop-dev)
-with its own `latest.json`.
+`.github/workflows/devel.yml` runs on every push to `main`, in stages that each
+need the one before, so a failed lint or test never builds or publishes
+anything:
+
+1. **ci**: the whole of `ci.yml` (fmt + clippy first, then the tests), called
+   as a reusable workflow.
+2. **build**: Labterm Debug for Android (arm64 APK, signed with the debug key
+   from the `android-debug` environment), Labterm Dev for Linux x86_64
+   (AppImage, deb), Windows x86_64 (NSIS) and macOS Apple Silicon (dmg), and
+   the server images (`server-images.yml`, when the commit changed them).
+3. **sign + publish**: the only job holding the dev updater key signs the
+   desktop updater artifacts and creates the prerelease **`devel-<build>`**
+   with the APK, the bundles, their `.sig` files, `SHA256SUMS.txt`, build
+   provenance attestations and the desktop `latest.json`. The newest 10 devel
+   releases are kept.
+
+Nothing is cancelled, so every commit gets its release. `<build>` is 100 plus
+the workflow's run number, which keeps it above the builds the old
+per-channel workflows published.
+
+**Installed builds follow the feeds baked into them**, and those now point into
+the newest devel release:
+
+| App | Feed | Points at |
+| --- | --- | --- |
+| Labterm Debug (Android) | `releases/download/android-debug-main/latest.json` | `apk` is an absolute URL into `devel-<build>` |
+| Labterm Dev (desktop) | `releases/download/desktop-dev/latest.json` | Tauri manifest with URLs into `devel-<build>` |
+
+A feed only moves forward: a run that finishes after a newer one leaves it
+alone. macOS runners are often slow to start, so the release goes out with
+Linux and Windows first; when the macOS build finishes, it is added to the same
+release and, if the feed still points there, to the feed.
+
+About Labterm Dev:
 
 - **Its own app.** Labterm Dev (`dev.labdex.labterm.dev`, config overlay
   `apps/desktop/src-tauri/channels/dev.json`) installs next to Labterm, keeps
@@ -246,21 +275,14 @@ with its own `latest.json`.
   offers a dev build. The dev key signs nothing else: `main` can reach the
   `desktop-dev` environment, so a leaked dev key must not be able to sign a
   stable update.
-- **Versions.** `X.Y.(Z+1)-dev.N`, with `X.Y.Z` the current version and `N` the
-  workflow run number, so every build is newer than the last one and than the
-  last release.
-- **Keys stay off the build runners.** The three build jobs (which run npm and
-  Cargo build scripts) produce unsigned bundles. Only the `publish` jobs enter
-  the `desktop-dev` environment; they install the Tauri CLI with
-  `--ignore-scripts`, sign the updater artifacts, add build provenance
-  attestations and `SHA256SUMS.txt`, and upload `latest.json` last.
-- **macOS does not hold back the others.** macOS runners are often slow to
-  start, so Linux and Windows publish first. When the macOS build finishes, a
-  second job adds it to the same release and `latest.json`; until then, that
-  build has no macOS update.
+- **Versions.** `X.Y.(Z+1)-dev.<build>`, with `X.Y.Z` the current version, so
+  every build is newer than the last one and than the last release.
+- **Keys stay off the build runners.** The build jobs (which run npm and Cargo
+  build scripts) produce unsigned bundles. Only the publish jobs enter the
+  `desktop-dev` environment; they install the Tauri CLI with
+  `--ignore-scripts` before signing.
 
-One-time setup (until the dev public key is in `channels/dev.json` the whole
-workflow is skipped with a notice, not failed):
+One-time setup of the dev updater key (done; kept for rotating it):
 
 ```bash
 R=reykimedev/termoso
