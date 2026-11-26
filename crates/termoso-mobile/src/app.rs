@@ -875,6 +875,77 @@ impl TermosoApp {
         Ok(keychain::set_certificate(&self.store, parse_id(&id)?, certificate)?.into())
     }
 
+    // ---- OpenID (opkssh) keys ---------------------------------------
+
+    /// OpenID providers of a vault (all vaults with `None`), default first.
+    pub fn oidc_providers(&self, vault_id: Option<String>) -> Result<Vec<crate::OidcProviderItem>> {
+        crate::oidc::providers(&self.store, vault_id)
+    }
+
+    /// Add (`id = None`) or update a provider of `provider.vault_id`.
+    pub fn save_oidc_provider(
+        &self,
+        provider: crate::OidcProviderItem,
+    ) -> Result<crate::OidcProviderItem> {
+        crate::oidc::save_provider(&self.store, provider)
+    }
+
+    /// Delete a provider; its keys fall back to the vault default.
+    pub fn delete_oidc_provider(&self, id: String) -> Result<()> {
+        crate::oidc::delete_provider(&self.store, &id)
+    }
+
+    /// Create an OpenID (opkssh) key: no key material is stored.
+    pub fn create_opkssh_key(
+        &self,
+        vault_id: String,
+        label: String,
+        choice: crate::OidcKeyChoice,
+    ) -> Result<KeyItem> {
+        crate::oidc::create_key(&self.store, &vault_id, &label, choice)
+    }
+
+    /// Provider choice of an opkssh key; `None` for other keys.
+    pub fn key_oidc_choice(&self, id: String) -> Result<Option<crate::OidcKeyChoice>> {
+        crate::oidc::key_choice(&self.store, &id)
+    }
+
+    pub fn set_key_oidc_choice(&self, id: String, choice: crate::OidcKeyChoice) -> Result<KeyItem> {
+        crate::oidc::set_key_choice(&self.store, &id, choice)
+    }
+
+    /// The sign-in of an opkssh key on this device, if still usable.
+    pub fn key_oidc_session(&self, id: String) -> Result<Option<crate::OidcSessionItem>> {
+        crate::oidc::session(&self.store, &id)
+    }
+
+    /// Sign in now through the browser. Blocks until the provider sends
+    /// the user back (or five minutes pass): call off the main thread.
+    pub fn key_oidc_sign_in(&self, id: String) -> Result<crate::OidcSessionItem> {
+        let id = parse_id(&id)?;
+        RUNTIME.block_on(crate::oidc::sign_in(&self.store, id))
+    }
+
+    pub fn key_oidc_sign_out(&self, id: String) -> Result<()> {
+        crate::oidc::sign_out(&self.store, &id)
+    }
+
+    /// OpenID key a host's own SSH settings name (not the group's).
+    pub fn host_oidc_key(&self, host_id: String) -> Result<Option<String>> {
+        let form = termoso_client::hosts::form(&self.store, parse_id(&host_id)?)?;
+        Ok(form.oidc_key_id.map(|id| id.to_string()))
+    }
+
+    /// Set or clear the OpenID key a host tries before its credentials.
+    pub fn set_host_oidc_key(&self, host_id: String, key_id: Option<String>) -> Result<()> {
+        let key = match key_id.filter(|k| !k.is_empty()) {
+            Some(k) => Some(parse_id(&k)?),
+            None => None,
+        };
+        termoso_client::hosts::set_oidc_key(&self.store, parse_id(&host_id)?, key)?;
+        Ok(())
+    }
+
     pub fn delete_key(&self, id: String) -> Result<()> {
         let id = parse_id(&id)?;
         self.secrets.forget_passphrase(id);
@@ -2198,6 +2269,43 @@ impl TermosoApp {
                 host_id: parse_id(&host_id)?,
                 vault_id,
                 listener,
+                opkssh: None,
+            },
+        ))
+    }
+
+    /// Install opkssh on a saved host (its current credentials, like
+    /// [`Self::start_key_export`]), add the key's provider and allow
+    /// `identity` (default: the signed-in email) to log in as `principal`
+    /// (default: the user the app logs in as). Signs in first if needed.
+    #[allow(clippy::too_many_arguments)]
+    pub fn start_opkssh_setup(
+        &self,
+        key_id: String,
+        host_id: String,
+        vault_id: Option<String>,
+        principal: Option<String>,
+        identity: Option<String>,
+        listener: Arc<dyn KeyExportListener>,
+    ) -> Result<Arc<KeyExport>> {
+        let vault_id = match vault_id {
+            Some(v) => Some(parse_id(&v)?),
+            None => None,
+        };
+        Ok(KeyExport::launch(
+            RUNTIME.handle().clone(),
+            KeyExportLaunch {
+                store: self.store.clone(),
+                secrets: self.secrets.clone(),
+                settings: MobileSettings::load(&self.store)?,
+                key_id: parse_id(&key_id)?,
+                host_id: parse_id(&host_id)?,
+                vault_id,
+                listener,
+                opkssh: Some(crate::keyexport::OpksshSetup {
+                    principal,
+                    identity,
+                }),
             },
         ))
     }

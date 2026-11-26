@@ -8,6 +8,7 @@ import type { Inherited, SshDefaultsForm, Uuid } from "@/ipc/types";
 import { monoFontFamily } from "@/theme/theme";
 import { AgentForwardingRow, CredentialsFields, X11ForwardingRow } from "./CredentialsFields";
 import { ChainDialog, ProxyDialog } from "./HostAdvancedDialogs";
+import { OidcKeyField } from "./OidcKeyField";
 import { tr, trn } from "@/i18n";
 
 const clampPort = (raw: string) =>
@@ -53,6 +54,12 @@ export function SshDefaultsSections({
           inlineLabel={inlineLabel}
           value={value}
           onChange={onChange}
+        />
+        <OidcKeyField
+          vaultId={vaultId}
+          value={value.oidcKeyId}
+          inherited={inh?.oidcKeyId ?? null}
+          onChange={(v) => set("oidcKeyId", v)}
         />
         <Typography variant="caption" color="text.secondary">
           {credentialsHint}

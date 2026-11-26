@@ -861,7 +861,8 @@ fn merge_ssh(into: &mut SshConfig, from: &SshConfig) {
         cursor_blink,
         mosh_server_command,
         keep_alive_interval,
-        timeout
+        timeout,
+        oidc_key_id
     );
     if from.agent_forwarding {
         into.agent_forwarding = true;
@@ -1077,6 +1078,7 @@ mod tests {
             .insert(
                 v,
                 &SshKey {
+                    oidc: None,
                     label: "k".into(),
                     key_type: "ed25519".into(),
                     ..Default::default()

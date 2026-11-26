@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Person
@@ -66,6 +67,7 @@ fun KeychainScreen(
     var keys by remember { mutableStateOf<List<KeyItem>>(emptyList()) }
     var identities by remember { mutableStateOf<List<IdentityItem>>(emptyList()) }
     var menu by remember { mutableStateOf(false) }
+    var openid by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(vaultId, revision) {
         runCatching { shell.repo.read { keys(vaultId) to identities(vaultId) } }
             .onSuccess { (k, i) -> keys = k; identities = i }
@@ -98,6 +100,18 @@ fun KeychainScreen(
                         text = { Text(stringResource(R.string.load_from_security_key)) },
                         leadingIcon = { Icon(Icons.Filled.Usb, contentDescription = null) },
                         onClick = { menu = false; onFido2Load() },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.openid_key)) },
+                        leadingIcon = { Icon(Icons.Filled.Badge, contentDescription = null) },
+                        enabled = vaultId != null,
+                        onClick = { menu = false; openid = "key" },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.openid_providers)) },
+                        leadingIcon = { Icon(Icons.Filled.Badge, contentDescription = null) },
+                        enabled = vaultId != null,
+                        onClick = { menu = false; openid = "providers" },
                     )
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.new_identity)) },
@@ -160,6 +174,21 @@ fun KeychainScreen(
             }
         }
     }
+
+    val vault = vaultId
+    if (vault != null) {
+        when (openid) {
+            "key" -> NewOpksshKeyDialog(
+                shell.repo,
+                vault,
+                onNotify = shell::notify,
+                onCreated = { openid = null; onOpenKey(it) },
+                onManageProviders = { openid = "providers" },
+                onDismiss = { openid = null },
+            )
+            "providers" -> OidcProvidersDialog(shell.repo, vault, onNotify = shell::notify, onDismiss = { openid = null })
+        }
+    }
 }
 
 fun keySubtitle(k: KeyItem): String = listOfNotNull(
@@ -185,6 +214,7 @@ fun identitySubtitle(id: IdentityItem): String = listOfNotNull(
 fun keyTypeLabel(keyType: String, bits: UInt): String {
     val t = keyType.lowercase()
     val base = when {
+        t == "opkssh" -> return str(R.string.openid_key)
         t.contains("ed25519") -> "Ed25519"
         t.contains("rsa") -> str(R.string.rsa, bits)
         t.contains("ecdsa") || t.contains("nistp") -> str(R.string.ecdsa, bits)

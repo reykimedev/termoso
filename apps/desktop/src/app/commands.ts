@@ -156,6 +156,14 @@ export const COMMANDS: Command[] = [
     run: () => goToSection("knownHosts"),
   },
   {
+    id: "nav.oidcProviders",
+    title: msg("Go to OpenID Providers"),
+    group: "Navigation",
+    keywords: "opkssh oidc sso authentik",
+    keys: [],
+    run: () => goToSection("oidcProviders"),
+  },
+  {
     id: "nav.logs",
     title: msg("Go to Session logs"),
     group: "Navigation",

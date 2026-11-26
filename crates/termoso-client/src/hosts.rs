@@ -140,6 +140,9 @@ pub struct HostForm {
     pub keep_alive_interval: Option<u32>,
     #[serde(default)]
     pub timeout: Option<u32>,
+    /// OpenID (opkssh) key tried before the credentials above.
+    #[serde(default)]
+    pub oidc_key_id: Option<Uuid>,
     /// Terminal colour scheme id; `None` follows the app setting.
     #[serde(default)]
     pub color_scheme: Option<String>,
@@ -688,6 +691,9 @@ pub struct SshDefaultsForm {
     pub keep_alive_interval: Option<u32>,
     #[serde(default)]
     pub timeout: Option<u32>,
+    /// OpenID (opkssh) key hosts of the group try first.
+    #[serde(default)]
+    pub oidc_key_id: Option<Uuid>,
 }
 
 /// What a host placed in a group inherits from the group chain. Shown as
@@ -719,6 +725,7 @@ pub struct Inherited {
     pub keep_alive_interval: Option<u32>,
     pub timeout: Option<u32>,
     pub env_variables: Vec<(String, String)>,
+    pub oidc_key_id: Option<Uuid>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1133,6 +1140,7 @@ pub fn form(store: &Store, id: Uuid) -> Result<HostForm> {
             .unwrap_or_default(),
         keep_alive_interval: ssh.as_ref().and_then(|s| s.keep_alive_interval),
         timeout: ssh.as_ref().and_then(|s| s.timeout),
+        oidc_key_id: ssh.as_ref().and_then(|s| s.oidc_key_id),
         color_scheme: ssh.as_ref().and_then(|s| s.color_scheme.clone()),
         charset: ssh.as_ref().and_then(|s| s.charset.clone()),
         backspace: host.data.backspace.clone(),
@@ -1156,8 +1164,30 @@ fn inline_identity_of(
 
 /// Create or update a host with its inline ssh_config / telnet_config /
 /// webdav_config and their hidden identities.
+/// The OpenID key of host or group settings: an opkssh key of that vault.
+fn check_oidc_key(store: &Store, vault_id: Uuid, id: Option<Uuid>) -> Result<()> {
+    let Some(id) = id else { return Ok(()) };
+    match store.get_in::<SshKey>(id, vault_id)? {
+        Some(k) if k.data.is_opkssh() => Ok(()),
+        _ => Err(ClientError::invalid(
+            "the OpenID key must be an opkssh key of the same vault",
+        )),
+    }
+}
+
+/// Set (or clear) the OpenID key a host tries first, keeping the rest of its settings.
+pub fn set_oidc_key(store: &Store, host_id: Uuid, key_id: Option<Uuid>) -> Result<HostCard> {
+    let mut f = form(store, host_id)?;
+    if !f.ssh {
+        return Err(ClientError::invalid("only SSH hosts use an OpenID key"));
+    }
+    f.oidc_key_id = key_id;
+    save(store, &f)
+}
+
 pub fn save(store: &Store, f: &HostForm) -> Result<HostCard> {
     let label = f.label.trim();
+    check_oidc_key(store, f.vault_id, f.oidc_key_id)?;
     if !f.ssh && f.telnet.is_none() && f.webdav.is_none() && f.s3.is_none() {
         return Err(ClientError::invalid(
             "a host needs an SSH, Telnet, WebDAV or S3 section",
@@ -1277,6 +1307,7 @@ pub fn save(store: &Store, f: &HostForm) -> Result<HostCard> {
         ssh.env_variables = clean_env(&f.env_variables);
         ssh.keep_alive_interval = f.keep_alive_interval.filter(|s| *s > 0);
         ssh.timeout = f.timeout.filter(|s| *s > 0);
+        ssh.oidc_key_id = f.oidc_key_id;
         ssh.color_scheme = clean_scheme(&f.color_scheme);
         ssh.charset = clean_scheme(&f.charset).filter(|c| !c.eq_ignore_ascii_case("utf-8"));
         Some(match &existing_ssh {
@@ -1897,6 +1928,7 @@ fn load_defaults(store: &Store, ssh_config_id: Option<Uuid>) -> Result<SshDefaul
         env_variables: ssh.env_variables,
         keep_alive_interval: ssh.keep_alive_interval,
         timeout: ssh.timeout,
+        oidc_key_id: ssh.oidc_key_id,
     })
 }
 
@@ -1910,6 +1942,7 @@ fn save_defaults(
     f: &SshDefaultsForm,
     label: &str,
 ) -> Result<Option<Uuid>> {
+    check_oidc_key(store, vault_id, f.oidc_key_id)?;
     require_same_vault::<HostChain>(store, f.host_chain_id, vault_id, "host chain")?;
     require_same_vault::<Proxy>(store, f.proxy_id, vault_id, "proxy")?;
     let existing_ssh = match existing_config_id {
@@ -1951,6 +1984,7 @@ fn save_defaults(
     ssh.env_variables = clean_env(&f.env_variables);
     ssh.keep_alive_interval = f.keep_alive_interval.filter(|s| *s > 0);
     ssh.timeout = f.timeout.filter(|s| *s > 0);
+    ssh.oidc_key_id = f.oidc_key_id;
     let empty = ssh == SshConfig::default();
     Ok(match (&existing_ssh, empty) {
         (Some(e), true) => {
@@ -2151,6 +2185,7 @@ pub fn inherited_for(
         keep_alive_interval: ssh.keep_alive_interval,
         timeout: ssh.timeout,
         env_variables: ssh.env_variables,
+        oidc_key_id: ssh.oidc_key_id,
     })
 }
 
@@ -2560,6 +2595,7 @@ mod tests {
             env_variables: vec![],
             keep_alive_interval: None,
             timeout: None,
+            oidc_key_id: None,
             color_scheme: None,
             has_password: false,
             has_totp: false,

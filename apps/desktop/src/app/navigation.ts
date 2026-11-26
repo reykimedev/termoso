@@ -6,7 +6,8 @@ import { createStore, useStore } from "@/lib/store";
 import { HOME_TAB, setActiveTab, terminalStore } from "@/terminal/store";
 import type { Uuid } from "@/ipc/types";
 
-export type Section = "hosts" | "keychain" | "forwarding" | "snippets" | "knownHosts" | "logs";
+export type Section =
+  "hosts" | "keychain" | "forwarding" | "snippets" | "knownHosts" | "oidcProviders" | "logs";
 
 /** `terminalStore.activeTabId` is the source of truth for the top tab; the SFTP
  *  tab is one more pseudo id alongside `HOME_TAB`. */

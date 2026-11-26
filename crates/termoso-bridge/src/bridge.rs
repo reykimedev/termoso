@@ -1104,6 +1104,7 @@ fn plan_identity(
                 .filter(|p| !p.is_empty())
                 .map(str::to_string);
             let key = SshKey {
+                oidc: None,
                 external_id: None,
                 label: k
                     .label
@@ -1317,6 +1318,7 @@ fn plan_key(v: &VaultState, external_id: &str, req: &KeyRequest) -> Result<Plan>
         "ssh_key",
         id,
         &SshKey {
+            oidc: None,
             label: req
                 .label
                 .as_deref()

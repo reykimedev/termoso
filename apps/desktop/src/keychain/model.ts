@@ -6,6 +6,7 @@ import { tr } from "@/i18n";
 export const isHardwareKey = (k: Pick<KeyCard, "keyType">) => k.keyType.startsWith("sk-");
 
 export function keyTypeLabel(k: Pick<KeyCard, "keyType" | "bits" | "unreadable">): string {
+  if (k.keyType === "opkssh") return tr("OpenID (opkssh)");
   if (k.unreadable || !k.keyType) return tr("Type unknown");
   const t = k.keyType.toLowerCase();
   const sk = t.startsWith("sk-");
