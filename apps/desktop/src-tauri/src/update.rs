@@ -72,14 +72,76 @@ pub struct UpdateInfo {
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum UpdateEvent {
-    Available { info: UpdateInfo },
-    Progress { downloaded: u64, total: Option<u64> },
-    Installed { version: String },
-    Failed { message: String },
+    Available {
+        info: UpdateInfo,
+    },
+    Progress {
+        downloaded: u64,
+        total: Option<u64>,
+    },
+    /// Download complete; checking the signature against the built-in key.
+    Verifying,
+    /// Signature verified; the platform installer is running.
+    Installing,
+    Installed {
+        version: String,
+    },
+    Failed {
+        message: String,
+    },
 }
 
 fn updater_err(e: tauri_plugin_updater::Error) -> DesktopError {
-    DesktopError::new("update", e.to_string())
+    DesktopError::new("update", describe(&e))
+}
+
+/// What went wrong, in words a user can act on. The plugin's own text
+/// ("Could not fetch a valid release JSON from the remote", a bare minisign
+/// error) is kept for the log.
+fn describe(e: &tauri_plugin_updater::Error) -> String {
+    use tauri_plugin_updater::Error as E;
+    match e {
+        E::Reqwest(r) if r.is_timeout() => {
+            "The update server did not answer in time. Check your connection and try again.".into()
+        }
+        E::Reqwest(r) if r.is_connect() => {
+            "Could not connect to the update server. Check your connection, or the release feed in Settings → Updates.".into()
+        }
+        E::Reqwest(r) => format!("Network error while talking to the update server: {r}"),
+        E::Network(msg) => format!("The update server refused the request ({msg})."),
+        E::ReleaseNotFound | E::Serialization(_) | E::Semver(_) => {
+            "The release feed did not return a valid latest.json. Check the feed URL in Settings → Updates.".into()
+        }
+        E::TargetNotFound(t) => format!("The latest release has no build for this platform ({t})."),
+        E::TargetsNotFound(ts) => format!(
+            "The latest release has no build for this platform ({}).",
+            ts.join(", ")
+        ),
+        E::Minisign(_)
+        | E::Base64(_)
+        | E::SignatureUtf8(_)
+        | E::SignedVersionMismatch { .. }
+        | E::MissingSignedVersion => {
+            "The update is not signed with the key built into this app, so it was not installed. Nothing on this computer was changed.".into()
+        }
+        E::InsecureTransportProtocol => "The release feed must use https.".into(),
+        E::AuthenticationFailed => {
+            "Installing needs administrator rights, and the request was cancelled or failed.".into()
+        }
+        E::DebInstallFailed | E::PackageInstallFailed => {
+            "The system package installer failed. Install the downloaded package by hand, or try again.".into()
+        }
+        E::Io(io) => format!("Could not write the update to disk: {io}"),
+        other => other.to_string(),
+    }
+}
+
+/// Bytes per second as "3.1 MB/s", for the log.
+fn rate(bytes: u64, secs: f64) -> String {
+    if secs <= 0.0 {
+        return "-".into();
+    }
+    format!("{:.1} MB/s", bytes as f64 / secs / 1_000_000.0)
 }
 
 fn info(u: &Update) -> UpdateInfo {
@@ -122,14 +184,28 @@ pub async fn check<R: Runtime>(app: &AppHandle<R>) -> Result<Option<UpdateInfo>>
     }
     let settings = app.state::<AppState>().settings()?;
     let url = feed_url(&settings.update_url)?;
+    let current = app.package_info().version.to_string();
+    tracing::info!(feed = %url, %current, "update check");
     let updater = app
         .updater_builder()
-        .endpoints(vec![url])
+        .endpoints(vec![url.clone()])
         .map_err(updater_err)?
         .timeout(std::time::Duration::from_secs(30))
         .build()
         .map_err(updater_err)?;
-    let found = updater.check().await.map_err(updater_err)?;
+    let found = updater.check().await.map_err(|e| {
+        tracing::warn!(feed = %url, error = %e, "update check failed");
+        updater_err(e)
+    })?;
+    match &found {
+        Some(u) => tracing::info!(
+            version = %u.version,
+            target = %u.target,
+            url = %u.download_url,
+            "update found"
+        ),
+        None => tracing::info!(%current, "no update: already on the latest version"),
+    }
     let hub = app.state::<UpdateHub>();
     let mut pending = hub.pending.lock().map_err(|_| poisoned())?;
     let out = found.as_ref().map(info);
@@ -157,23 +233,49 @@ pub async fn install<R: Runtime>(app: &AppHandle<R>) -> Result<UpdateInfo> {
     };
 
     let meta = info(&update);
+    tracing::info!(version = %meta.version, url = %meta.download_url, "update download started");
+    let started = Instant::now();
     let progress_app = app.clone();
+    let verify_app = app.clone();
     let mut downloaded: u64 = 0;
-    let result = update
-        .download_and_install(
+    let mut size: Option<u64> = None;
+    let mut last_emit: Option<Instant> = None;
+    let downloaded_bytes = update
+        .download(
             |chunk, total| {
                 downloaded += chunk as u64;
-                emit(&progress_app, UpdateEvent::Progress { downloaded, total });
+                if size.is_none() && total.is_some() {
+                    size = total;
+                    tracing::info!(bytes = total, "update download size");
+                }
+                // A few events a second are plenty for the UI; one per chunk floods the IPC.
+                let done = total.is_some_and(|t| downloaded >= t);
+                if done || last_emit.is_none_or(|t| t.elapsed() >= Duration::from_millis(200)) {
+                    last_emit = Some(Instant::now());
+                    emit(&progress_app, UpdateEvent::Progress { downloaded, total });
+                }
             },
-            || {},
+            || emit(&verify_app, UpdateEvent::Verifying),
         )
         .await;
+    let result = downloaded_bytes.and_then(|bytes| {
+        let secs = started.elapsed().as_secs_f64();
+        tracing::info!(
+            bytes = bytes.len(),
+            secs = format!("{secs:.1}"),
+            speed = rate(bytes.len() as u64, secs),
+            "update downloaded, signature verified"
+        );
+        emit(app, UpdateEvent::Installing);
+        update.install(&bytes)
+    });
 
     if let Ok(mut busy) = hub.busy.lock() {
         *busy = false;
     }
     match result {
         Ok(()) => {
+            tracing::info!(version = %meta.version, "update installed; restart to finish");
             if let Ok(mut pending) = hub.pending.lock() {
                 *pending = None;
             }
@@ -186,13 +288,15 @@ pub async fn install<R: Runtime>(app: &AppHandle<R>) -> Result<UpdateInfo> {
             Ok(meta)
         }
         Err(e) => {
+            tracing::error!(version = %meta.version, error = %e, "update failed");
+            let err = updater_err(e);
             emit(
                 app,
                 UpdateEvent::Failed {
-                    message: e.to_string(),
+                    message: err.message.clone(),
                 },
             );
-            Err(updater_err(e))
+            Err(err)
         }
     }
 }
@@ -289,6 +393,16 @@ mod tests {
     fn default_feed_is_labterms_own() {
         assert!(!DEFAULT_FEED.contains("termoso/termoso"));
         assert!(DEFAULT_FEED.starts_with("https://"));
+    }
+
+    #[test]
+    fn readable_errors() {
+        use tauri_plugin_updater::Error as E;
+        assert!(describe(&E::TargetNotFound("linux-x86_64".into())).contains("linux-x86_64"));
+        assert!(describe(&E::ReleaseNotFound).contains("latest.json"));
+        assert!(describe(&E::MissingSignedVersion).contains("not signed with the key"));
+        assert_eq!(rate(3_000_000, 2.0), "1.5 MB/s");
+        assert_eq!(rate(1, 0.0), "-");
     }
 
     #[test]
