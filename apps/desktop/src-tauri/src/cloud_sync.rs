@@ -1314,6 +1314,7 @@ mod tests {
                 keep_alive_interval: None,
                 timeout: None,
                 oidc_key_id: None,
+                transport_id: None,
                 color_scheme: None,
                 has_password: false,
                 files_provider: false,

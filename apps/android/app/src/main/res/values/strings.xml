@@ -1821,4 +1821,24 @@
     <string name="openid_key_for_host_hint">Tried before the host\u2019s credentials, which stay as the fallback. Hosts without one use their group\u2019s.</string>
     <string name="openid_none_inherit">None (use the group\u2019s)</string>
     <string name="openid_key_for_host_saved">OpenID key saved</string>
+
+    <!-- NetBird networks and the host/group tunnel choice -->
+    <string name="tunnel">Tunnel</string>
+    <string name="tunnel_host_hint">How the app reaches this host. Through a NetBird network, the app joins the network by itself for this connection: no VPN and no NetBird app needed. Mosh is not used there.</string>
+    <string name="tunnel_group_hint">How the app reaches the hosts of this group, unless a host sets its own.</string>
+    <string name="tunnel_direct">Direct</string>
+    <string name="tunnel_direct_or_group">Direct, or as its group says</string>
+    <string name="tunnel_via_netbird">NetBird: %1$s</string>
+    <string name="tunnel_saved">Tunnel saved</string>
+    <string name="netbird_networks">NetBird networks</string>
+    <string name="netbird_networks_subtitle">Reach hosts through NetBird without a VPN</string>
+    <string name="netbird_networks_hint">Hosts and groups set to use a network are reached through a NetBird client inside the app. It starts when such a host connects and stops once it is no longer used. Everyone who can open this vault can use its networks.</string>
+    <string name="netbird_no_networks">No NetBird networks</string>
+    <string name="netbird_new_network">New NetBird network</string>
+    <string name="netbird_cloud">NetBird cloud</string>
+    <string name="netbird_management_url">Management URL (empty = NetBird cloud)</string>
+    <string name="netbird_setup_key">Setup key</string>
+    <string name="netbird_setup_key_stored">Stored. Enter a new one to replace it</string>
+    <string name="netbird_setup_key_hint">Everyone who can open this vault can use this key. Prefer a reusable, ephemeral key for a group that the NetBird access policies only let reach SSH on the hosts you need. Each device joins as its own peer.</string>
+    <string name="netbird_no_networks_add_in_vault">No NetBird networks in this vault yet. Add one under Vault, NetBird networks.</string>
 </resources>

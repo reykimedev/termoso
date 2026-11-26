@@ -82,6 +82,53 @@ abstract class CargoNdkBuild @Inject constructor(private val exec: ExecOperation
     }
 }
 
+/**
+ * The embedded NetBird client (crates/termoso-netbird/go) as `libtermoso_netbird.so` for every
+ * ABI: Go's c-shared build with the NDK's clang. termoso-mobile loads it with dlopen the first
+ * time a host uses a NetBird network, so the Go runtime only starts when it is needed.
+ * `-Ptermoso.netbird=false` leaves it out (hosts set to use NetBird then fail with a clear error).
+ */
+abstract class GoNetbirdBuild @Inject constructor(private val exec: ExecOperations) : DefaultTask() {
+    @get:Input abstract val abis: ListProperty<String>
+    @get:Input abstract val ndkHome: Property<String>
+    @get:InputDirectory @get:PathSensitive(PathSensitivity.RELATIVE) abstract val goDir: DirectoryProperty
+    @get:OutputDirectory abstract val outDir: DirectoryProperty
+
+    @TaskAction
+    fun run() {
+        val bin = File(ndkHome.get(), "toolchains/llvm/prebuilt").listFiles()?.firstOrNull()?.let { File(it, "bin") }
+            ?: error("NDK toolchain not found under ${ndkHome.get()}")
+        outDir.get().asFile.deleteRecursively()
+        abis.get().forEach { abi ->
+            // minSdk 26: the API level in the clang wrapper name.
+            val (goArch, clang) = when (abi) {
+                "arm64-v8a" -> "arm64" to "aarch64-linux-android26-clang"
+                "x86_64" -> "amd64" to "x86_64-linux-android26-clang"
+                "armeabi-v7a" -> "arm" to "armv7a-linux-androideabi26-clang"
+                "x86" -> "386" to "i686-linux-android26-clang"
+                else -> error("no Go target for ABI $abi")
+            }
+            val out = File(outDir.get().asFile, "$abi/libtermoso_netbird.so")
+            exec.exec {
+                workingDir = goDir.get().asFile
+                environment("GOOS", "android")
+                environment("GOARCH", goArch)
+                if (goArch == "arm") environment("GOARM", "7")
+                environment("CGO_ENABLED", "1")
+                environment("CC", File(bin, clang).absolutePath)
+                commandLine(
+                    "go", "build", "-buildmode=c-shared", "-trimpath",
+                    // wlynxg/anet (NetBird's interface listing on Android) links into net internals.
+                    "-ldflags=-s -w -buildid= -checklinkname=0",
+                    "-o", out.absolutePath, ".",
+                )
+            }
+            // cgo writes a C header next to the library; the APK only wants the .so.
+            File(out.parentFile, "libtermoso_netbird.h").delete()
+        }
+    }
+}
+
 /** Kotlin bindings from the compiled library's UniFFI metadata; crates/termoso-mobile/uniffi.toml sets the package. */
 abstract class UniffiBindgen @Inject constructor(private val exec: ExecOperations) : DefaultTask() {
     @get:Internal abstract val workspace: DirectoryProperty
@@ -125,6 +172,17 @@ androidComponents {
             outDir.set(layout.buildDirectory.dir("rust/${variant.name}/kotlin"))
         }
         variant.sources.jniLibs?.addGeneratedSourceDirectory(cargo, CargoNdkBuild::outDir)
+        if ((findProperty("termoso.netbird") as String?)?.toBoolean() != false) {
+            val netbird = tasks.register<GoNetbirdBuild>("goNetbirdBuild$cap") {
+                group = "rust"
+                description = "go build of the embedded NetBird client (${variant.name})"
+                abis.set(rustAbis)
+                ndkHome.set(rustNdkHome ?: error("set ANDROID_NDK_HOME (or -Ptermoso.netbird=false)"))
+                goDir.set(workspaceDir.resolve("crates/termoso-netbird/go"))
+                outDir.set(layout.buildDirectory.dir("go/${variant.name}/jniLibs"))
+            }
+            variant.sources.jniLibs?.addGeneratedSourceDirectory(netbird, GoNetbirdBuild::outDir)
+        }
         variant.sources.java?.addGeneratedSourceDirectory(bindgen, UniffiBindgen::outDir)
     }
 }

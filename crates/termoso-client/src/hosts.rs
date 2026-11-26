@@ -143,6 +143,9 @@ pub struct HostForm {
     /// OpenID (opkssh) key tried before the credentials above.
     #[serde(default)]
     pub oidc_key_id: Option<Uuid>,
+    /// Overlay network (NetBird) to reach the host through; `None` = direct.
+    #[serde(default)]
+    pub transport_id: Option<Uuid>,
     /// Terminal colour scheme id; `None` follows the app setting.
     #[serde(default)]
     pub color_scheme: Option<String>,
@@ -660,6 +663,9 @@ pub struct GroupForm {
     /// OpenID (opkssh) key hosts of the group try first.
     #[serde(default)]
     pub oidc_key_id: Option<Uuid>,
+    /// Overlay network (NetBird) hosts of the group are reached through.
+    #[serde(default)]
+    pub transport_id: Option<Uuid>,
 }
 
 /// What a host placed in a group inherits from the group chain. Shown as
@@ -689,6 +695,7 @@ pub struct Inherited {
     pub timeout: Option<u32>,
     pub env_variables: Vec<(String, String)>,
     pub oidc_key_id: Option<Uuid>,
+    pub transport_id: Option<Uuid>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1095,6 +1102,7 @@ pub fn form(store: &Store, id: Uuid) -> Result<HostForm> {
         keep_alive_interval: ssh.as_ref().and_then(|s| s.keep_alive_interval),
         timeout: ssh.as_ref().and_then(|s| s.timeout),
         oidc_key_id: ssh.as_ref().and_then(|s| s.oidc_key_id),
+        transport_id: ssh.as_ref().and_then(|s| s.transport_id),
         color_scheme: ssh.as_ref().and_then(|s| s.color_scheme.clone()),
         charset: ssh.as_ref().and_then(|s| s.charset.clone()),
         backspace: host.data.backspace.clone(),
@@ -1139,9 +1147,31 @@ pub fn set_oidc_key(store: &Store, host_id: Uuid, key_id: Option<Uuid>) -> Resul
     save(store, &f)
 }
 
+/// Set (or clear) the network a host is reached through, keeping the rest of its settings.
+pub fn set_transport(store: &Store, host_id: Uuid, transport_id: Option<Uuid>) -> Result<HostCard> {
+    let mut f = form(store, host_id)?;
+    if !f.ssh {
+        return Err(ClientError::invalid("only SSH hosts can use a network"));
+    }
+    f.transport_id = transport_id;
+    save(store, &f)
+}
+
+/// Set (or clear) the network hosts of a group are reached through.
+pub fn set_group_transport(
+    store: &Store,
+    group_id: Uuid,
+    transport_id: Option<Uuid>,
+) -> Result<GroupNode> {
+    let mut f = group_form(store, group_id)?;
+    f.transport_id = transport_id;
+    save_group_form(store, &f)
+}
+
 pub fn save(store: &Store, f: &HostForm) -> Result<HostCard> {
     let label = f.label.trim();
     check_oidc_key(store, f.vault_id, f.oidc_key_id)?;
+    crate::transports::check(store, f.vault_id, f.transport_id)?;
     if !f.ssh && f.telnet.is_none() && f.webdav.is_none() && f.s3.is_none() {
         return Err(ClientError::invalid(
             "a host needs an SSH, Telnet, WebDAV or S3 section",
@@ -1262,6 +1292,7 @@ pub fn save(store: &Store, f: &HostForm) -> Result<HostCard> {
         ssh.keep_alive_interval = f.keep_alive_interval.filter(|s| *s > 0);
         ssh.timeout = f.timeout.filter(|s| *s > 0);
         ssh.oidc_key_id = f.oidc_key_id;
+        ssh.transport_id = f.transport_id;
         ssh.color_scheme = clean_scheme(&f.color_scheme);
         ssh.charset = clean_scheme(&f.charset).filter(|c| !c.eq_ignore_ascii_case("utf-8"));
         Some(match &existing_ssh {
@@ -1862,6 +1893,7 @@ pub fn group_form(store: &Store, id: Uuid) -> Result<GroupForm> {
         keep_alive_interval: ssh.keep_alive_interval,
         timeout: ssh.timeout,
         oidc_key_id: ssh.oidc_key_id,
+        transport_id: ssh.transport_id,
     })
 }
 
@@ -1869,6 +1901,7 @@ pub fn group_form(store: &Store, id: Uuid) -> Result<GroupForm> {
 pub fn save_group_form(store: &Store, f: &GroupForm) -> Result<GroupNode> {
     let label = f.label.trim();
     check_oidc_key(store, f.vault_id, f.oidc_key_id)?;
+    crate::transports::check(store, f.vault_id, f.transport_id)?;
     if label.is_empty() {
         return Err(ClientError::invalid("group name is required"));
     }
@@ -1920,6 +1953,7 @@ pub fn save_group_form(store: &Store, f: &GroupForm) -> Result<GroupNode> {
     ssh.keep_alive_interval = f.keep_alive_interval.filter(|s| *s > 0);
     ssh.timeout = f.timeout.filter(|s| *s > 0);
     ssh.oidc_key_id = f.oidc_key_id;
+    ssh.transport_id = f.transport_id;
     let empty = ssh == SshConfig::default();
     let ssh_config_id = match (&existing_ssh, empty) {
         (Some(e), true) => {
@@ -2041,6 +2075,7 @@ pub fn inherited(store: &Store, group_id: Option<Uuid>) -> Result<Inherited> {
         timeout: ssh.timeout,
         env_variables: ssh.env_variables,
         oidc_key_id: ssh.oidc_key_id,
+        transport_id: ssh.transport_id,
     })
 }
 
@@ -2451,6 +2486,7 @@ mod tests {
             keep_alive_interval: None,
             timeout: None,
             oidc_key_id: None,
+            transport_id: None,
             color_scheme: None,
             has_password: false,
             has_totp: false,
@@ -2580,6 +2616,52 @@ mod tests {
         let card = cards(&s, Some(vault)).unwrap().remove(0);
         assert_eq!(card.group_id, None);
         assert_eq!(card.port, 22);
+    }
+
+    #[test]
+    fn transport_set_on_group_or_host_and_cleared_on_delete() {
+        use termoso_core::model::Transport;
+        let s = store();
+        let vault = s.local_vault().unwrap().id;
+        let net = crate::transports::save(
+            &s,
+            vault,
+            None,
+            Transport {
+                label: "home".into(),
+                provider: "netbird".into(),
+                management_url: None,
+                setup_key: Some("example-setup-key".into()),
+            },
+        )
+        .unwrap();
+        let g = save_group(&s, vault, None, "dc1", None).unwrap();
+        set_group_transport(&s, g.id, Some(net.id)).unwrap();
+        let mut f = new_form(vault);
+        f.group_id = Some(g.id);
+        let card = save(&s, &f).unwrap();
+        // Inherited from the group, not set on the host itself.
+        assert_eq!(form(&s, card.id).unwrap().transport_id, None);
+        assert_eq!(
+            inherited(&s, Some(g.id)).unwrap().transport_id,
+            Some(net.id)
+        );
+        let r = s.resolve_host(card.id).unwrap();
+        assert_eq!(r.transport.map(|t| t.id), Some(net.id));
+
+        // Editing the host elsewhere keeps the choice; deleting the network
+        // makes hosts connect directly again.
+        set_transport(&s, card.id, Some(net.id)).unwrap();
+        let mut f = form(&s, card.id).unwrap();
+        f.label = "renamed".into();
+        save(&s, &f).unwrap();
+        assert_eq!(form(&s, card.id).unwrap().transport_id, Some(net.id));
+        crate::transports::delete(&s, net.id).unwrap();
+        assert_eq!(form(&s, card.id).unwrap().transport_id, None);
+        assert!(s.resolve_host(card.id).unwrap().transport.is_none());
+
+        // An id that is no network of this vault is refused.
+        assert!(set_transport(&s, card.id, Some(Uuid::new_v4())).is_err());
     }
 
     #[test]
@@ -3162,6 +3244,7 @@ mod tests {
                 timeout: None,
                 totp_secret: None,
                 oidc_key_id: None,
+                transport_id: None,
             },
         )
         .unwrap();

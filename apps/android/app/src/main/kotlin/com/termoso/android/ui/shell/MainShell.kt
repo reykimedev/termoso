@@ -128,6 +128,7 @@ object Routes {
     const val LINUX = "linux"
     const val KNOWN_HOSTS = "knownHosts"
     const val OIDC_PROVIDERS = "oidcProviders"
+    const val NETBIRD = "netbird"
     const val HISTORY = "history"
     const val LOGS = "logs"
     const val LOG = "log/{id}"
@@ -468,6 +469,7 @@ fun MainShell(
                     onOpenSnippets = { nav.navigate(Routes.snippets(null)) },
                     onOpenKnownHosts = { nav.navigate(Routes.KNOWN_HOSTS) },
                     onOpenOidcProviders = { nav.navigate(Routes.OIDC_PROVIDERS) },
+                    onOpenNetbird = { nav.navigate(Routes.NETBIRD) },
                     onOpenHistory = { nav.navigate(Routes.HISTORY) },
                     onOpenLogs = { nav.navigate(Routes.LOGS) },
                 )
@@ -702,6 +704,7 @@ fun MainShell(
             }
             composable(Routes.KNOWN_HOSTS) { KnownHostsScreen(shell = shell, onBack = { nav.popBackStack() }) }
             composable(Routes.OIDC_PROVIDERS) { com.termoso.android.ui.keychain.OidcProvidersScreen(shell = shell, onBack = { nav.popBackStack() }) }
+            composable(Routes.NETBIRD) { com.termoso.android.ui.netbird.NetbirdNetworksScreen(shell = shell, onBack = { nav.popBackStack() }) }
             composable(Routes.HISTORY) {
                 HistoryScreen(shell = shell, onBack = { nav.popBackStack() }, onOpenHost = { nav.navigate(Routes.hostEdit(it)) })
             }

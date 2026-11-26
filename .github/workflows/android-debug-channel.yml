@@ -1,6 +1,8 @@
 # Debug channel: every push to the listed branches builds a "Labterm Debug" APK signed
-# with a fixed debug key and publishes it to the rolling prerelease `android-debug`,
-# together with latest.json, which the in-app updater of those builds reads.
+# with a fixed debug key and publishes it to a rolling prerelease, together with
+# latest.json, which the in-app updater of those builds reads. Each branch has its own
+# channel (`android-debug` for feat/opkssh-certificates, `android-debug-<branch>` for
+# the others), so an installed build only ever updates from the branch it came from.
 #
 # Repository secrets (skipped without them):
 #   ANDROID_DEBUG_KEYSTORE_BASE64     debug-channel keystore (`base64 -w0 termoso-debug.jks`, alias `termoso-debug`)
@@ -9,14 +11,14 @@ name: Android debug channel
 
 on:
   push:
-    branches: [feat/opkssh-certificates]
+    branches: [feat/opkssh-certificates, claude/project-thread-njhe8q]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: android-debug-channel
+  group: android-debug-channel-${{ github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -58,6 +60,22 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
         with:
           cache-read-only: true
+      - if: env.HAS_KEY == 'true'
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: crates/termoso-netbird/go/go.mod
+          cache-dependency-path: crates/termoso-netbird/go/go.sum
+      - name: Channel
+        if: env.HAS_KEY == 'true'
+        env:
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          if [ "$BRANCH" = "feat/opkssh-certificates" ]; then
+            tag=android-debug
+          else
+            tag="android-debug-$(printf '%s' "$BRANCH" | tr -c 'A-Za-z0-9' '-' | sed 's/-*$//')"
+          fi
+          echo "CHANNEL_TAG=$tag" >> "$GITHUB_ENV"
       - name: Debug keystore from secrets
         if: env.HAS_KEY == 'true'
         env:
@@ -72,8 +90,10 @@ jobs:
           ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.2.12479018
           TERMOSO_ANDROID_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_DEBUG_KEYSTORE_PASSWORD }}
           TERMOSO_DEBUG_BUILD: ${{ github.run_number }}
-          UPDATE_URL: https://github.com/${{ github.repository }}/releases/download/android-debug/latest.json
-        run: ./gradlew --no-daemon -Ptermoso.abis=arm64-v8a "-Ptermoso.debugUpdateUrl=$UPDATE_URL" :app:assembleDebug
+          REPO: ${{ github.repository }}
+        run: |
+          UPDATE_URL="https://github.com/$REPO/releases/download/$CHANNEL_TAG/latest.json"
+          ./gradlew --no-daemon -Ptermoso.abis=arm64-v8a "-Ptermoso.debugUpdateUrl=$UPDATE_URL" :app:assembleDebug
       - name: Publish
         if: env.HAS_KEY == 'true'
         env:
@@ -87,10 +107,10 @@ jobs:
           sha=$(sha256sum "$out/termoso-debug.apk" | cut -d' ' -f1)
           jq -n --argjson build "$BUILD" --arg commit "$COMMIT" --arg sha "$sha" \
             '{build: $build, commit: $commit, apk: "termoso-debug.apk", sha256: $sha}' > "$out/latest.json"
-          if ! gh release view android-debug >/dev/null 2>&1; then
-            gh release create android-debug --prerelease --target "$COMMIT" \
-              --title "Labterm Debug (rolling)" \
+          if ! gh release view "$CHANNEL_TAG" >/dev/null 2>&1; then
+            gh release create "$CHANNEL_TAG" --prerelease --target "$COMMIT" \
+              --title "Labterm Debug (rolling, $CHANNEL_TAG)" \
               --notes "Debug builds for testing; the app updates itself from here. Not for production use."
           fi
-          gh release upload android-debug "$out/termoso-debug.apk" "$out/latest.json" --clobber
-          gh release edit android-debug --title "Labterm Debug (rolling)" --notes "Debug build $BUILD from $COMMIT. The app updates itself from here."
+          gh release upload "$CHANNEL_TAG" "$out/termoso-debug.apk" "$out/latest.json" --clobber
+          gh release edit "$CHANNEL_TAG" --title "Labterm Debug (rolling, $CHANNEL_TAG)" --notes "Debug build $BUILD from $COMMIT. The app updates itself from here."

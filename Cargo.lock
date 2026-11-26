@@ -9186,6 +9186,7 @@ dependencies = [
  "termoso-client",
  "termoso-core",
  "termoso-crypto",
+ "termoso-netbird",
  "termoso-proto",
  "thiserror 2.0.21",
  "tokio",
@@ -9197,6 +9198,21 @@ dependencies = [
  "uniffi",
  "uuid",
  "xz2",
+ "zeroize",
+]
+
+[[package]]
+name = "termoso-netbird"
+version = "0.12.1"
+dependencies = [
+ "libc",
+ "serde",
+ "serde_json",
+ "termoso-core",
+ "termoso-proto",
+ "tokio",
+ "tracing",
+ "uuid",
  "zeroize",
 ]
 

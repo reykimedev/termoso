@@ -675,11 +675,15 @@ impl SshSession {
         };
         match target {
             LaunchTarget::Ssh { target, resolved } => {
+                // Mosh speaks UDP straight to the host, which an in-app
+                // network (NetBird) does not carry: plain SSH there.
                 let mosh = match options.transport {
                     Transport::Mosh => true,
                     Transport::Ssh | Transport::Telnet => false,
+                    // Mosh speaks UDP straight to the host, which the
+                    // in-app NetBird network does not carry: plain SSH there.
                     Transport::Auto => resolved.as_ref().is_some_and(|r| r.ssh.use_mosh),
-                };
+                } && !resolved.as_ref().is_some_and(|r| r.transport.is_some());
                 runtime.spawn(run(
                     inner,
                     target,

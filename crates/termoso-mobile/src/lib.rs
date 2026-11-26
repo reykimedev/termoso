@@ -26,6 +26,7 @@ mod keyexport;
 mod keys;
 mod linux;
 mod live;
+mod netbird;
 mod oidc;
 mod presence;
 mod quiet;
@@ -59,6 +60,7 @@ pub use forward::{
 };
 pub use keys::{KeyMods, SpecialKey, control_code, encode_key, encode_text};
 pub use live::{LiveEndReason, LiveListener, LiveParticipantCard, LiveShare, is_live_link};
+pub use netbird::TransportItem;
 pub use oidc::{OidcKeyChoice, OidcProviderItem, OidcSessionItem, UrlOpener, set_url_opener};
 pub use presence::{PresenceEntryCard, PresenceSessionCard, TeamPresenceCard};
 pub use session::*;
