@@ -13,9 +13,9 @@
 
 use axum::Json;
 use axum::extract::{Path, State};
-use chrono::{DateTime, Utc};
 use serde::Serialize;
 use ssh_key::{HashAlg, LineEnding, PrivateKey, PublicKey, SshSig};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::error::ApiResult;
@@ -112,7 +112,8 @@ pub struct Checkpoint {
     /// OpenSSH sshsig PEM over `termoso-audit-checkpoint-v1|<team_id>|<last_id>|<hex hash>`,
     /// namespace `termoso-audit`; check with `ssh-keygen -Y verify` and `GET /audit/key`.
     pub signature: String,
-    pub created_at: DateTime<Utc>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    pub created_at: OffsetDateTime,
 }
 
 /// Sign the current head of `team_id`'s chain. `None` when the team has no
@@ -147,7 +148,7 @@ pub async fn write_checkpoint(state: &AppState, team_id: Uuid) -> ApiResult<Opti
         )
         .and_then(|s| s.to_pem(LineEnding::LF))
         .map_err(|e| anyhow::anyhow!("audit checkpoint signature: {e}"))?;
-    let (id, created_at): (i64, DateTime<Utc>) = sqlx::query_as(
+    let (id, created_at): (i64, OffsetDateTime) = sqlx::query_as(
         "INSERT INTO audit_checkpoints (team_id, kind, last_id, hash, signature)
          VALUES ($1, 'checkpoint', $2, $3, $4) RETURNING id, created_at",
     )
@@ -252,7 +253,7 @@ pub async fn run_verify(state: &AppState, team_id: Uuid) -> ApiResult<Verificati
         _ => "unhashed",
     });
 
-    let cp: Option<(i64, i64, Vec<u8>, Option<String>, DateTime<Utc>)> = sqlx::query_as(
+    let cp: Option<(i64, i64, Vec<u8>, Option<String>, OffsetDateTime)> = sqlx::query_as(
         "SELECT id, last_id, hash, signature, created_at FROM audit_checkpoints
          WHERE team_id = $1 AND kind = 'checkpoint' ORDER BY id DESC LIMIT 1",
     )

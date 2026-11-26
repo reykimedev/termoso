@@ -16,6 +16,7 @@ pub mod keychain;
 pub mod oidc;
 pub mod overlays;
 pub mod snippets;
+pub mod transports;
 pub mod trust;
 
 pub use error::{ClientError, Result};

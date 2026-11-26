@@ -3,7 +3,7 @@
 //! schedule; a device with the vault key (API bridge or an opted-in desktop)
 //! claims due runs, executes them and reports the results.
 
-use chrono::{DateTime, Utc};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::schema;
@@ -67,20 +67,24 @@ schema! {
         pub alert_admins: bool,
         /// Last finished run.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub last_run_at: Option<DateTime<Utc>>,
+        #[serde(with = "crate::timestamp::serde::option")]
+        pub last_run_at: Option<OffsetDateTime>,
         /// Status of the last finished run.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub last_status: Option<String>,
         /// Next scheduled run (`None` while paused).
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub next_run_at: Option<DateTime<Utc>>,
+        #[serde(with = "crate::timestamp::serde::option")]
+        pub next_run_at: Option<OffsetDateTime>,
         /// Who created it.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub created_by: Option<Uuid>,
         /// Creation time.
-        pub created_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub created_at: OffsetDateTime,
         /// Last change.
-        pub updated_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub updated_at: OffsetDateTime,
     }
 }
 
@@ -241,7 +245,8 @@ schema! {
         /// `pending`, `running`, `done`, `failed`, `missed` or `cancelled`.
         pub status: String,
         /// When the schedule asked for it (or when "run now" was pressed).
-        pub scheduled_for: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub scheduled_for: OffsetDateTime,
         /// Started by hand rather than by the schedule.
         pub manual: bool,
         /// Executor device.
@@ -252,10 +257,12 @@ schema! {
         pub claimed_by_name: Option<String>,
         /// Claim time.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub claimed_at: Option<DateTime<Utc>>,
+        #[serde(with = "crate::timestamp::serde::option")]
+        pub claimed_at: Option<OffsetDateTime>,
         /// Finish time.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub finished_at: Option<DateTime<Utc>>,
+        #[serde(with = "crate::timestamp::serde::option")]
+        pub finished_at: Option<OffsetDateTime>,
         /// Hosts attempted.
         pub hosts_total: i32,
         /// Hosts that failed (connection error or non-zero exit).
@@ -278,7 +285,8 @@ schema! {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub error: Option<String>,
         /// Creation time.
-        pub created_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub created_at: OffsetDateTime,
     }
 }
 

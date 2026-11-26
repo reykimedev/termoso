@@ -11,9 +11,9 @@ use std::time::Duration as StdDuration;
 
 use axum::Json;
 use axum::extract::{Path, State};
-use chrono::{DateTime, Duration, Utc};
 use labterm_proto::automation::*;
 use sqlx::PgExecutor;
+use time::{Duration, OffsetDateTime};
 use uuid::Uuid;
 
 use crate::audit;
@@ -44,12 +44,12 @@ struct AutoRow {
     alert_on: String,
     alert_emails: Vec<String>,
     alert_admins: bool,
-    last_run_at: Option<DateTime<Utc>>,
+    last_run_at: Option<OffsetDateTime>,
     last_status: Option<String>,
-    next_run_at: Option<DateTime<Utc>>,
+    next_run_at: Option<OffsetDateTime>,
     created_by: Option<Uuid>,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
+    created_at: OffsetDateTime,
+    updated_at: OffsetDateTime,
 }
 
 macro_rules! select_auto {
@@ -96,19 +96,19 @@ struct RunRow {
     team_id: Uuid,
     vault_id: Uuid,
     status: String,
-    scheduled_for: DateTime<Utc>,
+    scheduled_for: OffsetDateTime,
     manual: bool,
     claimed_by_device: Option<Uuid>,
     claimed_by_name: Option<String>,
-    claimed_at: Option<DateTime<Utc>>,
-    finished_at: Option<DateTime<Utc>>,
+    claimed_at: Option<OffsetDateTime>,
+    finished_at: Option<OffsetDateTime>,
     hosts_total: i32,
     hosts_failed: i32,
     outcomes: serde_json::Value,
     sealed: Option<String>,
     key_version: Option<i32>,
     error: Option<String>,
-    created_at: DateTime<Utc>,
+    created_at: OffsetDateTime,
 }
 
 macro_rules! select_run {
@@ -167,7 +167,7 @@ fn clean_name(name: &str) -> ApiResult<String> {
     Ok(n.to_string())
 }
 
-fn clean_schedule(expr: &str, tz: &str) -> ApiResult<(String, String, DateTime<Utc>)> {
+fn clean_schedule(expr: &str, tz: &str) -> ApiResult<(String, String, OffsetDateTime)> {
     let expr = expr.trim();
     let s = Schedule::parse(expr).map_err(|e| Error::bad_request(format!("schedule: {e}")))?;
     let tz_name = if tz.trim().is_empty() {
@@ -178,7 +178,7 @@ fn clean_schedule(expr: &str, tz: &str) -> ApiResult<(String, String, DateTime<U
     let off = parse_timezone(&tz_name)
         .ok_or_else(|| Error::bad_request("timezone must be UTC or a fixed offset like +03:00"))?;
     let next = s
-        .next_after(Utc::now(), off)
+        .next_after(OffsetDateTime::now_utc(), off)
         .ok_or_else(|| Error::bad_request("schedule never fires"))?;
     Ok((expr.to_string(), tz_name, next))
 }
@@ -481,7 +481,7 @@ pub async fn run_now(
     if open.is_some() {
         return Err(Error::conflict("A run is already pending or running"));
     }
-    let rid = insert_run(&state.db, aid, id, Utc::now(), true).await?;
+    let rid = insert_run(&state.db, aid, id, OffsetDateTime::now_utc(), true).await?;
     audit::record(
         &state.db,
         audit::Entry::new(id, &auth, "automation.run_requested")
@@ -500,7 +500,7 @@ async fn insert_run<'e, E: PgExecutor<'e>>(
     db: E,
     automation_id: Uuid,
     team_id: Uuid,
-    scheduled_for: DateTime<Utc>,
+    scheduled_for: OffsetDateTime,
     manual: bool,
 ) -> ApiResult<Uuid> {
     let rid = Uuid::new_v4();
@@ -746,7 +746,10 @@ async fn alert(state: &AppState, a: &Automation, run: &AutomationRun) {
     let mut msg = crate::mail::Email::new(subject, title)
         .row("Automation", &a.name)
         .row("Team", &team_name)
-        .row("Scheduled for", run.scheduled_for.to_rfc3339())
+        .row(
+            "Scheduled for",
+            labterm_proto::timestamp::to_rfc3339(run.scheduled_for),
+        )
         .row("Status", &run.status);
     if run.status == "missed" {
         msg = msg.paragraph(
@@ -782,8 +785,8 @@ pub async fn run_scheduler(state: AppState) {
 }
 
 pub async fn tick(state: &AppState) -> anyhow::Result<u64> {
-    let now = Utc::now();
-    let due: Vec<(Uuid, Uuid, String, String, DateTime<Utc>)> = sqlx::query_as(
+    let now = OffsetDateTime::now_utc();
+    let due: Vec<(Uuid, Uuid, String, String, OffsetDateTime)> = sqlx::query_as(
         "SELECT id, team_id, schedule, timezone, next_run_at FROM team_automations
          WHERE enabled AND next_run_at IS NOT NULL AND next_run_at <= $1
          ORDER BY next_run_at LIMIT 500",

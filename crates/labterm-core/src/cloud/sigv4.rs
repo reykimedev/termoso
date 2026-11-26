@@ -3,9 +3,10 @@
 //! as S3 needs). Reference:
 //! <https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_sigv-create-signed-request.html>
 
-use chrono::{DateTime, Utc};
 use hmac::{Hmac, Mac};
 use sha2::{Digest, Sha256};
+use time::OffsetDateTime;
+use time::macros::format_description;
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -35,7 +36,7 @@ pub struct Request<'a> {
 }
 
 /// Sign a POST request at `now`.
-pub fn sign(req: &Request<'_>, access_key: &str, secret_key: &str, now: DateTime<Utc>) -> Signed {
+pub fn sign(req: &Request<'_>, access_key: &str, secret_key: &str, now: OffsetDateTime) -> Signed {
     sign_request(
         &GenericRequest {
             method: "POST",
@@ -80,10 +81,17 @@ pub fn sign_request(
     req: &GenericRequest<'_>,
     access_key: &str,
     secret_key: &str,
-    now: DateTime<Utc>,
+    now: OffsetDateTime,
 ) -> Signed {
-    let amz_date = now.format("%Y%m%dT%H%M%SZ").to_string();
-    let date = now.format("%Y%m%d").to_string();
+    let now = now.to_offset(time::UtcOffset::UTC);
+    let amz_date = now
+        .format(format_description!(
+            "[year][month][day]T[hour][minute][second]Z"
+        ))
+        .expect("a four-digit-year UTC time always formats");
+    let date = now
+        .format(format_description!("[year][month][day]"))
+        .expect("a four-digit-year UTC time always formats");
 
     let mut headers: Vec<(String, String)> = req
         .headers
@@ -137,13 +145,13 @@ fn hmac(key: &[u8], data: &[u8]) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::TimeZone;
+    use time::macros::datetime;
 
     /// Vector from the AWS SigV4 test suite (`post-vanilla`), adapted to the
     /// fixed date the suite uses.
     #[test]
     fn matches_aws_test_suite_post_vanilla() {
-        let now = Utc.with_ymd_and_hms(2015, 8, 30, 12, 36, 0).unwrap();
+        let now = datetime!(2015-08-30 12:36:00 UTC);
         let signed = sign(
             &Request {
                 service: "service",
@@ -168,7 +176,7 @@ mod tests {
 
     #[test]
     fn extra_headers_are_sorted_and_signed() {
-        let now = Utc.with_ymd_and_hms(2015, 8, 30, 12, 36, 0).unwrap();
+        let now = datetime!(2015-08-30 12:36:00 UTC);
         let signed = sign(
             &Request {
                 service: "ec2",

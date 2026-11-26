@@ -23,9 +23,10 @@ use std::io::Write as _;
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
-use chrono::{DateTime, Duration, Utc};
+use labterm_proto::timestamp::Fraction;
 use roxmltree::{Document, Node};
 pub use sp_key::SpKey;
+use time::{Duration, OffsetDateTime};
 
 pub const NS_PROTOCOL: &str = "urn:oasis:names:tc:SAML:2.0:protocol";
 pub const NS_ASSERTION: &str = "urn:oasis:names:tc:SAML:2.0:assertion";
@@ -176,7 +177,7 @@ impl ServiceProvider {
         format!("_{}", hex::encode(b))
     }
 
-    pub fn authn_request_xml(&self, request_id: &str, issued_at: DateTime<Utc>) -> String {
+    pub fn authn_request_xml(&self, request_id: &str, issued_at: OffsetDateTime) -> String {
         let destination = self
             .idp
             .sso_redirect
@@ -193,7 +194,7 @@ impl ServiceProvider {
                 r#"</samlp:AuthnRequest>"#
             ),
             id = request_id,
-            instant = issued_at.to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
+            instant = labterm_proto::timestamp::format(issued_at, Fraction::Secs, true),
             dest = metadata::xml_attr(destination),
             acs = metadata::xml_attr(&self.sp.acs_url),
             issuer = xml_text(&self.sp.entity_id),
@@ -206,7 +207,7 @@ impl ServiceProvider {
         &self,
         request_id: &str,
         relay_state: &str,
-        now: DateTime<Utc>,
+        now: OffsetDateTime,
     ) -> anyhow::Result<AuthnRedirect> {
         let xml = self.authn_request_xml(request_id, now);
         if let Some(sso) = &self.idp.sso_redirect {
@@ -263,7 +264,7 @@ impl ServiceProvider {
         &self,
         saml_response_b64: &str,
         request_id: &str,
-        now: DateTime<Utc>,
+        now: OffsetDateTime,
     ) -> Result<SamlIdentity, SamlError> {
         let compact: String = saml_response_b64
             .chars()
@@ -373,7 +374,7 @@ impl ServiceProvider {
         assertion: Node,
         response_signed: bool,
         request_id: &str,
-        now: DateTime<Utc>,
+        now: OffsetDateTime,
     ) -> Result<SamlIdentity, SamlError> {
         if dsig::is_signed(assertion) {
             dsig::verify_enveloped(doc, assertion, &self.idp.signing_keys, self.sp.allow_sha1)?;
@@ -581,7 +582,7 @@ impl ServiceProvider {
     pub fn consume_slo_redirect(
         &self,
         raw_query: &str,
-        now: DateTime<Utc>,
+        now: OffsetDateTime,
     ) -> Result<(SloMessage, Option<String>), SamlError> {
         let (mut message, mut relay, mut sig_alg, mut signature) = (None, None, None, None);
         for part in raw_query.split('&') {
@@ -634,7 +635,7 @@ impl ServiceProvider {
     pub fn consume_slo_post(
         &self,
         message_b64: &str,
-        now: DateTime<Utc>,
+        now: OffsetDateTime,
     ) -> Result<SloMessage, SamlError> {
         let compact: String = message_b64.chars().filter(|c| !c.is_whitespace()).collect();
         if compact.len() > MAX_RESPONSE_BYTES {
@@ -651,7 +652,7 @@ impl ServiceProvider {
     fn parse_slo(
         &self,
         doc: &Document,
-        now: DateTime<Utc>,
+        now: OffsetDateTime,
         require_enveloped: bool,
     ) -> Result<SloMessage, SamlError> {
         let root = doc.root_element();
@@ -765,7 +766,7 @@ impl ServiceProvider {
         &self,
         in_response_to: &str,
         relay_state: Option<&str>,
-        now: DateTime<Utc>,
+        now: OffsetDateTime,
     ) -> anyhow::Result<Option<String>> {
         let Some(dest) = &self.idp.slo_redirect else {
             return Ok(None);
@@ -779,7 +780,7 @@ impl ServiceProvider {
                 r#"</samlp:LogoutResponse>"#
             ),
             id = Self::new_request_id(),
-            instant = now.to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
+            instant = labterm_proto::timestamp::format(now, Fraction::Secs, true),
             dest = metadata::xml_attr(dest),
             irt = metadata::xml_attr(in_response_to),
             issuer = xml_text(&self.sp.entity_id),
@@ -797,7 +798,7 @@ impl ServiceProvider {
         name_id: &str,
         session_index: Option<&str>,
         relay_state: Option<&str>,
-        now: DateTime<Utc>,
+        now: OffsetDateTime,
     ) -> anyhow::Result<Option<String>> {
         let Some(dest) = &self.idp.slo_redirect else {
             return Ok(None);
@@ -813,10 +814,13 @@ impl ServiceProvider {
                 r#"</samlp:LogoutRequest>"#
             ),
             id = request_id,
-            instant = now.to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
+            instant = labterm_proto::timestamp::format(now, Fraction::Secs, true),
             dest = metadata::xml_attr(dest),
-            noa = (now + chrono::Duration::minutes(5))
-                .to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
+            noa = labterm_proto::timestamp::format(
+                now + time::Duration::minutes(5),
+                Fraction::Secs,
+                true
+            ),
             issuer = xml_text(&self.sp.entity_id),
             name_id = xml_text(name_id),
             si = si,
@@ -842,9 +846,8 @@ fn children<'a, 'i>(
     n.children().filter(move |c| is(*c, ns, name))
 }
 
-fn parse_time(s: &str) -> Result<DateTime<Utc>, SamlError> {
-    DateTime::parse_from_rfc3339(s.trim())
-        .map(|t| t.with_timezone(&Utc))
+fn parse_time(s: &str) -> Result<OffsetDateTime, SamlError> {
+    labterm_proto::timestamp::parse_rfc3339(s.trim())
         .map_err(|_| SamlError::Malformed(format!("bad timestamp {s:?}")))
 }
 
@@ -998,7 +1001,7 @@ pub mod test_support {
                 r#"<saml:Issuer>{issuer}</saml:Issuer><saml:NameID>{name_id}</saml:NameID>{si}</samlp:LogoutRequest>"#
             ),
             id = id,
-            now = ts(Utc::now()),
+            now = ts(OffsetDateTime::now_utc()),
             dest = metadata::xml_attr(destination),
             issuer = idp_entity_id,
             name_id = name_id,
@@ -1024,7 +1027,7 @@ pub mod test_support {
                 r#"<saml:Issuer>{issuer}</saml:Issuer><samlp:Status><samlp:StatusCode Value="{ok}"/></samlp:Status></samlp:LogoutResponse>"#
             ),
             id = hex::encode(rand::random::<[u8; 8]>()),
-            now = ts(Utc::now()),
+            now = ts(OffsetDateTime::now_utc()),
             dest = metadata::xml_attr(destination),
             irt = in_response_to,
             issuer = idp_entity_id,
@@ -1043,9 +1046,9 @@ pub mod test_support {
         pub name_id: String,
         pub name_id_format: Option<String>,
         pub attributes: Vec<(String, String)>,
-        pub now: DateTime<Utc>,
-        pub not_before: Option<DateTime<Utc>>,
-        pub not_on_or_after: Option<DateTime<Utc>>,
+        pub now: OffsetDateTime,
+        pub not_before: Option<OffsetDateTime>,
+        pub not_on_or_after: Option<OffsetDateTime>,
         pub audience: Option<String>,
         pub recipient: Option<String>,
         pub destination: Option<String>,
@@ -1064,7 +1067,7 @@ pub mod test_support {
             in_response_to: &str,
             email: &str,
         ) -> Self {
-            let now = Utc::now();
+            let now = OffsetDateTime::now_utc();
             Self {
                 idp_entity_id: idp_entity_id.into(),
                 sp_entity_id: sp_entity_id.into(),
@@ -1088,8 +1091,8 @@ pub mod test_support {
         }
     }
 
-    fn ts(t: DateTime<Utc>) -> String {
-        t.to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
+    fn ts(t: OffsetDateTime) -> String {
+        labterm_proto::timestamp::format(t, Fraction::Millis, true)
     }
 
     /// Build the response XML (unencoded).
@@ -1270,7 +1273,10 @@ mod tests {
     #[test]
     fn authn_request_redirect_binding() {
         let p = provider(true);
-        let AuthnRedirect::Url(url) = p.start("_req1", "flow-1", Utc::now()).unwrap() else {
+        let AuthnRedirect::Url(url) = p
+            .start("_req1", "flow-1", OffsetDateTime::now_utc())
+            .unwrap()
+        else {
             panic!("redirect")
         };
         assert!(url.starts_with("https://idp.example/sso?SAMLRequest="));
@@ -1561,10 +1567,8 @@ mod interop_tests {
         .unwrap()
     }
 
-    fn at() -> DateTime<Utc> {
-        DateTime::parse_from_rfc3339("2026-06-01T12:00:00Z")
-            .unwrap()
-            .with_timezone(&Utc)
+    fn at() -> OffsetDateTime {
+        time::macros::datetime!(2026-06-01 12:00:00 UTC)
     }
 
     #[test]

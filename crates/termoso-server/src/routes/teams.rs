@@ -4,10 +4,10 @@ use axum::Json;
 use axum::extract::{Path, Query, State};
 
 use super::paging::PageQuery;
-use chrono::{DateTime, Utc};
 use labterm_proto::team::*;
 use labterm_proto::vault::VaultRole;
 use sqlx::{PgExecutor, Postgres, Transaction};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::audit;
@@ -94,7 +94,7 @@ pub async fn list(State(state): State<AppState>, auth: Auth) -> ApiResult<Json<T
     let rows: Vec<(
         Uuid,
         String,
-        DateTime<Utc>,
+        OffsetDateTime,
         String,
         i64,
         bool,
@@ -174,7 +174,7 @@ pub async fn create(
     }
     let id = Uuid::new_v4();
     let mut tx = state.db.begin().await?;
-    let (created_at,): (DateTime<Utc>,) = sqlx::query_as(
+    let (created_at,): (OffsetDateTime,) = sqlx::query_as(
         "INSERT INTO teams (id, name, owner_id, region) VALUES ($1, $2, $3, $4) RETURNING created_at",
     )
     .bind(id)
@@ -228,7 +228,7 @@ pub async fn get(
     let role = membership.level;
     let (name, created_at, member_count, multiplayer_enabled, require_mfa, presence_enabled): (
         String,
-        DateTime<Utc>,
+        OffsetDateTime,
         i64,
         bool,
         bool,
@@ -433,7 +433,7 @@ pub async fn members(
         Option<String>,
         String,
         String,
-        DateTime<Utc>,
+        OffsetDateTime,
         Uuid,
         String,
         String,
@@ -854,7 +854,7 @@ pub async fn invites(
 ) -> ApiResult<Json<InviteList>> {
     crate::authz::require(&state, id, auth.user_id(), "members.invite").await?;
     let (offset, limit) = pq.window(10_000);
-    let rows: Vec<(Uuid, String, String, Uuid, DateTime<Utc>, DateTime<Utc>, Option<Uuid>, Option<String>, Option<String>)> = sqlx::query_as(
+    let rows: Vec<(Uuid, String, String, Uuid, OffsetDateTime, OffsetDateTime, Option<Uuid>, Option<String>, Option<String>)> = sqlx::query_as(
         "SELECT i.id, i.email, i.role, i.invited_by, i.created_at, i.expires_at, r.id, r.slug, r.name
          FROM team_invites i LEFT JOIN team_roles r ON r.id = i.role_id
          WHERE i.team_id = $1 AND i.accepted_at IS NULL AND i.expires_at > now()
@@ -944,7 +944,7 @@ pub async fn create_invite(
     }
     let token = random_token();
     let invite_id = Uuid::new_v4();
-    let expires_at = Utc::now() + chrono::Duration::days(INVITE_DAYS);
+    let expires_at = OffsetDateTime::now_utc() + time::Duration::days(INVITE_DAYS);
     sqlx::query(
         "DELETE FROM team_invites WHERE team_id = $1 AND lower(email) = $2 AND accepted_at IS NULL",
     )
@@ -952,7 +952,7 @@ pub async fn create_invite(
     .bind(&email)
     .execute(&state.db)
     .await?;
-    let (created_at,): (DateTime<Utc>,) = sqlx::query_as(
+    let (created_at,): (OffsetDateTime,) = sqlx::query_as(
         "INSERT INTO team_invites (id, team_id, email, role, token_hash, invited_by, vault_ids, expires_at, role_id)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING created_at",
     )

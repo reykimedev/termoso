@@ -1836,6 +1836,40 @@
     <string name="openid_none_inherit">None (use the group\u2019s)</string>
     <string name="openid_key_for_host_saved">OpenID key saved</string>
 
+    <!-- NetBird networks and the host/group tunnel choice -->
+    <string name="tunnel">Tunnel</string>
+    <string name="tunnel_host_hint">How the app reaches this host. Through a NetBird network, the app joins the network by itself for this connection: no VPN and no NetBird app needed. Mosh is not used there.</string>
+    <string name="tunnel_group_hint">How the app reaches the hosts of this group, unless a host sets its own.</string>
+    <string name="tunnel_direct">Direct</string>
+    <string name="tunnel_direct_or_group">Direct, or as its group says</string>
+    <string name="tunnel_via_netbird">NetBird: %1$s</string>
+    <string name="tunnel_saved">Tunnel saved</string>
+    <string name="netbird_networks">NetBird networks</string>
+    <string name="netbird_networks_subtitle">Reach hosts through NetBird without a VPN</string>
+    <string name="netbird_networks_hint">Hosts and groups set to use a network are reached through a NetBird client inside the app. It starts when such a host connects and stops once it is no longer used.</string>
+    <string name="netbird_no_networks">No NetBird networks</string>
+    <string name="netbird_new_network">New NetBird network</string>
+    <string name="netbird_cloud">NetBird cloud</string>
+    <string name="netbird_management_url">Management URL (empty = NetBird cloud)</string>
+    <string name="netbird_setup_key">Setup key</string>
+    <string name="netbird_setup_key_stored">Stored. Enter a new one to replace it</string>
+    <string name="netbird_setup_key_hint">Without a key you sign in with your NetBird account. With a key, this device joins with it: prefer a reusable, ephemeral key for a group that the NetBird access policies only let reach SSH on the hosts you need.</string>
+    <string name="netbird_no_networks_add_in_vault">No NetBird networks in this vault yet. Add one under Vault, NetBird networks.</string>
+    <string name="netbird_networks_hint_team">Hosts and groups set to use a network are reached through a NetBird client inside the app. It starts when such a host connects and stops once it is no longer used. The team shares only these settings: each member signs in to NetBird with their own account, so NetBird decides who gets in.</string>
+    <string name="netbird_team_sign_in_hint">Team networks have no setup key: each member signs in to NetBird with their own account and joins as their own device. NetBird\'s users, groups and policies decide who gets in.</string>
+    <string name="netbird_setup_key_optional">Setup key (optional)</string>
+    <string name="netbird_joins_with_key">Setup key</string>
+    <string name="netbird_signed_in">Signed in</string>
+    <string name="netbird_not_signed_in">Not signed in</string>
+    <string name="netbird_sign_in">Sign in</string>
+    <string name="netbird_sign_in_again">Sign in again</string>
+    <string name="netbird_sign_in_to">Sign in to %1$s</string>
+    <string name="netbird_sign_in_hint">Sign in with your NetBird account (for example through Authentik). This phone then joins the network as your own device.</string>
+    <string name="netbird_sign_in_waiting">Finish signing in in the browser, then come back here.</string>
+    <string name="netbird_reopen_browser">Open browser again</string>
+    <string name="netbird_no_browser">No browser to sign in with</string>
+    <string name="netbird_signed_in_as">Signed in to NetBird as %1$s</string>
+
     <!-- Own credentials on team hosts (personal overlays) -->
     <string name="overlay_title">My own credentials</string>
     <string name="overlay_hint_host">Connect to this team host with your own credentials instead of the team\'s.</string>

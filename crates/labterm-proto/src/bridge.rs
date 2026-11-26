@@ -7,7 +7,7 @@
 //! opaque blobs only. Its bearer token is a restricted session: sync plus
 //! `GET /bridge/me`, nothing else.
 
-use chrono::{DateTime, Utc};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::schema;
@@ -53,10 +53,12 @@ schema! {
         /// Vaults it may write to.
         pub vaults: Vec<BridgeVault>,
         /// Created.
-        pub created_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub created_at: OffsetDateTime,
         /// Last request made with the bridge token.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub last_used_at: Option<DateTime<Utc>>,
+        #[serde(with = "crate::timestamp::serde::option")]
+        pub last_used_at: Option<OffsetDateTime>,
         /// Last IP seen (for the owner's review only).
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub last_ip: Option<String>,
@@ -149,7 +151,8 @@ schema! {
         pub online: bool,
         /// Last gateway ping.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub seen_at: Option<chrono::DateTime<chrono::Utc>>,
+        #[serde(with = "crate::timestamp::serde::option")]
+        pub seen_at: Option<OffsetDateTime>,
         /// Vaults the gateway holds that the caller can open too.
         pub vault_ids: Vec<Uuid>,
     }

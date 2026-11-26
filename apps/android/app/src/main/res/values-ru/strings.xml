@@ -1876,6 +1876,40 @@
     <string name="openid_none_inherit">Нет (как у группы)</string>
     <string name="openid_key_for_host_saved">Ключ OpenID сохранён</string>
 
+    <!-- NetBird networks and the host/group tunnel choice -->
+    <string name="tunnel">Туннель</string>
+    <string name="tunnel_host_hint">Как приложение подключается к этому хосту. Через сеть NetBird приложение само входит в сеть для этого подключения: без VPN и без приложения NetBird. Mosh там не используется.</string>
+    <string name="tunnel_group_hint">Как приложение подключается к хостам этой группы, если хост не задаёт своё.</string>
+    <string name="tunnel_direct">Напрямую</string>
+    <string name="tunnel_direct_or_group">Напрямую или как задано в группе</string>
+    <string name="tunnel_via_netbird">NetBird: %1$s</string>
+    <string name="tunnel_saved">Туннель сохранён</string>
+    <string name="netbird_networks">Сети NetBird</string>
+    <string name="netbird_networks_subtitle">Доступ к хостам через NetBird без VPN</string>
+    <string name="netbird_networks_hint">К хостам и группам, использующим сеть, приложение подключается через клиент NetBird внутри приложения. Он запускается при подключении к такому хосту и останавливается, когда больше не нужен.</string>
+    <string name="netbird_no_networks">Нет сетей NetBird</string>
+    <string name="netbird_new_network">Новая сеть NetBird</string>
+    <string name="netbird_cloud">Облако NetBird</string>
+    <string name="netbird_management_url">URL сервера управления (пусто = облако NetBird)</string>
+    <string name="netbird_setup_key">Ключ настройки</string>
+    <string name="netbird_setup_key_stored">Сохранён. Введите новый, чтобы заменить</string>
+    <string name="netbird_setup_key_hint">Без ключа вы входите с учётной записью NetBird. С ключом устройство подключается по нему: лучше многоразовый эфемерный ключ для группы, которой политики доступа NetBird разрешают только SSH к нужным хостам.</string>
+    <string name="netbird_no_networks_add_in_vault">В этом хранилище ещё нет сетей NetBird. Добавьте сеть в разделе Хранилище, Сети NetBird.</string>
+    <string name="netbird_networks_hint_team">Хосты и группы, настроенные на сеть, доступны через клиент NetBird внутри приложения. Он запускается при подключении к такому хосту и останавливается, когда больше не нужен. Команда делит только эти настройки: каждый участник входит в NetBird со своей учётной записью, и NetBird решает, кому открыт доступ.</string>
+    <string name="netbird_team_sign_in_hint">У командных сетей нет ключа настройки: каждый участник входит в NetBird со своей учётной записью и подключается как своё устройство. Доступ определяют пользователи, группы и политики NetBird.</string>
+    <string name="netbird_setup_key_optional">Ключ настройки (необязательно)</string>
+    <string name="netbird_joins_with_key">Ключ настройки</string>
+    <string name="netbird_signed_in">Вход выполнен</string>
+    <string name="netbird_not_signed_in">Вход не выполнен</string>
+    <string name="netbird_sign_in">Войти</string>
+    <string name="netbird_sign_in_again">Войти снова</string>
+    <string name="netbird_sign_in_to">Вход в %1$s</string>
+    <string name="netbird_sign_in_hint">Войдите с учётной записью NetBird (например, через Authentik). Телефон подключится к сети как ваше устройство.</string>
+    <string name="netbird_sign_in_waiting">Завершите вход в браузере и вернитесь сюда.</string>
+    <string name="netbird_reopen_browser">Открыть браузер снова</string>
+    <string name="netbird_no_browser">Нет браузера для входа</string>
+    <string name="netbird_signed_in_as">Вход в NetBird: %1$s</string>
+
     <!-- Own credentials on team hosts (personal overlays) -->
     <string name="overlay_title">Мои учётные данные</string>
     <string name="overlay_hint_host">Подключаться к этому хосту команды со своими учётными данными вместо командных.</string>

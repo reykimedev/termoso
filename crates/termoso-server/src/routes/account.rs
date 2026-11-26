@@ -8,11 +8,11 @@ use axum::body::Bytes;
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
-use chrono::{DateTime, Utc};
 use labterm_crypto::encoding::{unb64, unb64_array};
 use labterm_proto::account::*;
 use labterm_proto::auth::{Device, DeviceList, RecoveryRotate, SsoIdentity, SsoStartResponse};
 use serde::{Deserialize, Serialize};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::avatar;
@@ -357,12 +357,13 @@ pub async fn get_settings(
     State(state): State<AppState>,
     auth: Auth,
 ) -> ApiResult<Json<SettingsBlob>> {
-    let row: Option<(String, i64, DateTime<Utc>)> =
+    let row: Option<(String, i64, OffsetDateTime)> =
         sqlx::query_as("SELECT data, version, updated_at FROM user_settings WHERE user_id = $1")
             .bind(auth.user_id())
             .fetch_optional(&state.db)
             .await?;
-    let (data, version, updated_at) = row.unwrap_or_else(|| (String::new(), 0, Utc::now()));
+    let (data, version, updated_at) =
+        row.unwrap_or_else(|| (String::new(), 0, OffsetDateTime::now_utc()));
     Ok(Json(SettingsBlob {
         data,
         version,
@@ -381,7 +382,7 @@ pub async fn put_settings(
     if req.data.len() > max {
         return Err(Error::too_large("Settings blob too large"));
     }
-    let row: Option<(i64, DateTime<Utc>)> = sqlx::query_as(
+    let row: Option<(i64, OffsetDateTime)> = sqlx::query_as(
         "INSERT INTO user_settings (user_id, data, version, updated_at) VALUES ($1, $2, 1, now())
          ON CONFLICT (user_id) DO UPDATE SET data = EXCLUDED.data, version = user_settings.version + 1, updated_at = now()
          WHERE user_settings.version = $3
@@ -419,11 +420,11 @@ pub async fn devices(State(state): State<AppState>, auth: Auth) -> ApiResult<Jso
         String,
         String,
         Option<String>,
-        DateTime<Utc>,
-        DateTime<Utc>,
+        OffsetDateTime,
+        OffsetDateTime,
         Option<String>,
         Option<serde_json::Value>,
-        Option<DateTime<Utc>>,
+        Option<OffsetDateTime>,
     )> = sqlx::query_as(
         "SELECT d.id, d.name, d.platform, d.app_version, d.created_at, d.last_seen_at, d.last_ip, d.posture, d.posture_at
          FROM devices d
@@ -491,7 +492,8 @@ pub async fn revoke_device(
 #[derive(Deserialize)]
 pub struct SecurityEventsQuery {
     /// Only events strictly older than this instant (pagination cursor).
-    pub before: Option<DateTime<Utc>>,
+    #[serde(default, with = "labterm_proto::timestamp::serde::option")]
+    pub before: Option<OffsetDateTime>,
     /// Page size, 1–200 (default 50).
     pub limit: Option<i64>,
 }
@@ -510,7 +512,7 @@ pub async fn security_events(
         Option<String>,
         Option<String>,
         Option<serde_json::Value>,
-        DateTime<Utc>,
+        OffsetDateTime,
     )> = sqlx::query_as(
         "SELECT id, kind, device_id, ip, user_agent, details, created_at FROM security_events
              WHERE user_id = $1 AND ($2::timestamptz IS NULL OR created_at < $2)

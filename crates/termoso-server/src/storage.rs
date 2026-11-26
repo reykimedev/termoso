@@ -5,6 +5,7 @@
 //! master key), so clients do not know which one is behind.
 
 use std::time::Duration;
+use time::OffsetDateTime;
 
 use anyhow::Context;
 use aws_sdk_s3::Client;
@@ -141,7 +142,7 @@ impl Storage {
         let raw = base64::Engine::decode(&base64::engine::general_purpose::URL_SAFE_NO_PAD, token)?;
         let plain = labterm_crypto::aead::decrypt(key, &Aad::server(BLOB_AAD), &raw)?;
         let grant: BlobGrant = serde_json::from_slice(&plain)?;
-        if grant.exp < chrono::Utc::now().timestamp() {
+        if grant.exp < OffsetDateTime::now_utc().unix_timestamp() {
             anyhow::bail!("token expired");
         }
         Ok(grant)
@@ -194,7 +195,7 @@ impl Storage {
             key: key.to_string(),
             method: method.to_string(),
             max_len,
-            exp: chrono::Utc::now().timestamp() + self.presign_ttl.as_secs() as i64,
+            exp: OffsetDateTime::now_utc().unix_timestamp() + self.presign_ttl.as_secs() as i64,
         })?;
         Ok(Presigned {
             url: format!("{public_base}/{token}"),

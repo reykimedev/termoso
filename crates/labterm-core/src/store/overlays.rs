@@ -570,7 +570,7 @@ mod tests {
             deleted: false,
             key_version: 1,
             data: "AAAA".into(),
-            updated_at: chrono::Utc::now(),
+            updated_at: time::OffsetDateTime::now_utc(),
             updated_by_device: None,
         })
         .unwrap();

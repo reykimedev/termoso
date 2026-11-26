@@ -3,10 +3,10 @@
 //! across a user's teams applies to them; the owner of a team is exempt from
 //! its SSO-only rule so an owner can never lock themself out.
 
-use chrono::{DateTime, Utc};
 use labterm_proto::team::{EffectivePolicies, Team, TeamPolicies};
 use sqlx::{PgExecutor, PgPool};
 use std::collections::HashMap;
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::error::ApiResult;
@@ -86,7 +86,7 @@ struct Row {
     posture_screen_lock: bool,
     posture_secure_key: bool,
     access_review_days: i32,
-    updated_at: DateTime<Utc>,
+    updated_at: OffsetDateTime,
 }
 
 #[derive(sqlx::FromRow)]
@@ -160,7 +160,7 @@ pub fn defaults() -> TeamPolicies {
         posture_screen_lock: false,
         posture_secure_key: false,
         access_review_days: 0,
-        updated_at: Utc::now(),
+        updated_at: OffsetDateTime::now_utc(),
     }
 }
 
@@ -328,8 +328,8 @@ pub async fn session_ttl<'e, E: PgExecutor<'e>>(
     db: E,
     user_id: Uuid,
     server_days: u32,
-) -> ApiResult<chrono::Duration> {
-    let server = chrono::Duration::days(server_days.max(1) as i64);
+) -> ApiResult<time::Duration> {
+    let server = time::Duration::days(server_days.max(1) as i64);
     let (min_hours,): (Option<i32>,) = sqlx::query_as(
         "SELECT min(p.session_ttl_hours) FROM team_members m
          JOIN team_policies p ON p.team_id = m.team_id WHERE m.user_id = $1",
@@ -338,7 +338,7 @@ pub async fn session_ttl<'e, E: PgExecutor<'e>>(
     .fetch_one(db)
     .await?;
     Ok(match min_hours {
-        Some(h) => server.min(chrono::Duration::hours(h.max(1) as i64)),
+        Some(h) => server.min(time::Duration::hours(h.max(1) as i64)),
         None => server,
     })
 }

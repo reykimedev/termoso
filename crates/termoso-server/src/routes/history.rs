@@ -2,10 +2,10 @@
 
 use axum::Json;
 use axum::extract::{Query, State};
-use chrono::{DateTime, Utc};
 use labterm_crypto::encoding::unb64;
 use labterm_proto::sync::*;
 use serde::Deserialize;
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::error::{ApiResult, Error, NoContent};
@@ -115,7 +115,7 @@ pub async fn pull(
         .map(|l| l as usize)
         .unwrap_or(MAX_BATCH)
         .clamp(1, MAX_BATCH);
-    let rows: Vec<(Uuid, String, String, i32, DateTime<Utc>, i64, bool)> = sqlx::query_as(
+    let rows: Vec<(Uuid, String, String, i32, OffsetDateTime, i64, bool)> = sqlx::query_as(
         "SELECT id, kind, data, key_version, created_at, seq, deleted FROM history_entries
          WHERE user_id = $1 AND seq > $2 ORDER BY seq LIMIT $3",
     )

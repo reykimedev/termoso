@@ -10,6 +10,7 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
+use time::OffsetDateTime;
 
 use bytes::Bytes;
 use labterm_core::api::ApiClient;
@@ -675,11 +676,15 @@ impl SshSession {
         };
         match target {
             LaunchTarget::Ssh { target, resolved } => {
+                // Mosh speaks UDP straight to the host, which an in-app
+                // network (NetBird) does not carry: plain SSH there.
                 let mosh = match options.transport {
                     Transport::Mosh => true,
                     Transport::Ssh | Transport::Telnet => false,
+                    // Mosh speaks UDP straight to the host, which the
+                    // in-app NetBird network does not carry: plain SSH there.
                     Transport::Auto => resolved.as_ref().is_some_and(|r| r.ssh.use_mosh),
-                };
+                } && !resolved.as_ref().is_some_and(|r| r.transport.is_some());
                 runtime.spawn(run(
                     inner,
                     target,
@@ -1555,7 +1560,7 @@ fn log_meta(row: &ConnectionHistory, inner: &Inner) -> LogMeta {
         label: row.label.clone(),
         target: row.target.clone(),
         protocol: row.protocol.clone(),
-        started_at: chrono::Utc::now(),
+        started_at: OffsetDateTime::now_utc(),
         ended_at: None,
         cols: size.cols,
         rows: size.rows,

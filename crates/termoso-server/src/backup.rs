@@ -20,10 +20,10 @@ use std::path::{Path, PathBuf};
 use std::process::Stdio;
 
 use anyhow::Context;
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use sqlx::PgPool;
+use time::OffsetDateTime;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::config::Config;
@@ -39,7 +39,8 @@ pub struct Manifest {
     /// First 16 hex chars of SHA-256 over the master key; restores refuse a
     /// dump sealed with another key.
     pub master_key_fingerprint: String,
-    pub created_at: DateTime<Utc>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    pub created_at: OffsetDateTime,
     pub file: String,
     pub encrypted: bool,
     pub sha256: String,
@@ -221,10 +222,13 @@ pub async fn backup(
     let counts = counts(&db).await?;
     db.close().await;
 
-    let created_at = Utc::now();
+    let created_at = OffsetDateTime::now_utc();
     let name = format!(
         "termoso-{}.dump{}",
-        created_at.format("%Y%m%dT%H%M%SZ"),
+        labterm_proto::timestamp::format_utc(
+            created_at,
+            time::macros::format_description!("[year][month][day]T[hour][minute][second]Z")
+        ),
         if age_recipient.is_some() { ".age" } else { "" }
     );
     let path = out_dir.join(&name);
@@ -559,7 +563,7 @@ mod tests {
             termoso_version: "0.9.0".into(),
             schema_version: 20,
             master_key_fingerprint: "aa".repeat(8),
-            created_at: Utc::now(),
+            created_at: OffsetDateTime::now_utc(),
             file: "x.dump".into(),
             encrypted: false,
             sha256: "s".into(),

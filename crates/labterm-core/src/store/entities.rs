@@ -1,6 +1,5 @@
 //! Entity CRUD and the raw rows the sync engine works with.
 
-use chrono::{DateTime, Utc};
 use labterm_crypto::aead::{self, Aad};
 use labterm_proto::entities::SyncEntity;
 use labterm_proto::entities::is_known_kind;
@@ -8,13 +7,14 @@ use labterm_proto::sync::{EntityChange, EntityDelete};
 use labterm_proto::vault::VaultRole;
 use rusqlite::{OptionalExtension, params};
 use serde::de::DeserializeOwned;
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use super::{LocalVault, Store, parse_time, parse_uuid};
 use crate::error::{CoreError, Result};
 use crate::model::{
     AnyEntity, Entity, Group, Host, Identity, Payload, Proxy, ResolvedHost, S3Config, SerialConfig,
-    SshCertificate, SshConfig, SshKey, Tag, TagHost, TelnetConfig, WebDavConfig,
+    SshCertificate, SshConfig, SshKey, Tag, TagHost, TelnetConfig, Transport, WebDavConfig,
 };
 
 /// Raw local row (ciphertext), as the sync engine sees it.
@@ -37,7 +37,7 @@ pub struct EntityRow {
     /// Envelope.
     pub data: String,
     /// Last change.
-    pub updated_at: DateTime<Utc>,
+    pub updated_at: OffsetDateTime,
     /// Local changes pending.
     pub dirty: bool,
 }
@@ -240,7 +240,7 @@ impl Store {
                 vault_id.to_string(),
                 key_version,
                 ct,
-                Utc::now().to_rfc3339(),
+                labterm_proto::timestamp::to_rfc3339(OffsetDateTime::now_utc()),
                 dirty,
             ],
         )?;
@@ -351,7 +351,7 @@ impl Store {
         if synced && row.version > 0 {
             conn.execute(
                 "UPDATE entities SET deleted = 1, dirty = 1, data = '', updated_at = ?2 WHERE id = ?1",
-                params![id.to_string(), Utc::now().to_rfc3339()],
+                params![id.to_string(), labterm_proto::timestamp::to_rfc3339(OffsetDateTime::now_utc())],
             )?;
         } else {
             conn.execute(
@@ -468,7 +468,7 @@ impl Store {
                 e.seq,
                 e.key_version,
                 e.data,
-                e.updated_at.to_rfc3339(),
+                labterm_proto::timestamp::to_rfc3339(e.updated_at),
             ],
         )?;
         Ok(())
@@ -803,6 +803,12 @@ impl Store {
         tags.dedup();
 
         let gateway_id = ssh.gateway_id;
+        // `get_in` keeps this to the host's vault: a team's network is never
+        // used for a personal host, nor the other way round.
+        let transport = match ssh.transport_id {
+            Some(id) => self.get_in::<Transport>(id, vault)?,
+            None => None,
+        };
         Ok(ResolvedHost {
             host,
             ssh,
@@ -812,6 +818,7 @@ impl Store {
             ssh_id_handle,
             proxy,
             gateway_id,
+            transport,
             chain,
             telnet,
             serial,
@@ -864,6 +871,7 @@ fn merge_ssh(into: &mut SshConfig, from: &SshConfig) {
         identity_id,
         host_chain_id,
         proxy_id,
+        transport_id,
         port_knocking_id,
         charset,
         color_scheme,
@@ -1035,7 +1043,7 @@ mod tests {
             deleted: false,
             key_version: 1,
             data,
-            updated_at: Utc::now(),
+            updated_at: OffsetDateTime::now_utc(),
             updated_by_device: None,
         })
         .unwrap();
@@ -1069,7 +1077,7 @@ mod tests {
             deleted: false,
             key_version: 1,
             data: "AAAA".into(),
-            updated_at: Utc::now(),
+            updated_at: OffsetDateTime::now_utc(),
             updated_by_device: None,
         })
         .unwrap();
@@ -1325,7 +1333,7 @@ mod tests {
             deleted: false,
             key_version: 1,
             data: "AAAA".into(),
-            updated_at: Utc::now(),
+            updated_at: OffsetDateTime::now_utc(),
             updated_by_device: None,
         })
         .unwrap();

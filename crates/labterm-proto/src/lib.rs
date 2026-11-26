@@ -21,6 +21,7 @@ pub mod logs;
 pub mod sshid;
 pub mod sync;
 pub mod team;
+pub mod timestamp;
 pub mod vault;
 pub mod ws;
 

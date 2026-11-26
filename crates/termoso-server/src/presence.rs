@@ -11,9 +11,9 @@
 use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
 use labterm_proto::team::{PresenceEntry, PresenceSession, TeamPresence};
 use serde::{Deserialize, Serialize};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::error::ApiResult;
@@ -30,7 +30,8 @@ struct Stored {
     user_id: Uuid,
     device_id: Uuid,
     sessions: Vec<PresenceSession>,
-    seen_at: DateTime<Utc>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    seen_at: OffsetDateTime,
 }
 
 fn key(team_id: Uuid) -> String {
@@ -87,7 +88,7 @@ impl Reporter {
             sessions.dedup();
         }
 
-        let now = Utc::now();
+        let now = OffsetDateTime::now_utc();
         let previous: HashSet<Uuid> = self.reported.keys().copied().collect();
         for (team_id, sessions) in &by_team {
             let stored = Stored {
@@ -208,7 +209,8 @@ pub async fn snapshot(
             entries: Vec::new(),
         });
     }
-    let stale_before = Utc::now() - chrono::Duration::from_std(STALE_AFTER).unwrap_or_default();
+    let stale_before =
+        OffsetDateTime::now_utc() - time::Duration::try_from(STALE_AFTER).unwrap_or_default();
     let mut stored: Vec<Stored> = Vec::new();
     let mut expired = false;
     for e in state.cache.hgetall_json::<Stored>(&key(team_id)).await? {

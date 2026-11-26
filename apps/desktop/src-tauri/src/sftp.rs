@@ -9,7 +9,6 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use chrono::{DateTime, Utc};
 use labterm_core::error::CoreError;
 use labterm_core::offline_fs::{CacheTarget, CachingFs, OfflineFs};
 use labterm_core::remote::{RemoteCapabilities, RemoteFs, RemoteProtocol, relay_file};
@@ -18,6 +17,7 @@ use labterm_core::ssh::SshClient;
 use labterm_proto::entities::payload::Host;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager, Runtime};
+use time::OffsetDateTime;
 use tokio::sync::Semaphore;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
@@ -74,7 +74,8 @@ pub struct SftpInfo {
     pub protocol: RemoteProtocol,
     pub capabilities: RemoteCapabilities,
     pub home: String,
-    pub started_at: DateTime<Utc>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    pub started_at: OffsetDateTime,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -129,7 +130,8 @@ pub struct TransferInfo {
     pub local: String,
     pub remote: String,
     pub conflict: Conflict,
-    pub started_at: DateTime<Utc>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    pub started_at: OffsetDateTime,
 }
 
 /// Transfers start `Queued`; `Running` follows once a slot is free.
@@ -391,7 +393,7 @@ pub async fn open<R: Runtime>(
         protocol: conn.fs.protocol(),
         capabilities: conn.fs.capabilities(),
         home: conn.fs.home().to_string(),
-        started_at: Utc::now(),
+        started_at: OffsetDateTime::now_utc(),
     };
     state.sftp.live.lock().expect("sftp poisoned").insert(
         id,
@@ -1073,7 +1075,7 @@ pub fn transfer_start<R: Runtime>(
         local: local.clone(),
         remote: remote.clone(),
         conflict,
-        started_at: Utc::now(),
+        started_at: OffsetDateTime::now_utc(),
     };
     state.sftp.transfers.lock().expect("sftp poisoned").insert(
         id,

@@ -10,11 +10,11 @@
 
 use axum::Json;
 use axum::extract::{Path, State};
-use chrono::{DateTime, Utc};
 use labterm_proto::team::{
     AccessReview, AccessReviewDetail, AccessReviewItem, AccessReviewList,
     CompleteAccessReviewRequest, DecideAccessReviewItemRequest,
 };
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::audit;
@@ -32,10 +32,10 @@ type ReviewRow = (
     Uuid,
     String,
     Option<Uuid>,
-    DateTime<Utc>,
-    DateTime<Utc>,
+    OffsetDateTime,
+    OffsetDateTime,
     Option<Uuid>,
-    Option<DateTime<Utc>>,
+    Option<OffsetDateTime>,
     i32,
     i32,
     i64,
@@ -106,10 +106,10 @@ type ItemRow = (
     Option<Uuid>,
     Option<String>,
     String,
-    Option<DateTime<Utc>>,
+    Option<OffsetDateTime>,
     Option<String>,
     Option<Uuid>,
-    Option<DateTime<Utc>>,
+    Option<OffsetDateTime>,
     Option<String>,
 );
 

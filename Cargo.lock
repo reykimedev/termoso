@@ -4643,13 +4643,13 @@ dependencies = [
 name = "labterm-client"
 version = "0.12.1"
 dependencies = [
- "chrono",
  "labterm-core",
  "labterm-oidc-cert",
  "labterm-proto",
  "serde",
  "serde_json",
  "tempfile",
+ "time",
  "tokio",
  "url",
  "uuid",
@@ -4668,7 +4668,6 @@ dependencies = [
  "base64 0.23.1",
  "bytes",
  "cbc 0.1.2",
- "chrono",
  "ciborium",
  "ctap-hid-fido2",
  "dav-server",
@@ -4698,7 +4697,7 @@ dependencies = [
  "reqwest 0.12.28",
  "rusqlite",
  "russh",
- "russh-sftp 3.0.1",
+ "russh-sftp",
  "rustls",
  "rustls-pki-types",
  "serde",
@@ -4709,6 +4708,7 @@ dependencies = [
  "tempfile",
  "termoso-server",
  "thiserror 2.0.21",
+ "time",
  "tokio",
  "tokio-rustls",
  "tokio-tungstenite 0.29.0",
@@ -4749,7 +4749,6 @@ dependencies = [
  "axum",
  "base64 0.23.1",
  "bytes",
- "chrono",
  "dunce",
  "hostname",
  "labterm-client",
@@ -4792,13 +4791,13 @@ dependencies = [
  "alacritty_terminal",
  "async-trait",
  "bytes",
- "chrono",
  "encoding_rs",
  "flate2",
  "futures-util",
  "labterm-client",
  "labterm-core",
  "labterm-crypto",
+ "labterm-netbird",
  "labterm-proto",
  "lzma-sys",
  "rand 0.10.3",
@@ -4810,6 +4809,7 @@ dependencies = [
  "tar",
  "tempfile",
  "thiserror 2.0.21",
+ "time",
  "tokio",
  "tokio-util",
  "tracing",
@@ -4819,6 +4819,22 @@ dependencies = [
  "uniffi",
  "uuid",
  "xz2",
+ "zeroize",
+]
+
+[[package]]
+name = "labterm-netbird"
+version = "0.12.1"
+dependencies = [
+ "labterm-core",
+ "labterm-proto",
+ "libc",
+ "serde",
+ "serde_json",
+ "time",
+ "tokio",
+ "tracing",
+ "uuid",
  "zeroize",
 ]
 
@@ -4846,9 +4862,9 @@ dependencies = [
 name = "labterm-proto"
 version = "0.12.1"
 dependencies = [
- "chrono",
  "serde",
  "serde_json",
+ "time",
  "utoipa",
  "uuid",
 ]
@@ -4869,7 +4885,7 @@ dependencies = [
  "rustls",
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_norway",
  "thiserror 2.0.21",
  "tokio",
  "tokio-tungstenite 0.30.0",
@@ -4916,7 +4932,7 @@ dependencies = [
  "labterm-wasm",
  "rand 0.10.3",
  "russh",
- "russh-sftp 4.0.0",
+ "russh-sftp",
  "serde",
  "serde-wasm-bindgen",
  "serde_json",
@@ -7424,26 +7440,6 @@ dependencies = [
 
 [[package]]
 name = "russh-sftp"
-version = "3.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9bb17f72aba4314656b359ffba72c68dcbd70ed9e97497898b75498fe7198042"
-dependencies = [
- "bitflags 2.13.2",
- "bytes",
- "chrono",
- "dashmap",
- "gloo-timers",
- "log",
- "serde",
- "serde_bytes",
- "thiserror 2.0.21",
- "tokio",
- "tokio-util",
- "wasm-bindgen-futures",
-]
-
-[[package]]
-name = "russh-sftp"
 version = "4.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b8067d56cde438de09db20be974be92118b85d671c7f50ea3b37cf9011760f0"
@@ -7962,6 +7958,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_norway"
+version = "0.9.42"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e408f29489b5fd500fab51ff1484fc859bb655f32c671f307dcd733b72e8168c"
+dependencies = [
+ "indexmap 2.14.2",
+ "itoa",
+ "ryu",
+ "serde",
+ "unsafe-libyaml-norway",
+]
+
+[[package]]
 name = "serde_path_to_error"
 version = "0.1.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8053,19 +8062,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 3.0.5",
-]
-
-[[package]]
-name = "serde_yaml"
-version = "0.9.34+deprecated"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a8b1a1a2ebf674015cc02edccce75287f1a0130d394307b36743c2f5d504b47"
-dependencies = [
- "indexmap 2.14.2",
- "itoa",
- "ryu",
- "serde",
- "unsafe-libyaml",
 ]
 
 [[package]]
@@ -8512,7 +8508,6 @@ dependencies = [
  "base64 0.22.1",
  "bytes",
  "cfg-if",
- "chrono",
  "crc",
  "crossbeam-queue",
  "either",
@@ -8533,6 +8528,7 @@ dependencies = [
  "sha2 0.10.9",
  "smallvec",
  "thiserror 2.0.21",
+ "time",
  "tokio",
  "tokio-stream",
  "tracing",
@@ -8589,7 +8585,6 @@ dependencies = [
  "bitflags 2.13.2",
  "byteorder",
  "bytes",
- "chrono",
  "crc",
  "digest 0.11.3",
  "dotenvy",
@@ -8604,6 +8599,7 @@ dependencies = [
  "sha2 0.11.0",
  "sqlx-core",
  "thiserror 2.0.21",
+ "time",
  "tracing",
  "uuid",
 ]
@@ -8618,7 +8614,6 @@ dependencies = [
  "base64 0.22.1",
  "bitflags 2.13.2",
  "byteorder",
- "chrono",
  "crc",
  "dotenvy",
  "etcetera",
@@ -8640,6 +8635,7 @@ dependencies = [
  "sqlx-core",
  "stringprep",
  "thiserror 2.0.21",
+ "time",
  "tracing",
  "uuid",
  "whoami",
@@ -8652,7 +8648,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "488e99c397a62007e4229aec669a179816339afc6d2620ca6fa420dbee2e982c"
 dependencies = [
  "atoi",
- "chrono",
  "flume",
  "form_urlencoded",
  "futures-channel",
@@ -8666,6 +8661,7 @@ dependencies = [
  "serde",
  "sqlx-core",
  "thiserror 2.0.21",
+ "time",
  "tracing",
  "url",
  "uuid",
@@ -9418,7 +9414,6 @@ version = "0.12.1"
 dependencies = [
  "axum",
  "bytes",
- "chrono",
  "futures",
  "labterm-core",
  "labterm-crypto",
@@ -9428,6 +9423,7 @@ dependencies = [
  "serde_json",
  "subtle",
  "thiserror 2.0.21",
+ "time",
  "tokio",
  "tokio-tungstenite 0.29.0",
  "tower-http 0.7.1",
@@ -9454,7 +9450,6 @@ dependencies = [
  "blake3",
  "bytes",
  "cbc 0.1.2",
- "chrono",
  "figment",
  "flate2",
  "futures",
@@ -9490,6 +9485,7 @@ dependencies = [
  "termoso-bridge",
  "termoso-server",
  "thiserror 2.0.21",
+ "time",
  "tokio",
  "tokio-rustls",
  "tokio-tungstenite 0.29.0",
@@ -10370,10 +10366,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "unsafe-libyaml"
-version = "0.2.11"
+name = "unsafe-libyaml-norway"
+version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
+checksum = "b39abd59bf32521c7f2301b52d05a6a2c975b6003521cbd0c6dc1582f0a22104"
 
 [[package]]
 name = "untrusted"

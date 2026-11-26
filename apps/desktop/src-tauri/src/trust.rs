@@ -2,11 +2,11 @@
 //! decisions for new/changed keys stay in the connection prompt flow
 //! (`prompts.rs`); this façade never accepts a key on the UI's behalf.
 
-use chrono::{DateTime, Utc};
 use labterm_core::hostkey::KnownHosts;
 use labterm_core::model::KnownHost;
 use labterm_core::store::Store;
 use serde::Serialize;
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::error::{DesktopError, Result};
@@ -22,7 +22,8 @@ pub struct KnownHostCard {
     pub key_type: String,
     pub fingerprint: String,
     pub public_key: String,
-    pub updated_at: DateTime<Utc>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    pub updated_at: OffsetDateTime,
 }
 
 #[derive(Debug, Clone, Serialize)]

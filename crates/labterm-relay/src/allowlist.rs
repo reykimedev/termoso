@@ -43,7 +43,7 @@ fn default_ports() -> Vec<u16> {
 #[derive(Debug, thiserror::Error)]
 pub enum AllowlistError {
     #[error("allowlist is not valid YAML: {0}")]
-    Parse(#[from] serde_yaml::Error),
+    Parse(#[from] serde_norway::Error),
     #[error("allowlist rule {0} has no ports")]
     NoPorts(IpNet),
 }
@@ -64,7 +64,7 @@ pub struct Allowlist {
 
 impl Allowlist {
     pub fn from_yaml(text: &str) -> Result<Self, AllowlistError> {
-        let file: AllowlistFile = serde_yaml::from_str(text)?;
+        let file: AllowlistFile = serde_norway::from_str(text)?;
         if let Some(r) = file.allow.iter().find(|r| r.ports.is_empty()) {
             return Err(AllowlistError::NoPorts(r.cidr));
         }

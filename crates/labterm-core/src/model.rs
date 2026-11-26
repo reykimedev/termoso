@@ -5,9 +5,9 @@
 //! that both sides agree on. `Payload` ties each plaintext struct to its kind
 //! string so the store can encrypt with the right AAD.
 
-use chrono::{DateTime, Utc};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 pub use labterm_proto::entities::payload::*;
@@ -50,6 +50,7 @@ payloads! {
     LogBookmark => "log_bookmark",
     ColorScheme => "color_scheme",
     OidcProvider => "oidc_provider",
+    Transport => "transport",
     HostOverlay => "host_overlay",
 }
 
@@ -63,7 +64,8 @@ pub struct Entity<T> {
     /// Server version (0 while never pushed).
     pub version: i64,
     /// Last modification.
-    pub updated_at: DateTime<Utc>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    pub updated_at: OffsetDateTime,
     /// Has local changes not yet pushed.
     pub dirty: bool,
     /// Payload.
@@ -108,6 +110,10 @@ pub struct ResolvedHost {
     /// Gateway (API bridge) to tunnel through, if any.
     #[serde(default)]
     pub gateway_id: Option<Uuid>,
+    /// Overlay network (NetBird, ...) to dial through, if any; only from
+    /// the host's own vault.
+    #[serde(default)]
+    pub transport: Option<Entity<Transport>>,
     /// Jump hosts in order (each already resolved one level).
     pub chain: Vec<Entity<Host>>,
     /// Telnet config when the host is a telnet target.

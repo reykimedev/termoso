@@ -10,9 +10,9 @@ use axum::http::request::Parts;
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Json, Router};
-use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use serde_json::{Value, json};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::audit;
@@ -257,7 +257,7 @@ type UserRow = (
     bool,
     bool,
     Option<Uuid>,
-    DateTime<Utc>,
+    OffsetDateTime,
     bool,
 );
 
@@ -342,7 +342,7 @@ async fn user_resource(state: &AppState, team_id: Uuid, r: &UserRow) -> ScimResu
         "groups": user_groups(state, team_id, *id).await?,
         "meta": {
             "resourceType": "User",
-            "created": created_at,
+            "created": labterm_proto::timestamp::to_json(*created_at),
             "location": format!("{}/Users/{id}", base(state)),
         }
     }))
@@ -740,7 +740,7 @@ async fn deprovision(state: &AppState, a: &ScimAuth, user_id: Uuid) -> ScimResul
 
 async fn reactivate(state: &AppState, a: &ScimAuth, user_id: Uuid) -> ScimResult<()> {
     let team_id = a.team_id;
-    let row: Option<(Option<Uuid>, Option<DateTime<Utc>>, bool)> = sqlx::query_as(
+    let row: Option<(Option<Uuid>, Option<OffsetDateTime>, bool)> = sqlx::query_as(
         "SELECT managed_by_team_id, deprovisioned_at, disabled FROM users WHERE id = $1",
     )
     .bind(user_id)
@@ -751,7 +751,7 @@ async fn reactivate(state: &AppState, a: &ScimAuth, user_id: Uuid) -> ScimResult
     };
     if managed_by == Some(team_id) {
         if let Some(t) = deprovisioned_at
-            && Utc::now() - t > chrono::Duration::days(REACTIVATION_DAYS)
+            && OffsetDateTime::now_utc() - t > time::Duration::days(REACTIVATION_DAYS)
         {
             return Err(ScimError::new(
                 StatusCode::GONE,
@@ -964,7 +964,7 @@ async fn delete_user(
 
 // ───────────────────────────── groups ─────────────────────────────
 
-type GroupRow = (Uuid, String, Option<String>, DateTime<Utc>);
+type GroupRow = (Uuid, String, Option<String>, OffsetDateTime);
 
 async fn group_resource(state: &AppState, _team_id: Uuid, g: &GroupRow) -> ScimResult<Value> {
     let members: Vec<(Uuid, String)> = sqlx::query_as(
@@ -980,7 +980,7 @@ async fn group_resource(state: &AppState, _team_id: Uuid, g: &GroupRow) -> ScimR
         "externalId": g.2,
         "displayName": g.1,
         "members": members.iter().map(|(id, email)| json!({ "value": id, "display": email, "$ref": format!("{b}/Users/{id}") })).collect::<Vec<_>>(),
-        "meta": { "resourceType": "Group", "created": g.3, "location": format!("{b}/Groups/{}", g.0) }
+        "meta": { "resourceType": "Group", "created": labterm_proto::timestamp::to_json(g.3), "location": format!("{b}/Groups/{}", g.0) }
     }))
 }
 

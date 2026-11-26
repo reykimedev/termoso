@@ -3,8 +3,8 @@
 
 use axum::Json;
 use axum::extract::State;
-use chrono::{Duration as ChronoDuration, Utc};
 use labterm_proto::ai::{AiCommandRequest, AiCommandResponse, AiSettingsRequest, AiStatus};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::ai::Ai;
@@ -17,18 +17,22 @@ use crate::state::AppState;
 const MAX_CONTEXT_CHARS: usize = 80;
 
 fn quota_key(user_id: Uuid) -> String {
-    format!("ai:quota:{user_id}:{}", Utc::now().format("%Y%m%d"))
+    format!(
+        "ai:quota:{user_id}:{}",
+        OffsetDateTime::now_utc()
+            .format(time::macros::format_description!("[year][month][day]"))
+            .unwrap_or_default()
+    )
 }
 
 /// Seconds until the next UTC midnight (when the daily counter resets).
 fn secs_until_midnight() -> u64 {
-    let now = Utc::now();
-    let tomorrow = (now + ChronoDuration::days(1))
-        .date_naive()
-        .and_hms_opt(0, 0, 0)
-        .expect("midnight")
-        .and_utc();
-    (tomorrow - now).num_seconds().max(1) as u64
+    let now = OffsetDateTime::now_utc();
+    let tomorrow = (now + time::Duration::days(1))
+        .date()
+        .with_time(time::Time::MIDNIGHT)
+        .assume_utc();
+    (tomorrow - now).whole_seconds().max(1) as u64
 }
 
 async fn is_enabled(state: &AppState, user_id: Uuid) -> ApiResult<bool> {

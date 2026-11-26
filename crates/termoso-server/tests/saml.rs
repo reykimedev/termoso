@@ -9,6 +9,7 @@ use labterm_proto::auth::{AuthResponse, SsoLogoutResponse, SsoResult, SsoStartRe
 use reqwest::{Method, StatusCode, redirect::Policy};
 use roxmltree::Document;
 use termoso_server::saml::test_support::{self as saml_support, ResponseSpec};
+use time::OffsetDateTime;
 
 const NS_PROTOCOL: &str = "urn:oasis:names:tc:SAML:2.0:protocol";
 const NS_ASSERTION: &str = "urn:oasis:names:tc:SAML:2.0:assertion";
@@ -446,7 +447,7 @@ async fn acs_rejects_forged_stale_and_misdirected_responses() {
             "expired",
             Box::new(|r| {
                 let mut sp = spec_for(r, &email);
-                sp.not_on_or_after = Some(chrono::Utc::now() - chrono::Duration::hours(1));
+                sp.not_on_or_after = Some(OffsetDateTime::now_utc() - time::Duration::hours(1));
                 sp
             }),
         ),
@@ -454,7 +455,7 @@ async fn acs_rejects_forged_stale_and_misdirected_responses() {
             "not yet valid",
             Box::new(|r| {
                 let mut sp = spec_for(r, &email);
-                sp.not_before = Some(chrono::Utc::now() + chrono::Duration::hours(1));
+                sp.not_before = Some(OffsetDateTime::now_utc() + time::Duration::hours(1));
                 sp
             }),
         ),

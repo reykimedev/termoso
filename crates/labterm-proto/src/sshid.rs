@@ -13,7 +13,7 @@
 //! when it logs out or is revoked. FIDO2 keys are bound to the hardware token
 //! instead and stay until removed.
 
-use chrono::{DateTime, Utc};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::schema;
@@ -149,7 +149,8 @@ schema! {
         #[serde(default)]
         pub current_device: bool,
         /// Created / last rotated.
-        pub updated_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub updated_at: OffsetDateTime,
     }
 }
 
@@ -161,7 +162,8 @@ schema! {
         /// Public URL of the default key list (`…/sshid/{handle}`).
         pub url: String,
         /// Created.
-        pub created_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub created_at: OffsetDateTime,
         /// Published keys, newest first.
         pub keys: Vec<SshIdKey>,
     }

@@ -14,6 +14,7 @@ use labterm_proto::vault::{
     RotateVaultKeyRequest, RotateVaultKeyResponse, SealedKeyFor, VaultList,
 };
 use reqwest::{Method, StatusCode};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 macro_rules! server {
@@ -129,7 +130,7 @@ async fn bridge_lifecycle_and_confinement() {
                 host_id,
                 r#"{"label":"db-1","address":"10.0.0.5","external_id":"i-123"}"#,
             ),
-            updated_at: chrono::Utc::now(),
+            updated_at: OffsetDateTime::now_utc(),
         }],
         deletes: vec![],
     };
@@ -273,7 +274,7 @@ async fn bridge_is_confined_to_sealed_vaults_and_rotation_unseals() {
         base_version: None,
         key_version,
         data: u.encrypt_entity(&u.personal_vault_key, "host", host_id, r#"{"label":"a"}"#),
-        updated_at: chrono::Utc::now(),
+        updated_at: OffsetDateTime::now_utc(),
     };
     let r: PushResponse = s
         .json(

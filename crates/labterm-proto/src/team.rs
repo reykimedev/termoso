@@ -1,6 +1,6 @@
 //! Teams, members and invitations.
 
-use chrono::{DateTime, Utc};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::schema;
@@ -34,7 +34,8 @@ schema! {
         /// Name.
         pub name: String,
         /// Created.
-        pub created_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub created_at: OffsetDateTime,
         /// Requesting user's role.
         pub my_role: TeamRole,
         /// Requesting user's fine-grained role (0.9.0+).
@@ -123,7 +124,8 @@ schema! {
         /// X25519 public key (base64).
         pub public_key: String,
         /// Joined.
-        pub joined_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub joined_at: OffsetDateTime,
         /// Whether the member has a second factor (TOTP or a security key).
         /// Present for team admins and for the caller's own row; other
         /// members get `None`.
@@ -161,7 +163,8 @@ schema! {
         /// `ssh` | `sftp` | `mosh` | `telnet` | `forwarding`.
         pub protocol: String,
         /// When the connection was established.
-        pub since: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub since: OffsetDateTime,
     }
 }
 
@@ -187,7 +190,8 @@ schema! {
         /// Live connections (only those in vaults the requester can see).
         pub sessions: Vec<PresenceSession>,
         /// Last heartbeat from the device.
-        pub seen_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub seen_at: OffsetDateTime,
     }
 }
 
@@ -241,9 +245,11 @@ schema! {
         /// Invited by.
         pub invited_by: Uuid,
         /// Created.
-        pub created_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub created_at: OffsetDateTime,
         /// Expires.
-        pub expires_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub expires_at: OffsetDateTime,
         /// Fine-grained role on acceptance (0.9.0+).
         #[serde(default)]
         pub role_ref: Option<RoleRef>,
@@ -360,7 +366,8 @@ schema! {
         #[serde(default)]
         pub details: serde_json::Value,
         /// When.
-        pub created_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub created_at: OffsetDateTime,
         /// Hex SHA-256 over this entry's canonical fields and `prev_hash`
         /// (tamper-evident chain; see `GET /teams/{id}/audit/verify`).
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -425,7 +432,8 @@ schema! {
         pub cadence: Option<DigestCadence>,
         /// End of the last period that was mailed.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub last_sent_at: Option<DateTime<Utc>>,
+        #[serde(with = "crate::timestamp::serde::option")]
+        pub last_sent_at: Option<OffsetDateTime>,
     }
 }
 
@@ -647,9 +655,11 @@ schema! {
         /// Members holding this role.
         pub member_count: i64,
         /// Created.
-        pub created_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub created_at: OffsetDateTime,
         /// Updated.
-        pub updated_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub updated_at: OffsetDateTime,
     }
 }
 
@@ -809,7 +819,8 @@ schema! {
         #[serde(default)]
         pub access_review_days: i32,
         /// Last change.
-        pub updated_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub updated_at: OffsetDateTime,
     }
 }
 
@@ -904,7 +915,8 @@ schema! {
         /// App version at last sign-in.
         pub app_version: Option<String>,
         /// Last activity.
-        pub last_seen_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub last_seen_at: OffsetDateTime,
         /// Last client address.
         pub last_ip: Option<String>,
         /// `pending`, `approved` or `rejected`.
@@ -912,9 +924,11 @@ schema! {
         /// Admin who decided.
         pub decided_by: Option<Uuid>,
         /// When.
-        pub decided_at: Option<DateTime<Utc>>,
+        #[serde(default, with = "crate::timestamp::serde::option")]
+        pub decided_at: Option<OffsetDateTime>,
         /// First sign-in attempt from this device.
-        pub requested_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub requested_at: OffsetDateTime,
     }
 }
 
@@ -941,7 +955,8 @@ schema! {
         /// Entity kind (`ssh_key`, `ssh_certificate`, `identity`, `host`).
         pub kind: String,
         /// Last rotation the owning client reported; `None` = never.
-        pub secret_rotated_at: Option<DateTime<Utc>>,
+        #[serde(default, with = "crate::timestamp::serde::option")]
+        pub secret_rotated_at: Option<OffsetDateTime>,
         /// Days since the last rotation (or since creation).
         pub age_days: i32,
         /// Open rotation job for this entity, if any.
@@ -975,11 +990,14 @@ schema! {
         /// Member whose client is executing (or executed) the job.
         pub claimed_by: Option<Uuid>,
         /// Queued at.
-        pub created_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub created_at: OffsetDateTime,
         /// Last status change.
-        pub updated_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub updated_at: OffsetDateTime,
         /// When the job reached a final state.
-        pub finished_at: Option<DateTime<Utc>>,
+        #[serde(default, with = "crate::timestamp::serde::option")]
+        pub finished_at: Option<OffsetDateTime>,
     }
 }
 
@@ -1047,13 +1065,16 @@ schema! {
         /// Approver / denier.
         pub decided_by: Option<Uuid>,
         /// When the decision was made.
-        pub decided_at: Option<DateTime<Utc>>,
+        #[serde(default, with = "crate::timestamp::serde::option")]
+        pub decided_at: Option<OffsetDateTime>,
         /// Approver's note.
         pub decision_note: Option<String>,
         /// When the granted access ends.
-        pub expires_at: Option<DateTime<Utc>>,
+        #[serde(default, with = "crate::timestamp::serde::option")]
+        pub expires_at: Option<OffsetDateTime>,
         /// Requested at.
-        pub created_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub created_at: OffsetDateTime,
     }
 }
 
@@ -1118,9 +1139,11 @@ schema! {
         /// Region label of the server answering.
         pub server_region: Option<String>,
         /// Team creation time.
-        pub created_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub created_at: OffsetDateTime,
         /// When the team will be purged, if deletion is scheduled.
-        pub deletion_scheduled_at: Option<DateTime<Utc>>,
+        #[serde(default, with = "crate::timestamp::serde::option")]
+        pub deletion_scheduled_at: Option<OffsetDateTime>,
         /// Owner who scheduled it.
         pub deletion_requested_by: Option<Uuid>,
         /// Grace period of this server in days (0 = immediate).
@@ -1204,13 +1227,15 @@ schema! {
         /// Disabled hooks keep their history but receive nothing.
         pub enabled: bool,
         /// Created.
-        pub created_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub created_at: OffsetDateTime,
         /// HTTP status of the last attempt.
         pub last_status: Option<i32>,
         /// Error of the last failed attempt.
         pub last_error: Option<String>,
         /// Last successful delivery.
-        pub last_delivered_at: Option<DateTime<Utc>>,
+        #[serde(default, with = "crate::timestamp::serde::option")]
+        pub last_delivered_at: Option<OffsetDateTime>,
         /// Consecutive failures (50 disables the hook).
         pub failures: i32,
     }
@@ -1279,9 +1304,11 @@ schema! {
         /// First KiB of the last response body.
         pub response_body: Option<String>,
         /// Next attempt (for pending).
-        pub next_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub next_at: OffsetDateTime,
         /// When it succeeded.
-        pub delivered_at: Option<DateTime<Utc>>,
+        #[serde(default, with = "crate::timestamp::serde::option")]
+        pub delivered_at: Option<OffsetDateTime>,
     }
 }
 
@@ -1304,11 +1331,14 @@ schema! {
         /// Label (e.g. "Okta").
         pub name: String,
         /// Created.
-        pub created_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub created_at: OffsetDateTime,
         /// Expiry, if any.
-        pub expires_at: Option<DateTime<Utc>>,
+        #[serde(default, with = "crate::timestamp::serde::option")]
+        pub expires_at: Option<OffsetDateTime>,
         /// Last request with this token.
-        pub last_used_at: Option<DateTime<Utc>>,
+        #[serde(default, with = "crate::timestamp::serde::option")]
+        pub last_used_at: Option<OffsetDateTime>,
     }
 }
 
@@ -1426,7 +1456,8 @@ schema! {
         /// SP metadata URL (SAML) / redirect URI (OIDC) to register at the IdP.
         pub callback_url: String,
         /// Updated at.
-        pub updated_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub updated_at: OffsetDateTime,
     }
 }
 
@@ -1508,7 +1539,8 @@ schema! {
         /// `none` (hidden) | `connect` (no secrets) | `read` | `edit`.
         pub mode: String,
         /// Last change.
-        pub updated_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub updated_at: OffsetDateTime,
     }
 }
 
@@ -1597,7 +1629,8 @@ schema! {
         pub role: String,
         /// When the user was last seen (any device), if ever.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub last_seen_at: Option<DateTime<Utc>>,
+        #[serde(with = "crate::timestamp::serde::option")]
+        pub last_seen_at: Option<OffsetDateTime>,
         /// `keep` / `remove`, `None` until decided.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub decision: Option<String>,
@@ -1606,7 +1639,8 @@ schema! {
         pub decided_by: Option<Uuid>,
         /// When.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub decided_at: Option<DateTime<Utc>>,
+        #[serde(with = "crate::timestamp::serde::option")]
+        pub decided_at: Option<OffsetDateTime>,
         /// Reviewer's note.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub note: Option<String>,
@@ -1626,15 +1660,18 @@ schema! {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub opened_by: Option<Uuid>,
         /// When it opened.
-        pub opened_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub opened_at: OffsetDateTime,
         /// When it should be completed (reminders go out after this).
-        pub due_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub due_at: OffsetDateTime,
         /// Who completed / cancelled it.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub closed_by: Option<Uuid>,
         /// When.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub closed_at: Option<DateTime<Utc>>,
+        #[serde(with = "crate::timestamp::serde::option")]
+        pub closed_at: Option<OffsetDateTime>,
         /// Lines in total.
         pub items: i64,
         /// Lines decided so far.
@@ -1710,16 +1747,19 @@ schema! {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub created_by: Option<Uuid>,
         /// When.
-        pub created_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub created_at: OffsetDateTime,
         /// `ready` (secret unused), `active` (redeemed, role elevated), `used`
         /// (redeemed and ended/expired — the owner must issue a new secret).
         pub status: String,
         /// When the secret was redeemed.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub used_at: Option<DateTime<Utc>>,
+        #[serde(with = "crate::timestamp::serde::option")]
+        pub used_at: Option<OffsetDateTime>,
         /// When the emergency role ends / ended.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub expires_at: Option<DateTime<Utc>>,
+        #[serde(with = "crate::timestamp::serde::option")]
+        pub expires_at: Option<OffsetDateTime>,
         /// Wrong secrets entered since set-up.
         pub attempts: i32,
         /// The secret, only in the `PUT` response.

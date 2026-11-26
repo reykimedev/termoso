@@ -4,8 +4,8 @@ use axum::Json;
 use axum::extract::{Path, Query, State};
 
 use super::paging::PageQuery;
-use chrono::{DateTime, Utc};
 use labterm_proto::team::{TeamDevice, TeamDeviceList};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::audit;
@@ -22,12 +22,12 @@ type Row = (
     String,
     String,
     Option<String>,
-    DateTime<Utc>,
+    OffsetDateTime,
     Option<String>,
     String,
     Option<Uuid>,
-    Option<DateTime<Utc>>,
-    DateTime<Utc>,
+    Option<OffsetDateTime>,
+    OffsetDateTime,
 );
 
 const SELECT: &str = "SELECT a.device_id, a.user_id, u.email, d.name, d.platform, d.app_version, d.last_seen_at, d.last_ip,

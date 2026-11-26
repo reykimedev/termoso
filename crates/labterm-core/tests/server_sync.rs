@@ -9,7 +9,6 @@ mod common;
 use std::sync::Arc;
 use std::time::Duration;
 
-use chrono::Utc;
 use common::{Device, login, register, unique_email};
 use labterm_core::account::{self, LoginFlow, LoginStep};
 use labterm_core::model::{Host, Identity};
@@ -21,6 +20,7 @@ use labterm_proto::auth::MfaCredential;
 use labterm_proto::error::codes;
 use labterm_proto::vault::{RotateVaultKeyRequest, SealedKeyFor};
 use serde_json::json;
+use time::OffsetDateTime;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
@@ -762,8 +762,8 @@ fn log_meta(label: &str) -> LogMeta {
         label: label.into(),
         target: "root@box".into(),
         protocol: "ssh".into(),
-        started_at: Utc::now(),
-        ended_at: Some(Utc::now()),
+        started_at: OffsetDateTime::now_utc(),
+        ended_at: Some(OffsetDateTime::now_utc()),
         cols: 120,
         rows: 40,
     }

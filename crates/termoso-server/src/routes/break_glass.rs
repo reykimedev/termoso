@@ -5,8 +5,8 @@
 
 use axum::Json;
 use axum::extract::{Path, State};
-use chrono::{DateTime, Utc};
 use labterm_proto::team::{BreakGlass, ConfigureBreakGlassRequest, TeamRole, UseBreakGlassRequest};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::audit;
@@ -25,11 +25,11 @@ type Row = (
     Option<String>,
     i32,
     Option<Uuid>,
-    DateTime<Utc>,
+    OffsetDateTime,
     i32,
-    Option<DateTime<Utc>>,
-    Option<DateTime<Utc>>,
-    Option<DateTime<Utc>>,
+    Option<OffsetDateTime>,
+    Option<OffsetDateTime>,
+    Option<OffsetDateTime>,
 );
 
 async fn load(state: &AppState, team_id: Uuid) -> ApiResult<Option<BreakGlass>> {
@@ -214,8 +214,8 @@ pub async fn use_secret(
         String,
         i32,
         i32,
-        Option<DateTime<Utc>>,
-        Option<DateTime<Utc>>,
+        Option<OffsetDateTime>,
+        Option<OffsetDateTime>,
     )> = sqlx::query_as(
         "SELECT user_id, secret_hash, duration_hours, attempts, locked_until, used_at
              FROM team_break_glass WHERE team_id = $1",
@@ -237,7 +237,7 @@ pub async fn use_secret(
             "You are not the designated break-glass user",
         ));
     }
-    if locked_until.is_some_and(|t| t > Utc::now()) {
+    if locked_until.is_some_and(|t| t > OffsetDateTime::now_utc()) {
         return Err(Error::new(
             axum::http::StatusCode::TOO_MANY_REQUESTS,
             "break_glass_locked",

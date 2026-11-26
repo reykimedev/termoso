@@ -1,6 +1,6 @@
 //! Administration API (server operators).
 
-use chrono::{DateTime, Utc};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::schema;
@@ -50,10 +50,12 @@ schema! {
         /// MFA on.
         pub mfa_enabled: bool,
         /// Created.
-        pub created_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub created_at: OffsetDateTime,
         /// Last activity.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub last_seen_at: Option<DateTime<Utc>>,
+        #[serde(with = "crate::timestamp::serde::option")]
+        pub last_seen_at: Option<OffsetDateTime>,
         /// Device count.
         pub devices: i64,
         /// Teams the user belongs to.
@@ -197,13 +199,15 @@ schema! {
         /// Vaults.
         pub vault_count: i64,
         /// Created.
-        pub created_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub created_at: OffsetDateTime,
         /// Data-residency label stamped at creation.
         #[serde(default)]
         pub region: Option<String>,
         /// Pending GDPR deletion.
         #[serde(default)]
-        pub deletion_scheduled_at: Option<DateTime<Utc>>,
+        #[serde(with = "crate::timestamp::serde::option")]
+        pub deletion_scheduled_at: Option<OffsetDateTime>,
         /// Bytes of session recordings stored for the team.
         #[serde(default)]
         pub log_bytes: i64,
@@ -236,9 +240,11 @@ schema! {
         /// How the role was assigned (`manual`, `idp`, `scim`, `server`, `admin`).
         pub role_source: String,
         /// Joined.
-        pub joined_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub joined_at: OffsetDateTime,
         /// Last activity of the account.
-        pub last_seen_at: Option<DateTime<Utc>>,
+        #[serde(default, with = "crate::timestamp::serde::option")]
+        pub last_seen_at: Option<OffsetDateTime>,
     }
 }
 
@@ -273,9 +279,11 @@ schema! {
         /// Job name.
         pub name: String,
         /// Last start.
-        pub last_started_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub last_started_at: OffsetDateTime,
         /// Last finish (`None` while running or after a crash).
-        pub last_finished_at: Option<DateTime<Utc>>,
+        #[serde(default, with = "crate::timestamp::serde::option")]
+        pub last_finished_at: Option<OffsetDateTime>,
         /// Rows handled by the last pass.
         pub last_result: Option<i64>,
         /// Error of the last pass.
@@ -333,7 +341,8 @@ schema! {
         /// Server version.
         pub version: String,
         /// Process start time.
-        pub started_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub started_at: OffsetDateTime,
         /// Seconds since start.
         pub uptime_secs: u64,
         /// Display name (`TERMOSO_SERVER_NAME`).
@@ -503,7 +512,8 @@ schema! {
         /// Accepted ranges.
         pub limits: AdminSettingsLimits,
         /// Last change.
-        pub updated_at: Option<DateTime<Utc>>,
+        #[serde(default, with = "crate::timestamp::serde::option")]
+        pub updated_at: Option<OffsetDateTime>,
         /// E-mail of the admin who made the last change.
         pub updated_by: Option<String>,
     }

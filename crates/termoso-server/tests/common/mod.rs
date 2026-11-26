@@ -20,6 +20,7 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Duration;
+use time::OffsetDateTime;
 
 use labterm_crypto::aead::{self, Aad};
 use labterm_crypto::kdf::{Label, derive_key};
@@ -706,7 +707,9 @@ impl TestServer {
             .await
             .expect("presence record");
         let mut v: serde_json::Value = serde_json::from_slice(&raw).expect("presence json");
-        v["seen_at"] = serde_json::json!(chrono::Utc::now() - chrono::Duration::minutes(10));
+        v["seen_at"] = serde_json::json!(labterm_proto::timestamp::to_json(
+            OffsetDateTime::now_utc() - time::Duration::minutes(10)
+        ));
         let _: () = redis::cmd("HSET")
             .arg(&key)
             .arg(&field)

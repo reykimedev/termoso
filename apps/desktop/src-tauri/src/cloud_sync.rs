@@ -13,7 +13,6 @@ use std::collections::{HashMap, HashSet};
 use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
 use labterm_core::cloud::{
     AddressType, AwsConfig, AwsService, AzureConfig, CloudClient, CloudConfig, CloudError,
     CloudProvider, DigitalOceanConfig, Endpoints,
@@ -22,6 +21,7 @@ use labterm_core::model::{Entity, Group};
 use labterm_core::store::Store;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager};
+use time::OffsetDateTime;
 use uuid::Uuid;
 use zeroize::Zeroizing;
 
@@ -218,10 +218,12 @@ impl CloudSyncSecret {
 pub struct CloudSyncStatus {
     /// When the last refresh finished (success or failure).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub last_run: Option<DateTime<Utc>>,
+    #[serde(with = "labterm_proto::timestamp::serde::option")]
+    pub last_run: Option<OffsetDateTime>,
     /// When the last *successful* refresh finished.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub last_success: Option<DateTime<Utc>>,
+    #[serde(with = "labterm_proto::timestamp::serde::option")]
+    pub last_success: Option<OffsetDateTime>,
     /// Error kind of the last failure (`cloud_invalid_credentials`, …).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error_kind: Option<String>,
@@ -254,7 +256,8 @@ pub struct CloudSyncGroup {
     /// When the scheduler will refresh next; `None` for manual/paused
     /// groups or when the secret is missing.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub next_run: Option<DateTime<Utc>>,
+    #[serde(with = "labterm_proto::timestamp::serde::option")]
+    pub next_run: Option<OffsetDateTime>,
 }
 
 /// Viewers of a synced vault cannot create hosts, so a sync group there
@@ -346,14 +349,14 @@ fn next_run(
     config: &CloudSyncConfig,
     status: &CloudSyncStatus,
     has_secret: bool,
-) -> Option<DateTime<Utc>> {
+) -> Option<OffsetDateTime> {
     if !config.enabled || config.interval_minutes == 0 || !has_secret {
         return None;
     }
-    let period = chrono::Duration::minutes(i64::from(config.interval_minutes));
+    let period = time::Duration::minutes(i64::from(config.interval_minutes));
     Some(match status.last_run {
         Some(t) => t + period,
-        None => Utc::now(),
+        None => OffsetDateTime::now_utc(),
     })
 }
 
@@ -534,7 +537,7 @@ pub async fn run_with(
     };
     let mut status = load_status(store, group_id)?;
     let outcome = refresh(store, &g, &config, endpoints).await;
-    status.last_run = Some(Utc::now());
+    status.last_run = Some(OffsetDateTime::now_utc());
     match outcome {
         Ok((report, instances)) => {
             status.last_success = status.last_run;
@@ -608,7 +611,7 @@ pub fn due(store: &Store) -> Result<Vec<Uuid>> {
     Ok(list(store, None)?
         .into_iter()
         .filter(|g| !g.running)
-        .filter(|g| g.next_run.is_some_and(|t| t <= Utc::now()))
+        .filter(|g| g.next_run.is_some_and(|t| t <= OffsetDateTime::now_utc()))
         .map(|g| g.group_id)
         .collect())
 }
@@ -711,7 +714,10 @@ mod tests {
         let saved = save(&s, gid, aws_config("eu-central-1"), Some(aws_secret())).unwrap();
         assert!(saved.has_secret);
         assert!(!saved.running);
-        assert_eq!(saved.next_run.map(|t| t <= Utc::now()), Some(true));
+        assert_eq!(
+            saved.next_run.map(|t| t <= OffsetDateTime::now_utc()),
+            Some(true)
+        );
         assert_eq!(saved.label, "AWS eu");
 
         // Plain config is readable and carries no secret material.
@@ -801,7 +807,7 @@ mod tests {
             &s,
             gid,
             &CloudSyncStatus {
-                last_run: Some(Utc::now()),
+                last_run: Some(OffsetDateTime::now_utc()),
                 ..Default::default()
             },
         )
@@ -852,11 +858,11 @@ mod tests {
         // Never ran: due now.
         assert!(next_run(&cfg, &status, true).is_some());
         assert!(next_run(&cfg, &status, false).is_none());
-        let t0 = Utc::now() - chrono::Duration::minutes(30);
+        let t0 = OffsetDateTime::now_utc() - time::Duration::minutes(30);
         status.last_run = Some(t0);
         assert_eq!(
             next_run(&cfg, &status, true),
-            Some(t0 + chrono::Duration::minutes(60))
+            Some(t0 + time::Duration::minutes(60))
         );
         let mut manual = cfg.clone();
         manual.interval_minutes = 0;
@@ -875,7 +881,7 @@ mod tests {
             &s,
             recent,
             &CloudSyncStatus {
-                last_run: Some(Utc::now()),
+                last_run: Some(OffsetDateTime::now_utc()),
                 ..Default::default()
             },
         )
@@ -886,7 +892,7 @@ mod tests {
             &s,
             stale,
             &CloudSyncStatus {
-                last_run: Some(Utc::now() - chrono::Duration::minutes(61)),
+                last_run: Some(OffsetDateTime::now_utc() - time::Duration::minutes(61)),
                 ..Default::default()
             },
         )
@@ -1036,7 +1042,7 @@ mod tests {
         // Status persisted and shown on the next describe.
         let again = get(&s, gid).unwrap().unwrap();
         assert_eq!(again.status, out.status);
-        assert!(again.next_run.unwrap() > Utc::now());
+        assert!(again.next_run.unwrap() > OffsetDateTime::now_utc());
 
         // Missing secret is its own error kind and does not crash.
         s.delete_meta(&secret_key(gid)).unwrap();
@@ -1314,6 +1320,7 @@ mod tests {
                 keep_alive_interval: None,
                 timeout: None,
                 oidc_key_id: None,
+                transport_id: None,
                 color_scheme: None,
                 has_password: false,
                 files_provider: false,

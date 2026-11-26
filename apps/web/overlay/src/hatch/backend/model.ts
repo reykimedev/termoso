@@ -590,16 +590,11 @@ export function groupSave(a: {
   return groupNode(g.id);
 }
 
-export function groupForm(id: Uuid) {
-  const g = require<Group>(id, "group");
-  const ssh = get<SshConfig>(g.data.ssh_config_id, "ssh_config")?.data ?? null;
+/** A group's or tag's SSH defaults as the editors show them (labterm-client `load_defaults`). */
+function loadDefaults(sshConfigId: Uuid | null | undefined) {
+  const ssh = get<SshConfig>(sshConfigId, "ssh_config")?.data ?? null;
   const login = flatten(ssh?.identity_id);
   return {
-    id: g.id,
-    vaultId: g.vaultId,
-    label: g.data.label,
-    parentId: g.data.parent_id ?? null,
-    icon: g.data.icon ?? null,
     port: ssh?.port ?? null,
     username: login.username,
     password: null,
@@ -618,14 +613,33 @@ export function groupForm(id: Uuid) {
     envVariables: ssh?.env_variables ?? [],
     keepAliveInterval: ssh?.keep_alive_interval ?? null,
     timeout: ssh?.timeout ?? null,
+    oidcKeyId: (ssh?.oidc_key_id as Uuid | null | undefined) ?? null,
   };
 }
 
-export function groupSaveForm(f: ReturnType<typeof groupForm> & { id: Uuid | null }) {
-  const node = groupSave({ vaultId: f.vaultId, id: f.id, label: f.label, parentId: f.parentId });
-  const g = require<Group>(node.id, "group");
-  const prevSsh = get<SshConfig>(g.data.ssh_config_id, "ssh_config");
-  const identityId = inlineIdentity(f.vaultId, prevSsh?.data.identity_id, f.label, f);
+type DefaultsIn = ReturnType<typeof loadDefaults> & {
+  password: string | null;
+  totpSecret: string | null;
+};
+
+/**
+ * Write a group's or tag's SSH defaults; returns the config id to store on the owner, or null
+ * when nothing is set (the old config is then removed). Fields the editors don't show are kept.
+ */
+function saveDefaults(
+  vaultId: Uuid,
+  prevId: Uuid | null | undefined,
+  f: DefaultsIn,
+  label: string,
+) {
+  const prevSsh = get<SshConfig>(prevId, "ssh_config");
+  const oidcKeyId = f.oidcKeyId;
+  if (oidcKeyId) {
+    const k = get<SshKey>(oidcKeyId, "ssh_key");
+    if (k?.vaultId !== vaultId || k.data.key_type !== "opkssh")
+      fail("invalid", "Pick an OpenID key from the same vault");
+  }
+  const identityId = inlineIdentity(vaultId, prevSsh?.data.identity_id, label, f);
   const ssh: SshConfig = {
     ...(prevSsh?.data ?? {}),
     port: f.port,
@@ -638,6 +652,7 @@ export function groupSaveForm(f: ReturnType<typeof groupForm> & { id: Uuid | nul
     env_variables: (f.envVariables ?? []).filter(([k]) => k.trim()),
     keep_alive_interval: f.keepAliveInterval,
     timeout: f.timeout,
+    oidc_key_id: oidcKeyId,
   };
   const empty =
     !ssh.port &&
@@ -648,12 +663,40 @@ export function groupSaveForm(f: ReturnType<typeof groupForm> & { id: Uuid | nul
     !ssh.keep_alive_interval &&
     !ssh.timeout &&
     !ssh.host_chain_id &&
-    !ssh.proxy_id;
-  let sshId = prevSsh?.id ?? null;
+    !ssh.proxy_id &&
+    !oidcKeyId;
   if (empty) {
     if (prevSsh) remove(prevSsh.id);
-    sshId = null;
-  } else sshId = put<SshConfig>("ssh_config", f.vaultId, sshId, ssh).id;
+    return null;
+  }
+  return put<SshConfig>("ssh_config", vaultId, prevSsh?.id ?? null, ssh).id;
+}
+
+/** Remove a group's or tag's SSH defaults together with their inline identity. */
+function deleteDefaults(sshConfigId: Uuid | null | undefined) {
+  const ssh = get<SshConfig>(sshConfigId, "ssh_config");
+  if (!ssh) return;
+  const i = get<Identity>(ssh.data.identity_id, "identity");
+  if (i && !i.data.is_visible) remove(i.id);
+  remove(ssh.id);
+}
+
+export function groupForm(id: Uuid) {
+  const g = require<Group>(id, "group");
+  return {
+    id: g.id,
+    vaultId: g.vaultId,
+    label: g.data.label,
+    parentId: g.data.parent_id ?? null,
+    icon: g.data.icon ?? null,
+    ...loadDefaults(g.data.ssh_config_id),
+  };
+}
+
+export function groupSaveForm(f: ReturnType<typeof groupForm> & DefaultsIn & { id: Uuid | null }) {
+  const node = groupSave({ vaultId: f.vaultId, id: f.id, label: f.label, parentId: f.parentId });
+  const g = require<Group>(node.id, "group");
+  const sshId = saveDefaults(f.vaultId, g.data.ssh_config_id, f, f.label);
   put<Group>("group", g.vaultId, g.id, { ...g.data, icon: f.icon, ssh_config_id: sshId });
   return groupNode(g.id);
 }
@@ -670,12 +713,7 @@ export function groupDelete(id: Uuid, recursive: boolean) {
     if (recursive) groupDelete(c.id, true);
     else put<Group>("group", c.vaultId, c.id, { ...c.data, parent_id: parent });
   }
-  const ssh = get<SshConfig>(g.data.ssh_config_id, "ssh_config");
-  if (ssh) {
-    const i = get<Identity>(ssh.data.identity_id, "identity");
-    if (i && !i.data.is_visible) remove(i.id);
-    remove(ssh.id);
-  }
+  deleteDefaults(g.data.ssh_config_id);
   remove(id);
   return null;
 }
@@ -749,6 +787,103 @@ export function tags(vaultId: Uuid | null) {
       priority: t.data.priority ?? 0,
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+function tagInfo(id: Uuid) {
+  const t = require<Tag>(id, "tag");
+  const info = tags(t.vaultId).find((x) => x.id === id);
+  if (!info) fail("not_found", "Not found: {kind}", { kind: "tag" });
+  return info;
+}
+
+function normalizeTagColor(color: string | null | undefined) {
+  const c = (color ?? "").trim().toLowerCase();
+  if (!c) return null;
+  const hex = c.startsWith("#") ? c.slice(1) : c;
+  if (![3, 6].includes(hex.length) || !/^[0-9a-f]+$/.test(hex))
+    fail("invalid", "Use a colour like #3a7 or #33aa77");
+  return `#${hex}`;
+}
+
+/** Rename and/or recolour a tag; renaming onto another tag's label merges into it. */
+export function tagUpdate(id: Uuid, label: string, color: string | null) {
+  const t = require<Tag>(id, "tag");
+  const name = label.trim();
+  if (!name) fail("invalid", "Enter a name");
+  const colour = normalizeTagColor(color);
+  const other = list<Tag>("tag", t.vaultId).find(
+    (x) => x.id !== id && x.data.label.toLowerCase() === name.toLowerCase(),
+  );
+  if (other) {
+    tagsMerge([id], other.id);
+    const merged = require<Tag>(other.id, "tag");
+    if (colour && merged.data.color !== colour)
+      put<Tag>("tag", merged.vaultId, merged.id, { ...merged.data, color: colour });
+    return tagInfo(other.id);
+  }
+  if (t.data.label !== name || (t.data.color ?? null) !== colour)
+    put<Tag>("tag", t.vaultId, t.id, { ...t.data, label: name, color: colour });
+  return tagInfo(id);
+}
+
+/** Remove a tag, unlink it from every host and drop its settings. */
+export function tagDelete(id: Uuid) {
+  const t = require<Tag>(id, "tag");
+  for (const h of list<Host>("host", t.vaultId))
+    if (h.data.tag_ids?.includes(id))
+      put<Host>("host", h.vaultId, h.id, {
+        ...h.data,
+        tag_ids: h.data.tag_ids.filter((x) => x !== id),
+      });
+  deleteDefaults(t.data.ssh_config_id);
+  remove(id);
+  return null;
+}
+
+/** Fold `sources` into `target`; the target keeps its settings, the sources' go with them. */
+export function tagsMerge(sources: Uuid[], target: Uuid) {
+  const tt = require<Tag>(target, "tag");
+  const src = sources.filter((x) => x !== target);
+  for (const x of src)
+    if (require<Tag>(x, "tag").vaultId !== tt.vaultId)
+      fail("invalid", "These tags are in different vaults");
+  for (const h of list<Host>("host", tt.vaultId)) {
+    const ids = h.data.tag_ids ?? [];
+    if (!ids.some((x) => src.includes(x))) continue;
+    const next = [...new Set(ids.map((x) => (src.includes(x) ? target : x)))];
+    put<Host>("host", h.vaultId, h.id, { ...h.data, tag_ids: next });
+  }
+  for (const x of src) {
+    deleteDefaults(require<Tag>(x, "tag").data.ssh_config_id);
+    remove(x);
+  }
+  return tagInfo(target);
+}
+
+/** A tag as its settings dialog sees it: name, colour, priority and SSH defaults. */
+export function tagForm(id: Uuid) {
+  const t = require<Tag>(id, "tag");
+  return {
+    id: t.id,
+    vaultId: t.vaultId,
+    label: t.data.label,
+    color: t.data.color ?? null,
+    priority: t.data.priority ?? 0,
+    ...loadDefaults(t.data.ssh_config_id),
+  };
+}
+
+export function tagSaveForm(f: ReturnType<typeof tagForm> & DefaultsIn) {
+  const t = require<Tag>(f.id, "tag");
+  if (t.vaultId !== f.vaultId) fail("invalid", "This tag is in another vault");
+  const label = f.label.trim();
+  if (!label) fail("invalid", "Enter a name");
+  const sshId = saveDefaults(f.vaultId, t.data.ssh_config_id, f, label);
+  const priority = Number.isFinite(f.priority)
+    ? Math.max(-1000, Math.min(1000, Math.trunc(f.priority)))
+    : 0;
+  put<Tag>("tag", t.vaultId, t.id, { ...t.data, ssh_config_id: sshId, priority });
+  return tagUpdate(f.id, label, f.color);
 }
 
 // ── identities ────────────────────────────────────────────────────────────

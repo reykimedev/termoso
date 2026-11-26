@@ -4,6 +4,7 @@
 //! the provider should assert (see [`code_for`]).
 
 use std::sync::Arc;
+use time::OffsetDateTime;
 
 use axum::extract::State;
 use axum::http::{HeaderMap, StatusCode};
@@ -137,7 +138,7 @@ async fn token(
         .and_then(|b| serde_json::from_slice(&b).ok())
         .ok_or_else(|| reject("invalid_grant"))?;
 
-    let now = chrono::Utc::now().timestamp();
+    let now = OffsetDateTime::now_utc().unix_timestamp();
     let header = serde_json::json!({ "alg": "RS256", "typ": "JWT", "kid": KID });
     let mut claims = serde_json::json!({
         "iss": idp.issuer,

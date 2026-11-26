@@ -5,10 +5,10 @@ use axum::Json;
 use axum::extract::{Path, Query, State};
 
 use super::paging::PageQuery;
-use chrono::{DateTime, Utc};
 use labterm_crypto::encoding::unb64;
 use labterm_proto::vault::*;
 use sqlx::PgExecutor;
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::audit;
@@ -150,7 +150,7 @@ fn validate_sealed(sealed: &str) -> ApiResult<()> {
 
 #[utoipa::path(get, path = "/api/v1/vaults", tag = "vaults", responses((status = 200, body = VaultList)))]
 pub async fn list(State(state): State<AppState>, auth: Auth) -> ApiResult<Json<VaultList>> {
-    let rows: Vec<(Uuid, String, Option<Uuid>, String, DateTime<Utc>, String, Option<String>, i32, bool, bool)> = sqlx::query_as(
+    let rows: Vec<(Uuid, String, Option<Uuid>, String, OffsetDateTime, String, Option<String>, i32, bool, bool)> = sqlx::query_as(
         "SELECT v.id, v.kind, v.team_id, v.name, v.created_at, vm.role, vm.sealed_key, v.key_version, v.session_logging, v.is_default
          FROM vaults v JOIN vault_members vm ON vm.vault_id = v.id
          WHERE vm.user_id = $1 AND v.deleted_at IS NULL
@@ -204,7 +204,7 @@ pub async fn get(
     let a = access(&state.db, id, auth.user_id()).await?;
     let (name, created_at, sealed_key, session_logging, is_default): (
         String,
-        DateTime<Utc>,
+        OffsetDateTime,
         Option<String>,
         bool,
         bool,
@@ -265,7 +265,7 @@ pub async fn create_team_vault(
         .bind(team_id)
         .execute(&mut *tx)
         .await?;
-    let (created_at, is_default): (DateTime<Utc>, bool) = sqlx::query_as(
+    let (created_at, is_default): (OffsetDateTime, bool) = sqlx::query_as(
         "INSERT INTO vaults (id, kind, team_id, name, is_default)
          VALUES ($1, 'team', $2, $3, NOT EXISTS (
              SELECT 1 FROM vaults WHERE team_id = $2 AND kind = 'team' AND is_default AND deleted_at IS NULL))
@@ -468,7 +468,7 @@ pub async fn members(
         i32,
         bool,
         String,
-        DateTime<Utc>,
+        OffsetDateTime,
     );
     let rows: Vec<Row> = sqlx::query_as(
         "SELECT u.id, u.email, u.display_name, u.avatar_tag, vm.role, vm.key_version, vm.sealed_key IS NULL, u.public_key, vm.added_at

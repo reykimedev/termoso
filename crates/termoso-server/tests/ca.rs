@@ -147,7 +147,7 @@ async fn ca_lifecycle_issue_rotate_revoke() {
     assert!(!cert.extensions().contains_key("permit-agent-forwarding"));
     cert.validate(&[ca_fp]).expect("signed by the team CA");
     let lifetime = issued.issued.valid_before - issued.issued.valid_after;
-    assert!(lifetime.num_minutes() >= 4 * 60 && lifetime.num_minutes() <= 4 * 60 + 1);
+    assert!(lifetime.whole_minutes() >= 4 * 60 && lifetime.whole_minutes() <= 4 * 60 + 1);
     assert_eq!(issued.issued.key_type, SshIdKeyType::Ed25519);
     assert!(issued.issued.active && issued.issued.current_device);
     assert_eq!(issued.ca_public_key, ca.public_key);

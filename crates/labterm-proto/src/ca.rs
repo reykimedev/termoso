@@ -4,7 +4,7 @@
 //! leaving the team (or losing a device) stops new certificates without
 //! touching any `authorized_keys`.
 
-use chrono::{DateTime, Utc};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::schema;
@@ -71,19 +71,23 @@ schema! {
         pub retired_public_key: Option<String>,
         /// When the previous key stops being trusted.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub retired_until: Option<DateTime<Utc>>,
+        #[serde(with = "crate::timestamp::serde::option")]
+        pub retired_until: Option<OffsetDateTime>,
         /// Public URL that serves the `TrustedUserCAKeys` text (current and
         /// retired keys), for host provisioning.
         pub trusted_keys_url: String,
         /// Certificates currently valid (not expired, not revoked).
         pub active_certificates: i64,
         /// Creation time.
-        pub created_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub created_at: OffsetDateTime,
         /// Last rotation, if any.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub rotated_at: Option<DateTime<Utc>>,
+        #[serde(with = "crate::timestamp::serde::option")]
+        pub rotated_at: Option<OffsetDateTime>,
         /// Last settings change.
-        pub updated_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub updated_at: OffsetDateTime,
     }
 }
 
@@ -157,18 +161,22 @@ schema! {
         /// Login names in the certificate.
         pub principals: Vec<String>,
         /// Start of validity.
-        pub valid_after: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub valid_after: OffsetDateTime,
         /// Expiry.
-        pub valid_before: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub valid_before: OffsetDateTime,
         /// Revocation time, if revoked.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub revoked_at: Option<DateTime<Utc>>,
+        #[serde(with = "crate::timestamp::serde::option")]
+        pub revoked_at: Option<OffsetDateTime>,
         /// Valid right now (not expired, not revoked).
         pub active: bool,
         /// Issued to the device making the request.
         pub current_device: bool,
         /// Creation time.
-        pub created_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub created_at: OffsetDateTime,
     }
 }
 

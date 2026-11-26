@@ -895,6 +895,100 @@ impl LabtermApp {
         crate::oidc::delete_provider(&self.store, &id)
     }
 
+    // ---- NetBird networks ---------------------------------------------
+
+    /// NetBird networks of a vault (all vaults with `None`).
+    pub fn transports(&self, vault_id: Option<String>) -> Result<Vec<crate::TransportItem>> {
+        crate::netbird::list(&self.store, vault_id)
+    }
+
+    /// Add (`id = None`) or update a network of `item.vault_id`.
+    pub fn save_transport(&self, item: crate::TransportItem) -> Result<crate::TransportItem> {
+        crate::netbird::save(&self.store, item)
+    }
+
+    /// Delete a network; its hosts and groups connect directly again.
+    pub fn delete_transport(&self, id: String) -> Result<()> {
+        crate::netbird::delete(&self.store, &id)
+    }
+
+    /// Network a host's own SSH settings name (not the group's).
+    pub fn host_transport(&self, host_id: String) -> Result<Option<String>> {
+        let form = labterm_client::hosts::form(&self.store, parse_id(&host_id)?)?;
+        Ok(form.transport_id.map(|id| id.to_string()))
+    }
+
+    /// Network a host gets from its group chain, when its own settings name none.
+    pub fn host_inherited_transport(&self, host_id: String) -> Result<Option<String>> {
+        let form = labterm_client::hosts::form(&self.store, parse_id(&host_id)?)?;
+        let inherited = labterm_client::hosts::inherited(&self.store, form.group_id)?;
+        Ok(inherited.transport_id.map(|id| id.to_string()))
+    }
+
+    /// Set or clear the network a host is reached through.
+    pub fn set_host_transport(&self, host_id: String, transport_id: Option<String>) -> Result<()> {
+        let t = parse_opt_id(&transport_id.filter(|t| !t.is_empty()))?;
+        labterm_client::hosts::set_transport(&self.store, parse_id(&host_id)?, t)?;
+        Ok(())
+    }
+
+    /// Network a group's own SSH settings name.
+    pub fn group_transport(&self, group_id: String) -> Result<Option<String>> {
+        let form = labterm_client::hosts::group_form(&self.store, parse_id(&group_id)?)?;
+        Ok(form.defaults.transport_id.map(|id| id.to_string()))
+    }
+
+    /// Set or clear the network hosts of a group are reached through.
+    pub fn set_group_transport(
+        &self,
+        group_id: String,
+        transport_id: Option<String>,
+    ) -> Result<()> {
+        let t = parse_opt_id(&transport_id.filter(|t| !t.is_empty()))?;
+        labterm_client::hosts::set_group_transport(&self.store, parse_id(&group_id)?, t)?;
+        Ok(())
+    }
+
+    /// Whether networks of this vault are joined by each member signing in
+    /// (team vaults: no setup key) rather than with a setup key.
+    pub fn transport_sign_in_only(&self, vault_id: String) -> Result<bool> {
+        crate::netbird::sign_in_only(&self.store, &vault_id)
+    }
+
+    /// The NetBird network to sign in to before this host can connect, if
+    /// any (no setup key and this device has not joined it yet).
+    pub fn host_transport_sign_in(
+        &self,
+        host_id: String,
+        vault_id: String,
+    ) -> Result<Option<crate::TransportItem>> {
+        let resolved = self.resolve_host_in(&host_id, &vault_id)?;
+        Ok(crate::netbird::needs_sign_in(&self.store, &resolved))
+    }
+
+    /// Start signing in to a NetBird network: open the returned URL in a
+    /// browser (Custom Tab), then call `transport_sign_in_finish`.
+    pub fn transport_sign_in_begin(&self, transport_id: String) -> Result<String> {
+        RUNTIME.block_on(crate::netbird::sign_in_begin(&self.store, &transport_id))
+    }
+
+    /// Wait (up to 5 minutes) for the browser to come back and join the
+    /// network as this user's own peer. Returns the signed-in email if known.
+    pub fn transport_sign_in_finish(&self, transport_id: String) -> Result<Option<String>> {
+        RUNTIME.block_on(crate::netbird::sign_in_finish(&self.store, &transport_id))
+    }
+
+    /// Give up a sign-in in progress.
+    pub fn transport_sign_in_cancel(&self, transport_id: String) {
+        crate::netbird::sign_in_cancel(&transport_id);
+    }
+
+    /// Stop the embedded NetBird peers now (they start again on the next
+    /// connection through them).
+    pub fn stop_transports(&self) {
+        RUNTIME.block_on(crate::netbird::stop_all());
+    }
+
     /// Create an OpenID (opkssh) key: no key material is stored.
     pub fn create_opkssh_key(
         &self,
@@ -1327,6 +1421,7 @@ impl LabtermApp {
 
     /// Name this installation registers under (shown in the devices list).
     pub fn set_device_name(&self, name: String) {
+        crate::netbird::set_device_name(&name);
         self.account.set_device_name(name);
     }
 
@@ -1868,7 +1963,7 @@ impl LabtermApp {
             Transport::Mosh => true,
             Transport::Ssh | Transport::Telnet => false,
             Transport::Auto => resolved.ssh.use_mosh,
-        };
+        } && resolved.transport.is_none();
         let presence = Some(self.presence.slot(
             resolved.host.id,
             match (protocol, mosh) {

@@ -16,10 +16,10 @@ use std::time::Duration;
 
 use axum::Json;
 use axum::extract::{Path, State};
-use chrono::Utc;
 use labterm_crypto::opaque;
 use labterm_proto::auth::*;
 use serde::{Deserialize, Serialize};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::codes;
@@ -42,7 +42,7 @@ const P_REQUEST: &str = "start_over";
 const P_CODE: &str = "start_over_code";
 const REQUEST_TTL: Duration = Duration::from_secs(900);
 /// How long the finish/cancel links stay valid after the delay has passed.
-const LINK_GRACE: chrono::Duration = chrono::Duration::days(7);
+const LINK_GRACE: time::Duration = time::Duration::days(7);
 
 #[derive(Serialize, Deserialize)]
 struct RequestFlow {
@@ -60,8 +60,8 @@ fn links(state: &AppState, finish: &str, cancel: &str) -> (String, String) {
     )
 }
 
-fn delay(state: &AppState) -> chrono::Duration {
-    chrono::Duration::seconds(state.cfg.start_over_delay_secs as i64)
+fn delay(state: &AppState) -> time::Duration {
+    time::Duration::seconds(state.cfg.start_over_delay_secs as i64)
 }
 
 async fn by_reset_hash(state: &AppState, column: &str, token: &str) -> ApiResult<UserRow> {
@@ -82,7 +82,7 @@ async fn by_reset_hash(state: &AppState, column: &str, token: &str) -> ApiResult
     let (id,) = id.ok_or_else(Error::token_expired)?;
     let user = users::by_id(&state.db, id).await?;
     match user.reset_scheduled_for {
-        Some(at) if Utc::now() < at + LINK_GRACE => Ok(user),
+        Some(at) if OffsetDateTime::now_utc() < at + LINK_GRACE => Ok(user),
         _ => Err(Error::token_expired()),
     }
 }
@@ -172,14 +172,14 @@ pub async fn confirm(
     let cancel = random_token();
     // Read the timestamp back so the response matches what every profile
     // fetch will show (Postgres keeps microseconds).
-    let (scheduled_for,): (chrono::DateTime<Utc>,) = sqlx::query_as(
+    let (scheduled_for,): (OffsetDateTime,) = sqlx::query_as(
         "UPDATE users SET reset_scheduled_for = $2, reset_finish_hash = $3, reset_cancel_hash = $4,
              updated_at = now()
          WHERE id = $1
          RETURNING reset_scheduled_for",
     )
     .bind(user.id)
-    .bind(Utc::now() + delay(&state))
+    .bind(OffsetDateTime::now_utc() + delay(&state))
     .bind(hash_token(&finish))
     .bind(hash_token(&cancel))
     .fetch_one(&state.db)
@@ -192,15 +192,18 @@ pub async fn confirm(
         None,
         client.ip.as_deref(),
         client.user_agent.as_deref(),
-        Some(serde_json::json!({ "scheduled_for": scheduled_for })),
+        Some(serde_json::json!({ "scheduled_for": labterm_proto::timestamp::to_json(scheduled_for) })),
     )
     .await?;
     events::publish(&state, Event::AccountUpdated { user_id: user.id }).await?;
 
     let (finish_url, cancel_url) = links(&state, &finish, &cancel);
-    let hours = delay(&state).num_hours();
+    let hours = delay(&state).whole_hours();
     let name = &state.cfg.server_name;
-    let when = scheduled_for.format("%Y-%m-%d %H:%M").to_string();
+    let when = labterm_proto::timestamp::format_utc(
+        scheduled_for,
+        time::macros::format_description!("[year]-[month]-[day] [hour]:[minute]"),
+    );
     let email = crate::mail::Email::new(
         format!("{name}: account reset scheduled"),
         "Account reset scheduled",
@@ -244,7 +247,7 @@ pub async fn status(
         email_hint: mask_email(&user.email),
         email: user.email.clone(),
         scheduled_for,
-        ready: Utc::now() >= scheduled_for,
+        ready: OffsetDateTime::now_utc() >= scheduled_for,
     }))
 }
 
@@ -325,16 +328,21 @@ pub async fn cancel_authenticated(
 async fn ready_user(state: &AppState, token: &str) -> ApiResult<UserRow> {
     let user = by_reset_hash(state, "finish", token).await?;
     match user.reset_scheduled_for {
-        Some(at) if Utc::now() >= at => Ok(user),
+        Some(at) if OffsetDateTime::now_utc() >= at => Ok(user),
         Some(at) => Err(Error::new(
             axum::http::StatusCode::CONFLICT,
             labterm_proto::error::codes::CONFLICT,
             format!(
                 "The reset can be completed after {} UTC",
-                at.format("%Y-%m-%d %H:%M")
+                labterm_proto::timestamp::format_utc(
+                    at,
+                    time::macros::format_description!("[year]-[month]-[day] [hour]:[minute]")
+                )
             ),
         )
-        .with_details(serde_json::json!({ "scheduled_for": at }))),
+        .with_details(
+            serde_json::json!({ "scheduled_for": labterm_proto::timestamp::to_json(at) }),
+        )),
         None => Err(Error::token_expired()),
     }
 }

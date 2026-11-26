@@ -6,9 +6,9 @@
 //! live in encrypted metadata, are not part of any vault or sync payload
 //! and are wiped when the account signs out.
 
-use chrono::{DateTime, Utc};
 use labterm_proto::sshid::{DeviceKeyUpload, PutDeviceKeysRequest, SshIdKeyType};
 use serde::{Deserialize, Serialize};
+use time::OffsetDateTime;
 use zeroize::Zeroizing;
 
 use crate::error::Result;
@@ -39,7 +39,8 @@ pub struct DeviceKey {
     /// `authorized_keys` line.
     pub public_key: String,
     /// Generation time.
-    pub created_at: DateTime<Utc>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    pub created_at: OffsetDateTime,
 }
 
 impl DeviceKey {
@@ -83,7 +84,7 @@ fn generate(t: SshIdKeyType, handle: &str) -> Result<Option<DeviceKey>> {
         key_type: t,
         private_key: material.private_key,
         public_key: material.public_key,
-        created_at: Utc::now(),
+        created_at: OffsetDateTime::now_utc(),
     }))
 }
 

@@ -1,6 +1,6 @@
 //! Vaults: encrypted containers for entities, personal or shared with a team.
 
-use chrono::{DateTime, Utc};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::schema;
@@ -56,7 +56,8 @@ schema! {
         /// Name (plaintext – visible to team admins).
         pub name: String,
         /// Created.
-        pub created_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub created_at: OffsetDateTime,
         /// The requesting user's role.
         pub my_role: VaultRole,
         /// Vault key sealed to the requesting user's public key. `None` while a
@@ -140,7 +141,8 @@ schema! {
         /// Their public key (so a manager can seal the vault key).
         pub public_key: String,
         /// Added.
-        pub added_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub added_at: OffsetDateTime,
     }
 }
 

@@ -7,11 +7,11 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use chrono::{DateTime, Utc};
 use labterm_crypto::aead::{self, Aad};
 use labterm_proto::logs::{LogAuthor, SessionLog};
 use rusqlite::{OptionalExtension, params};
 use serde::{Deserialize, Serialize};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use super::{Store, parse_time, parse_uuid};
@@ -29,9 +29,11 @@ pub struct LogMeta {
     /// Protocol (`ssh`, `telnet`, `local`, `serial`).
     pub protocol: String,
     /// Session start.
-    pub started_at: DateTime<Utc>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    pub started_at: OffsetDateTime,
     /// Session end (`None` while recording).
-    pub ended_at: Option<DateTime<Utc>>,
+    #[serde(default, with = "labterm_proto::timestamp::serde::option")]
+    pub ended_at: Option<OffsetDateTime>,
     /// Terminal size at start.
     pub cols: u16,
     /// Terminal size at start.
@@ -88,7 +90,7 @@ impl Recorder {
     pub fn finish(&self, store: &Store, dir: &Path) -> Result<()> {
         let body = std::mem::take(&mut *self.buf.lock().unwrap_or_else(|p| p.into_inner()));
         let mut meta = self.meta.clone();
-        meta.ended_at = Some(Utc::now());
+        meta.ended_at = Some(OffsetDateTime::now_utc());
         if self.truncated.load(Ordering::Relaxed) {
             meta.label = format!("{} (truncated)", meta.label);
         }
@@ -115,7 +117,8 @@ pub struct LogItem {
     /// Recording finished.
     pub completed: bool,
     /// Created.
-    pub created_at: DateTime<Utc>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    pub created_at: OffsetDateTime,
     /// Recorded by this account (or on this device, for the local vault).
     pub mine: bool,
     /// Who recorded it, when known from the server.
@@ -251,7 +254,7 @@ impl Store {
                 vault_id.to_string(),
                 ct,
                 key_version,
-                Utc::now().to_rfc3339()
+                labterm_proto::timestamp::to_rfc3339(OffsetDateTime::now_utc())
             ],
         )?;
         Ok(id)
@@ -497,7 +500,7 @@ impl Store {
                     l.key_version,
                     l.size_bytes,
                     l.completed,
-                    l.created_at.to_rfc3339(),
+                    labterm_proto::timestamp::to_rfc3339(l.created_at),
                     l.seq,
                     (!l.user_id.is_nil()).then(|| l.user_id.to_string()),
                     author,
@@ -544,7 +547,7 @@ mod tests {
             label: "box".into(),
             target: "root@box:22".into(),
             protocol: "ssh".into(),
-            started_at: Utc::now(),
+            started_at: OffsetDateTime::now_utc(),
             ended_at: None,
             cols: 80,
             rows: 24,
@@ -560,7 +563,7 @@ mod tests {
         assert!(!store.logs().unwrap()[0].completed);
         let body = b"$ ls\r\nfoo bar\r\n".repeat(100);
         let mut m = meta();
-        m.ended_at = Some(Utc::now());
+        m.ended_at = Some(OffsetDateTime::now_utc());
         let path = store.finish_log(id, &m, &body, dir.path()).unwrap();
         assert!(path.exists());
         assert_ne!(std::fs::read(&path).unwrap(), body);
@@ -636,7 +639,7 @@ mod tests {
                 key_version: 1,
                 size_bytes: 4,
                 completed: true,
-                created_at: Utc::now(),
+                created_at: OffsetDateTime::now_utc(),
                 seq: 7,
                 deleted: false,
                 pinned: false,
@@ -674,7 +677,7 @@ mod tests {
                     key_version: 1,
                     history_cursor: 0,
                     logs_cursor: 0,
-                    signed_in_at: Utc::now(),
+                    signed_in_at: OffsetDateTime::now_utc(),
                 },
                 "tok",
                 &kp,
@@ -711,7 +714,7 @@ mod tests {
             key_version: 1,
             size_bytes: 12,
             completed: true,
-            created_at: Utc::now(),
+            created_at: OffsetDateTime::now_utc(),
             seq: 3,
             deleted: false,
             pinned: true,

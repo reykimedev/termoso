@@ -7,11 +7,11 @@ use axum::Json;
 use axum::extract::{Path, Query, State};
 
 use super::paging::PageQuery;
-use chrono::{DateTime, Utc};
 use labterm_proto::team::{
     CreateRotationJobsRequest, RotationDue, RotationJob, RotationJobList, RotationOverview,
     UpdateRotationJobRequest,
 };
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::audit;
@@ -38,9 +38,9 @@ type JobRow = (
     Uuid,
     String,
     Option<Uuid>,
-    DateTime<Utc>,
-    DateTime<Utc>,
-    Option<DateTime<Utc>>,
+    OffsetDateTime,
+    OffsetDateTime,
+    Option<OffsetDateTime>,
 );
 
 const JOBS_BY_TEAM: &str =
@@ -93,8 +93,8 @@ type DueRow = (
     Uuid,
     Uuid,
     String,
-    Option<DateTime<Utc>>,
-    DateTime<Utc>,
+    Option<OffsetDateTime>,
+    OffsetDateTime,
     Option<Uuid>,
 );
 
@@ -125,7 +125,7 @@ pub async fn due(
     .bind(password_days)
     .fetch_all(db)
     .await?;
-    let now = Utc::now();
+    let now = OffsetDateTime::now_utc();
     Ok(rows
         .into_iter()
         .map(
@@ -134,7 +134,7 @@ pub async fn due(
                 vault_id,
                 kind,
                 secret_rotated_at: rotated,
-                age_days: (now - rotated.unwrap_or(created)).num_days().max(0) as i32,
+                age_days: (now - rotated.unwrap_or(created)).whole_days().max(0) as i32,
                 job_id,
             },
         )

@@ -3,11 +3,11 @@
 
 use std::collections::HashMap;
 
-use chrono::{DateTime, Utc};
 use labterm_crypto::aead::{self, Aad};
 use labterm_proto::sync::{HistoryEntry, HistoryKind};
 use rusqlite::{OptionalExtension, params};
 use serde::{Deserialize, Serialize};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use super::{EntityFilter, Store, parse_time, parse_uuid};
@@ -46,7 +46,8 @@ pub struct HistoryItem<T> {
     /// Id.
     pub id: Uuid,
     /// When.
-    pub created_at: DateTime<Utc>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    pub created_at: OffsetDateTime,
     /// Payload.
     pub data: T,
 }
@@ -112,7 +113,7 @@ impl Store {
                 vault_id.to_string(),
                 ct,
                 key_version,
-                Utc::now().to_rfc3339(),
+                labterm_proto::timestamp::to_rfc3339(OffsetDateTime::now_utc()),
                 dirty
             ],
         )?;
@@ -352,7 +353,7 @@ impl Store {
                     personal.id.to_string(),
                     e.data,
                     e.key_version,
-                    e.created_at.to_rfc3339(),
+                    labterm_proto::timestamp::to_rfc3339(e.created_at),
                     e.seq
                 ],
             )?;
@@ -521,7 +522,7 @@ mod tests {
             deleted: false,
             key_version: 1,
             data: "opaque".into(),
-            updated_at: Utc::now(),
+            updated_at: OffsetDateTime::now_utc(),
             updated_by_device: None,
         })
         .unwrap();

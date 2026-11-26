@@ -4,10 +4,10 @@
 
 use std::collections::{BTreeSet, HashMap, HashSet};
 
-use chrono::{DateTime, Utc};
 use labterm_core::model::{Host, HostSnippet, Snippet, SnippetPackage};
 use labterm_core::store::Store;
 use serde::{Deserialize, Serialize};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::error::{ClientError, Result};
@@ -28,7 +28,8 @@ pub struct SnippetCard {
     pub variables: Vec<String>,
     /// Hosts the snippet is configured to run on ("targets for execution").
     pub target_host_ids: Vec<Uuid>,
-    pub updated_at: DateTime<Utc>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    pub updated_at: OffsetDateTime,
     pub dirty: bool,
 }
 

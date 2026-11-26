@@ -6,14 +6,16 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
+use time::OffsetDateTime;
 
 use axum::Json;
 use axum::extract::{Path, State};
-use chrono::{DateTime, Days, NaiveDate, TimeDelta, Utc};
 use labterm_proto::team::{
     DigestCadence, DigestSubscription, SendDigestRequest, SendDigestResponse, UpdateDigestRequest,
 };
 use sqlx::PgPool;
+use time::macros::format_description;
+use time::{Date, Duration, Time};
 use uuid::Uuid;
 
 use crate::error::{ApiResult, Error};
@@ -36,36 +38,36 @@ const MAX_EVENTS: i64 = 2000;
 /// Half-open time range `[start, end)`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Period {
-    pub start: DateTime<Utc>,
-    pub end: DateTime<Utc>,
+    pub start: OffsetDateTime,
+    pub end: OffsetDateTime,
 }
 
-fn length(cadence: DigestCadence) -> TimeDelta {
+fn length(cadence: DigestCadence) -> Duration {
     match cadence {
-        DigestCadence::Daily => TimeDelta::days(1),
-        DigestCadence::Weekly => TimeDelta::weeks(1),
+        DigestCadence::Daily => Duration::days(1),
+        DigestCadence::Weekly => Duration::weeks(1),
     }
 }
 
-fn midnight(d: NaiveDate) -> DateTime<Utc> {
-    d.and_hms_opt(0, 0, 0).expect("midnight exists").and_utc()
+fn midnight(d: Date) -> OffsetDateTime {
+    d.with_time(Time::MIDNIGHT).assume_utc()
 }
 
 /// The most recent complete period whose digest is due at `now`: the last UTC
 /// day (daily) or the last Monday-to-Sunday week (weekly), once `SEND_HOUR`
 /// has passed after it ended.
-pub fn due_period(cadence: DigestCadence, now: DateTime<Utc>) -> Period {
-    let today = now.date_naive();
+pub fn due_period(cadence: DigestCadence, now: OffsetDateTime) -> Period {
+    let today = now.to_offset(time::UtcOffset::UTC).date();
     let anchor = match cadence {
         DigestCadence::Daily => today,
         DigestCadence::Weekly => today
-            .checked_sub_days(Days::new(u64::from(
-                chrono::Datelike::weekday(&today).num_days_from_monday(),
+            .checked_sub(Duration::days(i64::from(
+                today.weekday().number_days_from_monday(),
             )))
             .expect("date in range"),
     };
     let mut end = midnight(anchor);
-    if now < end + TimeDelta::hours(i64::from(SEND_HOUR)) {
+    if now < end + Duration::hours(i64::from(SEND_HOUR)) {
         end -= length(cadence);
     }
     Period {
@@ -84,7 +86,7 @@ pub async fn run(state: AppState) {
         let mailer = mailer.clone();
         let web_url = web_url.clone();
         async move {
-            send_due(&s.db, &mailer, &web_url, Utc::now())
+            send_due(&s.db, &mailer, &web_url, OffsetDateTime::now_utc())
                 .await
                 .map(|n| n as u64)
         }
@@ -92,7 +94,7 @@ pub async fn run(state: AppState) {
     .await
 }
 
-type DueRow = (Uuid, Uuid, String, String, String, DateTime<Utc>);
+type DueRow = (Uuid, Uuid, String, String, String, OffsetDateTime);
 
 /// Mail every subscription whose period ended and is not yet covered by
 /// `last_sent_at`; returns how many e-mails went out. Safe to run on several
@@ -101,7 +103,7 @@ pub async fn send_due(
     db: &PgPool,
     mailer: &Mailer,
     web_url: &str,
-    now: DateTime<Utc>,
+    now: OffsetDateTime,
 ) -> anyhow::Result<usize> {
     // Subscriptions of people who are no longer admins of the team go away;
     // the digest is an admin view of the log.
@@ -192,7 +194,7 @@ pub struct DigestEvent {
     pub target_email: Option<String>,
     pub vault_name: Option<String>,
     pub details: serde_json::Value,
-    pub created_at: DateTime<Utc>,
+    pub created_at: OffsetDateTime,
 }
 
 type EventRow = (
@@ -204,7 +206,7 @@ type EventRow = (
     Option<String>,
     Option<String>,
     serde_json::Value,
-    DateTime<Utc>,
+    OffsetDateTime,
 );
 
 /// Team events inside `period`, oldest first, at most `MAX_EVENTS + 1` so the
@@ -273,19 +275,26 @@ pub fn render(
     events: &[DigestEvent],
     web_url: &str,
 ) -> Email {
-    let last_day = (period.end - TimeDelta::days(1)).date_naive();
+    let last_day = (period.end - Duration::days(1)).date();
+    // Dates in range always format; an empty string would only blank the subject.
+    let fmt = |d: Date, f: &[time::format_description::BorrowedFormatItem<'_>]| {
+        d.format(f).unwrap_or_default()
+    };
+    let day = format_description!("[day padding:none]");
+    let month_year = format_description!("[month repr:long] [year]");
+    let day_month = format_description!("[day padding:none] [month repr:long]");
+    let full = format_description!("[day padding:none] [month repr:long] [year]");
     let when = match cadence {
-        DigestCadence::Daily => last_day.format("%A, %-d %B %Y").to_string(),
+        DigestCadence::Daily => fmt(
+            last_day,
+            format_description!("[weekday], [day padding:none] [month repr:long] [year]"),
+        ),
         DigestCadence::Weekly => {
-            let first = period.start.date_naive();
-            if first.format("%B %Y").to_string() == last_day.format("%B %Y").to_string() {
-                format!("{}–{}", first.format("%-d"), last_day.format("%-d %B %Y"))
+            let first = period.start.date();
+            if fmt(first, month_year) == fmt(last_day, month_year) {
+                format!("{}–{}", fmt(first, day), fmt(last_day, full))
             } else {
-                format!(
-                    "{} – {}",
-                    first.format("%-d %B"),
-                    last_day.format("%-d %B %Y")
-                )
+                format!("{} – {}", fmt(first, day_month), fmt(last_day, full))
             }
         }
     };
@@ -323,8 +332,10 @@ pub fn render(
     }
 
     let stamp = match cadence {
-        DigestCadence::Daily => "%H:%M",
-        DigestCadence::Weekly => "%a %-d %b %H:%M",
+        DigestCadence::Daily => format_description!("[hour]:[minute]"),
+        DigestCadence::Weekly => format_description!(
+            "[weekday repr:short] [day padding:none] [month repr:short] [hour]:[minute]"
+        ),
     };
     // Display names are free text and may collide; add the address when they do.
     let mut names: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
@@ -343,7 +354,7 @@ pub fn render(
         }
         let mut text = format!(
             "{}  {} {}",
-            e.created_at.format(stamp),
+            labterm_proto::timestamp::format_utc(e.created_at, stamp),
             line.actor,
             line.text
         );
@@ -640,7 +651,7 @@ fn describe(e: &DigestEvent) -> Line {
 }
 
 async fn subscription(db: &PgPool, team_id: Uuid, user_id: Uuid) -> ApiResult<DigestSubscription> {
-    let row: Option<(String, DateTime<Utc>)> = sqlx::query_as(
+    let row: Option<(String, OffsetDateTime)> = sqlx::query_as(
         "SELECT cadence, last_sent_at FROM team_digests WHERE team_id = $1 AND user_id = $2",
     )
     .bind(team_id)
@@ -741,7 +752,7 @@ pub async fn send_now(
             .cadence
             .unwrap_or(DigestCadence::Daily),
     };
-    let now = Utc::now();
+    let now = OffsetDateTime::now_utc();
     let period = Period {
         start: now - length(cadence),
         end: now,
@@ -775,8 +786,8 @@ pub async fn send_now(
 mod tests {
     use super::*;
 
-    fn at(s: &str) -> DateTime<Utc> {
-        DateTime::parse_from_rfc3339(s).expect("rfc3339").to_utc()
+    fn at(s: &str) -> OffsetDateTime {
+        labterm_proto::timestamp::parse_rfc3339(s).expect("rfc3339")
     }
 
     #[test]

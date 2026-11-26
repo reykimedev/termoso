@@ -105,7 +105,7 @@ impl From<proto::Team> for TeamCard {
             multiplayer_enabled: t.multiplayer_enabled,
             require_mfa: t.require_mfa,
             presence_enabled: t.presence_enabled,
-            created_at: t.created_at.to_rfc3339(),
+            created_at: labterm_proto::timestamp::to_rfc3339(t.created_at),
             mfa_policy: policies
                 .map(|p| p.mfa.clone())
                 .unwrap_or_else(|| "off".to_owned()),
@@ -150,8 +150,8 @@ impl From<proto::Invite> for InviteCard {
             id: i.id.to_string(),
             email: i.email,
             role: i.role.into(),
-            created_at: i.created_at.to_rfc3339(),
-            expires_at: i.expires_at.to_rfc3339(),
+            created_at: labterm_proto::timestamp::to_rfc3339(i.created_at),
+            expires_at: labterm_proto::timestamp::to_rfc3339(i.expires_at),
         }
     }
 }
@@ -227,7 +227,7 @@ impl From<proto::AuditEvent> for AuditEventCard {
             target: e.target_email,
             vault_id: e.vault_id.map(|v| v.to_string()),
             details,
-            created_at: e.created_at.to_rfc3339(),
+            created_at: labterm_proto::timestamp::to_rfc3339(e.created_at),
         }
     }
 }
@@ -626,7 +626,7 @@ impl AccountRuntime {
                 display_name: m.display_name,
                 avatar: m.avatar,
                 role: m.role.into(),
-                joined_at: m.joined_at.to_rfc3339(),
+                joined_at: labterm_proto::timestamp::to_rfc3339(m.joined_at),
                 mfa_enabled: m.mfa_enabled,
             })
             .collect())
@@ -861,10 +861,10 @@ impl AccountRuntime {
                     name: d.name,
                     platform: d.platform,
                     app_version: d.app_version,
-                    last_seen_at: d.last_seen_at.to_rfc3339(),
+                    last_seen_at: labterm_proto::timestamp::to_rfc3339(d.last_seen_at),
                     last_ip: d.last_ip,
                     status: d.status,
-                    requested_at: d.requested_at.to_rfc3339(),
+                    requested_at: labterm_proto::timestamp::to_rfc3339(d.requested_at),
                 })
                 .collect(),
         })
@@ -1014,7 +1014,9 @@ impl AccountRuntime {
                     vault_id: d.vault_id.to_string(),
                     kind: d.kind,
                     age_days: d.age_days,
-                    last_rotated_at: d.secret_rotated_at.map(|t| t.to_rfc3339()),
+                    last_rotated_at: d
+                        .secret_rotated_at
+                        .map(labterm_proto::timestamp::to_rfc3339),
                     job_queued: d.job_id.is_some(),
                 })
                 .collect(),
@@ -1031,8 +1033,10 @@ impl AccountRuntime {
         let d = self.api().await?.team_data(parse_id(&team_id)?).await?;
         Ok(TeamDataCard {
             region: d.region.or(d.server_region),
-            created_at: d.created_at.to_rfc3339(),
-            deletion_scheduled_at: d.deletion_scheduled_at.map(|t| t.to_rfc3339()),
+            created_at: labterm_proto::timestamp::to_rfc3339(d.created_at),
+            deletion_scheduled_at: d
+                .deletion_scheduled_at
+                .map(labterm_proto::timestamp::to_rfc3339),
             deletion_grace_days: d.deletion_grace_days,
         })
     }
@@ -1326,9 +1330,9 @@ fn review_card(r: labterm_proto::team::AccessReview) -> AccessReviewCard {
     AccessReviewCard {
         id: r.id.to_string(),
         status: r.status,
-        opened_at: r.opened_at.to_rfc3339(),
-        due_at: r.due_at.to_rfc3339(),
-        closed_at: r.closed_at.map(|t| t.to_rfc3339()),
+        opened_at: labterm_proto::timestamp::to_rfc3339(r.opened_at),
+        due_at: labterm_proto::timestamp::to_rfc3339(r.due_at),
+        closed_at: r.closed_at.map(labterm_proto::timestamp::to_rfc3339),
         items: r.items,
         decided: r.decided,
         kept: r.kept,
@@ -1345,7 +1349,7 @@ fn review_item_card(i: labterm_proto::team::AccessReviewItem) -> AccessReviewIte
         display_name: i.display_name,
         vault_name: i.vault_name,
         role: i.role,
-        last_seen_at: i.last_seen_at.map(|t| t.to_rfc3339()),
+        last_seen_at: i.last_seen_at.map(labterm_proto::timestamp::to_rfc3339),
         decision: i.decision,
         note: i.note,
     }
@@ -1364,8 +1368,8 @@ fn break_glass_card(b: labterm_proto::team::BreakGlass) -> BreakGlassCard {
         email: b.email,
         duration_hours: b.duration_hours,
         status: b.status,
-        used_at: b.used_at.map(|t| t.to_rfc3339()),
-        expires_at: b.expires_at.map(|t| t.to_rfc3339()),
+        used_at: b.used_at.map(labterm_proto::timestamp::to_rfc3339),
+        expires_at: b.expires_at.map(labterm_proto::timestamp::to_rfc3339),
         attempts: b.attempts,
     }
 }
@@ -1378,9 +1382,9 @@ fn automation_card(a: labterm_proto::automation::Automation) -> AutomationCard {
         schedule: a.schedule,
         timezone: a.timezone,
         enabled: a.enabled,
-        last_run_at: a.last_run_at.map(|t| t.to_rfc3339()),
+        last_run_at: a.last_run_at.map(labterm_proto::timestamp::to_rfc3339),
         last_status: a.last_status,
-        next_run_at: a.next_run_at.map(|t| t.to_rfc3339()),
+        next_run_at: a.next_run_at.map(labterm_proto::timestamp::to_rfc3339),
     }
 }
 
@@ -1403,10 +1407,10 @@ fn run_card(store: &Store, r: labterm_proto::automation::AutomationRun) -> Autom
     AutomationRunCard {
         id: r.id.to_string(),
         status: r.status,
-        scheduled_for: r.scheduled_for.to_rfc3339(),
+        scheduled_for: labterm_proto::timestamp::to_rfc3339(r.scheduled_for),
         manual: r.manual,
         claimed_by_name: r.claimed_by_name,
-        finished_at: r.finished_at.map(|t| t.to_rfc3339()),
+        finished_at: r.finished_at.map(labterm_proto::timestamp::to_rfc3339),
         hosts_total: r.hosts_total,
         hosts_failed: r.hosts_failed,
         error: r.error,
@@ -1594,8 +1598,8 @@ fn access_card(r: labterm_proto::team::AccessRequest) -> AccessRequestCard {
         hours: r.hours,
         reason: r.reason,
         status: r.status,
-        expires_at: r.expires_at.map(|t| t.to_rfc3339()),
-        created_at: r.created_at.to_rfc3339(),
+        expires_at: r.expires_at.map(labterm_proto::timestamp::to_rfc3339),
+        created_at: labterm_proto::timestamp::to_rfc3339(r.created_at),
     }
 }
 
@@ -1628,7 +1632,7 @@ mod tests {
             target_user: None,
             target_email: Some("b@x.io".into()),
             details: serde_json::json!({"role": "admin", "n": 2}),
-            created_at: chrono::Utc::now(),
+            created_at: time::OffsetDateTime::now_utc(),
         };
         let c = AuditEventCard::from(e);
         assert_eq!(c.actor.as_deref(), Some("a@x.io"));

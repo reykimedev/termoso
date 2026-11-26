@@ -837,6 +837,7 @@ async fn ssh_connect(
             proxy: proxy.clone(),
             proxy_command: None,
             gateway: conn.gateway_dial(resolved).await,
+            transport: crate::netbird::dialer(store, resolved),
             env: ssh_cfg.env_variables.clone(),
             agent_forwarding: ssh_cfg.agent_forwarding,
             // No local X server on a phone: the flag only travels with the

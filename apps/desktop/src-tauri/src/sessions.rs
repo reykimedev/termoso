@@ -5,7 +5,6 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
 use labterm_core::error::CoreError;
 use labterm_core::fido2::{self, Fido2Error};
 use labterm_core::hostkey::KnownHosts;
@@ -24,6 +23,7 @@ use labterm_core::terminal::{SharedTerminal, TermEvent, TermEvents, TermSize};
 use serde::{Deserialize, Serialize};
 use tauri::ipc::{Channel, InvokeResponseBody};
 use tauri::{AppHandle, Emitter, Manager, Runtime};
+use time::OffsetDateTime;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
@@ -234,7 +234,8 @@ pub struct SessionInfo {
     /// `user@host:port` or the local shell.
     pub target: String,
     pub host_id: Option<Uuid>,
-    pub started_at: DateTime<Utc>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    pub started_at: OffsetDateTime,
     pub state: SessionState,
     /// Negotiated SSH algorithms (`None` for local / telnet / still connecting).
     pub algorithms: Option<Algorithms>,
@@ -532,7 +533,7 @@ pub async fn open<R: Runtime>(
         title: opened.title,
         target: opened.target,
         host_id: opened.host_id,
-        started_at: Utc::now(),
+        started_at: OffsetDateTime::now_utc(),
         state: SessionState::Connected,
         algorithms: opened.client.as_ref().and_then(|c| c.algorithms().cloned()),
         via: opened.jumps.iter().map(|j| j.target().display()).collect(),
@@ -733,9 +734,8 @@ pub async fn close_all<R: Runtime>(app: &AppHandle<R>) {
 }
 
 fn finish_history(state: &AppState, history_id: Uuid, info: &SessionInfo, error: Option<String>) {
-    let duration = Utc::now()
-        .signed_duration_since(info.started_at)
-        .num_seconds()
+    let duration = (OffsetDateTime::now_utc() - info.started_at)
+        .whole_seconds()
         .max(0) as u64;
     let Ok(store) = state.store() else {
         return;
@@ -1430,7 +1430,7 @@ fn emit_connecting<R: Runtime>(
                 title: title.into(),
                 target: target.into(),
                 host_id,
-                started_at: Utc::now(),
+                started_at: OffsetDateTime::now_utc(),
                 state: SessionState::Connecting,
                 algorithms: None,
                 via: Vec::new(),
@@ -1720,6 +1720,8 @@ async fn ssh_connect<R: Runtime>(
             proxy: proxy.clone(),
             proxy_command: proxy_command.clone(),
             gateway: gateway_dial(app, resolved).await,
+            // Overlay networks (NetBird) are only built into the Android app so far.
+            transport: None,
             env: ssh_cfg.env_variables.clone(),
             agent_forwarding: ssh_cfg.agent_forwarding,
             x11: (ssh_cfg.forward_x11 && hop.is_none())
