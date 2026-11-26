@@ -119,6 +119,10 @@ export const de: Readonly<Record<string, string>> = {
   "Use Move to vault to change the vault":
     "Zum Wechseln des Tresors «In Tresor verschieben» verwenden",
   "A group can't be inside itself": "Eine Gruppe kann nicht in sich selbst liegen",
+  "Pick an OpenID key from the same vault": "Wähle einen OpenID-Schlüssel aus demselben Tresor",
+  "Use a colour like #3a7 or #33aa77": "Verwende eine Farbe wie #3a7 oder #33aa77",
+  "These tags are in different vaults": "Diese Tags liegen in verschiedenen Tresoren",
+  "This tag is in another vault": "Dieses Tag liegt in einem anderen Tresor",
   "The web app generates Ed25519 keys only": "Die Web-App erzeugt nur Ed25519-Schlüssel",
   "Wrong passphrase": "Falsche Passphrase",
 
