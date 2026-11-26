@@ -448,6 +448,7 @@ fun SettingsScreen(
                     leading = { IconTile(Icons.Filled.Info) },
                 )
                 DebugUpdateRow(onNotify = shell::notify)
+                DebugLogRow(onNotify = shell::notify)
                 RowDivider()
                 ChevronRow(
                     title = stringResource(R.string.privacy),

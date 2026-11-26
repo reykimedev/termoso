@@ -1830,6 +1830,8 @@
     <string name="debug_update_downloading">Downloading…</string>
     <string name="debug_update_current">Up to date (build %1$d)</string>
     <string name="debug_update_available_notice">Debug build %1$d is available: Settings → About</string>
+    <string name="debug_log">Debug log</string>
+    <string name="debug_log_hint">Recent app and core logs, secrets removed. Copy or share them for a bug report.</string>
     <string name="openid_no_keys">No OpenID keys in this vault: create one in the keychain</string>
     <string name="openid_key_for_host">OpenID key</string>
     <string name="openid_key_for_host_hint">Tried before the host\u2019s credentials, which stay as the fallback. Hosts without one use their group\u2019s.</string>
