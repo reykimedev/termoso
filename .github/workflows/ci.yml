@@ -77,6 +77,8 @@ jobs:
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - run: cargo fmt --all -- --check
       - run: cargo clippy --workspace --all-targets --locked
 
@@ -151,6 +153,8 @@ jobs:
           done
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - run: cargo test --workspace --locked
       - if: always()
         run: df -h / target
@@ -172,6 +176,8 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - run: cargo test --locked -p labterm-oidc-cert
       - run: cargo test --locked -p labterm-client --features oidc-cert --test opkssh_e2e
       # The crate also has to build for the browser (future web client).
@@ -192,6 +198,7 @@ jobs:
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
         with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           key: wasm
       - uses: taiki-e/install-action@v2
         with:
@@ -247,6 +254,7 @@ jobs:
           components: clippy
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           key: labterm-web-wasm
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -302,6 +310,7 @@ jobs:
           components: clippy
       - uses: Swatinem/rust-cache@v2
         with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           key: macos
       - uses: actions/setup-node@v7
         with:
@@ -352,6 +361,7 @@ jobs:
           targets: aarch64-apple-ios-sim
       - uses: Swatinem/rust-cache@v2
         with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           key: ios
       - run: brew install xcodegen
       - run: sudo xcode-select -s "$(ls -d /Applications/Xcode_16*.app | sort -V | tail -1)"
@@ -435,7 +445,9 @@ jobs:
           targets: aarch64-linux-android
       - uses: Swatinem/rust-cache@v2
         with:
-          key: android
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          # Shared with the debug channel's publish job (same RUSTFLAGS, same target).
+          shared-key: android
       - uses: taiki-e/cache-cargo-install-action@v3
         with:
           tool: cargo-ndk@4.1.2
@@ -477,6 +489,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           key: netbird
       - uses: actions/setup-go@v6
         with:
@@ -535,6 +548,7 @@ jobs:
           tool: cargo-fuzz@0.13.2
       - uses: Swatinem/rust-cache@v2
         with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
           workspaces: fuzz
       - run: cargo +${{ env.FUZZ_TOOLCHAIN }} fuzz check --target "$FUZZ_TARGET"
         working-directory: fuzz

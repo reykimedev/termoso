@@ -21,6 +21,11 @@ concurrency:
   group: android-debug-channel-${{ github.ref_name }}
   cancel-in-progress: true
 
+# Same as CI: rust-cache keys on these, so the publish job can reuse CI's android cache.
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
 jobs:
   publish:
     name: debug APK → android-debug prerelease
@@ -43,7 +48,7 @@ jobs:
       - if: env.HAS_KEY == 'true'
         uses: Swatinem/rust-cache@v2
         with:
-          key: android
+          shared-key: android
           save-if: false
       - if: env.HAS_KEY == 'true'
         uses: taiki-e/cache-cargo-install-action@v3
