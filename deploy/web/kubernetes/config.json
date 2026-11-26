@@ -1,0 +1,7 @@
+{
+  "relayUrl": "https://relay.labterm.example.com",
+  "oidcIssuer": "https://auth.example.com/application/o/labterm-web/",
+  "oidcClientId": "labterm-web",
+  "termosoServer": "https://termoso.example.com",
+  "oidcScopes": "offline_access"
+}

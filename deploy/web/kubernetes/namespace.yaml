@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: labterm-web
+  labels:
+    app.kubernetes.io/managed-by: flux
+    cluster.local/layer: apps
+    cluster.local/owner: mike

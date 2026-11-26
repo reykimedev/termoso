@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: labterm-relay
+spec:
+  replicas: 1 # single use of a ticket is tracked in memory, so one replica
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: labterm-relay
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: labterm-relay
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: /metrics
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: relay
+          image: ghcr.io/reykimedev/labterm-relay
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: HATCH_RELAY_LISTEN
+              value: "0.0.0.0:8080"
+            - name: HATCH_RELAY_ALLOWLIST_FILE
+              value: /etc/labterm-relay/allowlist.yaml
+            # The Authentik application the web app signs in with (config.json's oidcIssuer and
+            # oidcClientId). TODO: your issuer and client id.
+            - name: HATCH_RELAY_OIDC_ISSUER
+              value: https://auth.example.com/application/o/labterm-web/
+            - name: HATCH_RELAY_OIDC_AUDIENCE
+              value: labterm-web
+            # TODO: the app's public origin, as in routes.yaml.
+            - name: HATCH_RELAY_ALLOWED_ORIGINS
+              value: https://labterm.example.com
+            - name: RUST_LOG
+              value: info
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - { name: allowlist, mountPath: /etc/labterm-relay, readOnly: true }
+      volumes:
+        - name: allowlist
+          configMap:
+            name: labterm-relay-allowlist
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: labterm-relay
+spec:
+  selector:
+    app.kubernetes.io/name: labterm-relay
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

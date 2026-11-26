@@ -1,0 +1,10 @@
+# Relay allowlist: deny by default. Checked on the resolved address.
+# Loopback, link-local (cloud metadata), unspecified and multicast are always denied.
+deny:
+  - 192.0.2.224/28   # the cluster's pod range (example)
+  - 192.0.2.240/28   # the cluster's service range (example)
+allow:
+  - cidr: 192.0.2.0/25            # servers, port 22 only
+  - cidr: 192.0.2.128/26          # network gear
+    ports: [22]
+    groups: [ssh-admins]
