@@ -192,6 +192,8 @@ export interface UpdateInfo {
 export type UpdateEvent =
   | { type: "available"; info: UpdateInfo }
   | { type: "progress"; downloaded: number; total: number | null }
+  | { type: "verifying" }
+  | { type: "installing" }
   | { type: "installed"; version: string }
   | { type: "failed"; message: string };
 

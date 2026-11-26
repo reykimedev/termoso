@@ -4,7 +4,7 @@ import { SectionCard, SettingRow } from "@/components/ui";
 import { monoFontFamily } from "@/theme/theme";
 import type { Settings, UpdateCheck } from "@/ipc/types";
 import { formatSize } from "@/sftp/format";
-import { checkForUpdates, installUpdate, restartToUpdate, useUpdate } from "./store";
+import { checkForUpdates, installUpdate, restartToUpdate, secondsLeft, useUpdate } from "./store";
 import { tr } from "@/i18n";
 import { useAppInfo } from "@/ipc/hooks";
 
@@ -119,12 +119,30 @@ export function UpdateStatus() {
         </Alert>
       );
     case "downloading": {
+      if (phase.stage !== "download") {
+        return (
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
+            <Typography variant="body2" color="text.secondary">
+              {phase.stage === "verify" ? tr("Verifying…") : tr("Installing…")} {phase.info.version}
+            </Typography>
+            <LinearProgress variant="indeterminate" />
+          </Box>
+        );
+      }
       const pct = phase.total ? Math.round((phase.downloaded / phase.total) * 100) : null;
+      const left = secondsLeft(phase);
+      const parts = [
+        phase.total
+          ? `${formatSize(phase.downloaded)} / ${formatSize(phase.total)}`
+          : formatSize(phase.downloaded),
+        pct !== null ? `${pct}%` : null,
+        phase.speed !== null ? `${formatSize(phase.speed)}/s` : null,
+        left !== null ? tr("about {time} left", { time: formatDuration(left) }) : null,
+      ].filter(Boolean);
       return (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
           <Typography variant="body2" color="text.secondary">
-            {tr("Downloading")} {phase.info.version}… {formatSize(phase.downloaded)}
-            {phase.total ? ` / ${formatSize(phase.total)}` : ""}
+            {tr("Downloading")} {phase.info.version}… {parts.join(" · ")}
           </Typography>
           <LinearProgress
             variant={pct === null ? "indeterminate" : "determinate"}
@@ -144,4 +162,8 @@ export function UpdateStatus() {
     case "error":
       return <Alert severity="error">{phase.message}</Alert>;
   }
+}
+
+function formatDuration(secs: number): string {
+  return secs < 90 ? tr("{n} s", { n: secs }) : tr("{n} min", { n: Math.round(secs / 60) });
 }
