@@ -12,8 +12,8 @@ use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 use labterm_proto::team::{PresenceEntry, PresenceSession, TeamPresence};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::error::ApiResult;

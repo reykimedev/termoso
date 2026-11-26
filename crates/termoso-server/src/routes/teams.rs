@@ -5,9 +5,9 @@ use axum::extract::{Path, Query, State};
 
 use super::paging::PageQuery;
 use chrono::{DateTime, Utc};
-use sqlx::{PgExecutor, Postgres, Transaction};
 use labterm_proto::team::*;
 use labterm_proto::vault::VaultRole;
+use sqlx::{PgExecutor, Postgres, Transaction};
 use uuid::Uuid;
 
 use crate::audit;

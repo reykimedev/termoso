@@ -6,13 +6,13 @@ mod common;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use common::*;
-use reqwest::{Method, StatusCode};
 use labterm_proto::admin::ServerSettings;
 use labterm_proto::logs::{
     CreateLogRequest, CreateLogResponse, DownloadLogResponse, LogListResponse, SessionLog,
     UpdateLogRequest,
 };
 use labterm_proto::vault::VaultList;
+use reqwest::{Method, StatusCode};
 use uuid::Uuid;
 
 macro_rules! server_with_storage {

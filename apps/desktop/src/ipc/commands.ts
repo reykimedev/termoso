@@ -131,6 +131,7 @@ import type {
   SyncInfo,
   SyncNotice,
   SyncStatus,
+  TagForm,
   TagInfo,
   TailnetScan,
   Team,
@@ -232,8 +233,13 @@ export const hostsCopyToVault = (
   moveHosts: boolean,
   withCredentials = true,
 ) => invoke<Uuid[]>("hosts_copy_to_vault", { ids, vaultId, moveHosts, withCredentials });
-export const hostInherited = (groupId: Uuid | null) =>
-  invoke<Inherited>("host_inherited", { groupId });
+/** What a host inherits; pass the vault and tags to include tag settings. */
+export const hostInherited = (groupId: Uuid | null, vaultId?: Uuid | null, tagIds?: Uuid[]) =>
+  invoke<Inherited>("host_inherited", {
+    groupId,
+    vaultId: vaultId ?? null,
+    tagIds: tagIds ?? null,
+  });
 
 export const groupsList = (vaultId?: Uuid | null) =>
   invoke<GroupNode[]>("groups_list", { vaultId: vaultId ?? null });
@@ -253,6 +259,8 @@ export const tagsList = (vaultId?: Uuid | null) =>
   invoke<TagInfo[]>("tags_list", { vaultId: vaultId ?? null });
 export const tagUpdate = (id: Uuid, label: string, color: string | null) =>
   invoke<TagInfo>("tag_update", { id, label, color });
+export const tagForm = (id: Uuid) => invoke<TagForm>("tag_form", { id });
+export const tagSaveForm = (form: TagForm) => invoke<TagInfo>("tag_save_form", { form });
 export const tagDelete = (id: Uuid) => invoke<null>("tag_delete", { id });
 export const tagsMerge = (sources: Uuid[], target: Uuid) =>
   invoke<TagInfo>("tags_merge", { sources, target });

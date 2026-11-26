@@ -6,6 +6,9 @@ import type { UpdateInfo } from "@/ipc/types";
 import { errorMessage } from "@/ipc/types";
 import { createStore, useStore } from "@/lib/store";
 
+/** Off in Labterm builds until it has its own signing key and feed (see update.rs). */
+export const UPDATES_ENABLED = false as boolean;
+
 export type UpdatePhase =
   | { kind: "idle" }
   | { kind: "checking" }

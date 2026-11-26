@@ -4,10 +4,10 @@
 # webview, takes a window screenshot whenever the script asks for one, and
 # fails on FAIL/crash/timeout/panic. Artifacts land in <out-dir>.
 #
-# usage: smoke/macos.sh <Termoso.app> <out-dir>
+# usage: smoke/macos.sh <Labterm.app> <out-dir>
 set -euo pipefail
 
-app=${1:?path to Termoso.app}
+app=${1:?path to Labterm.app}
 out=${2:?output directory}
 here=$(cd "$(dirname "$0")" && pwd)
 mkdir -p "$out"

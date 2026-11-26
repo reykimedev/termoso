@@ -4,11 +4,11 @@
 mod common;
 
 use common::*;
-use reqwest::{Method, StatusCode};
 use labterm_crypto::keys::SymmetricKey;
 use labterm_crypto::sealed;
 use labterm_proto::automation::*;
 use labterm_proto::vault::{CreateVaultRequest, VaultMemberUpsert, VaultRole};
+use reqwest::{Method, StatusCode};
 use uuid::Uuid;
 
 macro_rules! server {

@@ -12,7 +12,6 @@ use std::time::Duration;
 
 use common::*;
 use futures::{SinkExt, StreamExt};
-use reqwest::{Method, StatusCode};
 use labterm_crypto::aead::{self, Aad};
 use labterm_crypto::keys::SymmetricKey;
 use labterm_crypto::sealed;
@@ -32,6 +31,7 @@ use labterm_proto::vault::{
     VaultRole,
 };
 use labterm_proto::ws::{ClientMessage, ServerMessage};
+use reqwest::{Method, StatusCode};
 use tokio_tungstenite::tungstenite::Message;
 use uuid::Uuid;
 

@@ -1,8 +1,8 @@
 //! Error shape handed to a UI shell: `{ kind, message }`.
 
-use serde::Serialize;
 use labterm_core::error::CoreError;
 use labterm_proto::error::codes;
+use serde::Serialize;
 
 /// Serialised error. `kind` is stable and machine-readable; `message` is safe
 /// to show (core errors never contain secret material).

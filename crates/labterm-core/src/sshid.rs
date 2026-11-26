@@ -7,8 +7,8 @@
 //! and are wiped when the account signs out.
 
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 use labterm_proto::sshid::{DeviceKeyUpload, PutDeviceKeysRequest, SshIdKeyType};
+use serde::{Deserialize, Serialize};
 use zeroize::Zeroizing;
 
 use crate::error::Result;

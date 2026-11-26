@@ -316,9 +316,9 @@ pub use ssh_key::Algorithm;
 mod tests {
     use super::*;
     use crate::store::LocalVaultKind;
-    use russh::keys::ssh_key::PrivateKey;
     use labterm_crypto::keys::SymmetricKey;
     use labterm_proto::vault::VaultRole;
+    use russh::keys::ssh_key::PrivateKey;
 
     fn key() -> PublicKey {
         PrivateKey::random(&mut rand::rng(), ssh_key::Algorithm::Ed25519)

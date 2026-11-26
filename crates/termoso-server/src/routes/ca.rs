@@ -12,11 +12,11 @@ use axum::extract::{Path, State};
 use axum::http::{HeaderValue, header};
 use axum::response::{IntoResponse, Response};
 use chrono::{DateTime, Duration, Utc};
+use labterm_proto::ca::*;
+use labterm_proto::sshid::SshIdKeyType;
 use sqlx::PgExecutor;
 use ssh_key::certificate::{Builder, CertType};
 use ssh_key::{Algorithm, EcdsaCurve, HashAlg, LineEnding, PrivateKey, PublicKey};
-use labterm_proto::ca::*;
-use labterm_proto::sshid::SshIdKeyType;
 use uuid::Uuid;
 
 use crate::audit;

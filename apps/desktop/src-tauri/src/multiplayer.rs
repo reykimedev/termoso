@@ -8,11 +8,11 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-use serde::Serialize;
-use tauri::{AppHandle, Emitter, Manager, Runtime};
 use labterm_core::live::{HostShare, LiveEvent, LiveLink, ViewerJoin};
 use labterm_core::terminal::TermSize;
 use labterm_proto::live::LiveParticipant;
+use serde::Serialize;
+use tauri::{AppHandle, Emitter, Manager, Runtime};
 use tokio::sync::mpsc;
 use uuid::Uuid;
 

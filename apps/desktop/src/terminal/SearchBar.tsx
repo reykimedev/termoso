@@ -5,7 +5,7 @@ import KeyboardArrowUpRoundedIcon from "@mui/icons-material/KeyboardArrowUpRound
 import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
 import type { ISearchOptions } from "@xterm/addon-search";
 import type { Uuid } from "@/ipc/types";
-import { emerald, monoFontFamily } from "@/theme/theme";
+import { lantern, monoFontFamily } from "@/theme/theme";
 import { focusPane, getRuntime } from "./store";
 import { tr } from "@/i18n";
 
@@ -19,9 +19,9 @@ const decorations: ISearchOptions["decorations"] = {
   matchBackground: "#F2C94C55",
   matchBorder: "#F2C94C",
   matchOverviewRuler: "#F2C94C",
-  activeMatchBackground: `${emerald.main}88`,
-  activeMatchBorder: emerald.main,
-  activeMatchColorOverviewRuler: emerald.main,
+  activeMatchBackground: `${lantern.main}88`,
+  activeMatchBorder: lantern.main,
+  activeMatchColorOverviewRuler: lantern.main,
 };
 
 /**

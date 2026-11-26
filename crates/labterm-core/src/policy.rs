@@ -5,8 +5,8 @@
 //! with every sync pass alongside the team CA certificates.
 
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 use labterm_proto::team::TeamPolicies;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::api::ApiClient;

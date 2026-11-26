@@ -1,9 +1,9 @@
 //! User rows, profile mapping and the per-user security log.
 
 use chrono::{DateTime, Utc};
+use labterm_proto::account::{AccountKeys, UserProfile};
 use sqlx::AssertSqlSafe;
 use sqlx::FromRow;
-use labterm_proto::account::{AccountKeys, UserProfile};
 use uuid::Uuid;
 
 use crate::error::{ApiResult, Error};

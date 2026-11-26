@@ -5,9 +5,9 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
+use labterm_core::model::Snippet;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, Runtime};
-use labterm_core::model::Snippet;
 use uuid::Uuid;
 
 pub use labterm_client::snippets::*;

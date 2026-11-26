@@ -10,10 +10,10 @@ use std::fmt::Write as _;
 use axum::Json;
 use axum::extract::{Path, State};
 use chrono::{DateTime, Days, NaiveDate, TimeDelta, Utc};
-use sqlx::PgPool;
 use labterm_proto::team::{
     DigestCadence, DigestSubscription, SendDigestRequest, SendDigestResponse, UpdateDigestRequest,
 };
+use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::error::{ApiResult, Error};

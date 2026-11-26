@@ -1,11 +1,11 @@
 //! The certificate matches, byte for byte, what opkssh's own Go code makes
 //! from the same PK token and key (see `fixtures/README.md`).
 
+use labterm_oidc_cert::sshcert::{self, CertOptions};
+use labterm_oidc_cert::{PkToken, jose};
 use p256::elliptic_curve::sec1::ToSec1Point;
 use ssh_key::PrivateKey;
 use ssh_key::private::{EcdsaKeypair, KeypairData};
-use labterm_oidc_cert::sshcert::{self, CertOptions};
-use labterm_oidc_cert::{PkToken, jose};
 
 /// Throwaway test key the fixture token commits to.
 const TEST_KEY_SCALAR: &str = "c1290dbdea45e05ad3278f66b02f8840887233000686b91c05ab3045c5f434a0";

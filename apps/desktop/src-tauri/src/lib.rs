@@ -188,6 +188,8 @@ pub fn run() {
             commands::group_delete,
             commands::tags_list,
             commands::tag_update,
+            commands::tag_form,
+            commands::tag_save_form,
             commands::tag_delete,
             commands::tags_merge,
             commands::history_connections,
@@ -556,9 +558,11 @@ pub(crate) async fn startup(app: tauri::AppHandle) {
     {
         return;
     }
-    if settings.update_check != "manual" {
-        update::check_on_startup(&app).await;
+    if update::ENABLED {
+        if settings.update_check != "manual" {
+            update::check_on_startup(&app).await;
+        }
+        tauri::async_runtime::spawn(update::scheduler(app.clone()));
     }
-    tauri::async_runtime::spawn(update::scheduler(app.clone()));
     tauri::async_runtime::spawn(cloud_sync::scheduler(app));
 }

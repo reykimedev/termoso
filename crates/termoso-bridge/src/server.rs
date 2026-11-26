@@ -2,12 +2,12 @@
 
 use std::time::Duration;
 
-use reqwest::{Method, StatusCode};
-use serde::Serialize;
-use serde::de::DeserializeOwned;
 use labterm_proto::bridge::BridgeSelf;
 use labterm_proto::error::ApiError;
 use labterm_proto::sync::{PullRequest, PullResponse, PushRequest, PushResponse};
+use reqwest::{Method, StatusCode};
+use serde::Serialize;
+use serde::de::DeserializeOwned;
 use url::Url;
 use uuid::Uuid;
 

@@ -5,7 +5,6 @@
 use std::collections::{HashMap, HashSet};
 
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 use labterm_core::model::{
     ClientCertificate, Entity, Group, Host, HostChain, HostSnippet, Identity, Proxy, S3Config,
     SerialConfig, Snippet, SshCertificate, SshConfig, SshKey, Tag, TelnetConfig, WebDavConfig,
@@ -13,6 +12,7 @@ use labterm_core::model::{
 use labterm_core::store::Store;
 use labterm_core::webdav::client_certificate_fingerprint;
 use labterm_proto::sshid::SshIdKeyType;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::error::{ClientError, Result};
@@ -629,16 +629,48 @@ pub struct GroupForm {
     /// User-chosen icon id (`None` = default folder).
     #[serde(default)]
     pub icon: Option<String>,
+    #[serde(flatten)]
+    pub defaults: SshDefaultsForm,
+}
+
+/// Editor model for a tag: name, colour, priority and the SSH defaults hosts
+/// carrying it inherit. Tags rank below groups; see
+/// [`labterm_core::store::Store::defaults_layers`].
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TagForm {
+    pub id: Uuid,
+    pub vault_id: Uuid,
+    pub label: String,
+    #[serde(default)]
+    pub color: Option<String>,
+    /// Higher wins when a host's tags set the same field.
+    #[serde(default)]
+    pub priority: i32,
+    #[serde(flatten)]
+    pub defaults: SshDefaultsForm,
+}
+
+/// SSH defaults a group or tag hands down to its hosts: the part of the
+/// group and tag editors they share. Flattened into both forms.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SshDefaultsForm {
+    #[serde(default)]
     pub port: Option<u16>,
+    #[serde(default)]
     pub username: String,
     /// `None` keeps the stored password when editing; `Some("")` clears it.
+    #[serde(default)]
     pub password: Option<String>,
     /// TOTP secret; `None` keeps the stored one, `Some("")` clears it.
     #[serde(default)]
     pub totp_secret: Option<String>,
+    #[serde(default)]
     pub ssh_key_id: Option<Uuid>,
     #[serde(default)]
     pub ssh_certificate_id: Option<Uuid>,
+    #[serde(default)]
     pub identity_id: Option<Uuid>,
     #[serde(default)]
     pub has_password: bool,
@@ -652,7 +684,9 @@ pub struct GroupForm {
     pub agent_forwarding: bool,
     #[serde(default)]
     pub forward_x11: bool,
+    #[serde(default)]
     pub host_chain_id: Option<Uuid>,
+    #[serde(default)]
     pub proxy_id: Option<Uuid>,
     #[serde(default)]
     pub env_variables: Vec<(String, String)>,
@@ -675,6 +709,9 @@ pub struct GroupForm {
 pub struct Inherited {
     /// Group path root → leaf.
     pub group_path: Vec<String>,
+    /// Labels of the host's tags that carry settings, the winner first.
+    #[serde(default)]
+    pub tags: Vec<String>,
     pub port: Option<u16>,
     pub username: Option<String>,
     pub has_password: bool,
@@ -707,6 +744,10 @@ pub struct TagInfo {
     pub color: Option<String>,
     /// Hosts carrying the tag.
     pub hosts: usize,
+    /// The tag carries SSH defaults its hosts inherit.
+    pub has_config: bool,
+    /// Order among a host's tags; higher wins.
+    pub priority: i32,
 }
 
 /// Newest connection per saved host.
@@ -864,6 +905,8 @@ pub fn tags(store: &Store, vault_id: Option<Uuid>) -> Result<Vec<TagInfo>> {
             hosts: counts.get(&t.id).copied().unwrap_or(0),
             label: t.data.label,
             color: t.data.color,
+            has_config: t.data.ssh_config_id.is_some(),
+            priority: t.data.priority,
         })
         .collect();
     out.sort_by_key(|t| t.label.to_lowercase());
@@ -938,6 +981,7 @@ pub fn tag_delete(store: &Store, id: Uuid) -> Result<()> {
             store.update(h.id, &h.data)?;
         }
     }
+    delete_defaults(store, tag.data.ssh_config_id)?;
     Ok(store.delete(id)?)
 }
 
@@ -969,7 +1013,9 @@ pub fn tags_merge(store: &Store, sources: &[Uuid], target: Uuid) -> Result<TagIn
         h.data.tag_ids = ids;
         store.update(h.id, &h.data)?;
     }
+    // The target keeps its own settings; the sources' go with them.
     for s in sources {
+        delete_defaults(store, store.require::<Tag>(s)?.data.ssh_config_id)?;
         store.delete(s)?;
     }
     tag_info(store, target)
@@ -1164,7 +1210,7 @@ pub fn set_group_transport(
     transport_id: Option<Uuid>,
 ) -> Result<GroupNode> {
     let mut f = group_form(store, group_id)?;
-    f.transport_id = transport_id;
+    f.defaults.transport_id = transport_id;
     save_group_form(store, &f)
 }
 
@@ -1851,7 +1897,33 @@ pub fn save_group(
 /// (not what it inherits from parents — see [`inherited`]).
 pub fn group_form(store: &Store, id: Uuid) -> Result<GroupForm> {
     let g = store.require::<Group>(id)?;
-    let ssh = match g.data.ssh_config_id {
+    Ok(GroupForm {
+        id: Some(g.id),
+        vault_id: g.vault_id,
+        label: g.data.label,
+        parent_id: g.data.parent_id,
+        icon: g.data.icon,
+        defaults: load_defaults(store, g.data.ssh_config_id)?,
+    })
+}
+
+/// Tag as the editor sees it: name, colour, priority and its SSH defaults.
+pub fn tag_form(store: &Store, id: Uuid) -> Result<TagForm> {
+    let t = store.require::<Tag>(id)?;
+    Ok(TagForm {
+        id: t.id,
+        vault_id: t.vault_id,
+        label: t.data.label,
+        color: t.data.color,
+        priority: t.data.priority,
+        defaults: load_defaults(store, t.data.ssh_config_id)?,
+    })
+}
+
+/// The SSH defaults stored in `ssh_config_id`, as the editors show them:
+/// an inline (hidden) identity is flattened, a visible one is referenced.
+fn load_defaults(store: &Store, ssh_config_id: Option<Uuid>) -> Result<SshDefaultsForm> {
+    let ssh = match ssh_config_id {
         Some(c) => store.get::<SshConfig>(c)?.map(|e| e.data),
         None => None,
     }
@@ -1865,12 +1937,7 @@ pub fn group_form(store: &Store, id: Uuid) -> Result<GroupForm> {
         Some(i) => (None, Some(i.data)),
         None => (None, None),
     };
-    Ok(GroupForm {
-        id: Some(g.id),
-        vault_id: g.vault_id,
-        label: g.data.label,
-        parent_id: g.data.parent_id,
-        icon: g.data.icon,
+    Ok(SshDefaultsForm {
         port: ssh.port,
         username: inline
             .as_ref()
@@ -1897,23 +1964,21 @@ pub fn group_form(store: &Store, id: Uuid) -> Result<GroupForm> {
     })
 }
 
-/// Create or update a group together with the SSH defaults its hosts inherit.
-pub fn save_group_form(store: &Store, f: &GroupForm) -> Result<GroupNode> {
-    let label = f.label.trim();
-    check_oidc_key(store, f.vault_id, f.oidc_key_id)?;
-    crate::transports::check(store, f.vault_id, f.transport_id)?;
-    if label.is_empty() {
-        return Err(ClientError::invalid("group name is required"));
-    }
-    check_parent(store, f.vault_id, f.id, f.parent_id)?;
-    require_same_vault::<HostChain>(store, f.host_chain_id, f.vault_id, "host chain")?;
-    require_same_vault::<Proxy>(store, f.proxy_id, f.vault_id, "proxy")?;
-
-    let existing = match f.id {
-        Some(id) => store.get::<Group>(id)?,
-        None => None,
-    };
-    let existing_ssh = match existing.as_ref().and_then(|g| g.data.ssh_config_id) {
+/// Write the SSH defaults of a group or tag. Returns the config id to store
+/// on the owner (`None` when nothing is set, and the old config is gone).
+/// Fields the editors do not show (charset, mosh…) are kept.
+fn save_defaults(
+    store: &Store,
+    vault_id: Uuid,
+    existing_config_id: Option<Uuid>,
+    f: &SshDefaultsForm,
+    label: &str,
+) -> Result<Option<Uuid>> {
+    check_oidc_key(store, vault_id, f.oidc_key_id)?;
+    crate::transports::check(store, vault_id, f.transport_id)?;
+    require_same_vault::<HostChain>(store, f.host_chain_id, vault_id, "host chain")?;
+    require_same_vault::<Proxy>(store, f.proxy_id, vault_id, "proxy")?;
+    let existing_ssh = match existing_config_id {
         Some(c) => store.get::<SshConfig>(c)?,
         None => None,
     };
@@ -1923,7 +1988,7 @@ pub fn save_group_form(store: &Store, f: &GroupForm) -> Result<GroupNode> {
     };
     let identity_id = upsert_identity(
         store,
-        f.vault_id,
+        vault_id,
         existing_inline.as_ref(),
         &Credentials {
             identity_id: f.identity_id,
@@ -1955,7 +2020,7 @@ pub fn save_group_form(store: &Store, f: &GroupForm) -> Result<GroupNode> {
     ssh.oidc_key_id = f.oidc_key_id;
     ssh.transport_id = f.transport_id;
     let empty = ssh == SshConfig::default();
-    let ssh_config_id = match (&existing_ssh, empty) {
+    Ok(match (&existing_ssh, empty) {
         (Some(e), true) => {
             store.delete(e.id)?;
             None
@@ -1965,8 +2030,45 @@ pub fn save_group_form(store: &Store, f: &GroupForm) -> Result<GroupNode> {
             Some(e.id)
         }
         (None, true) => None,
-        (None, false) => Some(store.insert(f.vault_id, &ssh)?),
+        (None, false) => Some(store.insert(vault_id, &ssh)?),
+    })
+}
+
+/// Delete a group's or tag's SSH defaults with their inline identity.
+fn delete_defaults(store: &Store, ssh_config_id: Option<Uuid>) -> Result<()> {
+    if let Some(cid) = ssh_config_id
+        && let Some(cfg) = store.get::<SshConfig>(cid)?
+    {
+        if let Some(iid) = cfg.data.identity_id
+            && let Some(i) = store.get::<Identity>(iid)?
+            && !i.data.is_visible
+        {
+            store.delete(i.id)?;
+        }
+        store.delete(cfg.id)?;
+    }
+    Ok(())
+}
+
+/// Create or update a group together with the SSH defaults its hosts inherit.
+pub fn save_group_form(store: &Store, f: &GroupForm) -> Result<GroupNode> {
+    let label = f.label.trim();
+    if label.is_empty() {
+        return Err(ClientError::invalid("group name is required"));
+    }
+    check_parent(store, f.vault_id, f.id, f.parent_id)?;
+
+    let existing = match f.id {
+        Some(id) => store.get::<Group>(id)?,
+        None => None,
     };
+    let ssh_config_id = save_defaults(
+        store,
+        f.vault_id,
+        existing.as_ref().and_then(|g| g.data.ssh_config_id),
+        &f.defaults,
+        label,
+    )?;
 
     let mut data = existing
         .as_ref()
@@ -1986,6 +2088,34 @@ pub fn save_group_form(store: &Store, f: &GroupForm) -> Result<GroupNode> {
     group_node(store, f.vault_id, gid)
 }
 
+/// Update a tag's name, colour, priority and the SSH defaults its hosts
+/// inherit. Renaming onto another tag's label merges, as [`tag_update`] does.
+pub fn save_tag_form(store: &Store, f: &TagForm) -> Result<TagInfo> {
+    let existing = store.require::<Tag>(f.id)?;
+    if existing.vault_id != f.vault_id {
+        return Err(ClientError::invalid("tag belongs to another vault"));
+    }
+    let label = f.label.trim().to_string();
+    if label.is_empty() {
+        return Err(ClientError::invalid("tag label is empty"));
+    }
+    let ssh_config_id = save_defaults(
+        store,
+        f.vault_id,
+        existing.data.ssh_config_id,
+        &f.defaults,
+        &label,
+    )?;
+    let mut data = existing.data.clone();
+    data.ssh_config_id = ssh_config_id;
+    data.priority = f.priority.clamp(-1000, 1000);
+    if data.ssh_config_id != existing.data.ssh_config_id || data.priority != existing.data.priority
+    {
+        store.update(f.id, &data)?;
+    }
+    tag_update(store, f.id, label, f.color.clone())
+}
+
 /// Delete a group; its hosts and sub-groups move to the parent.
 pub fn delete_group(store: &Store, id: Uuid) -> Result<()> {
     let Some(g) = store.get::<Group>(id)? else {
@@ -2001,17 +2131,7 @@ pub fn delete_group(store: &Store, id: Uuid) -> Result<()> {
         c.data.parent_id = g.data.parent_id;
         store.update(c.id, &c.data)?;
     }
-    if let Some(cid) = g.data.ssh_config_id
-        && let Some(cfg) = store.get::<SshConfig>(cid)?
-    {
-        if let Some(iid) = cfg.data.identity_id
-            && let Some(i) = store.get::<Identity>(iid)?
-            && !i.data.is_visible
-        {
-            store.delete(i.id)?;
-        }
-        store.delete(cfg.id)?;
-    }
+    delete_defaults(store, g.data.ssh_config_id)?;
     store.delete(id)?;
     Ok(())
 }
@@ -2032,12 +2152,32 @@ pub fn delete_group_recursive(store: &Store, id: Uuid) -> Result<()> {
     delete_group(store, id)
 }
 
-/// What hosts inside `group_id` inherit.
+/// What hosts inside `group_id` inherit (ignoring tags).
 pub fn inherited(store: &Store, group_id: Option<Uuid>) -> Result<Inherited> {
     let Some(gid) = group_id else {
         return Ok(Inherited::default());
     };
-    let (ssh, group_path) = store.resolve_group_ssh(gid)?;
+    let vault = store.require::<Group>(gid)?.vault_id;
+    inherited_for(store, vault, Some(gid), &[])
+}
+
+/// What a host in `group_id` carrying `tag_ids` inherits from its group
+/// chain and tags (groups win over tags). Tags from another vault are
+/// ignored, as the resolver ignores them.
+pub fn inherited_for(
+    store: &Store,
+    vault_id: Uuid,
+    group_id: Option<Uuid>,
+    tag_ids: &[Uuid],
+) -> Result<Inherited> {
+    if let Some(gid) = group_id
+        && store.require::<Group>(gid)?.vault_id != vault_id
+    {
+        return Err(ClientError::invalid("group belongs to another vault"));
+    }
+    let d = store.resolve_defaults(vault_id, group_id, tag_ids)?;
+    let ssh = d.ssh;
+    let group_path = d.group_path;
     let identity = match ssh.identity_id {
         Some(i) => store.get::<Identity>(i)?,
         None => None,
@@ -2051,13 +2191,18 @@ pub fn inherited(store: &Store, group_id: Option<Uuid>) -> Result<Inherited> {
         Some(i) if i.data.is_visible => (Some(i.id), Some(i.data.label.clone())),
         _ => (None, None),
     };
+    // Same fall-through as the resolver: an identity without a username
+    // logs in with the nearest one a lower layer sets.
+    let username = match &identity {
+        Some(i) if !i.data.username.is_empty() => Some(i.data.username.clone()),
+        Some(i) if i.data.ssh_id => None,
+        _ => d.username,
+    };
     Ok(Inherited {
         group_path,
+        tags: d.tags,
         port: ssh.port,
-        username: identity
-            .as_ref()
-            .map(|i| i.data.username.clone())
-            .filter(|u| !u.is_empty()),
+        username,
         has_password: identity.as_ref().is_some_and(|i| i.data.password.is_some()),
         has_totp: identity
             .as_ref()
@@ -2418,13 +2563,13 @@ fn copy_group_tree(
     if let Some(l) = label {
         f.label = l;
     }
-    if f.identity_id.is_none()
+    if f.defaults.identity_id.is_none()
         && let Some(cid) = src.data.ssh_config_id
         && let Some(cfg) = store.get::<SshConfig>(cid)?
         && let Some(iid) = cfg.data.identity_id
         && let Some(i) = store.get::<Identity>(iid)?
     {
-        f.password = i.data.password.clone();
+        f.defaults.password = i.data.password.clone();
     }
     let new_id = save_group_form(store, &f)?.id;
     let hosts: Vec<Entity<Host>> = store.list(Some(src.vault_id))?;
@@ -3091,6 +3236,7 @@ mod tests {
                 &Tag {
                     label: "prod".into(),
                     color: None,
+                    ..Default::default()
                 },
             )
             .unwrap();
@@ -3100,6 +3246,7 @@ mod tests {
                 &Tag {
                     label: "Production".into(),
                     color: Some("#10b981".into()),
+                    ..Default::default()
                 },
             )
             .unwrap();
@@ -3109,6 +3256,7 @@ mod tests {
                 &Tag {
                     label: "db".into(),
                     color: None,
+                    ..Default::default()
                 },
             )
             .unwrap();
@@ -3225,26 +3373,14 @@ mod tests {
                 label: "dc1".into(),
                 parent_id: None,
                 icon: None,
-                port: Some(2200),
-                username: "ops".into(),
-                password: Some("pw".into()),
-                ssh_key_id: None,
-                ssh_certificate_id: None,
-                identity_id: None,
-                has_password: false,
-                has_totp: false,
-                ssh_id: false,
-                ssh_id_key_type: None,
-                agent_forwarding: true,
-                forward_x11: false,
-                host_chain_id: None,
-                proxy_id: None,
-                env_variables: vec![("LANG".into(), "C".into())],
-                keep_alive_interval: None,
-                timeout: None,
-                totp_secret: None,
-                oidc_key_id: None,
-                transport_id: None,
+                defaults: SshDefaultsForm {
+                    port: Some(2200),
+                    username: "ops".into(),
+                    password: Some("pw".into()),
+                    agent_forwarding: true,
+                    env_variables: vec![("LANG".into(), "C".into())],
+                    ..Default::default()
+                },
             },
         )
         .unwrap();
@@ -3268,18 +3404,90 @@ mod tests {
 
         // Editing the group keeps the stored password and can drop defaults.
         let mut gf = group_form(&s, g.id).unwrap();
-        assert!(gf.has_password);
-        assert_eq!(gf.username, "ops");
-        gf.port = None;
-        gf.username = String::new();
-        gf.password = Some(String::new());
-        gf.agent_forwarding = false;
-        gf.env_variables.clear();
+        assert!(gf.defaults.has_password);
+        assert_eq!(gf.defaults.username, "ops");
+        gf.defaults.port = None;
+        gf.defaults.username = String::new();
+        gf.defaults.password = Some(String::new());
+        gf.defaults.agent_forwarding = false;
+        gf.defaults.env_variables.clear();
         let g2 = save_group_form(&s, &gf).unwrap();
         assert!(!g2.has_config);
         let ids: Vec<Entity<Identity>> = s.list(Some(vault)).unwrap();
         assert!(ids.iter().all(|i| i.data.username != "ops"));
         assert_eq!(cards(&s, Some(vault)).unwrap()[0].port, 22);
+    }
+
+    #[test]
+    fn tag_defaults_rank_below_groups_and_are_cleaned_up() {
+        let s = store();
+        let vault = s.local_vault().unwrap().id;
+        let tag_id = s
+            .insert(
+                vault,
+                &Tag {
+                    label: "ubuntu".into(),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        let mut tf = tag_form(&s, tag_id).unwrap();
+        assert!(tf.defaults.username.is_empty());
+        tf.priority = 3;
+        tf.defaults.username = "ubuntu".into();
+        tf.defaults.port = Some(2222);
+        tf.defaults.timeout = Some(5);
+        let info = save_tag_form(&s, &tf).unwrap();
+        assert!(info.has_config);
+        assert_eq!(info.priority, 3);
+
+        let g = save_group_form(
+            &s,
+            &GroupForm {
+                id: None,
+                vault_id: vault,
+                label: "dc1".into(),
+                parent_id: None,
+                icon: None,
+                defaults: SshDefaultsForm {
+                    port: Some(2200),
+                    ..Default::default()
+                },
+            },
+        )
+        .unwrap();
+
+        let inh = inherited_for(&s, vault, Some(g.id), &[tag_id]).unwrap();
+        assert_eq!(inh.port, Some(2200), "group beats tag");
+        assert_eq!(inh.timeout, Some(5));
+        assert_eq!(inh.username.as_deref(), Some("ubuntu"));
+        assert_eq!(inh.tags, vec!["ubuntu"]);
+
+        let mut f = new_form(vault);
+        f.group_id = Some(g.id);
+        f.tag_ids = vec![tag_id];
+        f.port = None;
+        f.username = String::new();
+        f.password = None;
+        let card = save(&s, &f).unwrap();
+        assert_eq!(card.port, 2200);
+        assert_eq!(card.username, "ubuntu");
+
+        // Clearing the tag's settings removes its config and inline identity.
+        let mut tf = tag_form(&s, tag_id).unwrap();
+        assert_eq!(tf.defaults.username, "ubuntu");
+        tf.defaults = SshDefaultsForm::default();
+        assert!(!save_tag_form(&s, &tf).unwrap().has_config);
+        let ids: Vec<Entity<Identity>> = s.list(Some(vault)).unwrap();
+        assert!(ids.iter().all(|i| i.data.username != "ubuntu"));
+
+        // Deleting a tag takes its settings with it.
+        let mut tf = tag_form(&s, tag_id).unwrap();
+        tf.defaults.port = Some(2022);
+        save_tag_form(&s, &tf).unwrap();
+        let configs = s.list::<SshConfig>(Some(vault)).unwrap().len();
+        tag_delete(&s, tag_id).unwrap();
+        assert_eq!(s.list::<SshConfig>(Some(vault)).unwrap().len(), configs - 1);
     }
 
     #[test]

@@ -4,10 +4,10 @@
 use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
-use rusqlite::{OptionalExtension, params};
-use serde::{Deserialize, Serialize};
 use labterm_crypto::aead::{self, Aad};
 use labterm_proto::sync::{HistoryEntry, HistoryKind};
+use rusqlite::{OptionalExtension, params};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::{EntityFilter, Store, parse_time, parse_uuid};

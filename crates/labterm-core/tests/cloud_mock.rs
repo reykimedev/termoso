@@ -12,11 +12,11 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Form, Router};
-use serde_json::json;
 use labterm_core::cloud::{
     AddressType, AwsConfig, AwsService, AzureConfig, CloudClient, CloudConfig, CloudError,
     DigitalOceanConfig, Endpoints,
 };
+use serde_json::json;
 use zeroize::Zeroizing;
 
 const DO_TOKEN: &str = "dop_v1_validtoken";

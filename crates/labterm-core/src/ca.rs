@@ -5,8 +5,8 @@
 //! the certificate first; everything else about the identity stays as is.
 
 use chrono::{DateTime, Duration, Utc};
-use serde::{Deserialize, Serialize};
 use labterm_proto::ca::{IssueCertificateRequest, IssueCertificateResponse};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use zeroize::Zeroizing;
 

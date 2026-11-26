@@ -11,7 +11,7 @@ name: Android debug channel
 
 on:
   push:
-    branches: [feat/opkssh-certificates, claude/project-thread-njhe8q]
+    branches: [main]
   workflow_dispatch:
 
 permissions:

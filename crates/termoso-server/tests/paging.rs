@@ -3,10 +3,10 @@
 
 mod common;
 use common::*;
-use reqwest::{Method, StatusCode};
 use labterm_proto::admin::{AdminTeamAuditList, AdminTeamMemberList};
 use labterm_proto::logs::LogListResponse;
 use labterm_proto::team::{InviteList, TeamMemberList};
+use reqwest::{Method, StatusCode};
 use uuid::Uuid;
 
 #[tokio::test]

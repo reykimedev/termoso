@@ -13,7 +13,6 @@ use std::collections::BTreeMap;
 use std::sync::{Arc, LazyLock, Mutex, MutexGuard};
 use std::time::Duration;
 
-use russh::keys::ssh_key::PrivateKey;
 use labterm_client::keychain;
 use labterm_core::error::CoreError;
 use labterm_core::fido2::ctap::{self, Authenticator};
@@ -26,6 +25,7 @@ use labterm_core::fido2::{
 use labterm_core::keys::KeyMaterial;
 use labterm_core::model::SshKey;
 use labterm_core::store::Store;
+use russh::keys::ssh_key::PrivateKey;
 use uuid::Uuid;
 use zeroize::Zeroizing;
 
@@ -719,9 +719,9 @@ impl SkBackend for PhoneBackend {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::atomic::{AtomicUsize, Ordering};
     use labterm_core::fido2::soft::{HidWire, NfcTag, SoftToken, Touch};
     use labterm_crypto::keys::SymmetricKey;
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     /// A USB link over the soft token's CTAPHID wire.
     struct UsbCable(Mutex<HidWire>);

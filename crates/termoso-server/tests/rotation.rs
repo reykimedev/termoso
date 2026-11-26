@@ -2,12 +2,12 @@
 
 mod common;
 use common::*;
-use reqwest::{Method, StatusCode};
 use labterm_crypto::keys::SymmetricKey;
 use labterm_crypto::sealed;
 use labterm_proto::sync::{EntityChange, PushRequest, PushResponse, PushResult};
 use labterm_proto::team::{AuditEventList, RotationJob, RotationJobList, RotationOverview};
 use labterm_proto::vault::{CreateVaultRequest, Vault, VaultMemberUpsert, VaultRole};
+use reqwest::{Method, StatusCode};
 use uuid::Uuid;
 
 fn upsert(key: &SymmetricKey, u: &User, role: VaultRole) -> VaultMemberUpsert {

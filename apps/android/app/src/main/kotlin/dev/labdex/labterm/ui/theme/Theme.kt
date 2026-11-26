@@ -16,14 +16,14 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkScheme = darkColorScheme(
-    primary = Emerald,
-    onPrimary = Color.White,
-    primaryContainer = EmeraldDark,
-    onPrimaryContainer = Color.White,
+    primary = Lantern,
+    onPrimary = LanternInk,
+    primaryContainer = Color(0xFF3A2A14),
+    onPrimaryContainer = LanternLight,
     secondary = Sky,
-    onSecondary = Color.White,
-    secondaryContainer = Color(0xFF1E4A3C),
-    onSecondaryContainer = EmeraldLight,
+    onSecondary = LanternInk,
+    secondaryContainer = Color(0xFF3A2A14),
+    onSecondaryContainer = LanternLight,
     tertiary = Sky,
     background = DarkLayers.base,
     onBackground = DarkLayers.text,
@@ -39,19 +39,19 @@ private val DarkScheme = darkColorScheme(
     outline = DarkLayers.disabled,
     outlineVariant = DarkLayers.high,
     error = Danger,
-    onError = Color.White,
+    onError = LanternInk,
 )
 
 private val LightScheme = lightColorScheme(
-    primary = EmeraldDark,
-    onPrimary = Color.White,
-    primaryContainer = EmeraldLight,
-    onPrimaryContainer = LightLayers.text,
-    secondary = Sky,
+    primary = LanternDark,
+    onPrimary = LanternInk,
+    primaryContainer = Color(0xFFFCE3C2),
+    onPrimaryContainer = Color(0xFF5C3300),
+    secondary = SkyDark,
     onSecondary = Color.White,
-    secondaryContainer = Color(0xFFCFF0E3),
-    onSecondaryContainer = Color(0xFF0F5C42),
-    tertiary = Sky,
+    secondaryContainer = Color(0xFFFCE3C2),
+    onSecondaryContainer = Color(0xFF5C3300),
+    tertiary = SkyDark,
     background = LightLayers.base,
     onBackground = LightLayers.text,
     surface = LightLayers.base,
@@ -65,7 +65,7 @@ private val LightScheme = lightColorScheme(
     surfaceContainerHighest = LightLayers.strong,
     outline = LightLayers.disabled,
     outlineVariant = LightLayers.highest,
-    error = Danger,
+    error = DangerLight,
     onError = Color.White,
 )
 
@@ -76,7 +76,7 @@ val supportsDynamicColor: Boolean get() = Build.VERSION.SDK_INT >= Build.VERSION
  * `appTheme` is `system` / `dark` / `light` — same values as
  * `MobileSettings.appTheme`. With [dynamicColor] the palette follows the
  * wallpaper on Android 12+; older devices and the setting off use the fixed
- * emerald scheme.
+ * Labterm (labdex orange) scheme.
  */
 @Composable
 fun LabtermTheme(
@@ -94,7 +94,7 @@ fun LabtermTheme(
         dynamicColor && supportsDynamicColor ->
             (if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context))
                 // Row dividers use outlineVariant; the Material You palette makes it a
-                // visible line, while the Termoso schemes keep it one surface layer away
+                // visible line, while the Labterm schemes keep it one surface layer away
                 // (barely there). Match that so sections look the same in both modes.
                 .let { it.copy(outlineVariant = it.surfaceContainer) }
         dark -> DarkScheme

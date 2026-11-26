@@ -108,9 +108,9 @@ jobs:
             --jq ".[] | select(.tag_name == \"$GITHUB_REF_NAME\") | .id" | head -1)
           if [ -z "$id" ]; then
             id=$(gh api --method POST "repos/$GITHUB_REPOSITORY/releases" \
-              -f tag_name="$GITHUB_REF_NAME" -f name="Termoso $GITHUB_REF_NAME" \
+              -f tag_name="$GITHUB_REF_NAME" -f name="Labterm $GITHUB_REF_NAME" \
               -F draft=true -F prerelease=${{ contains(github.ref_name, '-') }} \
-              -f body="Signed desktop builds of Termoso ${{ steps.v.outputs.version }}." --jq .id)
+              -f body="Signed desktop builds of Labterm ${{ steps.v.outputs.version }}." --jq .id)
           fi
           echo "draft release id=$id"
           echo "id=$id" >> "$GITHUB_OUTPUT"
@@ -253,13 +253,13 @@ jobs:
           # Only publish from a tag; a manual run just produces artifacts below.
           releaseId: ${{ github.ref_type == 'tag' && needs.version.outputs.release_id || '' }}
           tagName: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
-          releaseName: ${{ github.ref_type == 'tag' && format('Termoso {0}', github.ref_name) || '' }}
+          releaseName: ${{ github.ref_type == 'tag' && format('Labterm {0}', github.ref_name) || '' }}
           releaseDraft: true
           prerelease: ${{ contains(github.ref_name, '-') }}
           uploadUpdaterJson: true
           updaterJsonPreferNsis: true
           releaseBody: |
-            Signed desktop builds of Termoso ${{ needs.version.outputs.version }}.
+            Signed desktop builds of Labterm ${{ needs.version.outputs.version }}.
 
             Every installer ships with a minisign `.sig`; the app verifies it against the
             public key compiled into the binary before installing an update. `latest.json`
@@ -274,7 +274,7 @@ jobs:
 
             macOS: `_aarch64.dmg` is for Apple Silicon, `_x64.dmg` for Intel. Unless this
             repository has a Developer ID configured, the builds are ad-hoc signed and not
-            notarized: after dragging Termoso to Applications run
+            notarized: after dragging Labterm to Applications run
             `xattr -cr /Applications/Labterm.app` once (or right-click → Open) — see
             docs/RELEASING.md.
 

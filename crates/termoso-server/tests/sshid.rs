@@ -4,10 +4,10 @@
 mod common;
 
 use common::*;
-use reqwest::{Method, StatusCode};
 use labterm_crypto::encoding::b64;
 use labterm_proto::auth::AuthResponse;
 use labterm_proto::sshid::*;
+use reqwest::{Method, StatusCode};
 
 macro_rules! server {
     () => {

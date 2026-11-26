@@ -16,11 +16,11 @@
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use serde::{Deserialize, Serialize};
 use labterm_crypto::aead::{self, Aad};
 use labterm_crypto::encoding::{b64, unb64};
 use labterm_crypto::kdf::{self, PASSWORD_SALT_LEN, PasswordParams};
 use labterm_crypto::keys::SymmetricKey;
+use serde::{Deserialize, Serialize};
 use zeroize::Zeroizing;
 
 use crate::error::{CoreError, Result};

@@ -13,13 +13,13 @@ use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Duration;
 
-use sqlx::Connection;
-use sqlx::postgres::PgConnection;
 use labterm_core::account::{self, LoginFlow, LoginStep, RegisterInput, SignedIn};
 use labterm_core::api::ApiClient;
 use labterm_core::store::Store;
 use labterm_crypto::keys::SymmetricKey;
 use labterm_proto::auth::{DeviceInfo, Platform};
+use sqlx::Connection;
+use sqlx::postgres::PgConnection;
 use termoso_server::Inner;
 use termoso_server::config::{Config, S3Config, SmtpConfig, SmtpSecurity};
 use uuid::Uuid;

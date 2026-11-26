@@ -40,7 +40,7 @@ targets:
     info:
       path: Labterm/Resources/Info.plist
       properties:
-        CFBundleDisplayName: Termoso
+        CFBundleDisplayName: Labterm
         CFBundleName: Labterm
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
@@ -50,7 +50,7 @@ targets:
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
         ITSAppUsesNonExemptEncryption: false
-        NSLocalNetworkUsageDescription: Termoso connects to SSH servers on your local network.
+        NSLocalNetworkUsageDescription: Labterm connects to SSH servers on your local network.
         LSApplicationCategoryType: public.app-category.developer-tools
     settings:
       base:

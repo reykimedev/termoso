@@ -2,9 +2,9 @@
 
 mod common;
 use common::*;
-use reqwest::{Method, StatusCode};
 use labterm_proto::auth::AuthResponse;
 use labterm_proto::team::{AuditEventList, TeamDeviceList};
+use reqwest::{Method, StatusCode};
 use uuid::Uuid;
 
 /// Sign in and, when the server asks for the e-mail device approval, complete it

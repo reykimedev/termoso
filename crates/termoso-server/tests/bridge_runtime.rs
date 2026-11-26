@@ -7,9 +7,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use common::*;
-use reqwest::{Method, StatusCode};
-use termoso_bridge::credentials::parse_credentials;
-use termoso_bridge::{Bridge, RestConfig, router};
 use labterm_crypto::aead::{self, Aad};
 use labterm_crypto::keys::KeyPair;
 use labterm_crypto::sealed;
@@ -19,6 +16,9 @@ use labterm_proto::sync::{PullRequest, PullResponse};
 use labterm_proto::vault::{
     RotateVaultKeyRequest, RotateVaultKeyResponse, SealedKeyFor, VaultList,
 };
+use reqwest::{Method, StatusCode};
+use termoso_bridge::credentials::parse_credentials;
+use termoso_bridge::{Bridge, RestConfig, router};
 use uuid::Uuid;
 
 macro_rules! server {

@@ -6,9 +6,6 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
-use tauri::ipc::{Channel, InvokeResponseBody};
-use tauri::{AppHandle, Emitter, Manager, Runtime};
 use labterm_core::error::CoreError;
 use labterm_core::fido2::{self, Fido2Error};
 use labterm_core::hostkey::KnownHosts;
@@ -24,6 +21,9 @@ use labterm_core::ssh::{
 use labterm_core::store::{ConnectionHistory, LocalVaultKind, LogMeta};
 use labterm_core::telnet::{TelnetOptions, TelnetTerminal};
 use labterm_core::terminal::{SharedTerminal, TermEvent, TermEvents, TermSize};
+use serde::{Deserialize, Serialize};
+use tauri::ipc::{Channel, InvokeResponseBody};
+use tauri::{AppHandle, Emitter, Manager, Runtime};
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
@@ -2032,7 +2032,9 @@ fn remember_on_identity(
     };
     let result = (|| -> labterm_core::error::Result<()> {
         if let Some(ident) = &resolved.identity {
-            let mut data = ident.data.clone();
+            // Re-read: the resolved copy may carry a username that falls
+            // through from a tag, which must not be written into this one.
+            let mut data = store.require::<Identity>(ident.id)?.data;
             edit(&mut data);
             return store.update(ident.id, &data);
         }

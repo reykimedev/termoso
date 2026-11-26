@@ -6,9 +6,9 @@ mod common;
 
 use common::oidc::{self, Identity};
 use common::*;
-use reqwest::{Method, StatusCode, redirect::Policy};
 use labterm_proto::admin::{AdminUpdateUserRequest, AdminUser};
 use labterm_proto::auth::{AuthResponse, SsoKind, SsoProvider, SsoResult, SsoStartResponse};
+use reqwest::{Method, StatusCode, redirect::Policy};
 use termoso_server::config::{Config, SsoKindConfig, SsoProviderConfig};
 use termoso_server::saml::test_support as saml_support;
 use termoso_server::sso::SsoRegistry;

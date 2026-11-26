@@ -17,10 +17,10 @@ use labterm_client::oidc::{self, OpenBrowser, PreConnect};
 use labterm_core::error::CoreError;
 use labterm_core::hostkey::{HostKeyDecision, HostKeyPrompt, HostKeyVerdict, KnownHosts};
 use labterm_core::keys::KeyAlgorithm;
+use labterm_core::labterm_crypto::keys::SymmetricKey;
 use labterm_core::model::{Entity, OidcKeyOptions, OidcProvider, SshKey};
 use labterm_core::ssh::{AuthMethod, ConnectOptions, SshClient, SshTarget};
 use labterm_core::store::Store;
-use labterm_core::labterm_crypto::keys::SymmetricKey;
 use labterm_oidc_cert::reqwest;
 use zeroize::Zeroizing;
 

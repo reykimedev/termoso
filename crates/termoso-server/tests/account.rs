@@ -7,7 +7,6 @@ mod common;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use common::*;
-use reqwest::{Method, StatusCode};
 use labterm_crypto::aead::{self, Aad};
 use labterm_crypto::kdf::{Label, derive_key};
 use labterm_crypto::keys::{KeyPair, SymmetricKey};
@@ -21,6 +20,7 @@ use labterm_proto::auth::{
     Session, WebauthnChallengeRequest,
 };
 use labterm_proto::team::{CreateTeamRequest, Team};
+use reqwest::{Method, StatusCode};
 
 macro_rules! server_with_mail {
     () => {

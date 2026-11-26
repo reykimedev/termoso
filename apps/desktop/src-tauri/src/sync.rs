@@ -14,11 +14,11 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use chrono::{DateTime, Utc};
+use labterm_core::remote::RemoteFs;
+use labterm_core::sftp::{EntryKind, RemoteEntry, TransferOptions};
 use notify::Watcher;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, Runtime};
-use labterm_core::remote::RemoteFs;
-use labterm_core::sftp::{EntryKind, RemoteEntry, TransferOptions};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 

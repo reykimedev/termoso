@@ -11,7 +11,6 @@ use std::time::Duration;
 
 use chrono::Utc;
 use common::{Device, login, register, unique_email};
-use serde_json::json;
 use labterm_core::account::{self, LoginFlow, LoginStep};
 use labterm_core::model::{Host, Identity};
 use labterm_core::store::{CommandHistory, EntityFilter, LogMeta};
@@ -21,6 +20,7 @@ use labterm_crypto::sealed::{seal_vault_key, seal_vault_key_self};
 use labterm_proto::auth::MfaCredential;
 use labterm_proto::error::codes;
 use labterm_proto::vault::{RotateVaultKeyRequest, SealedKeyFor};
+use serde_json::json;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 

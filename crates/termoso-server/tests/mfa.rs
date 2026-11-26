@@ -5,7 +5,6 @@
 mod common;
 
 use common::*;
-use reqwest::{Method, StatusCode};
 use labterm_core::fido2::Fido2Error;
 use labterm_core::fido2::ctap::Authenticator;
 use labterm_core::fido2::soft::{Config, SoftToken};
@@ -15,6 +14,7 @@ use labterm_proto::auth::{
     AuthResponse, BackupCodes, MfaCredential, MfaMethod, MfaStatus, MfaVerifyRequest,
     TotpCodeRequest, TotpSetupResponse, WebauthnChallengeRequest, WebauthnRegisterFinishRequest,
 };
+use reqwest::{Method, StatusCode};
 use totp_rs::{Algorithm, Secret, Totp};
 use uuid::Uuid;
 

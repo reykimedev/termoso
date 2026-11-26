@@ -8,10 +8,10 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use chrono::{DateTime, Utc};
-use rusqlite::{OptionalExtension, params};
-use serde::{Deserialize, Serialize};
 use labterm_crypto::aead::{self, Aad};
 use labterm_proto::logs::{LogAuthor, SessionLog};
+use rusqlite::{OptionalExtension, params};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::{Store, parse_time, parse_uuid};

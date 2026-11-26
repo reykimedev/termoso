@@ -4,11 +4,11 @@
 
 use std::collections::HashSet;
 
-use sqlx::PgExecutor;
 use labterm_proto::error::codes;
 use labterm_proto::team::{
     CLIENT_ENFORCED_PERMISSIONS, PERMISSIONS, PermissionInfo, RoleRef, TeamRole,
 };
+use sqlx::PgExecutor;
 use uuid::Uuid;
 
 use crate::error::{ApiResult, Error};

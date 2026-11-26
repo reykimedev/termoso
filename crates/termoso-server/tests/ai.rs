@@ -4,9 +4,9 @@
 mod common;
 
 use common::*;
-use reqwest::{Method, StatusCode};
 use labterm_proto::account::ServerInfo;
 use labterm_proto::ai::{AiCommandRequest, AiCommandResponse, AiSettingsRequest, AiStatus};
+use reqwest::{Method, StatusCode};
 
 macro_rules! server {
     () => {

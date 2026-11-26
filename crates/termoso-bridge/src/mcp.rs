@@ -12,9 +12,9 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use labterm_proto::entities::payload::{Group, Host, Identity, SshConfig, Tag};
 use serde::Deserialize;
 use serde_json::{Value, json};
-use labterm_proto::entities::payload::{Group, Host, Identity, SshConfig, Tag};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use uuid::Uuid;
 

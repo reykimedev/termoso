@@ -6,11 +6,11 @@ use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
-use serde::{Deserialize, Serialize};
 use labterm_core::secrets::{self, MasterKeySource};
 use labterm_core::store::Store;
 use labterm_core::sync::ConflictPolicy;
 use labterm_core::terminal::MAX_SCROLLBACK_LINES;
+use serde::{Deserialize, Serialize};
 
 use crate::account::AccountRuntime;
 use crate::edits::Edits;

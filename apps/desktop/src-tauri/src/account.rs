@@ -7,8 +7,6 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter, Manager, Runtime};
 use labterm_core::account::{
     self as core, LoginFlow, LoginStep, ReauthFlow, ReauthStep, RegisterInput,
 };
@@ -19,6 +17,8 @@ use labterm_proto::account::ServerInfo;
 use labterm_proto::auth::{Device, MfaCredential, MfaMethod, SsoResult};
 use labterm_proto::entities::is_credential_kind;
 use labterm_proto::vault::VaultMember;
+use serde::{Deserialize, Serialize};
+use tauri::{AppHandle, Emitter, Manager, Runtime};
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
@@ -284,7 +284,7 @@ fn device_name() -> String {
         .ok()
         .and_then(|h| h.into_string().ok())
         .filter(|h| !h.trim().is_empty())
-        .unwrap_or_else(|| "Termoso Desktop".into())
+        .unwrap_or_else(|| "Labterm Desktop".into())
 }
 
 fn device(state: &AppState) -> Result<labterm_proto::auth::DeviceInfo> {

@@ -391,7 +391,7 @@ export function SetupOpksshDialog({
             value={principal}
             onChange={(e) => setPrincipal(e.target.value)}
             label={tr("Unix user (optional)")}
-            helperText={tr("Default: the user Termoso logs in as on that host.")}
+            helperText={tr("Default: the user Labterm logs in as on that host.")}
           />
           <TextField
             value={identity}

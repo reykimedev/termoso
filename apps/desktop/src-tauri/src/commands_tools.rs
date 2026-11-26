@@ -1,12 +1,11 @@
 //! IPC surface for keychain, port forwarding, snippets, known hosts, logs
 //! and account/sync. Thin adapters; the façades own validation and secrets.
 
-use std::collections::HashMap;
 use labterm_proto::team as proto;
+use std::collections::HashMap;
 
 use serde::Deserialize;
 
-use tauri::{AppHandle, Emitter, Manager, Runtime, State};
 use labterm_client::oidc;
 use labterm_client::trust::HostKeyPin;
 use labterm_core::model::{Entity, OidcKeyOptions, OidcProvider, SshKey};
@@ -16,6 +15,7 @@ use labterm_proto::ai::{AiCommandResponse, AiStatus};
 use labterm_proto::auth::{Device, MfaCredential};
 use labterm_proto::team::{Invite, Team, TeamPresence, TeamRole};
 use labterm_proto::vault::{VaultMember, VaultRole};
+use tauri::{AppHandle, Emitter, Manager, Runtime, State};
 use uuid::Uuid;
 use zeroize::Zeroizing;
 

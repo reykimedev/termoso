@@ -227,7 +227,7 @@ export function OpksshKeyPanel({
         />
         <Typography variant="caption" color="text.secondary">
           {tr(
-            "Stores no private key. Before connecting, your browser opens the provider's sign-in page and Termoso gets a fresh key with a short-lived opkssh certificate. Hosts accept it with opkssh verify.",
+            "Stores no private key. Before connecting, your browser opens the provider's sign-in page and Labterm gets a fresh key with a short-lived opkssh certificate. Hosts accept it with opkssh verify.",
           )}
         </Typography>
       </SectionCard>

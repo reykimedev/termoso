@@ -9,12 +9,12 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use serde::Serialize;
 use labterm_core::hostkey::{FixedPrompt, HostKeyDecision, KnownHosts, StrictPrompt};
 use labterm_core::ssh::{AuthMethod, ConnectOptions, SshClient, SshTarget};
 use labterm_core::store::Store;
 use labterm_crypto::keys::SymmetricKey;
 use labterm_proto::entities::payload::{Group, Host, Identity, KnownHost, SshConfig, SshKey};
+use serde::Serialize;
 use uuid::Uuid;
 use zeroize::Zeroizing;
 

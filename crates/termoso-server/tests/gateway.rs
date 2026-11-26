@@ -5,11 +5,11 @@ mod common;
 
 use common::*;
 use futures::{SinkExt, StreamExt};
-use reqwest::Method;
 use labterm_crypto::keys::{KeyPair, SymmetricKey};
 use labterm_crypto::sealed;
 use labterm_proto::bridge::{BridgeVaultKey, CreateBridgeRequest};
 use labterm_proto::vault::{CreateVaultRequest, VaultMemberUpsert, VaultRole};
+use reqwest::Method;
 use tokio_tungstenite::tungstenite::Message;
 use uuid::Uuid;
 

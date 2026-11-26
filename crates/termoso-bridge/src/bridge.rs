@@ -4,7 +4,6 @@
 use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
-use serde::Serialize;
 use labterm_crypto::keys::KeyPair;
 use labterm_crypto::sealed;
 use labterm_proto::bridge::BridgeSelf;
@@ -12,6 +11,7 @@ use labterm_proto::entities::payload::{
     Group, Host, Identity, S3Config, Snippet, SshConfig, SshKey, Tag, TelnetConfig, WebDavConfig,
 };
 use labterm_proto::sync::{EntityChange, EntityDelete, PullRequest, PushRequest, PushResult};
+use serde::Serialize;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
@@ -874,6 +874,7 @@ fn plan_host(v: &VaultState, external_id: &str, req: &HostRequest) -> Result<Pla
                     &Tag {
                         label: t.to_string(),
                         color: None,
+                        ..Default::default()
                     },
                 )?;
                 id

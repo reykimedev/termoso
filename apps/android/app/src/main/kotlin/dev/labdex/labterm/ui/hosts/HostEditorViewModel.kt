@@ -202,7 +202,7 @@ class HostEditorViewModel(
                     proxies = proxies(draft.vaultId),
                     chains = hostChains(draft.vaultId),
                     hosts = hosts(draft.vaultId),
-                    inherited = inherited(draft.groupId),
+                    inherited = inheritedFor(draft.vaultId, draft.groupId, draft.tagIds),
                     fileCache = if (hostId != null) fileCacheSettings(hostId) else DEFAULT_FILE_CACHE,
                 )
             }
@@ -431,14 +431,21 @@ class HostEditorViewModel(
 
     fun setGroup(groupId: String?) {
         update { it.copy(groupId = groupId) }
-        viewModelScope.launch {
-            runCatching { repo.read { inherited(groupId) } }
-                .onSuccess { inh -> _state.update { it.copy(inherited = inh) } }
-        }
+        refreshInherited()
     }
 
-    fun toggleTag(tagId: String) = update {
-        it.copy(tagIds = if (tagId in it.tagIds) it.tagIds - tagId else it.tagIds + tagId)
+    fun toggleTag(tagId: String) {
+        update { it.copy(tagIds = if (tagId in it.tagIds) it.tagIds - tagId else it.tagIds + tagId) }
+        refreshInherited()
+    }
+
+    /** Placeholders follow the group and the tags (tags can carry settings too). */
+    private fun refreshInherited() {
+        val d = _state.value.draft ?: return
+        viewModelScope.launch {
+            runCatching { repo.read { inheritedFor(d.vaultId, d.groupId, d.tagIds) } }
+                .onSuccess { inh -> _state.update { it.copy(inherited = inh) } }
+        }
     }
 
     fun createTag(label: String) {

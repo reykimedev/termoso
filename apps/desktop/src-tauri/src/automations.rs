@@ -6,11 +6,11 @@
 use std::collections::HashSet;
 use std::time::Duration;
 
-use tauri::{AppHandle, Manager, Runtime};
 use labterm_core::model::{Group, Host, Snippet};
 use labterm_crypto::aead::{self, Aad};
 use labterm_crypto::keys::SymmetricKey;
 use labterm_proto::automation::*;
+use tauri::{AppHandle, Manager, Runtime};
 use uuid::Uuid;
 
 use crate::account::api;

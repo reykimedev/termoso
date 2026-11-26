@@ -73,7 +73,7 @@ const KIND_BLURB: Record<PfKind, string> = {
     "Remote port forwarding opens a port on the remote host and forwards connections made to it back through this device to the destination.",
   ),
   dynamic: msg(
-    "Dynamic port forwarding turns Termoso into a SOCKS proxy server. SOCKS proxy server is a protocol to request any connection via a remote host.",
+    "Dynamic port forwarding turns Labterm into a SOCKS proxy server. SOCKS proxy server is a protocol to request any connection via a remote host.",
   ),
 };
 
@@ -588,7 +588,7 @@ export function RuleEditor({
               disabled={readOnly}
             />
           }
-          label={tr("Start automatically when Termoso launches")}
+          label={tr("Start automatically when Labterm launches")}
         />
 
         {!rule && (

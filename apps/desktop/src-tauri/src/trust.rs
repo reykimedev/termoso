@@ -3,10 +3,10 @@
 //! (`prompts.rs`); this façade never accepts a key on the UI's behalf.
 
 use chrono::{DateTime, Utc};
-use serde::Serialize;
 use labterm_core::hostkey::KnownHosts;
 use labterm_core::model::KnownHost;
 use labterm_core::store::Store;
+use serde::Serialize;
 use uuid::Uuid;
 
 use crate::error::{DesktopError, Result};

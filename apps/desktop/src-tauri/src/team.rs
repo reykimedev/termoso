@@ -2,17 +2,15 @@
 //! here with the account keypair from the store; the webview only sees teams,
 //! members, roles, invitation links and pending states.
 
-use std::collections::HashMap;
 use labterm_proto::team as proto;
+use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter, Manager, Runtime};
 use labterm_core::account as core;
 use labterm_core::api::{ApiClient, AuditQuery};
-use labterm_core::store::LocalVaultKind;
 use labterm_core::labterm_crypto::keys::{SymmetricKey, public_key_from_b64};
 use labterm_core::labterm_crypto::sealed;
+use labterm_core::store::LocalVaultKind;
 use labterm_proto::team::{
     AuditEvent, CreateInviteRequest, CreateTeamRequest, Invite, Team, TeamRole,
     UpdateTeamMemberRequest, UpdateTeamRequest,
@@ -21,6 +19,8 @@ use labterm_proto::vault::{
     CreateVaultRequest, RotateVaultKeyRequest, SealedKeyFor, UpdateVaultRequest, VaultMemberUpsert,
     VaultRole,
 };
+use serde::{Deserialize, Serialize};
+use tauri::{AppHandle, Emitter, Manager, Runtime};
 use uuid::Uuid;
 
 use crate::account::{SYNC_EVENT, SyncNotice, api};

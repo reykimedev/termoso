@@ -1,9 +1,9 @@
 //! Mobile settings, stored as JSON in the encrypted store's metadata so they
 //! travel with the vault backup and never sit in plain `SharedPreferences`.
 
-use serde::{Deserialize, Serialize};
 use labterm_core::store::Store;
 use labterm_core::terminal::clamp_scrollback;
+use serde::{Deserialize, Serialize};
 
 use crate::error::Result;
 

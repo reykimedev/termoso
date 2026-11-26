@@ -3,8 +3,8 @@
 mod common;
 
 use common::*;
-use reqwest::{Method, StatusCode};
 use labterm_proto::auth::AuthResponse;
+use reqwest::{Method, StatusCode};
 
 struct Scim {
     base: String,

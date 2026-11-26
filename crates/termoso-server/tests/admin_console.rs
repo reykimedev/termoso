@@ -2,8 +2,8 @@
 
 mod common;
 use common::*;
-use reqwest::{Method, StatusCode};
 use labterm_proto::admin::{AdminJobList, AdminTeamDetail, AdminTeamList, AdminUserList};
+use reqwest::{Method, StatusCode};
 use uuid::Uuid;
 
 #[tokio::test]

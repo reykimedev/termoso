@@ -13,13 +13,13 @@
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-use serde::{Deserialize, Serialize};
 use labterm_core::model::{Entity, OidcKeyOptions, OidcProvider, SshKey};
 use labterm_core::ssh::AuthMethod;
 use labterm_core::store::Store;
 use labterm_oidc_cert::ssh_key::LineEnding;
 use labterm_oidc_cert::{CertOptions, ProviderConfig};
 use labterm_proto::entities::OPKSSH_KEY_TYPE;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use zeroize::Zeroizing;
 

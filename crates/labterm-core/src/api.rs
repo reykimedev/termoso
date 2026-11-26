@@ -11,10 +11,6 @@
 use std::sync::RwLock;
 use std::time::Duration;
 
-use percent_encoding::{NON_ALPHANUMERIC, utf8_percent_encode};
-use reqwest::{Method, RequestBuilder, Response, StatusCode};
-use serde::Serialize;
-use serde::de::DeserializeOwned;
 use labterm_proto::account::{
     AccountKeys, PresenceVisibilityRequest, ServerInfo, SettingsBlob, UpdateProfileRequest,
     UserProfile,
@@ -64,6 +60,10 @@ use labterm_proto::vault::{
     CreateVaultRequest, ResealMyKeyRequest, RotateVaultKeyRequest, RotateVaultKeyResponse,
     UpdateVaultRequest, Vault, VaultList, VaultMemberList, VaultMemberUpsert,
 };
+use percent_encoding::{NON_ALPHANUMERIC, utf8_percent_encode};
+use reqwest::{Method, RequestBuilder, Response, StatusCode};
+use serde::Serialize;
+use serde::de::DeserializeOwned;
 use url::Url;
 use uuid::Uuid;
 

@@ -5,7 +5,6 @@
 mod common;
 
 use common::*;
-use reqwest::{Method, StatusCode};
 use labterm_crypto::opaque;
 use labterm_proto::account::{SecurityEventList, UserProfile};
 use labterm_proto::auth::{
@@ -18,6 +17,7 @@ use labterm_proto::auth::{
 use labterm_proto::error::codes;
 use labterm_proto::sync::{EntityChange, PullRequest, PullResponse, PushRequest, PushResponse};
 use labterm_proto::vault::VaultList;
+use reqwest::{Method, StatusCode};
 use totp_rs::Totp;
 use uuid::Uuid;
 

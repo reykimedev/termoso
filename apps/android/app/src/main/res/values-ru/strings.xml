@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Termoso</string>
+    <string name="app_name">Labterm</string>
     <string name="no_vault_selected">Хранилище не выбрано.</string>
     <string name="the_vault_is_locked">Хранилище заблокировано.</string>
     <string name="authentication_failed">Ошибка аутентификации (%1$s).</string>
@@ -49,9 +49,9 @@
     <string name="active_sessions_2">Активные сессии</string>
     <string name="notif_forwarding_for">Проброс портов · %1$s</string>
     <string name="shown_while_a_terminal_is_connected_so_the">Показывается, пока терминал подключён, чтобы соединение сохранялось в фоне.</string>
-    <string name="unlock_termoso">Разблокировать Termoso</string>
+    <string name="unlock_termoso">Разблокировать Labterm</string>
     <string name="use_your_fingerprint_or_screen_lock">Используйте отпечаток пальца или блокировку экрана</string>
-    <string name="termoso_is_locked">Termoso заблокирован</string>
+    <string name="termoso_is_locked">Labterm заблокирован</string>
     <string name="unlock_with_your_fingerprint_or_screen_lock_to">Разблокируйте отпечатком пальца или блокировкой экрана, чтобы продолжить.</string>
     <string name="the_encrypted_vault_is_closed_unlock_to_continue">Зашифрованное хранилище закрыто. Разблокируйте, чтобы продолжить.</string>
     <string name="unlock">Разблокировать</string>
@@ -192,8 +192,8 @@
     <string name="the_key_signs_a_one_time_challenge_from">Ключ подписывает одноразовый запрос сервера; PIN передаётся только самому ключу.</string>
     <string name="this_is_a_new_device_for_your_account">Это новое устройство для вашего аккаунта. Мы отправили код подтверждения на %1$s.</string>
     <string name="approve_device">Подтвердить устройство</string>
-    <string name="write_these_words_down_and_keep_them_somewhere">Запишите эти слова и храните их в надёжном месте. Это единственный способ вернуть доступ, если вы забудете мастер-пароль — Termoso не сможет сбросить его за вас. Фраза показывается один раз.</string>
-    <string name="termoso_recovery_phrase">Фраза восстановления Termoso</string>
+    <string name="write_these_words_down_and_keep_them_somewhere">Запишите эти слова и храните их в надёжном месте. Это единственный способ вернуть доступ, если вы забудете мастер-пароль — Labterm не сможет сбросить его за вас. Фраза показывается один раз.</string>
+    <string name="termoso_recovery_phrase">Фраза восстановления Labterm</string>
     <string name="copy">Копировать</string>
     <string name="i_have_saved_my_recovery_phrase">Я сохранил фразу восстановления</string>
     <string name="enter_your_server_address">Введите адрес сервера.</string>
@@ -525,7 +525,7 @@
     <string name="turn_on_nfc_and_hold_the_security_key">Включите NFC и поднесите ключ безопасности к задней панели телефона.</string>
     <string name="this_phone_has_neither_usb_host_nor_nfc">На этом телефоне нет ни USB-хоста, ни NFC, поэтому он не может работать с ключом безопасности.</string>
     <string name="waiting_for_a_security_key">Ожидание ключа безопасности…</string>
-    <string name="allow_termoso_to_use_the_usb_device_in">Разрешите Termoso использовать USB-устройство в системном диалоге.</string>
+    <string name="allow_termoso_to_use_the_usb_device_in">Разрешите Labterm использовать USB-устройство в системном диалоге.</string>
     <string name="nfc_security_key">NFC-ключ безопасности</string>
     <string name="rescan_usb">Пересканировать USB</string>
     <string name="pin_set">PIN задан</string>
@@ -692,15 +692,15 @@
     <string name="lock_vault_now">Заблокировать хранилище сейчас</string>
     <string name="disconnects_every_session_and_closes_the_encrypted_database">Отключает все сессии и закрывает зашифрованную базу данных</string>
     <string name="about">О приложении</string>
-    <string name="termoso_for_android">Termoso для Android</string>
+    <string name="termoso_for_android">Labterm для Android</string>
     <string name="core">%1$s · ядро %2$s</string>
     <string name="privacy">Конфиденциальность</string>
     <string name="no_telemetry_no_analytics_no_accounts_required">Без телеметрии, без аналитики, аккаунт не требуется</string>
     <string name="source_code">Исходный код</string>
     <string name="agpl_licensed_on_github">Лицензия AGPL, на GitHub</string>
     <string name="open_source_licenses">Лицензии открытого ПО</string>
-    <string name="termoso_reports_to_you_not_on_you_no">Termoso докладывает вам, а не на вас.\n\n• Никакой телеметрии, отчётов о сбоях и аналитических SDK — в приложении их нет.\n• Хосты, ключи, пароли и настройки живут в зашифрованной базе данных на этом устройстве; ключ обёрнут Android Keystore и никогда не записывается в открытом виде.\n• Закрытые ключи покидают устройство только тогда, когда вы сами их экспортируете.\n• При входе на сервер Termoso (Termoso Cloud или ваш собственный) синхронизируются только данные со сквозным шифрованием — сервер не может прочитать ваше хранилище.\n• Никакой рекламы, тарифов и допродаж. Свободное ПО, навсегда.</string>
-    <string name="termoso_agpl_3_0_bundled_terminal_fonts_jetbrains">Termoso — AGPL-3.0.\n\nВстроенные шрифты терминала:\n• JetBrains Mono — SIL Open Font License 1.1\n• Fira Code — SIL Open Font License 1.1\n• Source Code Pro — SIL Open Font License 1.1\n• Ubuntu Mono — Ubuntu Font Licence 1.0\n\nПолные тексты находятся в apps/android/licenses в дереве исходников. Уведомления о библиотеках Rust и Android перечислены в репозитории.\n\nОкружение Linux (встроенные нативные бинарники, запускаются отдельными процессами):\n• PRoot 5.1.107 (сборка Termux) — GPL-2.0\n• talloc 2.5.0 — LGPL-3.0\n• libandroid-shmem 0.7 — MIT\nПодробности и исходники: res/raw/license_proot.txt. Корневые ФС (Alpine, Ubuntu) скачиваются с зеркал дистрибутивов и не входят в приложение.</string>
+    <string name="termoso_reports_to_you_not_on_you_no">Labterm докладывает вам, а не на вас.\n\n• Никакой телеметрии, отчётов о сбоях и аналитических SDK — в приложении их нет.\n• Хосты, ключи, пароли и настройки живут в зашифрованной базе данных на этом устройстве; ключ обёрнут Android Keystore и никогда не записывается в открытом виде.\n• Закрытые ключи покидают устройство только тогда, когда вы сами их экспортируете.\n• При входе на сервер Termoso (Termoso Cloud или ваш собственный) синхронизируются только данные со сквозным шифрованием — сервер не может прочитать ваше хранилище.\n• Никакой рекламы, тарифов и допродаж. Свободное ПО, навсегда.</string>
+    <string name="termoso_agpl_3_0_bundled_terminal_fonts_jetbrains">Labterm — AGPL-3.0. Форк Termoso от участников проекта Termoso (github.com/termoso/termoso), часть labdex.\n\nВстроенные шрифты терминала:\n• JetBrains Mono — SIL Open Font License 1.1\n• Fira Code — SIL Open Font License 1.1\n• Source Code Pro — SIL Open Font License 1.1\n• Ubuntu Mono — Ubuntu Font Licence 1.0\n\nПолные тексты находятся в apps/android/licenses в дереве исходников. Уведомления о библиотеках Rust и Android перечислены в репозитории.\n\nОкружение Linux (встроенные нативные бинарники, запускаются отдельными процессами):\n• PRoot 5.1.107 (сборка Termux) — GPL-2.0\n• talloc 2.5.0 — LGPL-3.0\n• libandroid-shmem 0.7 — MIT\nПодробности и исходники: res/raw/license_proot.txt. Корневые ФС (Alpine, Ubuntu) скачиваются с зеркал дистрибутивов и не входят в приложение.</string>
     <string name="terminal_appearance">Внешний вид терминала</string>
     <string name="font">Шрифт</string>
     <string name="size">Размер</string>
@@ -1069,18 +1069,18 @@
     <string name="ask_ai">Спросить ИИ</string>
     <string name="the_host_let_you_type_into_this_terminal">Хост разрешил вам вводить в этот терминал.</string>
     <string name="view_only_ask_the_host_for_control_to">Только просмотр. Попросите у хоста управление, чтобы вводить.</string>
-    <string name="let_others_watch_this_terminal_live_through_termoso">Позвольте другим смотреть этот терминал в реальном времени через Termoso со сквозным шифрованием. Вы решаете, кто может вводить; остановить можно в любой момент.</string>
+    <string name="let_others_watch_this_terminal_live_through_termoso">Позвольте другим смотреть этот терминал в реальном времени через Labterm со сквозным шифрованием. Вы решаете, кто может вводить; остановить можно в любой момент.</string>
     <string name="starting">Запуск…</string>
     <string name="start_sharing">Начать делиться</string>
     <string name="anyone_with_the_link_and_a_termoso_account">Смотреть может любой, у кого есть ссылка и аккаунт Termoso. Она содержит ключ сессии, поэтому делитесь ей только с теми, кому доверяете.</string>
-    <string name="termoso_link">Ссылка Termoso</string>
+    <string name="termoso_link">Ссылка Labterm</string>
     <string name="share">Поделиться</string>
     <string name="stop_sharing">Прекратить делиться</string>
     <string name="participants">Участники</string>
     <string name="participants_2">Участники · %1$s</string>
     <string name="nobody_has_joined_yet">Пока никто не присоединился.</string>
     <string name="can_type">может вводить</string>
-    <string name="join_my_terminal_in_termoso">Присоединяйтесь к моему терминалу в Termoso</string>
+    <string name="join_my_terminal_in_termoso">Присоединяйтесь к моему терминалу в Labterm</string>
     <string name="share_link">Поделиться ссылкой</string>
     <string name="paste_the_join_link_the_host_sent_you">Вставьте ссылку-приглашение, которую прислал хост. Вы будете смотреть его терминал; для ввода нужно его разрешение.</string>
     <string name="link">Ссылка</string>
@@ -1206,7 +1206,7 @@
     <string name="known_hosts_shared_by_all_vaults">Общие для всех хранилищ</string>
     <string name="local_vault">Локальное хранилище</string>
     <string name="personal_vault">Личное хранилище</string>
-    <string name="welcome_to_termoso">Добро пожаловать в Termoso</string>
+    <string name="welcome_to_termoso">Добро пожаловать в Labterm</string>
     <string name="free_open_source_ssh_client_end_to_end">Бесплатный SSH-клиент с открытым исходным кодом. Синхронизация со сквозным шифрованием, команды и трансляция терминала — без телеметрии.</string>
     <string name="create_a_free_account">Создать бесплатный аккаунт</string>
     <string name="termoso_cloud_is_completely_free_for_everyone_no">Termoso Cloud полностью бесплатен для всех — без ограничений, тарифов и скрытых условий. Или войдите на свой собственный сервер.</string>
@@ -1373,7 +1373,7 @@
     <!-- Files integration (storage access framework) -->
     <string name="files_integration">Интеграция с «Файлами»</string>
     <string name="files_show_sftp_hosts_in_files">Показывать SFTP-хосты в «Файлах»</string>
-    <string name="files_show_sftp_hosts_in_files_summary">Просматривайте, открывайте и сохраняйте файлы на своих SSH-хостах из системного приложения «Файлы» и любого приложения, работающего с документами. Показываются только хосты с включённым «Показывать в Файлах»; домашняя папка локального терминала есть всегда. К хостам, которым нужен пароль или подтверждение нового ключа, сначала подключитесь из Termoso.</string>
+    <string name="files_show_sftp_hosts_in_files_summary">Просматривайте, открывайте и сохраняйте файлы на своих SSH-хостах из системного приложения «Файлы» и любого приложения, работающего с документами. Показываются только хосты с включённым «Показывать в Файлах»; домашняя папка локального терминала есть всегда. К хостам, которым нужен пароль или подтверждение нового ключа, сначала подключитесь из Labterm.</string>
     <string name="show_in_files">Показывать в Файлах</string>
     <string name="show_in_files_summary">Показывать SFTP- и WebDAV-ресурсы этого хоста в системном приложении «Файлы» и других приложениях, работающих с документами</string>
     <string name="host_shell_integration">Интеграция с shell</string>
@@ -1382,20 +1382,20 @@
     <string name="host_shell_integration_off">Выключено для этого хоста</string>
     <string name="show_in_files_disabled_summary">Интеграция с Файлами выключена в настройках; хост останется скрыт, пока её не включить</string>
     <string name="asked_on_connect">Спрашивается при подключении</string>
-    <string name="files_locked_root_summary">Разблокируйте Termoso, чтобы открыть SFTP-хосты</string>
-    <string name="files_unlock_termoso_first">Сначала разблокируйте Termoso</string>
-    <string name="files_host_no_longer_exists">Этого хоста больше нет в Termoso</string>
+    <string name="files_locked_root_summary">Разблокируйте Labterm, чтобы открыть SFTP-хосты</string>
+    <string name="files_unlock_termoso_first">Сначала разблокируйте Labterm</string>
+    <string name="files_host_no_longer_exists">Этого хоста больше нет в Labterm</string>
     <string name="files_connection_timed_out">Время ожидания подключения истекло</string>
-    <string name="files_host_key_needs_confirmation">Подключитесь к %1$s из Termoso один раз, чтобы подтвердить ключ хоста</string>
-    <string name="files_host_needs_credentials">%1$s запрашивает пароль. Подключитесь из Termoso и выберите «Запомнить»</string>
-    <string name="files_host_needs_username">У %1$s не задано имя пользователя. Подключитесь из Termoso и выберите «Запомнить»</string>
-    <string name="files_host_needs_security_key">Для %1$s нужен ключ безопасности. Подключитесь из Termoso</string>
+    <string name="files_host_key_needs_confirmation">Подключитесь к %1$s из Labterm один раз, чтобы подтвердить ключ хоста</string>
+    <string name="files_host_needs_credentials">%1$s запрашивает пароль. Подключитесь из Labterm и выберите «Запомнить»</string>
+    <string name="files_host_needs_username">У %1$s не задано имя пользователя. Подключитесь из Labterm и выберите «Запомнить»</string>
+    <string name="files_host_needs_security_key">Для %1$s нужен ключ безопасности. Подключитесь из Labterm</string>
     <string name="files_invalid_name">Такое имя использовать нельзя</string>
     <string name="files_name_taken">%1$s здесь уже есть</string>
     <string name="files_cannot_remove_root">Корень хоста изменить нельзя</string>
     <string name="files_move_between_hosts">Перемещение между хостами не поддерживается; скопируйте файл</string>
     <string name="files_move_into_itself">Папку нельзя переместить в саму себя</string>
-    <string name="files_host_certificate_needs_confirmation">Подключитесь к %1$s из Termoso один раз, чтобы принять его сертификат</string>
+    <string name="files_host_certificate_needs_confirmation">Подключитесь к %1$s из Labterm один раз, чтобы принять его сертификат</string>
     <string name="files_copy_unsupported">Этот хост не умеет копировать файлы на сервере</string>
 
     <!-- WebDAV -->
@@ -1487,7 +1487,7 @@
     <string name="or">или</string>
     <string name="continue_with">Продолжить через %1$s</string>
     <string name="sso_finish_in_browser">Завершите вход через %1$s в браузере.</string>
-    <string name="sso_waiting_hint">Termoso продолжит автоматически, когда браузер вернёт вас в приложение. Данные провайдера на устройстве не сохраняются.</string>
+    <string name="sso_waiting_hint">Labterm продолжит автоматически, когда браузер вернёт вас в приложение. Данные провайдера на устройстве не сохраняются.</string>
     <string name="open_browser_again">Открыть браузер снова</string>
     <string name="sso_verified_with">Подтверждено через %1$s</string>
     <string name="change">Изменить</string>
@@ -1537,7 +1537,7 @@
     <string name="pattern">Графический ключ</string>
     <string name="codes_do_not_match">Коды не совпадают, начните заново</string>
     <string name="app_pin_or_pattern">PIN / графический ключ</string>
-    <string name="app_pin_hint">6-значный PIN или графический ключ, который запрашивается при блокировке Termoso в дополнение к экрану блокировки. Хранится на устройстве только как хэш с солью.</string>
+    <string name="app_pin_hint">6-значный PIN или графический ключ, который запрашивается при блокировке Labterm в дополнение к экрану блокировки. Хранится на устройстве только как хэш с солью.</string>
     <string name="set_up">Настроить</string>
     <string name="shake_device">Встряхивание устройства</string>
     <string name="quick_import">Быстрый импорт</string>
@@ -1688,7 +1688,7 @@
     <string name="acl_connect">Только подключение</string>
     <string name="acl_read">Чтение</string>
     <string name="acl_edit">Правка</string>
-    <string name="update_termoso_to_sign_in">Чтобы войти, обновите Termoso.</string>
+    <string name="update_termoso_to_sign_in">Чтобы войти, обновите Labterm.</string>
     <string name="copy_to_another_server">Копировать на другой сервер…</string>
     <string name="destination_folder">Папка назначения</string>
     <string name="folders_are_not_copied_between_servers">Папки между серверами не копируются — выберите файлы.</string>
@@ -1798,7 +1798,7 @@
     <string name="magic_packet_sent">Magic packet отправлен в локальную сеть</string>
     <string name="backspace">Стереть символ</string>
     <string name="files_read_only_offline">Только чтение в офлайне</string>
-    <string name="files_offline_open_termoso">Хост недоступен. Откройте Termoso, чтобы просмотреть локальные копии.</string>
+    <string name="files_offline_open_termoso">Хост недоступен. Откройте Labterm, чтобы просмотреть локальные копии.</string>
     <string name="files_offline_read_only">Офлайн: локальные копии, только чтение</string>
     <string name="files_browse_local_copies">Просмотреть локальные копии</string>
     <string name="keep_local_copies">Хранить локальные копии</string>
@@ -1813,6 +1813,22 @@
     <string name="local_copies_settings_summary">Зашифрованные офлайн-копии удалённых файлов</string>
     <string name="clear_local_copies">Очистить локальные копии?</string>
     <string name="clear_local_copies_text">Удаляет все офлайн-копии удалённых файлов с этого устройства (%1$s). Настройки хостов сохраняются.</string>
+    <string name="group_settings">Настройки группы</string>
+    <string name="tag_settings">Настройки тега</string>
+    <string name="priority">Приоритет</string>
+    <string name="group_settings_hint">Хосты в этой группе используют эти значения, если их собственные настройки не заданы. Группы важнее тегов.</string>
+    <string name="tag_settings_hint">Хосты с этим тегом используют эти значения, если их не задают ни сам хост, ни его группы. Если одно и то же задают несколько тегов, побеждает более высокий приоритет, затем имя по алфавиту.</string>
+    <string name="defaults_use_shared_identity">Учётные данные берутся из общего профиля. Изменить его можно в настольном приложении.</string>
+    <string name="inherited_value">Унаследовано: %1$s</string>
+    <string name="settings_saved">Настройки сохранены</string>
+    <string name="settings_for">Настройки %1$s</string>
+    <string name="tag_has_settings">есть настройки</string>
+    <plurals name="tag_host_count">
+        <item quantity="one">%d хост</item>
+        <item quantity="few">%d хоста</item>
+        <item quantity="many">%d хостов</item>
+        <item quantity="other">%d хоста</item>
+    </plurals>
     <string name="openid">OpenID (opkssh)</string>
     <string name="openid_key">Ключ OpenID (opkssh)</string>
     <string name="openid_key_hint">Вход через провайдера удостоверений вместо хранимого ключа. При каждом входе на этом устройстве создаются новый ключ и краткосрочный сертификат; ничего секретного не синхронизируется.</string>

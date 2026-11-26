@@ -8,10 +8,10 @@
 
 use std::sync::Arc;
 
-use serde::Serialize;
 use labterm_core::hostkey::{self, KnownHosts};
 use labterm_core::model::KnownHost;
 use labterm_core::store::{LocalVaultKind, Store};
+use serde::Serialize;
 use uuid::Uuid;
 
 use crate::error::{ClientError, Result};

@@ -21,11 +21,6 @@ use std::net::SocketAddr;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Duration;
 
-use reqwest::{Client, Method, StatusCode};
-use serde::Serialize;
-use serde::de::DeserializeOwned;
-use sqlx::Connection;
-use sqlx::postgres::PgConnection;
 use labterm_crypto::aead::{self, Aad};
 use labterm_crypto::kdf::{Label, derive_key};
 use labterm_crypto::keys::{KeyPair, SymmetricKey};
@@ -38,6 +33,11 @@ use labterm_proto::auth::{
     LoginStartRequest, LoginStartResponse, Platform, RegisterFinishRequest, RegisterStartRequest,
     RegisterStartResponse, Session,
 };
+use reqwest::{Client, Method, StatusCode};
+use serde::Serialize;
+use serde::de::DeserializeOwned;
+use sqlx::Connection;
+use sqlx::postgres::PgConnection;
 use termoso_server::Inner;
 use termoso_server::config::{
     AiConfig, Config, S3Config, SmtpConfig, SmtpSecurity, SsoKindConfig, SsoProviderConfig,

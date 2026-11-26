@@ -3,11 +3,11 @@
 //! except for the explicit `read`/`export` operations.
 
 use chrono::{DateTime, Duration, Utc};
-use serde::Serialize;
-use labterm_core::model::LogBookmark;
-use labterm_core::store::{LocalVault, LocalVaultKind, LogItem, Store};
 use labterm_core::labterm_proto::logs::MAX_NOTE_CHARS;
 use labterm_core::labterm_proto::vault::VaultRole;
+use labterm_core::model::LogBookmark;
+use labterm_core::store::{LocalVault, LocalVaultKind, LogItem, Store};
+use serde::Serialize;
 use uuid::Uuid;
 
 use crate::error::{DesktopError, Result};
@@ -292,8 +292,8 @@ pub fn delete_bookmark(store: &Store, id: Uuid) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use labterm_core::store::{LogMeta, MAX_CAPTURE_BYTES};
     use labterm_core::labterm_crypto::keys::SymmetricKey;
+    use labterm_core::store::{LogMeta, MAX_CAPTURE_BYTES};
 
     fn store() -> Store {
         Store::open_in_memory(SymmetricKey::generate()).expect("store")

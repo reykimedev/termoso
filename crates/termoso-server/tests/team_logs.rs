@@ -10,7 +10,6 @@ use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use common::*;
 use futures::{SinkExt, StreamExt};
-use reqwest::{Method, StatusCode};
 use labterm_crypto::keys::SymmetricKey;
 use labterm_crypto::sealed;
 use labterm_proto::logs::{
@@ -23,6 +22,7 @@ use labterm_proto::vault::{
     VaultRole,
 };
 use labterm_proto::ws::{ClientMessage, ServerMessage};
+use reqwest::{Method, StatusCode};
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 use uuid::Uuid;

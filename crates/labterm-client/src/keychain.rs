@@ -7,7 +7,6 @@
 
 use std::collections::HashMap;
 
-use serde::{Deserialize, Serialize};
 use labterm_core::fido2;
 #[cfg(feature = "fido2")]
 use labterm_core::fido2::{Fido2Device, GenerateOptions, SecurityKeyInfo};
@@ -18,6 +17,7 @@ use labterm_core::model::{
 use labterm_core::store::Store;
 use labterm_proto::entities::{AGENT_KEY_TYPE, OPKSSH_KEY_TYPE};
 use labterm_proto::sshid::SshIdKeyType;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use zeroize::Zeroizing;
 
@@ -1259,9 +1259,9 @@ pub fn delete_identity(store: &Store, id: Uuid) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use labterm_core::store::LocalVaultKind;
     use labterm_core::labterm_crypto::keys::SymmetricKey;
     use labterm_core::labterm_proto::vault::VaultRole;
+    use labterm_core::store::LocalVaultKind;
 
     fn store() -> Store {
         Store::open_in_memory(SymmetricKey::generate()).expect("store")

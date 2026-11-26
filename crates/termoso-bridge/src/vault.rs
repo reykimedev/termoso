@@ -2,14 +2,14 @@
 
 use std::collections::HashMap;
 
-use serde::Serialize;
-use serde::de::DeserializeOwned;
 use labterm_crypto::aead::{self, Aad};
 use labterm_crypto::keys::SymmetricKey;
 use labterm_proto::entities::SyncEntity;
 use labterm_proto::entities::payload::{Group, Host, Identity, Snippet, SshKey, Tag};
 use labterm_proto::sync::EntityChange;
 use labterm_proto::vault::{VaultKind, VaultRole};
+use serde::Serialize;
+use serde::de::DeserializeOwned;
 use uuid::Uuid;
 
 use crate::error::{BridgeError, Result};

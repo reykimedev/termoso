@@ -7,10 +7,10 @@
 //! only for parsing PEM and for public-key operations.
 
 use aws_lc_rs::signature::{KeyPair as _, RSA_PKCS1_SHA256, RsaKeyPair};
+pub use labterm_awslc_rsa::{DecryptError, Hash, Padding};
 use rsa::pkcs1::{DecodeRsaPrivateKey, DecodeRsaPublicKey};
 use rsa::pkcs8::{DecodePrivateKey, EncodePrivateKey};
 use rsa::{RsaPrivateKey, RsaPublicKey};
-pub use labterm_awslc_rsa::{DecryptError, Hash, Padding};
 
 #[derive(Debug, thiserror::Error)]
 pub enum KeyError {

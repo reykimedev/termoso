@@ -5,9 +5,9 @@
 mod common;
 
 use common::*;
+use labterm_proto::auth::{AuthResponse, SsoLogoutResponse, SsoResult, SsoStartResponse};
 use reqwest::{Method, StatusCode, redirect::Policy};
 use roxmltree::Document;
-use labterm_proto::auth::{AuthResponse, SsoLogoutResponse, SsoResult, SsoStartResponse};
 use termoso_server::saml::test_support::{self as saml_support, ResponseSpec};
 
 const NS_PROTOCOL: &str = "urn:oasis:names:tc:SAML:2.0:protocol";

@@ -25,17 +25,18 @@ use std::path::Path;
 use std::sync::Mutex;
 
 use chrono::{DateTime, Utc};
-use rusqlite::{Connection, OptionalExtension, params};
-use serde::{Deserialize, Serialize};
 use labterm_crypto::aead::{self, Aad};
 use labterm_crypto::keys::{KeyPair, SymmetricKey};
 use labterm_proto::vault::{VaultKind, VaultRole};
+use rusqlite::{Connection, OptionalExtension, params};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::error::{CoreError, Result};
 
 pub use entities::EntityFilter;
 pub use entities::EntityRow;
+pub use entities::{DefaultsLayers, ResolvedDefaults};
 pub use file_cache::{CacheKind, CachedEntry, FileCacheConfig, FileCacheUsage, SafOfflineMode};
 pub use history::{CommandHistory, ConnectionHistory, HistoryItem, VaultConnection};
 pub use logs::{LogItem, LogMeta, LogRow, MAX_CAPTURE_BYTES, Recorder};

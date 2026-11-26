@@ -6,10 +6,10 @@
 use std::path::{Path, PathBuf};
 
 use chrono::Utc;
+use labterm_crypto::aead::{self, Aad};
 use rusqlite::{OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use labterm_crypto::aead::{self, Aad};
 use uuid::Uuid;
 
 use super::{Store, parse_time, parse_uuid};

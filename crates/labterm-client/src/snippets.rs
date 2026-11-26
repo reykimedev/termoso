@@ -5,9 +5,9 @@
 use std::collections::{BTreeSet, HashMap, HashSet};
 
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 use labterm_core::model::{Host, HostSnippet, Snippet, SnippetPackage};
 use labterm_core::store::Store;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::error::{ClientError, Result};
@@ -487,9 +487,9 @@ pub fn script_to_paste(script: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use labterm_core::store::LocalVaultKind;
     use labterm_core::labterm_crypto::keys::SymmetricKey;
     use labterm_core::labterm_proto::vault::VaultRole;
+    use labterm_core::store::LocalVaultKind;
 
     fn store() -> Store {
         Store::open_in_memory(SymmetricKey::generate()).expect("store")

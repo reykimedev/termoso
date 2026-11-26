@@ -3,7 +3,6 @@
 mod common;
 
 use common::*;
-use reqwest::{Method, StatusCode};
 use labterm_crypto::keys::KeyPair;
 use labterm_crypto::sealed;
 use labterm_proto::auth::DeviceList;
@@ -14,6 +13,7 @@ use labterm_proto::sync::{
 use labterm_proto::vault::{
     RotateVaultKeyRequest, RotateVaultKeyResponse, SealedKeyFor, VaultList,
 };
+use reqwest::{Method, StatusCode};
 use uuid::Uuid;
 
 macro_rules! server {

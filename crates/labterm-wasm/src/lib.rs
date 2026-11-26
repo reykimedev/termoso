@@ -10,7 +10,6 @@
 //! client must keep them in memory only (never `localStorage`) and drop them on
 //! sign-out. Nothing in this crate logs or panics with secret material.
 
-use serde::Serialize;
 use labterm_crypto::aead::{self, Aad};
 use labterm_crypto::encoding::{b64, unb64};
 use labterm_crypto::kdf::{Label, derive_key};
@@ -18,6 +17,7 @@ use labterm_crypto::keys::{KeyPair, SymmetricKey, public_key_from_b64};
 use labterm_crypto::opaque::{self, ClientLoginState, ClientRegistrationState};
 use labterm_crypto::recovery::RecoveryKey;
 use labterm_crypto::{CryptoError, sealed};
+use serde::Serialize;
 use wasm_bindgen::prelude::*;
 use zeroize::Zeroizing;
 

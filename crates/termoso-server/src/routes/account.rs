@@ -9,10 +9,10 @@ use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 use labterm_crypto::encoding::{unb64, unb64_array};
 use labterm_proto::account::*;
 use labterm_proto::auth::{Device, DeviceList, RecoveryRotate, SsoIdentity, SsoStartResponse};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::avatar;

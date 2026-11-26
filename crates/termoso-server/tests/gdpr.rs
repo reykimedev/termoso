@@ -2,12 +2,12 @@
 
 mod common;
 use common::*;
-use reqwest::{Method, StatusCode};
 use labterm_crypto::keys::SymmetricKey;
 use labterm_crypto::sealed;
 use labterm_proto::sync::{EntityChange, PushRequest, PushResponse, PushResult};
 use labterm_proto::team::{AuditEventList, TeamDataStatus};
 use labterm_proto::vault::{CreateVaultRequest, Vault, VaultMemberUpsert, VaultRole};
+use reqwest::{Method, StatusCode};
 use uuid::Uuid;
 
 #[tokio::test]

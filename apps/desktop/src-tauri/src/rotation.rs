@@ -2,12 +2,12 @@
 //! due; generating the new key, installing it on the hosts and replacing
 //! it in the vault happens here, on a device that holds the vault key.
 
-use serde::Serialize;
-use tauri::{AppHandle, Manager, Runtime};
 use labterm_client::{hosts, keychain};
 use labterm_core::keys::{self, KeyAlgorithm};
 use labterm_core::model::{Identity, SshKey};
 use labterm_proto::team::{RotationJob, UpdateRotationJobRequest};
+use serde::Serialize;
+use tauri::{AppHandle, Manager, Runtime};
 use uuid::Uuid;
 
 use crate::error::{DesktopError, Result};

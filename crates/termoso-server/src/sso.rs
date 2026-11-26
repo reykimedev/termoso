@@ -12,6 +12,7 @@ use std::time::Duration;
 use uuid::Uuid;
 
 use anyhow::Context;
+use labterm_proto::auth::{SsoIdentity, SsoKind, SsoProvider, SsoResult};
 use openidconnect::core::{CoreAuthenticationFlow, CoreClient, CoreProviderMetadata};
 use openidconnect::{
     AuthorizationCode, ClientId, ClientSecret, CsrfToken, EndpointMaybeSet, EndpointNotSet,
@@ -19,7 +20,6 @@ use openidconnect::{
     RedirectUrl, Scope, TokenResponse,
 };
 use serde::{Deserialize, Serialize};
-use labterm_proto::auth::{SsoIdentity, SsoKind, SsoProvider, SsoResult};
 
 use crate::config::{Config, SsoKindConfig, SsoProviderConfig};
 use crate::error::{ApiResult, Error};

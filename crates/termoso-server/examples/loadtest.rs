@@ -19,9 +19,6 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use chrono::Utc;
-use reqwest::{Client, StatusCode};
-use serde::de::DeserializeOwned;
-use serde_json::json;
 use labterm_crypto::aead::{self, Aad};
 use labterm_crypto::kdf::{Label, derive_key};
 use labterm_crypto::keys::{KeyPair, SymmetricKey};
@@ -34,6 +31,9 @@ use labterm_proto::auth::{
 };
 use labterm_proto::sync::{EntityChange, PullRequest, PullResponse, PushRequest, PushResponse};
 use labterm_proto::vault::{VaultKind, VaultList};
+use reqwest::{Client, StatusCode};
+use serde::de::DeserializeOwned;
+use serde_json::json;
 use uuid::Uuid;
 
 struct Options {

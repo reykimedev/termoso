@@ -6,9 +6,9 @@ use axum::extract::{Path, Query, State};
 
 use super::paging::PageQuery;
 use chrono::{DateTime, Utc};
-use sqlx::PgExecutor;
 use labterm_crypto::encoding::unb64;
 use labterm_proto::vault::*;
+use sqlx::PgExecutor;
 use uuid::Uuid;
 
 use crate::audit;

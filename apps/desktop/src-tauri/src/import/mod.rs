@@ -12,10 +12,10 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 
-use serde::{Deserialize, Serialize};
 use labterm_core::keys;
 use labterm_core::model::{Group, HostChain, Identity, PfRule, Proxy, SshKey, Tag};
 use labterm_core::store::Store;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::error::{DesktopError, Result};
@@ -1105,6 +1105,7 @@ fn ensure_tags(
                     &Tag {
                         label: label.to_string(),
                         color: None,
+                        ..Default::default()
                     },
                 )?;
                 existing.tags.insert(key, id);

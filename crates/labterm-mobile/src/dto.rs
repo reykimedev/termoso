@@ -683,11 +683,146 @@ impl From<hosts::GroupNode> for GroupItem {
     }
 }
 
+/// SSH defaults a group or tag hands down to its hosts (shared by the group
+/// and tag editors). `None` = not set here.
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct SshDefaultsDraft {
+    pub port: Option<u16>,
+    pub username: String,
+    /// `None` keeps the stored password; `Some("")` clears it.
+    pub password: Option<String>,
+    /// `None` keeps the stored TOTP secret; `Some("")` clears it.
+    pub totp_secret: Option<String>,
+    pub ssh_key_id: Option<String>,
+    /// Use an existing identity instead of the inline username/password/key.
+    pub identity_id: Option<String>,
+    pub has_password: bool,
+    pub has_totp: bool,
+    pub ssh_id: bool,
+    pub ssh_id_key_type: Option<SshIdKeyKind>,
+    pub agent_forwarding: bool,
+    pub forward_x11: bool,
+    pub host_chain_id: Option<String>,
+    pub proxy_id: Option<String>,
+    pub env_variables: Vec<EnvVar>,
+    pub keep_alive_interval: Option<u32>,
+    pub timeout: Option<u32>,
+}
+
+impl From<hosts::SshDefaultsForm> for SshDefaultsDraft {
+    fn from(f: hosts::SshDefaultsForm) -> Self {
+        Self {
+            port: f.port,
+            username: f.username,
+            password: None,
+            totp_secret: None,
+            ssh_key_id: f.ssh_key_id.map(|k| k.to_string()),
+            identity_id: f.identity_id.map(|i| i.to_string()),
+            has_password: f.has_password,
+            has_totp: f.has_totp,
+            ssh_id: f.ssh_id,
+            ssh_id_key_type: f.ssh_id_key_type.map(Into::into),
+            agent_forwarding: f.agent_forwarding,
+            forward_x11: f.forward_x11,
+            host_chain_id: f.host_chain_id.map(|i| i.to_string()),
+            proxy_id: f.proxy_id.map(|i| i.to_string()),
+            env_variables: f
+                .env_variables
+                .into_iter()
+                .map(|(name, value)| EnvVar { name, value })
+                .collect(),
+            keep_alive_interval: f.keep_alive_interval,
+            timeout: f.timeout,
+        }
+    }
+}
+
+impl SshDefaultsDraft {
+    /// Apply onto the stored form, so fields the mobile editor does not show
+    /// (the pinned certificate) are kept.
+    pub(crate) fn apply(self, base: &mut hosts::SshDefaultsForm) -> Result<()> {
+        let key = parse_opt_id(&self.ssh_key_id)?;
+        if key != base.ssh_key_id {
+            base.ssh_certificate_id = None;
+        }
+        base.port = self.port;
+        base.username = self.username.trim().to_string();
+        base.password = self.password;
+        base.totp_secret = self.totp_secret;
+        base.ssh_key_id = key;
+        base.identity_id = parse_opt_id(&self.identity_id)?;
+        base.ssh_id = self.ssh_id;
+        base.ssh_id_key_type = self.ssh_id_key_type.map(Into::into);
+        base.agent_forwarding = self.agent_forwarding;
+        base.forward_x11 = self.forward_x11;
+        base.host_chain_id = parse_opt_id(&self.host_chain_id)?;
+        base.proxy_id = parse_opt_id(&self.proxy_id)?;
+        base.env_variables = self
+            .env_variables
+            .into_iter()
+            .map(|e| (e.name, e.value))
+            .collect();
+        base.keep_alive_interval = self.keep_alive_interval;
+        base.timeout = self.timeout;
+        Ok(())
+    }
+}
+
+/// Group editor: name, parent and the SSH defaults its hosts inherit.
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct GroupDraft {
+    pub id: Option<String>,
+    pub vault_id: String,
+    pub label: String,
+    pub parent_id: Option<String>,
+    pub defaults: SshDefaultsDraft,
+}
+
+impl From<hosts::GroupForm> for GroupDraft {
+    fn from(g: hosts::GroupForm) -> Self {
+        Self {
+            id: g.id.map(|i| i.to_string()),
+            vault_id: g.vault_id.to_string(),
+            label: g.label,
+            parent_id: g.parent_id.map(|p| p.to_string()),
+            defaults: g.defaults.into(),
+        }
+    }
+}
+
+/// Tag editor: name, priority and the SSH defaults hosts carrying the tag
+/// inherit. Tags rank below groups (host > groups > tags).
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct TagDraft {
+    pub id: String,
+    pub vault_id: String,
+    pub label: String,
+    pub color: Option<String>,
+    /// Higher wins when a host's tags set the same field.
+    pub priority: i32,
+    pub defaults: SshDefaultsDraft,
+}
+
+impl From<hosts::TagForm> for TagDraft {
+    fn from(t: hosts::TagForm) -> Self {
+        Self {
+            id: t.id.to_string(),
+            vault_id: t.vault_id.to_string(),
+            label: t.label,
+            color: t.color,
+            priority: t.priority,
+            defaults: t.defaults.into(),
+        }
+    }
+}
+
 /// What a host in `group_id` inherits from the group chain (placeholders in
 /// the editor).
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct InheritedInfo {
     pub group_path: Vec<String>,
+    /// The host's tags that carry settings, the winner first.
+    pub tags: Vec<String>,
     pub port: Option<u16>,
     pub username: Option<String>,
     pub has_password: bool,
@@ -705,6 +840,7 @@ impl From<hosts::Inherited> for InheritedInfo {
     fn from(i: hosts::Inherited) -> Self {
         Self {
             group_path: i.group_path,
+            tags: i.tags,
             port: i.port,
             username: i.username,
             has_password: i.has_password,
@@ -724,6 +860,9 @@ pub struct TagItem {
     pub vault_id: String,
     pub label: String,
     pub hosts: u32,
+    /// The tag carries SSH defaults its hosts inherit.
+    pub has_config: bool,
+    pub priority: i32,
 }
 
 impl From<hosts::TagInfo> for TagItem {
@@ -733,6 +872,8 @@ impl From<hosts::TagInfo> for TagItem {
             vault_id: t.vault_id.to_string(),
             label: t.label,
             hosts: t.hosts as u32,
+            has_config: t.has_config,
+            priority: t.priority,
         }
     }
 }

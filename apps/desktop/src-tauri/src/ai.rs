@@ -7,10 +7,10 @@
 //! host address, credentials or anything else about the session. The answer
 //! is text for the user to read and paste; nothing here executes it.
 
-use serde::Deserialize;
-use tauri::{AppHandle, Manager, Runtime};
 use labterm_core::model::Host;
 use labterm_proto::ai::{AiCommandRequest, AiCommandResponse, AiStatus};
+use serde::Deserialize;
+use tauri::{AppHandle, Manager, Runtime};
 use uuid::Uuid;
 
 use crate::error::{DesktopError, Result};

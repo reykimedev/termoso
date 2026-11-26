@@ -9,8 +9,8 @@ use std::net::SocketAddr;
 use anyhow::{Context, Result};
 use figment::Figment;
 use figment::providers::{Env, Format, Toml};
-use serde::{Deserialize, Serialize};
 use labterm_crypto::keys::SymmetricKey;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default)]

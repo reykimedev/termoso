@@ -6,7 +6,6 @@ use std::time::Duration;
 
 use common::*;
 use futures::{SinkExt, StreamExt};
-use reqwest::{Method, StatusCode};
 use labterm_crypto::keys::SymmetricKey;
 use labterm_crypto::sealed;
 use labterm_proto::account::{PresenceVisibilityRequest, UserProfile};
@@ -17,6 +16,7 @@ use labterm_proto::team::{
 };
 use labterm_proto::vault::{CreateVaultRequest, Vault, VaultMemberUpsert, VaultRole};
 use labterm_proto::ws::{ClientMessage, ServerMessage};
+use reqwest::{Method, StatusCode};
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 use uuid::Uuid;

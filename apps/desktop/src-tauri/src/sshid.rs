@@ -5,8 +5,6 @@
 
 use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Manager, Runtime};
 use labterm_core::api::ApiClient;
 use labterm_core::fido2::{self, GenerateOptions};
 use labterm_core::keys;
@@ -17,6 +15,8 @@ use labterm_core::store::Store;
 use labterm_proto::sshid::{
     AddFido2KeyRequest, AddPublicKeyRequest, SshIdKeyType, SshIdProfile, normalize_handle,
 };
+use serde::{Deserialize, Serialize};
+use tauri::{AppHandle, Manager, Runtime};
 use uuid::Uuid;
 use zeroize::Zeroizing;
 

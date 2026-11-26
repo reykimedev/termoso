@@ -21,8 +21,6 @@ use dav_server::memfs::MemFs;
 use dav_server::{DavHandler, DavMethodSet};
 use hyper_util::rt::TokioIo;
 use hyper_util::service::TowerToHyperService;
-use rustls::pki_types::{CertificateDer, PrivateKeyDer};
-use sha2::Digest as _;
 use labterm_core::error::CoreError;
 use labterm_core::remote::{RemoteFs, RemoteProtocol};
 use labterm_core::sftp::{EntryKind, OpenMode, Progress, TransferOptions};
@@ -30,6 +28,8 @@ use labterm_core::webdav::{
     ClientIdentity, TlsPolicy, WebDav, WebDavConfig, client_certificate_fingerprint, fingerprint,
     probe_certificate, split_client_pem,
 };
+use rustls::pki_types::{CertificateDer, PrivateKeyDer};
+use sha2::Digest as _;
 use tokio::net::TcpListener;
 use tokio_util::sync::CancellationToken;
 

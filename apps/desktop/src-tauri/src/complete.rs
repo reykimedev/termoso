@@ -4,10 +4,10 @@
 
 use std::time::Duration;
 
-use serde::Serialize;
-use tauri::State;
 use labterm_core::autocomplete::{list_local_dir, parse_ls, remote_ls_command};
 use labterm_core::model::Identity;
+use serde::Serialize;
+use tauri::State;
 use uuid::Uuid;
 use zeroize::Zeroizing;
 

@@ -3,9 +3,9 @@
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
+use labterm_proto::auth::{DeviceInfo, Platform};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
-use labterm_proto::auth::{DeviceInfo, Platform};
 use uuid::Uuid;
 
 use crate::error::{ApiResult, Error};

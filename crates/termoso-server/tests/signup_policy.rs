@@ -6,10 +6,10 @@ mod common;
 
 use common::oidc::{self, Identity};
 use common::*;
-use reqwest::{Method, StatusCode, redirect::Policy};
 use labterm_proto::account::ServerInfo;
 use labterm_proto::admin::ServerSettings;
 use labterm_proto::auth::{LoginStartRequest, SsoResult, SsoStartResponse};
+use reqwest::{Method, StatusCode, redirect::Policy};
 use url::Url;
 
 const PASSWORD: &str = "pw-policy-1234567890";

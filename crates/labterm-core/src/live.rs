@@ -18,10 +18,10 @@ use std::time::{Duration, Instant};
 
 use bytes::Bytes;
 use futures::{SinkExt, StreamExt};
-use serde::{Deserialize, Serialize};
 use labterm_crypto::keys::SymmetricKey;
 use labterm_crypto::live::{self as crypto, Direction, FrameKind, LiveSecret};
 use labterm_proto::live::{LiveClientMessage, LiveParticipant, LiveServerMessage};
+use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tokio_tungstenite::tungstenite::Message;

@@ -3,10 +3,10 @@
 mod common;
 
 use common::*;
-use reqwest::{Method, StatusCode};
 use labterm_proto::account::ServerInfo;
 use labterm_proto::admin::ServerSettings;
 use labterm_proto::auth::{AuthResponse, LoginStartRequest};
+use reqwest::{Method, StatusCode};
 use uuid::Uuid;
 
 #[tokio::test]

@@ -14,14 +14,14 @@ use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter, Manager};
 use labterm_core::cloud::{
     AddressType, AwsConfig, AwsService, AzureConfig, CloudClient, CloudConfig, CloudError,
     CloudProvider, DigitalOceanConfig, Endpoints,
 };
 use labterm_core::model::{Entity, Group};
 use labterm_core::store::Store;
+use serde::{Deserialize, Serialize};
+use tauri::{AppHandle, Emitter, Manager};
 use uuid::Uuid;
 use zeroize::Zeroizing;
 
@@ -649,8 +649,8 @@ pub async fn scheduler(app: AppHandle) {
 mod tests {
     use super::*;
     use labterm_core::cloud::CloudInstance;
-    use labterm_core::model::Host;
     use labterm_core::labterm_crypto::keys::SymmetricKey;
+    use labterm_core::model::Host;
 
     fn store() -> Store {
         Store::open_in_memory(SymmetricKey::generate()).expect("store")

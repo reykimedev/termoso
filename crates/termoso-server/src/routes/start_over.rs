@@ -17,9 +17,9 @@ use std::time::Duration;
 use axum::Json;
 use axum::extract::{Path, State};
 use chrono::Utc;
-use serde::{Deserialize, Serialize};
 use labterm_crypto::opaque;
 use labterm_proto::auth::*;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::codes;

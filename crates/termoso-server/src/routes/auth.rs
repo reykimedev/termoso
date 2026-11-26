@@ -6,10 +6,10 @@ use axum::Json;
 use axum::extract::{Form, Path, Query, RawQuery, State};
 use axum::http::header;
 use axum::response::{Html, IntoResponse, Redirect, Response};
-use serde::{Deserialize, Serialize};
 use labterm_crypto::encoding::{b64, unb64, unb64_array};
 use labterm_crypto::opaque;
 use labterm_proto::auth::*;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use webauthn_rs::prelude::{
     Passkey, PasskeyAuthentication, PublicKeyCredential, RequestChallengeResponse,

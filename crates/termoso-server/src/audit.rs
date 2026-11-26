@@ -5,9 +5,9 @@
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use chrono::{DateTime, Utc};
+use labterm_proto::team::{AuditEvent, AuditEventList};
 use serde::Deserialize;
 use sqlx::{PgExecutor, PgPool};
-use labterm_proto::team::{AuditEvent, AuditEventList};
 use uuid::Uuid;
 
 use crate::error::{ApiResult, Error};

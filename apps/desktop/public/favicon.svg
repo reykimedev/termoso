@@ -1,5 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#12151F"/>
-  <path d="M16 20h32v8H36v20h-8V28H16z" fill="#2BB884"/>
-  <rect x="42" y="40" width="8" height="8" rx="2" fill="#5AA9E6"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><title>Labterm</title><rect width="32" height="32" rx="7" fill="#141413"/><rect x=".5" y=".5" width="31" height="31" rx="6.5" fill="none" stroke="#fff" stroke-opacity=".1"/><path d="M13.2 7.6a2.8 2.8 0 0 1 5.6 0" fill="none" stroke="#f59a23" stroke-width="1.8" stroke-linecap="round"/><path d="M11.4 8.2h9.2l2.4 3H9z" fill="#f59a23"/><path d="M10.2 11.2h11.6v12.3a1.8 1.8 0 0 1-1.8 1.8h-8a1.8 1.8 0 0 1-1.8-1.8z" fill="none" stroke="#f59a23" stroke-width="2"/><path d="M12.9 15.3l2.7 2.7-2.7 2.7" fill="none" stroke="#f59a23" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.9 20.7h2.2" fill="none" stroke="#f59a23" stroke-width="1.9" stroke-linecap="round"/><path d="M8.6 25.6h14.8" stroke="#f59a23" stroke-width="2.2" stroke-linecap="round"/></svg>
