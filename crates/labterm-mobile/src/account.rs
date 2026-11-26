@@ -11,6 +11,7 @@
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, Weak};
 use std::time::Duration;
+use time::OffsetDateTime;
 
 use labterm_core::account::{
     self as core, LoginFlow, LoginStep, ReauthFlow, ReauthStep, RegisterInput,
@@ -59,7 +60,7 @@ impl From<StoredAccount> for AccountCard {
             avatar: a.avatar,
             is_admin: a.is_admin,
             device_id: a.device_id.to_string(),
-            signed_in_at: a.signed_in_at.to_rfc3339(),
+            signed_in_at: labterm_proto::timestamp::to_rfc3339(a.signed_in_at),
         }
     }
 }
@@ -240,7 +241,7 @@ impl From<&ReauthStep> for ReauthOutcome {
     fn from(step: &ReauthStep) -> Self {
         match step {
             ReauthStep::Done { expires_at } => Self::Done {
-                expires_at: expires_at.timestamp_millis(),
+                expires_at: labterm_proto::timestamp::unix_millis(*expires_at),
             },
             ReauthStep::MfaRequired { methods } => Self::MfaRequired {
                 methods: methods.iter().copied().map(Into::into).collect(),
@@ -314,8 +315,8 @@ impl From<Device> for DeviceCard {
             name: d.name,
             platform: format!("{:?}", d.platform).to_lowercase(),
             app_version: d.app_version,
-            created_at: d.created_at.to_rfc3339(),
-            last_seen_at: d.last_seen_at.to_rfc3339(),
+            created_at: labterm_proto::timestamp::to_rfc3339(d.created_at),
+            last_seen_at: labterm_proto::timestamp::to_rfc3339(d.last_seen_at),
         }
     }
 }
@@ -336,8 +337,8 @@ impl From<WebauthnCredentialInfo> for SecurityKeyCredential {
         Self {
             id: c.id.to_string(),
             name: c.name,
-            created_at: c.created_at.to_rfc3339(),
-            last_used_at: c.last_used_at.map(|t| t.to_rfc3339()),
+            created_at: labterm_proto::timestamp::to_rfc3339(c.created_at),
+            last_used_at: c.last_used_at.map(labterm_proto::timestamp::to_rfc3339),
         }
     }
 }
@@ -1521,7 +1522,9 @@ impl AccountRuntime {
                 Ok(Some(report)) => self.update_status(|s| apply_report(s, report)),
                 Ok(None) => self.update_status(|s| {
                     s.state = SyncState::Idle;
-                    s.last_sync_at = Some(chrono::Utc::now().to_rfc3339());
+                    s.last_sync_at = Some(labterm_proto::timestamp::to_rfc3339(
+                        OffsetDateTime::now_utc(),
+                    ));
                 }),
                 Err(e) => self.update_status(|s| {
                     s.state = SyncState::Error;
@@ -1643,7 +1646,9 @@ fn apply_report(s: &mut SyncStatus, r: &SyncReport) {
     } else {
         SyncState::Offline
     };
-    s.last_sync_at = Some(chrono::Utc::now().to_rfc3339());
+    s.last_sync_at = Some(labterm_proto::timestamp::to_rfc3339(
+        OffsetDateTime::now_utc(),
+    ));
     s.last_error = r.errors.first().map(|(id, code)| format!("{code} ({id})"));
     s.pushed = u32::try_from(r.pushed).unwrap_or(u32::MAX);
     s.pulled = u32::try_from(r.pulled).unwrap_or(u32::MAX);

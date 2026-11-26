@@ -7,10 +7,10 @@ use axum::Json;
 use axum::extract::{Path, Query, State};
 
 use super::paging::PageQuery;
-use chrono::{DateTime, Duration, Utc};
 use labterm_proto::team::{
     AccessRequest, AccessRequestList, CreateAccessRequest, DecideAccessRequest,
 };
+use time::{Duration, OffsetDateTime};
 use uuid::Uuid;
 
 use crate::audit;
@@ -35,10 +35,10 @@ type Row = (
     String,
     String,
     Option<Uuid>,
-    Option<DateTime<Utc>>,
+    Option<OffsetDateTime>,
     Option<String>,
-    Option<DateTime<Utc>>,
-    DateTime<Utc>,
+    Option<OffsetDateTime>,
+    OffsetDateTime,
 );
 
 const COLS: &str =
@@ -157,7 +157,7 @@ async fn notify_requester(state: &AppState, req: &AccessRequest, approved: bool)
             "You have {} access to “{}” until {}. Open Termoso: the vault appears once a manager's client has shared the key with you.",
             req.role,
             req.vault_name,
-            until.format("%Y-%m-%d %H:%M UTC")
+            labterm_proto::timestamp::format_utc(until, time::macros::format_description!("[year]-[month]-[day] [hour]:[minute] UTC"))
         ));
     } else {
         msg = msg.paragraph(format!("Request for “{}” was declined.", req.vault_name));
@@ -344,7 +344,7 @@ pub async fn approve(
         return Err(Error::bad_request("role must be viewer or editor"));
     }
     let note = clean(req.note, 500)?;
-    let until = Utc::now() + Duration::hours(hours as i64);
+    let until = OffsetDateTime::now_utc() + Duration::hours(hours as i64);
     let mut tx = state.db.begin().await?;
     let inserted = sqlx::query(
         "INSERT INTO vault_members (vault_id, user_id, role, sealed_key, key_version, added_by, expires_at)
@@ -384,7 +384,7 @@ pub async fn approve(
             .vault(cur.vault_id)
             .user(cur.user_id)
             .details(serde_json::json!({
-                "request_id": rid, "role": role, "hours": hours, "expires_at": until,
+                "request_id": rid, "role": role, "hours": hours, "expires_at": labterm_proto::timestamp::to_json(until),
             })),
     )
     .await;

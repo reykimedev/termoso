@@ -5,12 +5,12 @@
 
 use std::collections::HashSet;
 
-use chrono::{DateTime, Utc};
 use labterm_core::model::{Host, PfRule};
 use labterm_core::store::LocalVaultKind;
 use labterm_proto::account::UserProfile;
 use labterm_proto::team::{PresenceSession, TeamPresence};
 use tauri::{AppHandle, Manager, Runtime};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::error::Result;
@@ -48,7 +48,7 @@ pub(crate) fn collect(state: &AppState) -> Vec<PresenceSession> {
         return Vec::new();
     }
     let mut out = Vec::new();
-    let mut push = |host_id: Uuid, protocol: &str, since: DateTime<Utc>| {
+    let mut push = |host_id: Uuid, protocol: &str, since: OffsetDateTime| {
         let Ok(host) = store.require::<Host>(host_id) else {
             return;
         };

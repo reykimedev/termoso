@@ -23,12 +23,12 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bytes::Bytes;
-use chrono::Utc;
 use futures::StreamExt;
 use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, utf8_percent_encode};
 use reqwest::header;
 use reqwest::{Method, Response, StatusCode};
 use sha2::{Digest as _, Sha256};
+use time::OffsetDateTime;
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
@@ -568,7 +568,7 @@ impl S3 {
             },
             &self.inner.access_key,
             &self.inner.secret_key,
-            Utc::now(),
+            OffsetDateTime::now_utc(),
         );
         let mut rb = self
             .inner
@@ -1498,7 +1498,7 @@ impl S3 {
             },
             &self.inner.access_key,
             &self.inner.secret_key,
-            Utc::now(),
+            OffsetDateTime::now_utc(),
         );
         let mut rb = self
             .inner

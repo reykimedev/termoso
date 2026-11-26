@@ -12,17 +12,17 @@ use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, Weak};
 
-use chrono::{DateTime, Utc};
 use labterm_core::model::Host;
 use labterm_core::store::{LocalVaultKind, Store};
 use labterm_core::sync::SyncEngine;
 use labterm_proto::team::{PresenceEntry, PresenceSession, TeamPresence};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 struct Live {
     host_id: Uuid,
     protocol: &'static str,
-    since: DateTime<Utc>,
+    since: OffsetDateTime,
 }
 
 /// This device's open connections, shared by every session object and the
@@ -69,7 +69,7 @@ impl Tracker {
                     slot.insert(Live {
                         host_id,
                         protocol,
-                        since: Utc::now(),
+                        since: OffsetDateTime::now_utc(),
                     });
                     true
                 }
@@ -223,10 +223,10 @@ fn entry_card(e: PresenceEntry, me: Option<Uuid>) -> PresenceEntryCard {
                 vault_id: s.vault_id.to_string(),
                 host_id: s.host_id.to_string(),
                 protocol: s.protocol,
-                since: s.since.to_rfc3339(),
+                since: labterm_proto::timestamp::to_rfc3339(s.since),
             })
             .collect(),
-        seen_at: e.seen_at.to_rfc3339(),
+        seen_at: labterm_proto::timestamp::to_rfc3339(e.seen_at),
     }
 }
 

@@ -5,6 +5,7 @@ mod common;
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use time::OffsetDateTime;
 
 use common::*;
 use labterm_crypto::aead::{self, Aad};
@@ -458,7 +459,7 @@ async fn bridge_survives_concurrent_owner_edits() {
                 host_id,
                 &serde_json::to_string(&host).unwrap(),
             ),
-            updated_at: chrono::Utc::now(),
+            updated_at: OffsetDateTime::now_utc(),
         }],
         deletes: vec![],
     };
@@ -758,7 +759,7 @@ async fn rotation_pauses_writes_until_reseal() {
                 data: r
                     .user
                     .encrypt_entity(&r.user.personal_vault_key, &e.kind, e.id, &pt),
-                updated_at: chrono::Utc::now(),
+                updated_at: OffsetDateTime::now_utc(),
             }
         })
         .collect();

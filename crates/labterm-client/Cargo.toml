@@ -16,7 +16,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 uuid = { workspace = true }
 url = { workspace = true }
-chrono = { workspace = true }
+time = { workspace = true }
 zeroize = { workspace = true }
 labterm-oidc-cert = { workspace = true, optional = true, features = ["loopback", "rustls"] }
 

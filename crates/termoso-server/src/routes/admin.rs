@@ -4,10 +4,10 @@ use axum::Json;
 use axum::extract::{Path, Query, State};
 
 use super::paging::PageQuery;
-use chrono::{DateTime, Utc};
 use labterm_proto::admin::*;
 use serde::Deserialize;
 use sqlx::AssertSqlSafe;
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::audit;
@@ -66,8 +66,8 @@ type UserRow = (
     bool,
     bool,
     bool,
-    DateTime<Utc>,
-    Option<DateTime<Utc>>,
+    OffsetDateTime,
+    Option<OffsetDateTime>,
     i64,
     serde_json::Value,
     String,
@@ -367,9 +367,9 @@ type TeamRow = (
     String,
     i64,
     i64,
-    DateTime<Utc>,
+    OffsetDateTime,
     Option<String>,
-    Option<DateTime<Utc>>,
+    Option<OffsetDateTime>,
     i64,
     bool,
     bool,
@@ -465,8 +465,8 @@ pub async fn team_detail(
         String,
         String,
         String,
-        DateTime<Utc>,
-        Option<DateTime<Utc>>,
+        OffsetDateTime,
+        Option<OffsetDateTime>,
     )> = sqlx::query_as(
         "SELECT m.user_id, u.email, m.role, r.slug, m.role_source, m.joined_at, u.last_seen_at
          FROM team_members m JOIN users u ON u.id = m.user_id JOIN team_roles r ON r.id = m.role_id
@@ -552,8 +552,8 @@ pub async fn team_members(
         String,
         String,
         String,
-        DateTime<Utc>,
-        Option<DateTime<Utc>>,
+        OffsetDateTime,
+        Option<OffsetDateTime>,
     )> = sqlx::query_as(AssertSqlSafe(format!(
         "SELECT m.user_id, u.email, m.role, r.slug, m.role_source, m.joined_at, u.last_seen_at
          FROM team_members m JOIN users u ON u.id = m.user_id JOIN team_roles r ON r.id = m.role_id
@@ -748,7 +748,7 @@ pub async fn remove_member(
 /// Background jobs and their last pass.
 #[utoipa::path(get, path = "/api/v1/admin/jobs", tag = "admin", responses((status = 200, body = AdminJobList)))]
 pub async fn jobs(State(state): State<AppState>, _admin: Admin) -> ApiResult<Json<AdminJobList>> {
-    let rows: Vec<(String, DateTime<Utc>, Option<DateTime<Utc>>, Option<i64>, Option<String>)> =
+    let rows: Vec<(String, OffsetDateTime, Option<OffsetDateTime>, Option<i64>, Option<String>)> =
         sqlx::query_as(
             "SELECT name, last_started_at, last_finished_at, last_result, last_error FROM job_runs ORDER BY name",
         )
@@ -1011,7 +1011,9 @@ pub async fn config(State(state): State<AppState>, _admin: Admin) -> ApiResult<J
         server: AdminConfigServer {
             version: crate::state::VERSION.into(),
             started_at: state.started_at,
-            uptime_secs: (Utc::now() - state.started_at).num_seconds().max(0) as u64,
+            uptime_secs: (OffsetDateTime::now_utc() - state.started_at)
+                .whole_seconds()
+                .max(0) as u64,
             name: cfg.server_name.clone(),
             public_url: cfg.public_url.clone(),
             web_url: cfg.web_url().to_owned(),

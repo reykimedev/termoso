@@ -21,9 +21,9 @@ use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{Path, State};
 use axum::response::{IntoResponse, Response};
 use bytes::Bytes;
-use chrono::{DateTime, Utc};
 use futures::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
+use time::OffsetDateTime;
 use tokio::sync::broadcast;
 use tokio::time::{interval, timeout};
 use uuid::Uuid;
@@ -225,7 +225,7 @@ pub use labterm_proto::bridge::{GatewayInfo, GatewayList};
 /// run as a gateway, with their online state.
 #[utoipa::path(get, path = "/api/v1/gateways", tag = "bridges", responses((status = 200, body = GatewayList)))]
 pub async fn list(State(state): State<AppState>, auth: Auth) -> ApiResult<Json<GatewayList>> {
-    let rows: Vec<(Uuid, String, Option<DateTime<Utc>>, Vec<Uuid>)> = sqlx::query_as(
+    let rows: Vec<(Uuid, String, Option<OffsetDateTime>, Vec<Uuid>)> = sqlx::query_as(
         "SELECT b.id, b.name, b.gateway_seen_at,
                 array_agg(bv.vault_id ORDER BY bv.vault_id)
          FROM bridges b
@@ -237,14 +237,14 @@ pub async fn list(State(state): State<AppState>, auth: Auth) -> ApiResult<Json<G
     .bind(auth.user_id())
     .fetch_all(&state.db)
     .await?;
-    let now = Utc::now();
+    let now = OffsetDateTime::now_utc();
     Ok(Json(GatewayList {
         gateways: rows
             .into_iter()
             .map(|(id, name, seen_at, vault_ids)| GatewayInfo {
                 id,
                 name,
-                online: seen_at.is_some_and(|t| (now - t).num_seconds() <= ONLINE_WITHIN_SECS),
+                online: seen_at.is_some_and(|t| (now - t).whole_seconds() <= ONLINE_WITHIN_SECS),
                 seen_at,
                 vault_ids,
             })
@@ -410,7 +410,7 @@ async fn serve_client(
     };
     // The caller must open the vault, the gateway must hold it, and the team
     // (if any) must allow connecting through bridges.
-    let row: Option<(Option<Uuid>, Option<DateTime<Utc>>, String)> = sqlx::query_as(
+    let row: Option<(Option<Uuid>, Option<OffsetDateTime>, String)> = sqlx::query_as(
         "SELECT v.team_id, b.gateway_seen_at, b.name
          FROM bridges b
          JOIN bridge_vaults bv ON bv.bridge_id = b.id AND bv.vault_id = $2
@@ -431,7 +431,9 @@ async fn serve_client(
     {
         return close_with(&mut socket, "forbidden", &e.to_string()).await;
     }
-    if !seen_at.is_some_and(|t| (Utc::now() - t).num_seconds() <= ONLINE_WITHIN_SECS) {
+    if !seen_at
+        .is_some_and(|t| (OffsetDateTime::now_utc() - t).whole_seconds() <= ONLINE_WITHIN_SECS)
+    {
         return close_with(
             &mut socket,
             "gateway_offline",

@@ -24,7 +24,8 @@ use russh::keys::ssh_key::{Algorithm, PrivateKey, PublicKey};
 use russh::server::{Auth, ChannelOpenHandle, Msg, Server as _, Session};
 use russh::{Channel, ChannelId, MethodSet};
 use russh_sftp::protocol::{
-    Attrs, Data, File, FileAttributes, Handle, Name, OpenFlags, Status, StatusCode, Version,
+    Attrs, Data, File, FileAttributes, Handle, Name, OpenFlags, SftpHandle, Status, StatusCode,
+    Version,
 };
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
@@ -469,6 +470,11 @@ struct OpenFile {
     flags: OpenFlags,
 }
 
+// Handles are opaque bytes on the wire; this server only hands out ASCII ones.
+fn handle_key(handle: &SftpHandle) -> String {
+    String::from_utf8_lossy(handle.as_bytes()).into_owned()
+}
+
 struct MemSftp {
     files: Arc<Mutex<HashMap<String, Vec<u8>>>>,
     handles: HashMap<String, OpenFile>,
@@ -627,7 +633,8 @@ impl russh_sftp::server::Handler for MemSftp {
         Ok(Self::ok(id))
     }
 
-    async fn fstat(&mut self, id: u32, handle: String) -> Result<Attrs, Self::Error> {
+    async fn fstat(&mut self, id: u32, handle: SftpHandle) -> Result<Attrs, Self::Error> {
+        let handle = handle_key(&handle);
         let path = self
             .handles
             .get(&handle)
@@ -675,10 +682,14 @@ impl russh_sftp::server::Handler for MemSftp {
         drop(files);
         let h = self.handle();
         self.dirs.insert(h.clone(), Some(entries));
-        Ok(Handle { id, handle: h })
+        Ok(Handle {
+            id,
+            handle: h.into(),
+        })
     }
 
-    async fn readdir(&mut self, id: u32, handle: String) -> Result<Name, Self::Error> {
+    async fn readdir(&mut self, id: u32, handle: SftpHandle) -> Result<Name, Self::Error> {
+        let handle = handle_key(&handle);
         match self.dirs.get_mut(&handle) {
             Some(slot) => match slot.take() {
                 Some(files) => Ok(Name { id, files }),
@@ -688,7 +699,8 @@ impl russh_sftp::server::Handler for MemSftp {
         }
     }
 
-    async fn close(&mut self, id: u32, handle: String) -> Result<Status, Self::Error> {
+    async fn close(&mut self, id: u32, handle: SftpHandle) -> Result<Status, Self::Error> {
+        let handle = handle_key(&handle);
         self.handles.remove(&handle);
         self.dirs.remove(&handle);
         Ok(Self::ok(id))
@@ -761,9 +773,10 @@ impl russh_sftp::server::Handler for MemSftp {
     async fn fsetstat(
         &mut self,
         id: u32,
-        handle: String,
+        handle: SftpHandle,
         attrs: FileAttributes,
     ) -> Result<Status, Self::Error> {
+        let handle = handle_key(&handle);
         let path = self
             .handles
             .get(&handle)
@@ -801,16 +814,20 @@ impl russh_sftp::server::Handler for MemSftp {
         drop(files);
         let h = self.handle();
         self.handles.insert(h.clone(), OpenFile { path: p, flags });
-        Ok(Handle { id, handle: h })
+        Ok(Handle {
+            id,
+            handle: h.into(),
+        })
     }
 
     async fn read(
         &mut self,
         id: u32,
-        handle: String,
+        handle: SftpHandle,
         offset: u64,
         len: u32,
     ) -> Result<Data, Self::Error> {
+        let handle = handle_key(&handle);
         let path = self
             .handles
             .get(&handle)
@@ -833,10 +850,11 @@ impl russh_sftp::server::Handler for MemSftp {
     async fn write(
         &mut self,
         id: u32,
-        handle: String,
+        handle: SftpHandle,
         offset: u64,
         data: Vec<u8>,
     ) -> Result<Status, Self::Error> {
+        let handle = handle_key(&handle);
         let f = self.handles.get(&handle).ok_or(StatusCode::BadMessage)?;
         if !f.flags.contains(OpenFlags::WRITE) {
             return Err(StatusCode::PermissionDenied);

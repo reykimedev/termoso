@@ -6,7 +6,7 @@
 //! defined here so all clients agree. Relations between entities are expressed
 //! as UUIDs inside the encrypted payload.
 
-use chrono::{DateTime, Utc};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::schema;
@@ -91,7 +91,8 @@ schema! {
     pub struct SyncEntity {
         /// See `EntityChange::secret_rotated_at`.
         #[serde(default)]
-        pub secret_rotated_at: Option<DateTime<Utc>>,
+        #[serde(with = "crate::timestamp::serde::option")]
+        pub secret_rotated_at: Option<OffsetDateTime>,
         /// Client-generated UUID (v4).
         pub id: Uuid,
         /// Kind (see [`KINDS`]).
@@ -110,7 +111,8 @@ schema! {
         /// Empty for tombstones.
         pub data: String,
         /// Last modification.
-        pub updated_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub updated_at: OffsetDateTime,
         /// Device that made the last change.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub updated_by_device: Option<Uuid>,

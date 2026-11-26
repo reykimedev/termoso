@@ -3,12 +3,12 @@
 //! resulting text into an `SshKey` entity.
 
 use base64::Engine;
-use chrono::{DateTime, Utc};
 use russh::keys::ssh_key::private::{EcdsaKeypair, Ed25519Keypair, RsaKeypair};
 use russh::keys::ssh_key::{
     Algorithm, Certificate, EcdsaCurve, HashAlg, LineEnding, PrivateKey, PublicKey,
 };
 use serde::{Deserialize, Serialize};
+use time::OffsetDateTime;
 use zeroize::Zeroizing;
 
 use crate::error::{CoreError, Result};
@@ -65,9 +65,11 @@ pub struct CertificateInfo {
     /// Principals (usernames / hostnames). Empty = any.
     pub principals: Vec<String>,
     /// Start of validity, `None` = unbounded.
-    pub valid_after: Option<DateTime<Utc>>,
+    #[serde(default, with = "labterm_proto::timestamp::serde::option")]
+    pub valid_after: Option<OffsetDateTime>,
     /// End of validity, `None` = forever.
-    pub valid_before: Option<DateTime<Utc>>,
+    #[serde(default, with = "labterm_proto::timestamp::serde::option")]
+    pub valid_before: Option<OffsetDateTime>,
     /// `SHA256:` fingerprint of the certified public key.
     pub fingerprint: String,
     /// `SHA256:` fingerprint of the CA key.
@@ -261,11 +263,11 @@ fn parse_certificate(text: &str) -> Result<Certificate> {
     Certificate::from_openssh(text).map_err(|e| CoreError::Invalid(format!("certificate: {e}")))
 }
 
-fn unix_time(ts: u64, unbounded: u64) -> Option<DateTime<Utc>> {
+fn unix_time(ts: u64, unbounded: u64) -> Option<OffsetDateTime> {
     if ts == unbounded {
         return None;
     }
-    DateTime::<Utc>::from_timestamp(i64::try_from(ts).ok()?, 0)
+    OffsetDateTime::from_unix_timestamp(i64::try_from(ts).ok()?).ok()
 }
 
 /// Parse and summarise an OpenSSH certificate. The CA signature is verified
@@ -275,7 +277,7 @@ pub fn inspect_certificate(text: &str) -> Result<CertificateInfo> {
     let cert = parse_certificate(text)?;
     cert.verify_signature()
         .map_err(|e| CoreError::Invalid(format!("certificate signature: {e}")))?;
-    let now = u64::try_from(Utc::now().timestamp()).unwrap_or(0);
+    let now = u64::try_from(OffsetDateTime::now_utc().unix_timestamp()).unwrap_or(0);
     let valid_now = cert.valid_after() <= now && now < cert.valid_before();
     Ok(CertificateInfo {
         cert_type: cert.algorithm().to_certificate_type(),

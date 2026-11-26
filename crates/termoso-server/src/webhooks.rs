@@ -8,7 +8,6 @@
 
 use axum::Json;
 use axum::extract::{Path, State};
-use chrono::{DateTime, Utc};
 use labterm_proto::team::{
     CreateWebhookRequest, UpdateWebhookRequest, WEBHOOK_KINDS, Webhook, WebhookDelivery,
     WebhookDeliveryList, WebhookList,
@@ -16,6 +15,7 @@ use labterm_proto::team::{
 use sha2::{Digest, Sha256};
 use std::net::IpAddr;
 use std::sync::{Arc, OnceLock};
+use time::OffsetDateTime;
 use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
@@ -214,10 +214,10 @@ type HookRow = (
     String,
     Option<Vec<String>>,
     bool,
-    DateTime<Utc>,
+    OffsetDateTime,
     Option<i32>,
     Option<String>,
-    Option<DateTime<Utc>>,
+    Option<OffsetDateTime>,
     i32,
 );
 
@@ -433,8 +433,8 @@ async fn recent_deliveries(state: &AppState, wid: Uuid) -> ApiResult<Vec<Webhook
         String,
         Option<i32>,
         Option<String>,
-        DateTime<Utc>,
-        Option<DateTime<Utc>>,
+        OffsetDateTime,
+        Option<OffsetDateTime>,
     );
     let rows: Vec<Row> = sqlx::query_as(
         "SELECT d.id, d.event_id, e.action, d.attempt, d.status, d.response_status, d.response_body,
@@ -521,13 +521,13 @@ type EventRow = (
     Option<Uuid>,
     Option<String>,
     serde_json::Value,
-    DateTime<Utc>,
+    OffsetDateTime,
 );
 
 fn event_json(r: &EventRow) -> serde_json::Value {
     serde_json::json!({
         "id": r.0,
-        "ts": r.11,
+        "ts": labterm_proto::timestamp::to_json(r.11),
         "team_id": r.1,
         "action": r.6,
         "actor": r.2.map(|id| serde_json::json!({ "user_id": id, "email": r.3, "name": r.4 })),
@@ -546,7 +546,7 @@ fn render(
     events: &[serde_json::Value],
     delivery: Uuid,
 ) -> (Vec<u8>, Vec<(&'static str, String)>) {
-    let ts = Utc::now().timestamp().to_string();
+    let ts = OffsetDateTime::now_utc().unix_timestamp().to_string();
     match kind {
         "splunk_hec" => {
             let body: Vec<u8> = events
@@ -554,7 +554,7 @@ fn render(
                 .map(|e| {
                     serde_json::json!({
                         "event": e,
-                        "time": e["ts"].as_str().and_then(|t| t.parse::<DateTime<Utc>>().ok()).map(|t| t.timestamp()),
+                        "time": e["ts"].as_str().and_then(|t| labterm_proto::timestamp::parse_rfc3339(t).ok()).map(|t| t.unix_timestamp()),
                         "sourcetype": "termoso:audit",
                         "source": "termoso",
                     })
@@ -921,8 +921,8 @@ pub fn cef_frames(events: &[serde_json::Value]) -> Vec<u8> {
             "rt={}",
             e["ts"]
                 .as_str()
-                .and_then(|t| t.parse::<DateTime<Utc>>().ok())
-                .map(|t| t.timestamp_millis())
+                .and_then(|t| labterm_proto::timestamp::parse_rfc3339(t).ok())
+                .map(|t| (t.unix_timestamp_nanos() / 1_000_000) as i64)
                 .unwrap_or(0)
         ));
         ext.push(format!("externalId={}", e["id"]));

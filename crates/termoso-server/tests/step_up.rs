@@ -18,6 +18,7 @@ use labterm_proto::error::codes;
 use labterm_proto::sync::{EntityChange, PullRequest, PullResponse, PushRequest, PushResponse};
 use labterm_proto::vault::VaultList;
 use reqwest::{Method, StatusCode};
+use time::OffsetDateTime;
 use totp_rs::Totp;
 use uuid::Uuid;
 
@@ -203,8 +204,11 @@ async fn sensitive_routes_need_a_fresh_step_up() {
     let AuthResponse::Reauthenticated { reauth_expires_at } = resp else {
         panic!("expected Reauthenticated, got {resp:?}")
     };
-    let left = reauth_expires_at - chrono::Utc::now();
-    assert!(left.num_minutes() >= 4 && left.num_minutes() <= 5, "{left}");
+    let left = reauth_expires_at - OffsetDateTime::now_utc();
+    assert!(
+        left.whole_minutes() >= 4 && left.whole_minutes() <= 5,
+        "{left}"
+    );
 
     // A flow started by one session cannot be finished by another.
     let start: ReauthStartResponse = s
@@ -539,7 +543,7 @@ async fn start_over_is_delayed_cancellable_and_destroys_the_old_vault() {
                         host_id,
                         r#"{"label":"prod"}"#,
                     ),
-                    updated_at: chrono::Utc::now(),
+                    updated_at: OffsetDateTime::now_utc(),
                 }],
                 deletes: vec![],
             }),
@@ -600,8 +604,8 @@ async fn start_over_is_delayed_cancellable_and_destroys_the_old_vault() {
             }),
         )
         .await;
-    let eta = scheduled.scheduled_for - chrono::Utc::now();
-    assert!(eta.num_hours() >= 23, "{eta}");
+    let eta = scheduled.scheduled_for - OffsetDateTime::now_utc();
+    assert!(eta.whole_hours() >= 23, "{eta}");
 
     // Every signed-in device sees it and can call it off.
     let p = profile(s, &second.token).await;

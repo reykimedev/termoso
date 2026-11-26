@@ -7,6 +7,7 @@ use labterm_crypto::sealed;
 use labterm_proto::team::{AccessRequest, AccessRequestList, AuditEventList};
 use labterm_proto::vault::{CreateVaultRequest, Vault, VaultMemberUpsert, VaultRole};
 use reqwest::{Method, StatusCode};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 async fn members_json(s: &TestServer, vault: Uuid, u: &User) -> String {
@@ -172,9 +173,9 @@ async fn jit_access_lifecycle() {
         .await;
     assert_eq!((approved.status.as_str(), approved.hours), ("approved", 2));
     let until = approved.expires_at.expect("expiry");
-    let left = until - chrono::Utc::now();
+    let left = until - OffsetDateTime::now_utc();
     assert!(
-        left.num_minutes() > 110 && left.num_minutes() <= 120,
+        left.whole_minutes() > 110 && left.whole_minutes() <= 120,
         "{left}"
     );
     assert!(members_json(s, vault.id, &owner).await.contains(&bob_id));

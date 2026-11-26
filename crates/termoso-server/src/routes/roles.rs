@@ -2,8 +2,8 @@
 
 use axum::Json;
 use axum::extract::{Path, Query, State};
-use chrono::{DateTime, Utc};
 use labterm_proto::team::*;
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::audit;
@@ -51,8 +51,8 @@ type RoleRow = (
     bool,
     i32,
     i64,
-    DateTime<Utc>,
-    DateTime<Utc>,
+    OffsetDateTime,
+    OffsetDateTime,
 );
 
 fn to_def(r: RoleRow) -> TeamRoleDef {

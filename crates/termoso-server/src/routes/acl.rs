@@ -8,6 +8,7 @@ use crate::extract::{Auth, Json as Body};
 use crate::state::AppState;
 use axum::Json;
 use axum::extract::{Path, Query, State};
+use time::OffsetDateTime;
 
 use super::paging::PageQuery;
 use labterm_proto::team::{
@@ -26,7 +27,7 @@ type Row = (
     Option<String>,
     Option<String>,
     String,
-    chrono::DateTime<chrono::Utc>,
+    OffsetDateTime,
 );
 
 const SELECT_BY_VAULT: &str =

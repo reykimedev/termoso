@@ -1,6 +1,5 @@
 //! Entity CRUD and the raw rows the sync engine works with.
 
-use chrono::{DateTime, Utc};
 use labterm_crypto::aead::{self, Aad};
 use labterm_proto::entities::SyncEntity;
 use labterm_proto::entities::is_known_kind;
@@ -8,6 +7,7 @@ use labterm_proto::sync::{EntityChange, EntityDelete};
 use labterm_proto::vault::VaultRole;
 use rusqlite::{OptionalExtension, params};
 use serde::de::DeserializeOwned;
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use super::{LocalVault, Store, parse_time, parse_uuid};
@@ -37,7 +37,7 @@ pub struct EntityRow {
     /// Envelope.
     pub data: String,
     /// Last change.
-    pub updated_at: DateTime<Utc>,
+    pub updated_at: OffsetDateTime,
     /// Local changes pending.
     pub dirty: bool,
 }
@@ -233,7 +233,7 @@ impl Store {
                 vault_id.to_string(),
                 key_version,
                 ct,
-                Utc::now().to_rfc3339(),
+                labterm_proto::timestamp::to_rfc3339(OffsetDateTime::now_utc()),
                 dirty,
             ],
         )?;
@@ -344,7 +344,7 @@ impl Store {
         if synced && row.version > 0 {
             conn.execute(
                 "UPDATE entities SET deleted = 1, dirty = 1, data = '', updated_at = ?2 WHERE id = ?1",
-                params![id.to_string(), Utc::now().to_rfc3339()],
+                params![id.to_string(), labterm_proto::timestamp::to_rfc3339(OffsetDateTime::now_utc())],
             )?;
         } else {
             conn.execute(
@@ -461,7 +461,7 @@ impl Store {
                 e.seq,
                 e.key_version,
                 e.data,
-                e.updated_at.to_rfc3339(),
+                labterm_proto::timestamp::to_rfc3339(e.updated_at),
             ],
         )?;
         Ok(())
@@ -1033,7 +1033,7 @@ mod tests {
             deleted: false,
             key_version: 1,
             data,
-            updated_at: Utc::now(),
+            updated_at: OffsetDateTime::now_utc(),
             updated_by_device: None,
         })
         .unwrap();
@@ -1067,7 +1067,7 @@ mod tests {
             deleted: false,
             key_version: 1,
             data: "AAAA".into(),
-            updated_at: Utc::now(),
+            updated_at: OffsetDateTime::now_utc(),
             updated_by_device: None,
         })
         .unwrap();
@@ -1323,7 +1323,7 @@ mod tests {
             deleted: false,
             key_version: 1,
             data: "AAAA".into(),
-            updated_at: Utc::now(),
+            updated_at: OffsetDateTime::now_utc(),
             updated_by_device: None,
         })
         .unwrap();

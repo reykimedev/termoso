@@ -3,10 +3,10 @@
 //! those stay in the encrypted store and only travel in the explicit drafts
 //! the UI submits.
 
-use chrono::{DateTime, Utc};
 use labterm_client::{hosts, keychain};
 use labterm_core::store::{LocalVault, LocalVaultKind};
 use labterm_proto::vault::VaultRole;
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::error::{MobileError, Result};
@@ -27,8 +27,8 @@ pub(crate) fn parse_ids(ids: &[String]) -> Result<Vec<Uuid>> {
     ids.iter().map(|s| parse_id(s)).collect()
 }
 
-pub(crate) fn millis(t: DateTime<Utc>) -> i64 {
-    t.timestamp_millis()
+pub(crate) fn millis(t: OffsetDateTime) -> i64 {
+    labterm_proto::timestamp::unix_millis(t)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, uniffi::Enum)]

@@ -4,9 +4,9 @@
 //! sync, so connecting never waits on the server. Hosts in a team vault try
 //! the certificate first; everything else about the identity stays as is.
 
-use chrono::{DateTime, Duration, Utc};
 use labterm_proto::ca::{IssueCertificateRequest, IssueCertificateResponse};
 use serde::{Deserialize, Serialize};
+use time::{Duration, OffsetDateTime};
 use uuid::Uuid;
 use zeroize::Zeroizing;
 
@@ -33,7 +33,8 @@ pub struct DeviceKey {
     /// `authorized_keys` line.
     pub public_key: String,
     /// Generation time.
-    pub created_at: DateTime<Utc>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    pub created_at: OffsetDateTime,
 }
 
 /// One team's certificate for the device key, or the reason none exists.
@@ -52,12 +53,15 @@ pub struct CachedCert {
     pub principals: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     /// Start of validity.
-    pub valid_after: Option<DateTime<Utc>>,
+    #[serde(with = "labterm_proto::timestamp::serde::option")]
+    pub valid_after: Option<OffsetDateTime>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     /// Expiry.
-    pub valid_before: Option<DateTime<Utc>>,
+    #[serde(with = "labterm_proto::timestamp::serde::option")]
+    pub valid_before: Option<OffsetDateTime>,
     /// Last time the server was asked (success or refusal).
-    pub checked_at: DateTime<Utc>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    pub checked_at: OffsetDateTime,
     /// Why the last request yielded no certificate (`no_ca`, `disabled`,
     /// `forbidden`, `error`), for the UI.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -67,7 +71,7 @@ pub struct CachedCert {
 impl CachedCert {
     /// Usable right now.
     pub fn is_valid(&self) -> bool {
-        let now = Utc::now();
+        let now = OffsetDateTime::now_utc();
         self.certificate.is_some()
             && self.valid_after.is_some_and(|a| a <= now)
             && self.valid_before.is_some_and(|b| b > now)
@@ -75,11 +79,11 @@ impl CachedCert {
 
     /// Worth asking the server again.
     fn is_stale(&self) -> bool {
-        let now = Utc::now();
+        let now = OffsetDateTime::now_utc();
         match (self.valid_after, self.valid_before, &self.certificate) {
             (Some(a), Some(b), Some(_)) => {
-                let life = (b - a).num_seconds().max(1) as f64;
-                let left = (b - now).num_seconds() as f64;
+                let life = (b - a).whole_seconds().max(1) as f64;
+                let left = (b - now).whole_seconds() as f64;
                 left < (life * RENEW_FRACTION).max(300.0)
             }
             _ => now - self.checked_at > BACKOFF,
@@ -96,7 +100,7 @@ pub fn device_key(store: &Store) -> Result<DeviceKey> {
     let key = DeviceKey {
         private_key: material.private_key,
         public_key: material.public_key,
-        created_at: Utc::now(),
+        created_at: OffsetDateTime::now_utc(),
     };
     store.set_secret_meta(KEY_META, &serde_json::to_string(&key)?)?;
     Ok(key)
@@ -184,7 +188,7 @@ pub async fn refresh_all(api: &ApiClient, store: &Store) -> Result<()> {
                 principals: Some(issued.principals),
                 valid_after: Some(issued.valid_after),
                 valid_before: Some(issued.valid_before),
-                checked_at: Utc::now(),
+                checked_at: OffsetDateTime::now_utc(),
                 refusal: None,
             },
             Err(e) => {
@@ -205,7 +209,7 @@ pub async fn refresh_all(api: &ApiClient, store: &Store) -> Result<()> {
                     principals: None,
                     valid_after: None,
                     valid_before: None,
-                    checked_at: Utc::now(),
+                    checked_at: OffsetDateTime::now_utc(),
                     refusal: Some(refusal.into()),
                 }
             }
@@ -237,7 +241,7 @@ mod tests {
     use super::*;
 
     fn cert(life_h: i64, left_h: i64) -> CachedCert {
-        let now = Utc::now();
+        let now = OffsetDateTime::now_utc();
         CachedCert {
             team_id: Uuid::new_v4(),
             certificate: Some("ssh-ed25519-cert-v01@openssh.com AAAA".into()),
@@ -266,7 +270,7 @@ mod tests {
         };
         assert!(!refused.is_stale(), "refusals back off");
         let old = CachedCert {
-            checked_at: Utc::now() - Duration::hours(1),
+            checked_at: OffsetDateTime::now_utc() - Duration::hours(1),
             ..refused
         };
         assert!(old.is_stale());

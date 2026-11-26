@@ -9,6 +9,7 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use anyhow::Context;
@@ -96,7 +97,7 @@ pub struct TeamIdpRow {
     pub domains: Vec<String>,
     pub enabled: bool,
     pub jit_join: bool,
-    pub updated_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: OffsetDateTime,
 }
 
 pub async fn team_row(state: &AppState, team_id: Uuid) -> ApiResult<Option<TeamIdpRow>> {
@@ -112,7 +113,7 @@ pub async fn team_row(state: &AppState, team_id: Uuid) -> ApiResult<Option<TeamI
         Vec<String>,
         bool,
         bool,
-        chrono::DateTime<chrono::Utc>,
+        OffsetDateTime,
     );
     let row: Option<Row> = sqlx::query_as(
         "SELECT kind, name, issuer, client_id, client_secret_enc, scopes, saml_metadata,
@@ -637,7 +638,7 @@ async fn build_saml(
             allow_sha1: p.saml_allow_sha1,
             email_attribute: p.saml_email_attribute.clone(),
             name_attribute: p.saml_name_attribute.clone(),
-            clock_skew: chrono::Duration::seconds(p.saml_clock_skew_secs as i64),
+            clock_skew: time::Duration::seconds(p.saml_clock_skew_secs as i64),
         },
         idp,
     )
@@ -689,7 +690,7 @@ pub async fn start(
         Backend::Saml(sp) => {
             let request_id = saml::ServiceProvider::new_request_id();
             let target = sp
-                .start(&request_id, &flow_id, chrono::Utc::now())
+                .start(&request_id, &flow_id, OffsetDateTime::now_utc())
                 .map_err(|e| Error::Internal(e.context("building SAML AuthnRequest")))?;
             saml_request_id = Some(request_id);
             let url = match target {
@@ -874,7 +875,7 @@ fn consume_saml(
         .saml_request_id
         .as_deref()
         .context("flow has no AuthnRequest id")?;
-    let identity = sp.consume_response(saml_response, request_id, chrono::Utc::now())?;
+    let identity = sp.consume_response(saml_response, request_id, OffsetDateTime::now_utc())?;
     apply_domain_policy(
         &provider,
         SsoSession {
@@ -1070,7 +1071,7 @@ async fn link(state: &AppState, sess: SsoSession, user_id: uuid::Uuid) -> ApiRes
 
 /// Identities linked to `user_id`, in link order.
 pub async fn identities(state: &AppState, user_id: uuid::Uuid) -> ApiResult<Vec<SsoIdentity>> {
-    let rows: Vec<(String, Option<String>, chrono::DateTime<chrono::Utc>)> = sqlx::query_as(
+    let rows: Vec<(String, Option<String>, OffsetDateTime)> = sqlx::query_as(
         "SELECT provider, email, created_at FROM sso_identities WHERE user_id = $1 ORDER BY created_at",
     )
     .bind(user_id)
@@ -1230,7 +1231,7 @@ pub enum SloOutcome {
 /// `SessionIndex`es when the IdP names them — and is answered with a
 /// `LogoutResponse`. A `LogoutResponse` closes a logout we started.
 pub async fn saml_slo(state: &AppState, inbound: SloInbound<'_>) -> ApiResult<SloOutcome> {
-    let now = chrono::Utc::now();
+    let now = OffsetDateTime::now_utc();
     let mut message: Option<(saml::SloMessage, Option<String>)> = None;
     let mut providers: Vec<Arc<Provider>> = Vec::new();
     let mut last_err = None;
@@ -1336,7 +1337,7 @@ pub async fn saml_logout_url(state: &AppState, session_id: Uuid) -> ApiResult<Op
         &subject,
         session_index.as_deref(),
         Some(&request_id),
-        chrono::Utc::now(),
+        OffsetDateTime::now_utc(),
     )?
     else {
         return Ok(None);

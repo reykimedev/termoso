@@ -9,10 +9,10 @@
 
 use axum::Json;
 use axum::extract::{Path, State};
-use chrono::{DateTime, Utc};
 use labterm_crypto::encoding::unb64;
 use labterm_proto::bridge::*;
 use labterm_proto::vault::VaultKind;
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::audit;
@@ -143,8 +143,8 @@ type BridgeRow = (
     String,
     Uuid,
     String,
-    DateTime<Utc>,
-    Option<DateTime<Utc>>,
+    OffsetDateTime,
+    Option<OffsetDateTime>,
     Option<String>,
 );
 

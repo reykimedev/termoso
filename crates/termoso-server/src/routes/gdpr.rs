@@ -4,8 +4,8 @@
 
 use axum::Json;
 use axum::extract::{Path, State};
-use chrono::{DateTime, Duration, Utc};
 use labterm_proto::team::{ScheduleTeamDeletionRequest, TeamDataStatus, TeamRole};
+use time::{Duration, OffsetDateTime};
 use uuid::Uuid;
 
 use crate::audit;
@@ -20,9 +20,9 @@ pub const EXPORT_PERM: &str = "team.export";
 type StatusRow = (
     String,
     Option<String>,
-    Option<DateTime<Utc>>,
+    Option<OffsetDateTime>,
     Option<Uuid>,
-    DateTime<Utc>,
+    OffsetDateTime,
 );
 
 async fn status_row(state: &AppState, team_id: Uuid) -> ApiResult<StatusRow> {
@@ -58,7 +58,7 @@ pub async fn status(
         .await
         .map_err(|_| Error::not_found("Team"))?;
     let row = status_row(&state, team_id).await?;
-    if row.2.is_some_and(|at| at <= Utc::now()) {
+    if row.2.is_some_and(|at| at <= OffsetDateTime::now_utc()) {
         // Grace period over: purge now rather than wait for the job.
         teams::purge(&state, team_id).await?;
         return Err(Error::not_found("Team"));
@@ -180,7 +180,7 @@ pub async fn export(
             FROM team_idp WHERE team_id = $1) x), 'null'::json)", team_id).await?;
     let doc = serde_json::json!({
         "format": "termoso-team-export/1",
-        "exported_at": Utc::now(),
+        "exported_at": labterm_proto::timestamp::to_json(OffsetDateTime::now_utc()),
         "server": { "name": state.cfg.server_name, "region": state.cfg.data_region, "version": env!("CARGO_PKG_VERSION") },
         "note": "Entity `data` and log `meta`/bodies are end-to-end encrypted with the vault key; the server cannot read them.",
         "team": team,
@@ -252,12 +252,12 @@ pub async fn schedule(
             region: row.1,
             server_region: state.cfg.data_region.clone(),
             created_at: row.4,
-            deletion_scheduled_at: Some(Utc::now()),
+            deletion_scheduled_at: Some(OffsetDateTime::now_utc()),
             deletion_requested_by: Some(auth.user_id()),
             deletion_grace_days: 0,
         }));
     }
-    let at = Utc::now() + Duration::days(grace);
+    let at = OffsetDateTime::now_utc() + Duration::days(grace);
     sqlx::query(
         "UPDATE teams SET deletion_scheduled_at = $2, deletion_requested_by = $3, updated_at = now() WHERE id = $1",
     )
@@ -268,8 +268,9 @@ pub async fn schedule(
     .await?;
     audit::record(
         &state.db,
-        audit::Entry::new(team_id, &auth, "team.deletion_scheduled")
-            .details(serde_json::json!({ "at": at, "grace_days": grace })),
+        audit::Entry::new(team_id, &auth, "team.deletion_scheduled").details(
+            serde_json::json!({ "at": labterm_proto::timestamp::to_json(at), "grace_days": grace }),
+        ),
     )
     .await;
     notify_members(&state, team_id, &row.0, Some(at)).await;
@@ -330,7 +331,7 @@ async fn notify_members(
     state: &AppState,
     team_id: Uuid,
     team_name: &str,
-    at: Option<DateTime<Utc>>,
+    at: Option<OffsetDateTime>,
 ) {
     let Some(mailer) = &state.mailer else { return };
     let emails: Vec<(String,)> = match sqlx::query_as(
@@ -359,7 +360,7 @@ async fn notify_members(
             .paragraph(format!(
                 "The owner scheduled deletion of the team “{team_name}” on {} for {}. All team vaults, hosts, recordings and audit history on {} will be erased then. Export what you need before that date.",
                 state.cfg.server_name,
-                at.format("%Y-%m-%d %H:%M UTC"),
+                labterm_proto::timestamp::format_utc(at, time::macros::format_description!("[year]-[month]-[day] [hour]:[minute] UTC")),
                 state.cfg.server_name
             ))
             .button("Open team", &url),

@@ -4,7 +4,8 @@
 //! day-of-week 0–7 (0 and 7 are Sunday). As in Vixie cron, when both
 //! day-of-month and day-of-week are restricted either one matching fires.
 
-use chrono::{DateTime, Datelike, Duration, FixedOffset, TimeZone, Timelike, Utc};
+use time::OffsetDateTime;
+use time::{Date, Duration, Month, PrimitiveDateTime, Time, UtcOffset};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Schedule {
@@ -18,10 +19,10 @@ pub struct Schedule {
 }
 
 /// Parse `UTC`, `Z`, `+HH:MM` or `-HH:MM`.
-pub fn parse_timezone(s: &str) -> Option<FixedOffset> {
+pub fn parse_timezone(s: &str) -> Option<UtcOffset> {
     let s = s.trim();
     if s.is_empty() || s.eq_ignore_ascii_case("utc") || s == "Z" {
-        return FixedOffset::east_opt(0);
+        return Some(UtcOffset::UTC);
     }
     let (sign, rest) = match s.as_bytes()[0] {
         b'+' => (1, &s[1..]),
@@ -33,7 +34,7 @@ pub fn parse_timezone(s: &str) -> Option<FixedOffset> {
     if h > 14 || m > 59 {
         return None;
     }
-    FixedOffset::east_opt(sign * (h * 3600 + m * 60))
+    UtcOffset::from_whole_seconds(sign * (h * 3600 + m * 60)).ok()
 }
 
 fn field(spec: &str, min: u32, max: u32) -> Result<Vec<bool>, String> {
@@ -116,9 +117,9 @@ impl Schedule {
         Ok(s)
     }
 
-    fn matches<Tz: TimeZone>(&self, t: &DateTime<Tz>) -> bool {
+    fn matches(&self, t: &OffsetDateTime) -> bool {
         let day_ok = self.days[t.day() as usize];
-        let wd_ok = self.weekdays[t.weekday().num_days_from_sunday() as usize];
+        let wd_ok = self.weekdays[t.weekday().number_days_from_sunday() as usize];
         let dom = match (self.any_day, self.any_weekday) {
             (true, true) => true,
             (false, false) => day_ok || wd_ok,
@@ -127,31 +128,33 @@ impl Schedule {
         };
         self.minutes[t.minute() as usize]
             && self.hours[t.hour() as usize]
-            && self.months[t.month() as usize]
+            && self.months[u8::from(t.month()) as usize]
             && dom
     }
 
     /// First matching minute strictly after `after`, searching up to five
     /// years ahead (`None` for impossible schedules such as `0 0 31 2 *`).
-    pub fn next_after(&self, after: DateTime<Utc>, tz: FixedOffset) -> Option<DateTime<Utc>> {
-        let start = after.with_timezone(&tz);
-        let mut t = start.with_second(0)?.with_nanosecond(0)? + Duration::minutes(1);
+    pub fn next_after(&self, after: OffsetDateTime, tz: UtcOffset) -> Option<OffsetDateTime> {
+        let start = after.to_offset(tz);
+        let mut t =
+            start.replace_second(0).ok()?.replace_nanosecond(0).ok()? + Duration::minutes(1);
         let limit = start + Duration::days(366 * 5);
         while t <= limit {
-            if !self.months[t.month() as usize] {
+            if !self.months[u8::from(t.month()) as usize] {
                 // Jump to the first day of the next month.
-                let (y, m) = if t.month() == 12 {
-                    (t.year() + 1, 1)
+                let (y, m) = if t.month() == Month::December {
+                    (t.year() + 1, Month::January)
                 } else {
-                    (t.year(), t.month() + 1)
+                    (t.year(), t.month().next())
                 };
-                t = tz.with_ymd_and_hms(y, m, 1, 0, 0, 0).single()?;
+                let first = Date::from_calendar_date(y, m, 1).ok()?;
+                t = PrimitiveDateTime::new(first, Time::MIDNIGHT).assume_offset(tz);
                 continue;
             }
             if !self.matches(&t) {
                 let day_matches = {
                     let day_ok = self.days[t.day() as usize];
-                    let wd_ok = self.weekdays[t.weekday().num_days_from_sunday() as usize];
+                    let wd_ok = self.weekdays[t.weekday().number_days_from_sunday() as usize];
                     match (self.any_day, self.any_weekday) {
                         (true, true) => true,
                         (false, false) => day_ok || wd_ok,
@@ -160,15 +163,19 @@ impl Schedule {
                     }
                 };
                 if !day_matches {
-                    t = (t + Duration::days(1)).with_hour(0)?.with_minute(0)?;
+                    t = (t + Duration::days(1))
+                        .replace_hour(0)
+                        .ok()?
+                        .replace_minute(0)
+                        .ok()?;
                 } else if !self.hours[t.hour() as usize] {
-                    t = (t + Duration::hours(1)).with_minute(0)?;
+                    t = (t + Duration::hours(1)).replace_minute(0).ok()?;
                 } else {
                     t += Duration::minutes(1);
                 }
                 continue;
             }
-            return Some(t.with_timezone(&Utc));
+            return Some(t.to_offset(UtcOffset::UTC));
         }
         None
     }
@@ -178,8 +185,8 @@ impl Schedule {
 mod tests {
     use super::*;
 
-    fn at(s: &str) -> DateTime<Utc> {
-        s.parse().unwrap()
+    fn at(s: &str) -> OffsetDateTime {
+        labterm_proto::timestamp::parse_rfc3339(s).unwrap()
     }
 
     #[test]
@@ -209,7 +216,7 @@ mod tests {
 
     #[test]
     fn next_occurrences() {
-        let utc = FixedOffset::east_opt(0).unwrap();
+        let utc = UtcOffset::UTC;
         let s = Schedule::parse("*/15 * * * *").unwrap();
         assert_eq!(
             s.next_after(at("2026-03-01T10:07:30Z"), utc),

@@ -4,11 +4,11 @@ use axum::Json;
 use axum::extract::{Path, Query, State};
 
 use super::paging::PageQuery;
-use chrono::{DateTime, Utc};
 use labterm_proto::team::{
     CreateScimTokenRequest, CreatedScimToken, ScimGroupInfo, ScimGroupList, ScimGroupVault,
     ScimToken, ScimTokenList, SetScimGroupVaultsRequest,
 };
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::audit;
@@ -24,9 +24,9 @@ fn base_url(state: &AppState) -> String {
 type TokenRow = (
     Uuid,
     String,
-    DateTime<Utc>,
-    Option<DateTime<Utc>>,
-    Option<DateTime<Utc>>,
+    OffsetDateTime,
+    Option<OffsetDateTime>,
+    Option<OffsetDateTime>,
 );
 
 fn to_token(r: TokenRow) -> ScimToken {
@@ -84,7 +84,7 @@ pub async fn create_token(
     }
     let expires_at = match req.expires_in_days {
         Some(0) | None => None,
-        Some(d) if d <= 3650 => Some(Utc::now() + chrono::Duration::days(d as i64)),
+        Some(d) if d <= 3650 => Some(OffsetDateTime::now_utc() + time::Duration::days(d as i64)),
         Some(_) => return Err(Error::bad_request("expires_in_days must be 1..=3650")),
     };
     let secret = format!("tsk_{}", random_token());
@@ -104,7 +104,7 @@ pub async fn create_token(
     audit::record(
         &state.db,
         audit::Entry::new(id, &auth, "scim.token_created").details(
-            serde_json::json!({ "token_id": tid, "name": name, "expires_at": expires_at }),
+            serde_json::json!({ "token_id": tid, "name": name, "expires_at": expires_at.map(labterm_proto::timestamp::to_json) }),
         ),
     )
     .await;

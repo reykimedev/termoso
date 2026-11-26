@@ -5,9 +5,9 @@
 //! that both sides agree on. `Payload` ties each plaintext struct to its kind
 //! string so the store can encrypt with the right AAD.
 
-use chrono::{DateTime, Utc};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 pub use labterm_proto::entities::payload::*;
@@ -63,7 +63,8 @@ pub struct Entity<T> {
     /// Server version (0 while never pushed).
     pub version: i64,
     /// Last modification.
-    pub updated_at: DateTime<Utc>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    pub updated_at: OffsetDateTime,
     /// Has local changes not yet pushed.
     pub dirty: bool,
     /// Payload.

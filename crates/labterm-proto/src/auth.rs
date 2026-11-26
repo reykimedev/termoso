@@ -3,7 +3,7 @@
 //! All `opaque_*` fields are base64-encoded OPAQUE protocol messages produced
 //! by `labterm_crypto::opaque`.
 
-use chrono::{DateTime, Utc};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::account::{AccountKeys, UserProfile};
@@ -254,7 +254,8 @@ schema! {
         /// Bearer token. Send as `Authorization: Bearer <token>`.
         pub token: String,
         /// Absolute expiry (sliding on use).
-        pub expires_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub expires_at: OffsetDateTime,
         /// Server-side device id.
         pub device_id: Uuid,
         /// The user.
@@ -266,6 +267,9 @@ schema! {
 
 schema! {
     /// Outcome of a login / registration / MFA / approval step.
+    // One value per sign-in step; `time` timestamps are 4 bytes larger than
+    // chrono's, which tipped `Session` over the lint's threshold.
+    #[allow(clippy::large_enum_variant)]
     #[serde(tag = "status", rename_all = "snake_case")]
     pub enum AuthResponse {
         /// Done.
@@ -288,7 +292,8 @@ schema! {
         /// operations until `reauth_expires_at`.
         Reauthenticated {
             /// When the step-up window closes.
-            reauth_expires_at: DateTime<Utc>,
+            #[serde(with = "crate::timestamp::serde")]
+            reauth_expires_at: OffsetDateTime,
         },
     }
 }
@@ -404,7 +409,8 @@ schema! {
     /// received a cancel link and a link to finish once the delay has passed.
     pub struct StartOverScheduled {
         /// Earliest moment the reset can be completed.
-        pub scheduled_for: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub scheduled_for: OffsetDateTime,
         /// Masked email that received the cancel / finish links.
         pub email_hint: String,
     }
@@ -419,7 +425,8 @@ schema! {
         /// the holder of the emailed finish token gets here.
         pub email: String,
         /// Earliest moment the reset can be completed.
-        pub scheduled_for: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub scheduled_for: OffsetDateTime,
         /// Whether the delay has passed and `finish` will be accepted.
         pub ready: bool,
     }
@@ -557,9 +564,11 @@ schema! {
         /// App version at last use.
         pub app_version: String,
         /// Created.
-        pub created_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub created_at: OffsetDateTime,
         /// Last request.
-        pub last_seen_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub last_seen_at: OffsetDateTime,
         /// Last known IP (as seen by the server; stored for the user's own security review only).
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub last_ip: Option<String>,
@@ -570,7 +579,8 @@ schema! {
         pub posture: Option<Posture>,
         /// When `posture` was reported.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub posture_at: Option<DateTime<Utc>>,
+        #[serde(with = "crate::timestamp::serde::option")]
+        pub posture_at: Option<OffsetDateTime>,
     }
 }
 
@@ -604,10 +614,12 @@ schema! {
         /// User-given name.
         pub name: String,
         /// Created.
-        pub created_at: DateTime<Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub created_at: OffsetDateTime,
         /// Last used.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub last_used_at: Option<DateTime<Utc>>,
+        #[serde(with = "crate::timestamp::serde::option")]
+        pub last_used_at: Option<OffsetDateTime>,
     }
 }
 
@@ -743,7 +755,8 @@ schema! {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub email: Option<String>,
         /// When the link was made.
-        pub linked_at: chrono::DateTime<chrono::Utc>,
+        #[serde(with = "crate::timestamp::serde")]
+        pub linked_at: OffsetDateTime,
     }
 }
 

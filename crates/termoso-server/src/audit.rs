@@ -4,10 +4,10 @@
 
 use axum::Json;
 use axum::extract::{Path, Query, State};
-use chrono::{DateTime, Utc};
 use labterm_proto::team::{AuditEvent, AuditEventList};
 use serde::Deserialize;
 use sqlx::{PgExecutor, PgPool};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::error::{ApiResult, Error};
@@ -120,7 +120,7 @@ pub async fn record<'e, E: PgExecutor<'e>>(db: E, e: Entry) {
             metrics::counter!("termoso_team_audit_events_total", "action" => e.action).increment(1);
             if SINK.load(std::sync::atomic::Ordering::Relaxed) {
                 let line = serde_json::json!({
-                    "ts": chrono::Utc::now(), "team_id": e.team_id, "actor_id": actor_id,
+                    "ts": labterm_proto::timestamp::to_json(OffsetDateTime::now_utc()), "team_id": e.team_id, "actor_id": actor_id,
                     "device_id": device_id, "action": e.action, "vault_id": e.vault_id,
                     "target_user": e.target_user, "details": e.details,
                 });
@@ -195,7 +195,7 @@ type Row = (
     Option<Uuid>,
     Option<String>,
     serde_json::Value,
-    DateTime<Utc>,
+    OffsetDateTime,
     Option<String>,
     Option<String>,
 );
@@ -330,9 +330,11 @@ pub async fn list(
 #[derive(Debug, Deserialize, utoipa::IntoParams)]
 pub struct ExportQuery {
     /// Oldest event to include (inclusive).
-    pub from: Option<DateTime<Utc>>,
+    #[serde(default, with = "labterm_proto::timestamp::serde::option")]
+    pub from: Option<OffsetDateTime>,
     /// Newest event to include (exclusive).
-    pub to: Option<DateTime<Utc>>,
+    #[serde(default, with = "labterm_proto::timestamp::serde::option")]
+    pub to: Option<OffsetDateTime>,
     /// Only this action (exact) or family (`vault.` prefix).
     pub action: Option<String>,
     /// Only this actor.
@@ -361,7 +363,7 @@ fn csv_line(e: &AuditEvent) -> String {
     format!(
         "{},{},{},{},{},{},{},{},{},{},{},{},{},{}\n",
         e.id,
-        e.created_at.to_rfc3339(),
+        labterm_proto::timestamp::to_rfc3339(e.created_at),
         e.team_id,
         csv_field(&e.action),
         u(&e.actor_id),
@@ -411,7 +413,7 @@ pub async fn export(
     record(
         &state.db,
         Entry::new(team_id, &auth, "audit.exported").details(serde_json::json!({
-            "from": q.from, "to": q.to, "action": q.action, "format": if jsonl { "jsonl" } else { "csv" }
+            "from": q.from.map(labterm_proto::timestamp::to_json), "to": q.to.map(labterm_proto::timestamp::to_json), "action": q.action, "format": if jsonl { "jsonl" } else { "csv" }
         })),
     )
     .await;
@@ -527,7 +529,10 @@ pub async fn export(
             Some((Ok(bytes::Bytes::from(out)), c))
         }
     });
-    let stamp = chrono::Utc::now().format("%Y%m%d-%H%M%S");
+    let stamp = labterm_proto::timestamp::format_utc(
+        OffsetDateTime::now_utc(),
+        time::macros::format_description!("[year][month][day]-[hour][minute][second]"),
+    );
     let (ctype, ext) = if jsonl {
         ("application/x-ndjson; charset=utf-8", "jsonl")
     } else {

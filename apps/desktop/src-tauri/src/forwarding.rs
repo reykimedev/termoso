@@ -8,7 +8,6 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
 use labterm_core::error::CoreError;
 use labterm_core::forward::{Forward, ForwardSpec};
 use labterm_core::model::{Host, PfRule};
@@ -16,6 +15,7 @@ use labterm_core::ssh::SshClient;
 use labterm_core::store::{LocalVaultKind, Store};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager, Runtime};
+use time::OffsetDateTime;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
@@ -89,7 +89,8 @@ pub enum PfState {
 #[serde(rename_all = "camelCase")]
 pub struct PfRuntime {
     pub state: PfState,
-    pub started_at: Option<DateTime<Utc>>,
+    #[serde(default, with = "labterm_proto::timestamp::serde::option")]
+    pub started_at: Option<OffsetDateTime>,
     /// Address actually bound (local/dynamic) or the port the server opened
     /// (remote).
     pub bound: Option<String>,
@@ -100,7 +101,8 @@ pub struct PfRuntime {
     pub last_error: Option<String>,
     /// Reconnect attempt number (0 unless `state == Reconnecting`).
     pub attempt: u32,
-    pub next_retry_at: Option<DateTime<Utc>>,
+    #[serde(default, with = "labterm_proto::timestamp::serde::option")]
+    pub next_retry_at: Option<OffsetDateTime>,
 }
 
 impl PfRuntime {
@@ -134,7 +136,8 @@ pub struct PfRuleCard {
     pub remote_host: String,
     pub remote_port: u16,
     pub auto_start: bool,
-    pub updated_at: DateTime<Utc>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    pub updated_at: OffsetDateTime,
     pub runtime: PfRuntime,
 }
 
@@ -165,7 +168,7 @@ pub enum ForwardEvent {
 
 struct LiveForward {
     forward: Forward,
-    started_at: DateTime<Utc>,
+    started_at: OffsetDateTime,
     /// Transport (+ jump hosts) kept alive for the tunnel's lifetime.
     #[allow(dead_code)]
     client: Arc<SshClient>,
@@ -178,7 +181,7 @@ struct Reconnecting {
     /// Identifies the retry loop that owns this entry.
     generation: u64,
     attempt: u32,
-    next_at: DateTime<Utc>,
+    next_at: OffsetDateTime,
     reason: String,
     cancel: CancellationToken,
 }
@@ -351,7 +354,7 @@ impl Forwards {
     }
 
     /// Running tunnels with the time each came up.
-    pub fn running_since(&self) -> Vec<(Uuid, DateTime<Utc>)> {
+    pub fn running_since(&self) -> Vec<(Uuid, OffsetDateTime)> {
         self.live
             .lock()
             .expect("forwards poisoned")
@@ -633,7 +636,7 @@ pub async fn start<R: Runtime>(app: &AppHandle<R>, id: Uuid) -> Result<PfRuleCar
             id,
             Arc::new(LiveForward {
                 forward,
-                started_at: Utc::now(),
+                started_at: OffsetDateTime::now_utc(),
                 client: conn.client,
                 jumps: conn.jumps,
                 watcher,
@@ -658,8 +661,8 @@ fn schedule_reconnect<R: Runtime>(app: &AppHandle<R>, id: Uuid, reason: String) 
         let mut reason = reason;
         for attempt in 1..=RECONNECT_ATTEMPTS {
             let delay = reconnect_delay(attempt);
-            let next_at =
-                Utc::now() + chrono::Duration::from_std(delay).unwrap_or(chrono::Duration::zero());
+            let next_at = OffsetDateTime::now_utc()
+                + time::Duration::try_from(delay).unwrap_or(time::Duration::ZERO);
             state.forwards.set_reconnecting(
                 id,
                 Reconnecting {
@@ -843,7 +846,7 @@ mod tests {
             Reconnecting {
                 generation: 7,
                 attempt: 2,
-                next_at: Utc::now(),
+                next_at: OffsetDateTime::now_utc(),
                 reason: "connection lost: eof".into(),
                 cancel: cancel.clone(),
             },
@@ -869,7 +872,7 @@ mod tests {
             Reconnecting {
                 generation: 9,
                 attempt: 1,
-                next_at: Utc::now(),
+                next_at: OffsetDateTime::now_utc(),
                 reason: String::new(),
                 cancel: cancel.clone(),
             },

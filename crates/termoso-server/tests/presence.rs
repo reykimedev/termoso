@@ -3,6 +3,7 @@
 mod common;
 
 use std::time::Duration;
+use time::OffsetDateTime;
 
 use common::*;
 use futures::{SinkExt, StreamExt};
@@ -124,7 +125,7 @@ fn session(vault_id: Uuid, host_id: Uuid, protocol: &str) -> PresenceSession {
         vault_id,
         host_id,
         protocol: protocol.into(),
-        since: chrono::Utc::now(),
+        since: OffsetDateTime::now_utc(),
     }
 }
 
@@ -283,7 +284,7 @@ async fn presence_end_to_end() {
 
     // Owner reports shared + private + personal. Bob sees only the shared one,
     // the owner sees shared + private; the personal session is never stored.
-    let since = chrono::Utc::now();
+    let since = OffsetDateTime::now_utc();
     send(
         &mut owner_ws,
         &ClientMessage::Presence {

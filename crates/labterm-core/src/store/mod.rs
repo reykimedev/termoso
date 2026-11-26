@@ -24,12 +24,12 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Mutex;
 
-use chrono::{DateTime, Utc};
 use labterm_crypto::aead::{self, Aad};
 use labterm_crypto::keys::{KeyPair, SymmetricKey};
 use labterm_proto::vault::{VaultKind, VaultRole};
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::error::{CoreError, Result};
@@ -182,7 +182,8 @@ pub struct StoredAccount {
     /// Session-log pull cursor.
     pub logs_cursor: i64,
     /// When the session was established.
-    pub signed_in_at: DateTime<Utc>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    pub signed_in_at: OffsetDateTime,
 }
 
 /// Secret half of the account, only handed out to the sync/api layer.
@@ -360,7 +361,7 @@ impl Store {
             self.conn().execute(
                 "INSERT INTO vaults (id, kind, name, team_id, role, wrapped_key, key_version, cursor, created_at)
                  VALUES (?1, 'local', 'Local', NULL, 'manager', ?2, 1, 0, ?3)",
-                params![id.to_string(), wrapped, Utc::now().to_rfc3339()],
+                params![id.to_string(), wrapped, labterm_proto::timestamp::to_rfc3339(OffsetDateTime::now_utc())],
             )?;
         }
         Ok(())
@@ -510,7 +511,7 @@ impl Store {
                 role_str(role),
                 wrapped,
                 key_version,
-                Utc::now().to_rfc3339(),
+                labterm_proto::timestamp::to_rfc3339(OffsetDateTime::now_utc()),
             ],
         )?;
         if let Some(k) = key {
@@ -689,7 +690,7 @@ impl Store {
                 account.key_version,
                 account.history_cursor,
                 account.logs_cursor,
-                account.signed_in_at.to_rfc3339(),
+                labterm_proto::timestamp::to_rfc3339(account.signed_in_at),
             ],
         )?;
         self.set_account_avatar(account.avatar.as_deref())
@@ -808,9 +809,8 @@ pub(crate) fn parse_uuid(s: &str) -> Result<Uuid> {
     Uuid::parse_str(s).map_err(|e| CoreError::Invalid(format!("uuid: {e}")))
 }
 
-pub(crate) fn parse_time(s: &str) -> Result<DateTime<Utc>> {
-    DateTime::parse_from_rfc3339(s)
-        .map(|t| t.with_timezone(&Utc))
+pub(crate) fn parse_time(s: &str) -> Result<OffsetDateTime> {
+    labterm_proto::timestamp::parse_rfc3339(s)
         .map_err(|e| CoreError::Invalid(format!("timestamp: {e}")))
 }
 
@@ -866,7 +866,7 @@ mod tests {
             key_version: 1,
             history_cursor: 0,
             logs_cursor: 0,
-            signed_in_at: Utc::now(),
+            signed_in_at: OffsetDateTime::now_utc(),
         };
         store.save_account(&acc, "tok", &kp).unwrap();
         let vk = SymmetricKey::generate();
@@ -930,7 +930,7 @@ mod tests {
                         label: "old".into(),
                         target: "local".into(),
                         protocol: "local".into(),
-                        started_at: Utc::now(),
+                        started_at: OffsetDateTime::now_utc(),
                         ended_at: None,
                         cols: 80,
                         rows: 24,

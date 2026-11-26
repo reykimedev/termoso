@@ -4,7 +4,6 @@
 
 use std::collections::{HashMap, HashSet};
 
-use chrono::{DateTime, Utc};
 use labterm_core::model::{
     ClientCertificate, Entity, Group, Host, HostChain, HostSnippet, Identity, Proxy, S3Config,
     SerialConfig, Snippet, SshCertificate, SshConfig, SshKey, Tag, TelnetConfig, WebDavConfig,
@@ -13,6 +12,7 @@ use labterm_core::store::Store;
 use labterm_core::webdav::client_certificate_fingerprint;
 use labterm_proto::sshid::SshIdKeyType;
 use serde::{Deserialize, Serialize};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::error::{ClientError, Result};
@@ -55,9 +55,11 @@ pub struct HostCard {
     pub sort_order: i32,
     /// Shown to the system file picker (Android SAF).
     pub files_provider: bool,
-    pub updated_at: DateTime<Utc>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    pub updated_at: OffsetDateTime,
     /// Most recent connection to this host, if any.
-    pub last_connected: Option<DateTime<Utc>>,
+    #[serde(default, with = "labterm_proto::timestamp::serde::option")]
+    pub last_connected: Option<OffsetDateTime>,
     /// Provider the host was imported from (`Host::cloud_instance_type`).
     pub cloud_provider: Option<String>,
     pub dirty: bool,
@@ -751,7 +753,7 @@ pub struct TagInfo {
 }
 
 /// Newest connection per saved host.
-fn last_connections(store: &Store) -> Result<HashMap<Uuid, DateTime<Utc>>> {
+fn last_connections(store: &Store) -> Result<HashMap<Uuid, OffsetDateTime>> {
     let mut out = HashMap::new();
     for item in store.connections(2000)? {
         if let Some(hid) = item.data.host_id {
@@ -2267,7 +2269,7 @@ fn tags_in_vault(store: &Store, tag_ids: &[Uuid], vault_id: Uuid) -> Result<Vec<
                     id,
                     vault_id,
                     version: 0,
-                    updated_at: Utc::now(),
+                    updated_at: OffsetDateTime::now_utc(),
                     dirty: false,
                     data: src.data.clone(),
                 });

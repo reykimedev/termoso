@@ -5,11 +5,11 @@
 
 use std::path::{Path, PathBuf};
 
-use chrono::Utc;
 use labterm_crypto::aead::{self, Aad};
 use rusqlite::{OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use super::{Store, parse_time, parse_uuid};
@@ -130,9 +130,11 @@ pub struct CachedEntry {
     /// Remote mtime (unix seconds) as seen when cached.
     pub mtime: Option<i64>,
     /// When the copy was taken.
-    pub cached_at: chrono::DateTime<Utc>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    pub cached_at: OffsetDateTime,
     /// Last read through the cache; drives LRU eviction.
-    pub last_used: chrono::DateTime<Utc>,
+    #[serde(with = "labterm_proto::timestamp::serde")]
+    pub last_used: OffsetDateTime,
     /// Bytes on disk (ciphertext).
     pub bytes: u64,
 }
@@ -482,7 +484,7 @@ impl Store {
         let tmp = path.with_extension("tfc.tmp");
         std::fs::write(&tmp, &ct)?;
         std::fs::rename(&tmp, &path)?;
-        let now = Utc::now().to_rfc3339();
+        let now = labterm_proto::timestamp::to_rfc3339(OffsetDateTime::now_utc());
         self.conn().execute(
             "INSERT INTO file_cache
                (host_id, vault_id, path, kind, size, mtime, cached_at, last_used, local_path, bytes)
@@ -557,7 +559,11 @@ impl Store {
     fn touch(&self, host_id: Uuid, key: &str) -> Result<()> {
         self.conn().execute(
             "UPDATE file_cache SET last_used = ?3 WHERE host_id = ?1 AND path = ?2",
-            params![host_id.to_string(), key, Utc::now().to_rfc3339()],
+            params![
+                host_id.to_string(),
+                key,
+                labterm_proto::timestamp::to_rfc3339(OffsetDateTime::now_utc())
+            ],
         )?;
         Ok(())
     }

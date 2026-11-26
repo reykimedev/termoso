@@ -19,9 +19,9 @@ use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
-use chrono::{DateTime, Utc};
 use labterm_crypto::encoding::unb64;
 use labterm_proto::sshid::*;
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::config::Config;
@@ -58,7 +58,7 @@ const LISTED_KEYS: &str =
             WHERE s.device_id = k.device_id AND s.revoked_at IS NULL AND s.expires_at > now()))
      ORDER BY k.updated_at DESC";
 
-type KeyRow = (Uuid, String, String, Option<Uuid>, String, DateTime<Utc>);
+type KeyRow = (Uuid, String, String, Option<Uuid>, String, OffsetDateTime);
 
 fn key_type_of(s: &str) -> SshIdKeyType {
     SshIdKeyType::from_url_name(s).unwrap_or(SshIdKeyType::Ed25519)
@@ -232,7 +232,7 @@ fn normalize_public_key(key_type: SshIdKeyType, line: &str) -> ApiResult<String>
     Ok(format!("{alg} {b64}"))
 }
 
-async fn handle_of(state: &AppState, user_id: Uuid) -> ApiResult<Option<(String, DateTime<Utc>)>> {
+async fn handle_of(state: &AppState, user_id: Uuid) -> ApiResult<Option<(String, OffsetDateTime)>> {
     Ok(
         sqlx::query_as("SELECT handle, created_at FROM ssh_ids WHERE user_id = $1")
             .bind(user_id)
@@ -245,7 +245,7 @@ async fn profile(state: &AppState, auth: &Auth) -> ApiResult<Option<SshIdProfile
     let Some((handle, created_at)) = handle_of(state, auth.user_id()).await? else {
         return Ok(None);
     };
-    let rows: Vec<(Uuid, String, String, Option<Uuid>, String, DateTime<Utc>, Option<String>)> =
+    let rows: Vec<(Uuid, String, String, Option<Uuid>, String, OffsetDateTime, Option<String>)> =
         sqlx::query_as(
             "SELECT k.id, k.key_type, k.public_key, k.device_id, k.label, k.updated_at, d.name
              FROM ssh_id_keys k LEFT JOIN devices d ON d.id = k.device_id
@@ -455,7 +455,7 @@ pub async fn add_fido2_key(
         return Err(Error::quota_exceeded("Too many keys"));
     }
     let id = Uuid::new_v4();
-    let row: (DateTime<Utc>,) = sqlx::query_as(
+    let row: (OffsetDateTime,) = sqlx::query_as(
         "INSERT INTO ssh_id_keys (id, user_id, device_id, key_type, public_key, label)
          VALUES ($1, $2, NULL, $3, $4, $5) RETURNING updated_at",
     )
@@ -517,7 +517,7 @@ pub async fn add_public_key(
         return Err(Error::quota_exceeded("Too many keys"));
     }
     let id = Uuid::new_v4();
-    let row: (DateTime<Utc>,) = sqlx::query_as(
+    let row: (OffsetDateTime,) = sqlx::query_as(
         "INSERT INTO ssh_id_keys (id, user_id, device_id, key_type, public_key, label)
          VALUES ($1, $2, NULL, $3, $4, $5) RETURNING updated_at",
     )

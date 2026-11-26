@@ -9,6 +9,7 @@ use labterm_crypto::sealed;
 use labterm_proto::automation::*;
 use labterm_proto::vault::{CreateVaultRequest, VaultMemberUpsert, VaultRole};
 use reqwest::{Method, StatusCode};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 macro_rules! server {
@@ -128,9 +129,10 @@ async fn crud_validation_and_executor_flow() {
     assert_eq!(a.host_ids.len(), 2);
     let next = a.next_run_at.expect("scheduled");
     assert!(
-        next > chrono::Utc::now() && next <= chrono::Utc::now() + chrono::Duration::minutes(15)
+        next > OffsetDateTime::now_utc()
+            && next <= OffsetDateTime::now_utc() + time::Duration::minutes(15)
     );
-    assert_eq!(next.timestamp() % 900, 0, "aligned to a quarter hour");
+    assert_eq!(next.unix_timestamp() % 900, 0, "aligned to a quarter hour");
 
     let list: AutomationList = s
         .json::<(), _>(Method::GET, &base, Some(owner.token()), None)
@@ -407,7 +409,10 @@ async fn scheduler_tick_creates_and_expires_runs() {
             None,
         )
         .await;
-    assert!(after.next_run_at.unwrap() > chrono::Utc::now(), "advanced");
+    assert!(
+        after.next_run_at.unwrap() > OffsetDateTime::now_utc(),
+        "advanced"
+    );
     // A second tick with the slot still in the future adds nothing.
     s.tick_automations().await;
     let runs: AutomationRunList = s

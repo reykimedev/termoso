@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 use std::time::Duration;
+use time::OffsetDateTime;
 
 use anyhow::Context;
 use labterm_crypto::aead::{self, Aad};
@@ -47,7 +48,7 @@ pub struct Inner {
     /// Local fan-out of multiplayer relay frames (see `live::bus`).
     pub live: broadcast::Sender<crate::live::BusFrame>,
     pub gateway: broadcast::Sender<crate::gateway::RelayFrame>,
-    pub started_at: chrono::DateTime<chrono::Utc>,
+    pub started_at: OffsetDateTime,
     /// Set on SIGTERM: `/readyz` answers 503 so the balancer drains this
     /// replica while in-flight requests finish.
     pub draining: std::sync::atomic::AtomicBool,
@@ -132,7 +133,7 @@ impl Inner {
             events: broadcast::channel(4096).0,
             live: broadcast::channel(4096).0,
             gateway: broadcast::channel(8192).0,
-            started_at: chrono::Utc::now(),
+            started_at: OffsetDateTime::now_utc(),
             draining: std::sync::atomic::AtomicBool::new(false),
         });
         state.sso.load_all_teams(&state).await;
@@ -190,10 +191,8 @@ impl Inner {
     }
 
     /// When and by whom the settings were last saved (`None` = still defaults).
-    pub async fn settings_meta(
-        &self,
-    ) -> ApiResult<Option<(chrono::DateTime<chrono::Utc>, Option<String>)>> {
-        let row: Option<(chrono::DateTime<chrono::Utc>, Option<String>)> = sqlx::query_as(
+    pub async fn settings_meta(&self) -> ApiResult<Option<(OffsetDateTime, Option<String>)>> {
+        let row: Option<(OffsetDateTime, Option<String>)> = sqlx::query_as(
             "SELECT s.updated_at, u.email FROM server_settings s
              LEFT JOIN users u ON u.id = s.updated_by WHERE s.id = 1",
         )

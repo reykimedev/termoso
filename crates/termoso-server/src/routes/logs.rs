@@ -9,13 +9,13 @@
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
-use chrono::{DateTime, Utc};
 use labterm_crypto::encoding::unb64;
 use labterm_proto::logs::*;
 use labterm_proto::sync::MAX_BATCH;
 use labterm_proto::vault::VaultKind;
 use serde::Deserialize;
 use sqlx::AssertSqlSafe;
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::audit;
@@ -36,7 +36,7 @@ struct Row {
     key_version: i32,
     size_bytes: i64,
     completed: bool,
-    created_at: DateTime<Utc>,
+    created_at: OffsetDateTime,
     seq: i64,
     vault_seq: i64,
     deleted: bool,
@@ -666,9 +666,11 @@ pub async fn retention_pass(state: AppState) -> anyhow::Result<u64> {
 #[derive(Deserialize, utoipa::IntoParams)]
 pub struct TeamLogsQuery {
     /// Only recordings started at or after this instant.
-    pub from: Option<DateTime<Utc>>,
+    #[serde(default, with = "labterm_proto::timestamp::serde::option")]
+    pub from: Option<OffsetDateTime>,
     /// Only recordings started before this instant.
-    pub to: Option<DateTime<Utc>>,
+    #[serde(default, with = "labterm_proto::timestamp::serde::option")]
+    pub to: Option<OffsetDateTime>,
     /// Restrict to one team vault.
     pub vault_id: Option<Uuid>,
     /// Rows per page (the whole list when omitted; capped).
@@ -787,7 +789,7 @@ pub async fn team_export(
     audit::record(
         &state.db,
         audit::Entry::new(team_id, &auth, "logs.exported").details(serde_json::json!({
-            "count": count, "from": q.from, "to": q.to, "vault_id": q.vault_id,
+            "count": count, "from": q.from.map(labterm_proto::timestamp::to_json), "to": q.to.map(labterm_proto::timestamp::to_json), "vault_id": q.vault_id,
         })),
     )
     .await;
@@ -931,7 +933,7 @@ struct CommentRow {
     user_id: Uuid,
     body: String,
     offset_ms: Option<i64>,
-    created_at: DateTime<Utc>,
+    created_at: OffsetDateTime,
     email: String,
     display_name: Option<String>,
     avatar_tag: Option<String>,
