@@ -498,6 +498,8 @@ export interface HostForm {
   envVariables: [string, string][];
   keepAliveInterval: number | null;
   timeout: number | null;
+  /** OpenID (opkssh) key tried before the credentials above. */
+  oidcKeyId: Uuid | null;
   /** Terminal colour scheme id; null follows the app setting. */
   colorScheme: string | null;
   /** Connect with Mosh (mosh-client bootstrapped over this SSH section). */
@@ -792,6 +794,7 @@ export function emptyHostForm(vaultId: Uuid, groupId: Uuid | null): HostForm {
     envVariables: [],
     keepAliveInterval: null,
     timeout: null,
+    oidcKeyId: null,
     colorScheme: null,
     useMosh: false,
     moshServerCommand: null,
@@ -841,6 +844,8 @@ export interface GroupForm {
   envVariables: [string, string][];
   keepAliveInterval: number | null;
   timeout: number | null;
+  /** OpenID (opkssh) key hosts of the group try first. */
+  oidcKeyId: Uuid | null;
 }
 
 export function emptyGroupForm(vaultId: Uuid, parentId: Uuid | null): GroupForm {
@@ -868,6 +873,7 @@ export function emptyGroupForm(vaultId: Uuid, parentId: Uuid | null): GroupForm 
     envVariables: [],
     keepAliveInterval: null,
     timeout: null,
+    oidcKeyId: null,
   };
 }
 
@@ -890,6 +896,7 @@ export interface Inherited {
   proxyId: Uuid | null;
   keepAliveInterval: number | null;
   timeout: number | null;
+  oidcKeyId: Uuid | null;
   envVariables: [string, string][];
 }
 

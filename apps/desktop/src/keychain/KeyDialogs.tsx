@@ -316,18 +316,33 @@ export function ExportToHostDialog({
 export function SetupOpksshDialog({
   open,
   card,
+  keys = [],
   hosts,
+  fixedHost,
   busy,
   onCancel,
   onConfirm,
 }: Base & {
-  card: KeyCard;
+  /** The key, when opened from the keychain; otherwise picked from `keys`. */
+  card: KeyCard | null;
+  keys?: KeyCard[];
   hosts: HostCard[];
-  onConfirm: (host: HostCard, principal: string | null, identity: string | null) => void;
+  /** The host, when opened from the hosts page. */
+  fixedHost?: HostCard;
+  onConfirm: (
+    key: KeyCard,
+    host: HostCard,
+    principal: string | null,
+    identity: string | null,
+  ) => void;
 }) {
-  const [host, setHost] = useState<HostCard | null>(null);
+  const opkssh = useMemo(() => keys.filter((k) => k.opkssh), [keys]);
+  const [pickedKey, setPickedKey] = useState<KeyCard | null>(card ?? opkssh[0] ?? null);
+  const [pickedHost, setPickedHost] = useState<HostCard | null>(fixedHost ?? null);
   const [principal, setPrincipal] = useState("");
   const [identity, setIdentity] = useState("");
+  const key = card ?? pickedKey;
+  const host = fixedHost ?? pickedHost;
   const sshHosts = useMemo(
     () => hosts.filter((h) => h.protocol === "ssh").sort((a, b) => a.label.localeCompare(b.label)),
     [hosts],
@@ -339,22 +354,39 @@ export function SetupOpksshDialog({
         <Stack spacing={2} sx={{ mt: 0.5 }}>
           <Typography variant="body2" color="text.secondary">
             {trx(
-              "Installs opkssh if needed, adds the provider of {key} to {file} and allows your identity to log in. Uses the host's current credentials and needs root or passwordless sudo.",
-              { key: <b>{card.label}</b>, file: <Mono>/etc/opk/providers</Mono> },
+              "Installs opkssh if needed, adds the key's provider to {file} and allows your identity to log in. Uses the host's current credentials and needs root or passwordless sudo.",
+              { file: <Mono>/etc/opk/providers</Mono> },
             )}
           </Typography>
-          <Field label={tr("Host")}>
-            <Autocomplete
-              autoFocus
-              options={sshHosts}
-              value={host}
-              onChange={(_, v) => setHost(v)}
-              getOptionLabel={(h) => h.label}
-              isOptionEqualToValue={(a, b) => a.id === b.id}
-              noOptionsText={tr("No SSH hosts")}
-              renderInput={(params) => <TextField {...params} placeholder={tr("Choose a host")} />}
-            />
-          </Field>
+          {card === null && (
+            <Field label={tr("OpenID key")}>
+              <Autocomplete
+                options={opkssh}
+                value={pickedKey}
+                onChange={(_, v) => setPickedKey(v)}
+                getOptionLabel={(k) => k.label}
+                isOptionEqualToValue={(a, b) => a.id === b.id}
+                noOptionsText={tr("No OpenID keys: create one in the keychain")}
+                renderInput={(params) => <TextField {...params} placeholder={tr("Choose a key")} />}
+              />
+            </Field>
+          )}
+          {fixedHost === undefined && (
+            <Field label={tr("Host")}>
+              <Autocomplete
+                autoFocus
+                options={sshHosts}
+                value={pickedHost}
+                onChange={(_, v) => setPickedHost(v)}
+                getOptionLabel={(h) => h.label}
+                isOptionEqualToValue={(a, b) => a.id === b.id}
+                noOptionsText={tr("No SSH hosts")}
+                renderInput={(params) => (
+                  <TextField {...params} placeholder={tr("Choose a host")} />
+                )}
+              />
+            </Field>
+          )}
           <TextField
             value={principal}
             onChange={(e) => setPrincipal(e.target.value)}
@@ -375,8 +407,10 @@ export function SetupOpksshDialog({
         </Button>
         <Button
           variant="contained"
-          disabled={host === null || busy}
-          onClick={() => host && onConfirm(host, principal.trim() || null, identity.trim() || null)}
+          disabled={host === null || key === null || busy}
+          onClick={() =>
+            key && host && onConfirm(key, host, principal.trim() || null, identity.trim() || null)
+          }
         >
           {busy ? tr("Connecting…") : tr("Set up")}
         </Button>

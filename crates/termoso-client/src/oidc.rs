@@ -283,24 +283,66 @@ fn now() -> u64 {
         .unwrap_or_default()
 }
 
-/// The current sign-in of a key on this device, if still usable.
-pub fn session(store: &Store, key_id: Uuid) -> Result<Option<SessionInfo>> {
-    Ok(load_sessions(store)?
-        .remove(&key_id)
-        .filter(|s| s.use_until > now() + SLACK_SECS)
-        .map(|s| SessionInfo {
-            identity: s.identity,
-            use_until: s.use_until,
-        }))
+/// A usable sign-in for `settings`: the key's own, else one another key
+/// made with the same provider settings (one login serves them all).
+fn find_session(
+    all: &BTreeMap<Uuid, Session>,
+    key_id: Uuid,
+    settings: &OidcKeySettings,
+) -> Option<Session> {
+    let usable = |s: &&Session| s.settings == *settings && s.use_until > now() + SLACK_SECS;
+    all.get(&key_id)
+        .filter(usable)
+        .or_else(|| all.values().filter(usable).max_by_key(|s| s.use_until))
+        .cloned()
 }
 
-/// Sign out: drop the key and certificate of `key_id` on this device.
+/// The current sign-in of a key on this device, if still usable.
+pub fn session(store: &Store, key_id: Uuid) -> Result<Option<SessionInfo>> {
+    let key = store.require::<SshKey>(key_id)?;
+    let Some(settings) = resolve(store, &key)? else {
+        return Ok(None);
+    };
+    Ok(
+        find_session(&load_sessions(store)?, key_id, &settings).map(|s| SessionInfo {
+            identity: s.identity,
+            use_until: s.use_until,
+        }),
+    )
+}
+
+/// Sign out: drop this device's key and certificate of `key_id`, and of
+/// every key sharing its sign-in.
 pub fn sign_out(store: &Store, key_id: Uuid) -> Result<()> {
     let mut all = load_sessions(store)?;
-    if all.remove(&key_id).is_some() {
+    let settings = match store.get::<SshKey>(key_id)? {
+        Some(key) => resolve(store, &key).ok().flatten(),
+        None => None,
+    };
+    let before = all.len();
+    all.retain(|id, s| *id != key_id && Some(&s.settings) != settings.as_ref());
+    if all.len() != before {
         save_sessions(store, &all)?;
     }
     Ok(())
+}
+
+/// The OpenID key a host's SSH settings name (tried before its identity's
+/// credentials), when it is an opkssh key of the host's vault and not
+/// already the identity's key.
+pub fn host_key(
+    store: &Store,
+    resolved: &termoso_core::model::ResolvedHost,
+) -> Result<Option<Entity<SshKey>>> {
+    let Some(id) = resolved.ssh.oidc_key_id else {
+        return Ok(None);
+    };
+    if resolved.key.as_ref().is_some_and(|k| k.id == id) {
+        return Ok(None);
+    }
+    Ok(store
+        .get_in::<SshKey>(id, resolved.host.vault_id)?
+        .filter(|k| k.data.is_opkssh()))
 }
 
 /// What the pre-connect step has to do for a key.
@@ -336,11 +378,9 @@ pub fn prepare(store: &Store, key: &Entity<SshKey>) -> Result<PreConnect> {
     let Some(s) = resolve(store, key)? else {
         return Ok(PreConnect::NotOidc);
     };
-    Ok(match load_sessions(store)?.remove(&key.id) {
-        Some(c) if c.settings == s && c.use_until > now() + SLACK_SECS => {
-            PreConnect::Cached(auth_method(c.private_key, c.certificate))
-        }
-        _ => PreConnect::Login(s),
+    Ok(match find_session(&load_sessions(store)?, key.id, &s) {
+        Some(c) => PreConnect::Cached(auth_method(c.private_key, c.certificate)),
+        None => PreConnect::Login(s),
     })
 }
 
@@ -663,6 +703,50 @@ mod tests {
 
         sign_out(&store, id).unwrap();
         assert_eq!(session(&store, id).unwrap(), None);
+    }
+
+    #[test]
+    fn keys_with_the_same_provider_share_a_sign_in() {
+        let store = Store::open_in_memory(SymmetricKey::generate()).unwrap();
+        let vault = store.local_vault().unwrap().id;
+        save_provider(&store, vault, None, provider("https://a.example.com", true)).unwrap();
+        let a = store
+            .insert(vault, &opkssh_key("a", OidcKeyOptions::default()))
+            .unwrap();
+        let b = store
+            .insert(vault, &opkssh_key("b", OidcKeyOptions::default()))
+            .unwrap();
+        let other = store
+            .insert(
+                vault,
+                &opkssh_key(
+                    "c",
+                    OidcKeyOptions {
+                        principals: vec!["root".into()],
+                        ..Default::default()
+                    },
+                ),
+            )
+            .unwrap();
+        let key_a = store.require::<SshKey>(a).unwrap();
+        let s = resolve(&store, &key_a).unwrap().unwrap();
+        remember(&store, a, &s, &fresh(now() + 3600)).unwrap();
+
+        let key_b = store.require::<SshKey>(b).unwrap();
+        assert!(matches!(
+            prepare(&store, &key_b).unwrap(),
+            PreConnect::Cached(_)
+        ));
+        assert!(session(&store, b).unwrap().is_some());
+        // Other principals need their own certificate.
+        let key_c = store.require::<SshKey>(other).unwrap();
+        assert!(matches!(
+            prepare(&store, &key_c).unwrap(),
+            PreConnect::Login(_)
+        ));
+
+        sign_out(&store, b).unwrap();
+        assert_eq!(session(&store, a).unwrap(), None);
     }
 
     #[test]

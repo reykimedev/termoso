@@ -416,7 +416,7 @@ function SignInCard({ keyId }: { keyId: Uuid }) {
 
 /* ---------------------------------------------------------- providers */
 
-const blank: OidcProvider = { label: "", issuer: "", client_id: "" };
+const blankProvider: OidcProvider = { label: "", issuer: "", client_id: "" };
 
 /** OpenID providers of the vault: a team vault gives every member the same issuer. */
 export function OidcProvidersPanel({
@@ -465,7 +465,9 @@ export function OidcProvidersPanel({
         <ToolIconButton
           title={tr("Add provider")}
           disabled={readOnly}
-          onClick={() => setEditing({ id: null, data: { ...blank, default: list.length === 0 } })}
+          onClick={() =>
+            setEditing({ id: null, data: { ...blankProvider, default: list.length === 0 } })
+          }
         >
           <AddRoundedIcon fontSize="small" />
         </ToolIconButton>
@@ -527,7 +529,9 @@ export function OidcProvidersPanel({
             variant="tonal"
             startIcon={<AddRoundedIcon />}
             disabled={readOnly}
-            onClick={() => setEditing({ id: null, data: { ...blank, default: list.length === 0 } })}
+            onClick={() =>
+              setEditing({ id: null, data: { ...blankProvider, default: list.length === 0 } })
+            }
           >
             {tr("Add provider")}
           </Button>
@@ -537,7 +541,7 @@ export function OidcProvidersPanel({
   );
 }
 
-function ProviderForm({
+export function ProviderForm({
   initial,
   isNew,
   busy,

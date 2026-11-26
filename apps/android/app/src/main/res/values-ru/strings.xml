@@ -1843,8 +1843,8 @@
     <string name="openid_default_for_vault">По умолчанию для хранилища</string>
     <string name="setup_opkssh_on_host">Настроить opkssh на хосте</string>
     <string name="setup_opkssh_on_host_hint">Устанавливает opkssh на сохранённый хост и разрешает там ваш вход</string>
-    <string name="setup_opkssh_confirm">Termoso подключится к %1$s с сохранёнными учётными данными, установит opkssh (нужен root или sudo без пароля), добавит провайдера и разрешит указанную ниже учётную запись.</string>
-    <string name="openid_login_user">Пользователь (пусто: тот, под кем входит Termoso)</string>
+    <string name="setup_opkssh_confirm">Подключается к %1$s с сохранёнными учётными данными, устанавливает opkssh (нужен root или sudo без пароля), добавляет провайдера и разрешает указанную ниже учётную запись.</string>
+    <string name="openid_login_user">Пользователь (пусто: тот, под кем вы входите)</string>
     <string name="openid_identity">Разрешённый email (пусто: текущий вход)</string>
     <string name="openid_set_up">Настроить</string>
     <string name="opkssh_set_up_on">opkssh настроен на</string>
@@ -1853,5 +1853,10 @@
     <string name="debug_update_tap_to_install">Коммит %1$s, нажмите для установки</string>
     <string name="debug_update_downloading">Загрузка…</string>
     <string name="debug_update_current">Установлена последняя версия (сборка %1$d)</string>
-    <string name="debug_update_available_notice">Доступна сборка Termoso Debug %1$d: Настройки → О приложении</string>
+    <string name="debug_update_available_notice">Доступна отладочная сборка %1$d: Настройки → О приложении</string>
+    <string name="openid_no_keys">В этом хранилище нет ключей OpenID: создайте ключ в связке ключей</string>
+    <string name="openid_key_for_host">Ключ OpenID</string>
+    <string name="openid_key_for_host_hint">Используется раньше учётных данных хоста, которые остаются запасным вариантом. Хосты без ключа используют ключ своей группы.</string>
+    <string name="openid_none_inherit">Нет (как у группы)</string>
+    <string name="openid_key_for_host_saved">Ключ OpenID сохранён</string>
 </resources>

@@ -243,7 +243,7 @@ fun OidcProvidersDialog(repo: VaultRepository, vaultId: String, onNotify: (Strin
 private val POLICIES = listOf("24h", "48h", "1week", "oidc", "oidc-refreshed", "never")
 
 @Composable
-private fun ProviderEditDialog(
+internal fun ProviderEditDialog(
     current: OidcProviderItem,
     onDismiss: () -> Unit,
     onDelete: (() -> Unit)?,
@@ -302,15 +302,12 @@ private fun ProviderEditDialog(
 @Composable
 fun SetupOpksshOnHostFlow(repo: VaultRepository, key: KeyItem, onNotify: (String) -> Unit, onDismiss: () -> Unit) {
     var host by remember { mutableStateOf<HostItem?>(null) }
-    var started by remember { mutableStateOf(false) }
-    var principal by remember { mutableStateOf("") }
-    var identity by remember { mutableStateOf("") }
     val hosts by produceState<List<HostItem>?>(null, key.vaultId) {
         value = withContext(Dispatchers.IO) { runCatching { repo.read { hosts(key.vaultId) } }.getOrDefault(emptyList()).filter { it.protocol == "ssh" } }
     }
     val picked = host
-    when {
-        picked == null -> PickerDialog(
+    if (picked == null) {
+        PickerDialog(
             title = stringResource(R.string.setup_opkssh_on_host),
             hint = stringResource(R.string.setup_opkssh_on_host_hint),
             empty = stringResource(R.string.no_hosts_in_this_vault),
@@ -319,30 +316,106 @@ fun SetupOpksshOnHostFlow(repo: VaultRepository, key: KeyItem, onNotify: (String
             onPick = { host = it },
             onDismiss = onDismiss,
         )
-        !started -> AlertDialog(
-            onDismissRequest = onDismiss,
-            title = { Text(stringResource(R.string.setup_opkssh_on_host)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(stringResource(R.string.setup_opkssh_confirm, picked.label), style = MaterialTheme.typography.bodySmall)
-                    FormField(principal, { principal = it }, stringResource(R.string.openid_login_user))
-                    FormField(identity, { identity = it }, stringResource(R.string.openid_identity))
-                }
-            },
-            confirmButton = { TextButton(onClick = { started = true }) { Text(stringResource(R.string.openid_set_up)) } },
-            dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    } else {
+        ConfirmOpksshSetup(repo, key, picked, onNotify, onDismiss)
+    }
+}
+
+/** From a host's menu: pick one of the vault's OpenID keys, then set opkssh up on [host]. */
+@Composable
+fun SetupOpksshForHostFlow(repo: VaultRepository, host: HostItem, onNotify: (String) -> Unit, onDismiss: () -> Unit) {
+    var key by remember { mutableStateOf<KeyItem?>(null) }
+    val keys by produceState<List<KeyItem>?>(null, host.vaultId) {
+        value = withContext(Dispatchers.IO) { runCatching { repo.read { keys(host.vaultId) } }.getOrDefault(emptyList()).filter { it.isOpkssh() } }
+    }
+    val picked = key
+    if (picked == null) {
+        PickerDialog(
+            title = stringResource(R.string.setup_opkssh_on_host),
+            hint = stringResource(R.string.setup_opkssh_on_host_hint),
+            empty = stringResource(R.string.openid_no_keys),
+            items = keys,
+            label = { it.label },
+            onPick = { key = it },
+            onDismiss = onDismiss,
         )
-        else -> OpksshSetupDialog(
+    } else {
+        ConfirmOpksshSetup(repo, picked, host, onNotify, onDismiss)
+    }
+}
+
+@Composable
+private fun ConfirmOpksshSetup(repo: VaultRepository, key: KeyItem, host: HostItem, onNotify: (String) -> Unit, onDismiss: () -> Unit) {
+    var started by remember { mutableStateOf(false) }
+    var principal by remember { mutableStateOf("") }
+    var identity by remember { mutableStateOf("") }
+    if (started) {
+        OpksshSetupDialog(
             repo,
             key.id,
-            picked.id,
+            host.id,
             key.vaultId,
             principal.trim().ifEmpty { null },
             identity.trim().ifEmpty { null },
             onDone = onNotify,
             onDismiss = onDismiss,
         )
+        return
     }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.setup_opkssh_on_host)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(stringResource(R.string.setup_opkssh_confirm, host.label), style = MaterialTheme.typography.bodySmall)
+                FormField(principal, { principal = it }, stringResource(R.string.openid_login_user))
+                FormField(identity, { identity = it }, stringResource(R.string.openid_identity))
+            }
+        },
+        confirmButton = { TextButton(onClick = { started = true }) { Text(stringResource(R.string.openid_set_up)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
+}
+
+/** The OpenID key [host] tries before its credentials (its own setting; groups' are inherited). */
+@Composable
+fun HostOidcKeyDialog(repo: VaultRepository, host: HostItem, onNotify: (String) -> Unit, onDismiss: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    val keys by produceState<List<KeyItem>?>(null, host.vaultId) {
+        value = withContext(Dispatchers.IO) { runCatching { repo.read { keys(host.vaultId) } }.getOrDefault(emptyList()).filter { it.isOpkssh() } }
+    }
+    val current by produceState<String?>(null, host.id) {
+        value = withContext(Dispatchers.IO) { runCatching { repo.read { hostOidcKey(host.id) } }.getOrNull() }
+    }
+    var choice by remember(current) { mutableStateOf(current) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.openid_key_for_host)) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.openid_key_for_host_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                val list = keys
+                if (list == null) {
+                    CircularProgressIndicator(Modifier.size(20.dp))
+                } else {
+                    ChoiceRow(stringResource(R.string.openid_none_inherit), choice == null) { choice = null }
+                    list.forEach { k -> ChoiceRow(k.label, choice == k.id) { choice = k.id } }
+                    if (list.isEmpty()) Text(stringResource(R.string.openid_no_keys), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val picked = choice
+                scope.launch {
+                    runCatching { repo.write { setHostOidcKey(host.id, picked) } }
+                        .onSuccess { onNotify(str(R.string.openid_key_for_host_saved)); onDismiss() }
+                        .onFailure { onNotify(it.userMessage()) }
+                }
+            }) { Text(stringResource(R.string.save)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
 }
 
 @Composable

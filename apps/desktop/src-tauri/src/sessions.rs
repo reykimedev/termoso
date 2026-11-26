@@ -1601,6 +1601,21 @@ async fn ssh_connect<R: Runtime>(
         {
             auth.push(m);
         }
+        // OpenID key from the host's (or its group's) settings, before the
+        // identity's credentials.
+        let host_oidc = match resolved {
+            Some(r) => termoso_client::oidc::host_key(&*state.store()?, r)?,
+            None => None,
+        };
+        if let Some(k) = host_oidc.as_ref() {
+            match oidc_auth(&state, k).await {
+                Ok(Some(m)) => auth.push(m),
+                Ok(None) => {}
+                Err(e) => {
+                    tracing::warn!(error = %e, "OpenID sign-in failed; trying the other methods")
+                }
+            }
+        }
         if identity.as_ref().is_some_and(|i| i.data.ssh_id) {
             let preferred = identity.as_ref().and_then(|i| i.data.ssh_id_key_type);
             auth.extend(sshid::auth_methods(

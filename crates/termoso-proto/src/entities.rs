@@ -287,6 +287,10 @@ pub mod payload {
             /// Extra raw options (`Key=Value`, OpenSSH style).
             #[serde(default)]
             pub extra_options: Vec<String>,
+            /// OpenID (opkssh) key tried before the identity's credentials;
+            /// inherited through the group chain like the identity.
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            pub oidc_key_id: Option<Uuid>,
         }
     }
 

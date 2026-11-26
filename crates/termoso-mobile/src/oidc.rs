@@ -3,6 +3,7 @@
 //! The app registers a [`UrlOpener`] once; signing in opens the provider's
 //! page in the system browser.
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 
 use termoso_client::keychain;
@@ -15,11 +16,14 @@ use uuid::Uuid;
 use crate::dto::{KeyItem, parse_id};
 use crate::error::{MobileError, Result};
 
-/// Opens a URL in the system browser (an `ACTION_VIEW` intent on Android).
+/// Opens the provider's sign-in page (an in-app browser tab on Android).
 #[uniffi::export(with_foreign)]
 pub trait UrlOpener: Send + Sync {
     /// `false` when no browser could be started.
     fn open_url(&self, url: String) -> bool;
+    /// The sign-in is over (redirect received or given up): bring the app
+    /// back in front of the browser tab it opened.
+    fn close_browser(&self);
 }
 
 static OPENER: RwLock<Option<Arc<dyn UrlOpener>>> = RwLock::new(None);
@@ -30,15 +34,32 @@ pub fn set_url_opener(opener: Arc<dyn UrlOpener>) {
     *OPENER.write().expect("url opener poisoned") = Some(opener);
 }
 
-struct SystemBrowser;
+/// Remembers whether it opened a page, so the app can take the front again.
+#[derive(Default)]
+struct SystemBrowser {
+    opened: AtomicBool,
+}
 
 impl OpenBrowser for SystemBrowser {
     fn open(&self, url: &str) -> std::result::Result<(), String> {
         let opener = OPENER.read().expect("url opener poisoned").clone();
         match opener {
-            Some(o) if o.open_url(url.to_owned()) => Ok(()),
+            Some(o) if o.open_url(url.to_owned()) => {
+                self.opened.store(true, Ordering::Relaxed);
+                Ok(())
+            }
             Some(_) => Err("no browser could open the sign-in page".into()),
             None => Err("this app cannot open a browser".into()),
+        }
+    }
+}
+
+impl Drop for SystemBrowser {
+    fn drop(&mut self) {
+        if *self.opened.get_mut()
+            && let Some(o) = OPENER.read().expect("url opener poisoned").clone()
+        {
+            o.close_browser();
         }
     }
 }
@@ -216,7 +237,7 @@ pub(crate) fn sign_out(store: &Store, id: &str) -> Result<()> {
 pub(crate) async fn sign_in(store: &Store, key_id: Uuid) -> Result<OidcSessionItem> {
     let key = store.require::<SshKey>(key_id)?;
     oidc::sign_out(store, key_id)?;
-    oidc::pre_connect(store, &key, &SystemBrowser)
+    oidc::pre_connect(store, &key, &SystemBrowser::default())
         .await?
         .ok_or_else(|| MobileError::invalid("not an OpenID key"))?;
     oidc::session(store, key_id)?
@@ -228,7 +249,7 @@ pub(crate) async fn sign_in(store: &Store, key_id: Uuid) -> Result<OidcSessionIt
 /// other keys. A failed sign-in is logged and the connection goes on with
 /// the other methods.
 pub(crate) async fn auth_method(store: &Store, key: &Entity<SshKey>) -> Option<AuthMethod> {
-    match oidc::pre_connect(store, key, &SystemBrowser).await {
+    match oidc::pre_connect(store, key, &SystemBrowser::default()).await {
         Ok(m) => m,
         Err(e) => {
             tracing::warn!(error = %e, "OpenID sign-in failed; trying the other methods");

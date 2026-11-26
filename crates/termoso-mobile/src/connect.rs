@@ -739,6 +739,13 @@ async fn ssh_connect(
     let mut asked_passphrase = false;
     loop {
         let mut auth: Vec<AuthMethod> = Vec::new();
+        // OpenID key from the host's (or its group's) settings first.
+        if let Some(r) = resolved
+            && let Some(k) = termoso_client::oidc::host_key(store, r)?
+            && let Some(m) = crate::oidc::auth_method(store, &k).await
+        {
+            auth.push(m);
+        }
         if let Some(key) = resolved.and_then(|r| r.key.as_ref()) {
             let certificate = resolved
                 .and_then(|r| r.certificate.as_ref())

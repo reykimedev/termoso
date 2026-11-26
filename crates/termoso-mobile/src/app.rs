@@ -873,6 +873,22 @@ impl TermosoApp {
         crate::oidc::sign_out(&self.store, &id)
     }
 
+    /// OpenID key a host's own SSH settings name (not the group's).
+    pub fn host_oidc_key(&self, host_id: String) -> Result<Option<String>> {
+        let form = termoso_client::hosts::form(&self.store, parse_id(&host_id)?)?;
+        Ok(form.oidc_key_id.map(|id| id.to_string()))
+    }
+
+    /// Set or clear the OpenID key a host tries before its credentials.
+    pub fn set_host_oidc_key(&self, host_id: String, key_id: Option<String>) -> Result<()> {
+        let key = match key_id.filter(|k| !k.is_empty()) {
+            Some(k) => Some(parse_id(&k)?),
+            None => None,
+        };
+        termoso_client::hosts::set_oidc_key(&self.store, parse_id(&host_id)?, key)?;
+        Ok(())
+    }
+
     pub fn delete_key(&self, id: String) -> Result<()> {
         let id = parse_id(&id)?;
         self.secrets.forget_passphrase(id);

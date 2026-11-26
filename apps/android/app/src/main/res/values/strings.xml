@@ -1805,8 +1805,8 @@
     <string name="openid_default_for_vault">Default for this vault</string>
     <string name="setup_opkssh_on_host">Set up opkssh on host</string>
     <string name="setup_opkssh_on_host_hint">Installs opkssh on a saved host and allows your sign-in there</string>
-    <string name="setup_opkssh_confirm">Termoso logs in to %1$s with its saved credentials, installs opkssh (needs root or passwordless sudo), adds the provider and allows the identity below.</string>
-    <string name="openid_login_user">Login user (empty: the user Termoso logs in as)</string>
+    <string name="setup_opkssh_confirm">Logs in to %1$s with its saved credentials, installs opkssh (needs root or passwordless sudo), adds the provider and allows the identity below.</string>
+    <string name="openid_login_user">Login user (empty: the user you log in as)</string>
     <string name="openid_identity">Email to allow (empty: the signed-in one)</string>
     <string name="openid_set_up">Set up</string>
     <string name="opkssh_set_up_on">opkssh set up on</string>
@@ -1815,5 +1815,10 @@
     <string name="debug_update_tap_to_install">Commit %1$s, tap to install</string>
     <string name="debug_update_downloading">Downloading…</string>
     <string name="debug_update_current">Up to date (build %1$d)</string>
-    <string name="debug_update_available_notice">Termoso Debug build %1$d is available: Settings → About</string>
+    <string name="debug_update_available_notice">Debug build %1$d is available: Settings → About</string>
+    <string name="openid_no_keys">No OpenID keys in this vault: create one in the keychain</string>
+    <string name="openid_key_for_host">OpenID key</string>
+    <string name="openid_key_for_host_hint">Tried before the host's credentials, which stay as the fallback. Hosts without one use their group's.</string>
+    <string name="openid_none_inherit">None (use the group's)</string>
+    <string name="openid_key_for_host_saved">OpenID key saved</string>
 </resources>

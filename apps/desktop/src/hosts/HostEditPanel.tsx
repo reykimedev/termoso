@@ -34,6 +34,7 @@ import { TagsPopover } from "./TagsPopover";
 import { AgentForwardingRow, CredentialsFields, X11ForwardingRow } from "./CredentialsFields";
 import { WebDavAuthFields } from "./WebDavAuthFields";
 import { ServerKeyField } from "./ServerKeyField";
+import { OidcKeyField } from "./OidcKeyField";
 import {
   Field,
   Loading,
@@ -753,6 +754,12 @@ function HostEditor({
                 inlineLabel={tr("Set on this host")}
                 value={form}
                 onChange={patch}
+              />
+              <OidcKeyField
+                vaultId={vaultId}
+                value={form.oidcKeyId}
+                inherited={inh?.oidcKeyId ?? null}
+                onChange={(v) => set("oidcKeyId", v)}
               />
 
               <Button

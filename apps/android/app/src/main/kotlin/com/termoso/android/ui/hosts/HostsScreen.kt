@@ -1,6 +1,8 @@
 package com.termoso.android.ui.hosts
 
 import com.termoso.android.ui.keychain.AddKeyToHostFlow
+import com.termoso.android.ui.keychain.HostOidcKeyDialog
+import com.termoso.android.ui.keychain.SetupOpksshForHostFlow
 import com.termoso.android.ui.components.distroVector
 import com.termoso.android.ui.components.IconCatalog
 import androidx.compose.ui.graphics.Color
@@ -333,6 +335,8 @@ fun HostsScreen(
             onForward = { onForward(d.host.id) },
             onEdit = { onEditHost(d.host.id) },
             onAddKey = { dialog = HostsDialog.AddKey(d.host) },
+            onOpksshSetup = { dialog = HostsDialog.OpksshSetup(d.host) },
+            onOidcKey = { dialog = HostsDialog.OidcKey(d.host) },
             onDuplicate = { vm.duplicate(listOf(d.host.id)) },
             onMove = { dialog = HostsDialog.Move(listOf(d.host.id)) },
             onMoveVault = { dialog = HostsDialog.MoveVault(listOf(d.host.id)) },
@@ -342,6 +346,8 @@ fun HostsScreen(
             onClose = { dialog = null },
         )
         is HostsDialog.AddKey -> AddKeyToHostFlow(shell.repo, d.host, onNotify = shell::notify, onDismiss = { dialog = null })
+        is HostsDialog.OpksshSetup -> SetupOpksshForHostFlow(shell.repo, d.host, onNotify = shell::notify, onDismiss = { dialog = null })
+        is HostsDialog.OidcKey -> HostOidcKeyDialog(shell.repo, d.host, onNotify = shell::notify, onDismiss = { dialog = null })
         is HostsDialog.Delete -> ConfirmDialog(
             title = if (d.ids.size == 1) stringResource(R.string.remove_host) else stringResource(R.string.remove_hosts, d.ids.size),
             text = stringResource(R.string.hosts_are_removed_from_this_vault_keys_in),
@@ -407,6 +413,8 @@ fun HostsScreen(
 private sealed interface HostsDialog {
     data class HostMenu(val host: HostItem) : HostsDialog
     data class AddKey(val host: HostItem) : HostsDialog
+    data class OpksshSetup(val host: HostItem) : HostsDialog
+    data class OidcKey(val host: HostItem) : HostsDialog
     data class Delete(val ids: List<String>) : HostsDialog
     data class Move(val ids: List<String>) : HostsDialog
     data class Copy(val ids: List<String>) : HostsDialog

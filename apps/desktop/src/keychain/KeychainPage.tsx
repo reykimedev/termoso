@@ -956,8 +956,7 @@ function KeychainBody({ vault }: { vault: ReturnType<typeof useActiveVault> }) {
           hosts={hosts.data ?? []}
           busy={op.isPending}
           onCancel={closeDialog}
-          onConfirm={(host, principal, identity) => {
-            const card = dialog.card;
+          onConfirm={(card, host, principal, identity) => {
             run(async () => {
               const r = await ipc.keySetupOpksshOnHost({
                 id: card.id,
