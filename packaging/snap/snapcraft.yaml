@@ -48,7 +48,7 @@ parts:
     override-pull: |
       version="$(craftctl get version)"
       curl -fsSL -o termoso.deb \
-        "https://github.com/termoso/termoso/releases/download/v${version}/Termoso_${version}_${CRAFT_ARCH_BUILD_FOR}.deb"
+        "https://github.com/termoso/termoso/releases/download/v${version}/Labterm_${version}_${CRAFT_ARCH_BUILD_FOR}.deb"
     override-build: |
       dpkg -x termoso.deb "$CRAFT_PART_INSTALL"
       sed -i 's|^Icon=.*|Icon=${SNAP}/usr/share/icons/hicolor/128x128/apps/labterm-desktop.png|' \
