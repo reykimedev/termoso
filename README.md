@@ -122,7 +122,7 @@ deploy/
   .env.example          annotated server configuration
 docs/                   ARCHITECTURE, BUILDING, SELF_HOSTING, API_BRIDGE, RELEASING, IOS_SIDELOAD, SFTP_BENCHMARK
 scripts/check.sh        runs the same checks as CI, per component
-.github/workflows/      ci.yml (every push/PR), release.yml (tags)
+.github/workflows/      ci.yml (PRs, main, nightly), release.yml (tags), server-images.yml / web-images.yml (container images)
 ```
 
 ## Architecture in one screen
@@ -434,9 +434,13 @@ turns that into a failure (CI sets it). `LABTERM_TEST_DATABASE_URL`,
 `LABTERM_TEST_REDIS_URL`, `LABTERM_TEST_S3_ENDPOINT`, `LABTERM_TEST_SMTP_ADDR`
 and `LABTERM_TEST_MAILPIT_URL` override the defaults.
 
-CI (`.github/workflows/ci.yml`) additionally builds the macOS app and runs a
+CI (`.github/workflows/ci.yml`) runs fmt and clippy first; the build and test
+jobs only start once they pass. It additionally builds the macOS app and runs a
 runtime smoke on a Mac runner, builds the iOS app and runs XCTest/XCUITest in
-the simulator, and builds both Docker images (pushed to GHCR on `main`).
+the simulator, and builds the Docker images. On pull requests the platform jobs
+run only for the paths they cover (none on drafts); on `main` they run nightly.
+`server-images.yml` builds the server images again on `main` and on tags and
+pushes them to GHCR.
 
 A load generator that exercises the real client crypto paths is available as a
 Rust example: `cargo run -p labterm-server --release --example loadtest -- --url

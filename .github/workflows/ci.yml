@@ -14,7 +14,7 @@ on:
 
 # A new push to a pull request cancels that PR's older queued or running CI, so scarce runners
 # go to the latest commit. Pushes to main share one group that never cancels: the running one
-# finishes (caches save, docker-publish completes) and only the newest waiting push stays queued.
+# finishes (its caches save) and only the newest waiting push stays queued.
 # Tags, nightly and manual runs get a group of their own per run, so they always run.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || (github.event_name == 'push' && github.ref == 'refs/heads/main') && 'main' || github.run_id }}
@@ -31,8 +31,8 @@ jobs:
   # - Pull requests: none on drafts; otherwise only those whose paths changed. Shared Rust code
   #   and this workflow count for all of them, except macos and ios, which run only for their own
   #   app (and ios for labterm-mobile); the nightly run covers shared code on those two.
-  # - Pushes to main: every change already passed these on its PR, so only docker runs (when its
-  #   paths changed) to publish images. The android build on main is the debug channel's job.
+  # - Pushes to main: none, every change already passed them on its PR. Images are built and
+  #   published by server-images.yml, the android build by the debug channel.
   # - Nightly: everything but docker, unless main has had no commit for a day.
   # - Tags and manual runs: everything.
   changes:
@@ -55,7 +55,6 @@ jobs:
           EVENT: ${{ github.event_name }}
           REF: ${{ github.ref }}
           DRAFT: ${{ github.event.pull_request.draft }}
-          BEFORE: ${{ github.event.before }}
         run: |
           jobs="macos ios android netbird fuzz docker"
           set_all() { for j in $jobs; do echo "$j=$1" >> "$GITHUB_OUTPUT"; done; }
@@ -77,46 +76,42 @@ jobs:
               } | tee -a "$GITHUB_OUTPUT" ;;
             push)
               if [ "$REF" != refs/heads/main ]; then set_all true; exit 0; fi
-              for j in macos ios android netbird fuzz; do echo "$j=false" >> "$GITHUB_OUTPUT"; done
-              # A push that is not a single step from the previous main (or a first push) rebuilds the images.
-              if [ "$(git rev-parse HEAD^1 2>/dev/null)" = "$BEFORE" ]; then
-                files=$(changed); printf 'Changed files:\n%s\n' "$files"
-                echo "docker=$(has "$shared|$docker_paths")" | tee -a "$GITHUB_OUTPUT"
-              else
-                echo "docker=true" | tee -a "$GITHUB_OUTPUT"
-              fi ;;
+              set_all false ;;
             schedule)
               if [ $(( $(date +%s) - $(git log -1 --format=%ct HEAD) )) -gt 90000 ]; then
                 echo "No commit on main for a day: nightly platform jobs skipped."; set_all false
               else
-                # Images are built and published by the pushes to main, not again nightly.
+                # Images are built and published by server-images.yml.
                 for j in macos ios android netbird fuzz; do echo "$j=true" >> "$GITHUB_OUTPUT"; done
                 echo "docker=false" >> "$GITHUB_OUTPUT"
               fi ;;
             *) set_all true ;;
           esac
 
+  # Lint stage. Every build and test job below needs it, so a lint failure never starts a build.
+  # fmt runs first and fails within a minute; clippy follows.
   check:
     name: fmt + clippy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo fmt --all -- --check
       - name: Tauri system libraries
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libgtk-3-dev \
             libayatana-appindicator3-dev librsvg2-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libudev-dev
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
-      - run: cargo fmt --all -- --check
       - run: cargo clippy --workspace --all-targets --locked
 
   test:
     name: tests (postgres + redis + rustfs + mailpit)
+    needs: check
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -194,6 +189,7 @@ jobs:
 
   opkssh:
     name: opkssh certificates (e2e against opkssh verify + wasm32)
+    needs: check
     runs-on: ubuntu-latest
     env:
       LABTERM_OPKSSH_E2E: "1"
@@ -220,6 +216,7 @@ jobs:
 
   web:
     name: web cabinet (wasm + typecheck + lint + build)
+    needs: check
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -256,6 +253,7 @@ jobs:
 
   desktop:
     name: desktop webview (typecheck + lint + build)
+    needs: check
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -278,6 +276,7 @@ jobs:
   # The relay's tests run in `test`, its clippy in `check`.
   labterm-web:
     name: labterm web (wasm32 clippy + build)
+    needs: check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -320,6 +319,7 @@ jobs:
   labterm-web-images:
     name: labterm web image (${{ matrix.target }})
     if: github.event_name == 'pull_request'
+    needs: check
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -336,7 +336,7 @@ jobs:
   # settings inside the real WKWebView and screenshots the window.
   macos:
     name: macos (clippy + core tests + tauri build --debug + runtime smoke)
-    needs: changes
+    needs: [changes, check]
     if: needs.changes.outputs.macos == 'true'
     runs-on: macos-latest
     steps:
@@ -387,7 +387,7 @@ jobs:
   # smoke (XCUITest) — screenshots and the .xcresult are uploaded.
   ios:
     name: ios (rust sim core + uniffi swift + xcodebuild + XCTest/XCUITest)
-    needs: changes
+    needs: [changes, check]
     if: needs.changes.outputs.ios == 'true'
     runs-on: macos-15
     steps:
@@ -471,7 +471,7 @@ jobs:
 
   android:
     name: android (cargo-ndk + gradle assembleDebug + lint)
-    needs: changes
+    needs: [changes, check]
     if: needs.changes.outputs.android == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -517,7 +517,7 @@ jobs:
   # built from the same release), a far-end peer and the Rust crate, all on loopback.
   netbird:
     name: netbird (embedded client e2e)
-    needs: changes
+    needs: [changes, check]
     if: needs.changes.outputs.netbird == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -561,7 +561,7 @@ jobs:
   # target catches shallow panics early. Long campaigns are run by hand.
   fuzz:
     name: fuzz targets (nightly check + smoke)
-    needs: changes
+    needs: [changes, check]
     if: needs.changes.outputs.fuzz == 'true'
     runs-on: ubuntu-latest
     env:
@@ -603,16 +603,17 @@ jobs:
           path: fuzz/artifacts
           if-no-files-found: ignore
 
-  # Both images are built natively per architecture (no QEMU: a Rust release
-  # build under emulation takes hours) and pushed by digest; docker-publish
-  # then joins the two digests into one multi-arch manifest per tag.
+  # Build check for the server images on pull requests. Pushes to main and tags build and publish
+  # them in server-images.yml. A skipped matrix job reports under its unexpanded name, which would
+  # leave per-image required checks pending, so on a PR the matrix always runs and only its steps
+  # skip when no image input changed.
   docker:
     name: docker image (${{ matrix.image }}, ${{ matrix.arch }})
+    if: github.event_name == 'pull_request'
     runs-on: ${{ matrix.runner }}
     needs: [changes, check, test, web]
     permissions:
       contents: read
-      packages: write
     strategy:
       fail-fast: false
       matrix:
@@ -623,99 +624,17 @@ jobs:
             runner: ubuntu-latest
           - arch: arm64
             runner: ubuntu-24.04-arm
-    # A skipped matrix job reports under its unexpanded name, which would leave per-image required
-    # checks pending, so this job always runs and only its build steps are skipped.
     steps:
       - uses: actions/checkout@v7
         if: needs.changes.outputs.docker == 'true'
       - uses: docker/setup-buildx-action@v4
         if: needs.changes.outputs.docker == 'true'
-      - name: Log in to GHCR
-        if: github.event_name != 'pull_request' && needs.changes.outputs.docker == 'true'
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - id: image
-        run: echo "name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/labterm-${{ matrix.image }}" >> "$GITHUB_OUTPUT"
-      - id: build
-        if: needs.changes.outputs.docker == 'true'
+      - if: needs.changes.outputs.docker == 'true'
         uses: docker/build-push-action@v7
         with:
           context: .
           file: deploy/Dockerfile${{ matrix.image != 'server' && format('.{0}', matrix.image) || '' }}
           platforms: linux/${{ matrix.arch }}
-          # Pull requests only build; pushes upload the image untagged, by
-          # digest, for docker-publish to assemble.
-          outputs: ${{ github.event_name != 'pull_request' && format('type=image,name={0},push-by-digest=true,name-canonical=true,push=true', steps.image.outputs.name) || '' }}
+          # Reads main's layer cache (written by server-images.yml); a PR never writes one, it would
+          # only serve that PR and push main's Rust caches out of the repository's 10 GB.
           cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.arch }}
-          # Only main writes the layer cache: a PR's cache is visible to that PR alone and would
-          # push main's Rust caches out of the repository's 10 GB.
-          cache-to: ${{ github.event_name != 'pull_request' && format('type=gha,mode=max,scope={0}-{1}', matrix.image, matrix.arch) || '' }}
-      - name: Export digest
-        if: github.event_name != 'pull_request' && needs.changes.outputs.docker == 'true'
-        run: |
-          mkdir -p /tmp/digests
-          digest="${{ steps.build.outputs.digest }}"
-          touch "/tmp/digests/${digest#sha256:}"
-      - uses: actions/upload-artifact@v7
-        if: github.event_name != 'pull_request' && needs.changes.outputs.docker == 'true'
-        with:
-          name: digests-${{ matrix.image }}-${{ matrix.arch }}
-          path: /tmp/digests/*
-          if-no-files-found: error
-          retention-days: 1
-
-  docker-publish:
-    name: docker manifest (${{ matrix.image }})
-    if: github.event_name != 'pull_request' && needs.changes.outputs.docker == 'true'
-    runs-on: ubuntu-latest
-    needs: [changes, docker]
-    permissions:
-      contents: read
-      packages: write
-    strategy:
-      fail-fast: false
-      matrix:
-        image: [server, bridge, backup]
-    steps:
-      - uses: actions/download-artifact@v8
-        with:
-          pattern: digests-${{ matrix.image }}-*
-          path: /tmp/digests
-          merge-multiple: true
-      - uses: docker/setup-buildx-action@v4
-      - name: Log in to GHCR
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - id: meta
-        uses: docker/metadata-action@v6
-        with:
-          images: ghcr.io/${{ github.repository_owner }}/labterm-${{ matrix.image }}
-          tags: |
-            type=ref,event=branch
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable={{is_default_branch}}
-      - name: Create the multi-arch manifest
-        working-directory: /tmp/digests
-        run: |
-          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/labterm-${{ matrix.image }}"
-          ls
-          [ "$(ls | wc -l)" -eq 2 ] || { echo "::error::expected 2 digests (amd64 + arm64)"; exit 1; }
-          docker buildx imagetools create \
-            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf "$image@sha256:%s " *)
-      - name: Verify the manifest
-        run: |
-          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/labterm-${{ matrix.image }}:${{ steps.meta.outputs.version }}"
-          docker buildx imagetools inspect "$image"
-          for p in linux/amd64 linux/arm64; do
-            docker buildx imagetools inspect "$image" --format '{{json .Manifest}}' \
-              | jq -e --arg p "$p" '.manifests[] | select((.platform.os + "/" + .platform.architecture) == $p)' > /dev/null \
-              || { echo "::error::$image lacks $p"; exit 1; }
-          done
