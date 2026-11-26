@@ -43,7 +43,7 @@ fn network(id: Uuid, setup_key: Option<String>) -> NetworkConfig {
         id,
         vault_id: Uuid::nil(),
         version: 0,
-        updated_at: Default::default(),
+        updated_at: time::OffsetDateTime::UNIX_EPOCH,
         dirty: false,
         data: Transport {
             label: "e2e".into(),
