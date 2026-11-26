@@ -3,6 +3,7 @@ package dev.labdex.labterm.ui.netbird
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -273,6 +274,9 @@ fun NetbirdSignInDialog(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var waiting by remember { mutableStateOf(false) }
+    // Reaching the NetBird server can take a while; without this the button looked dead.
+    var starting by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
     var url by remember { mutableStateOf<String?>(null) }
     var account by remember { mutableStateOf(network.account.orEmpty()) }
 
@@ -286,27 +290,43 @@ fun NetbirdSignInDialog(
         title = { Text(str(R.string.netbird_sign_in_to, network.label)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(stringResource(if (waiting) R.string.netbird_sign_in_waiting else R.string.netbird_sign_in_hint))
-                if (waiting) {
+                Text(
+                    stringResource(
+                        when {
+                            waiting -> R.string.netbird_sign_in_waiting
+                            starting -> R.string.netbird_sign_in_starting
+                            else -> R.string.netbird_sign_in_hint
+                        },
+                    ),
+                )
+                if (waiting || starting) {
                     CircularProgressIndicator(Modifier.size(20.dp))
                 } else {
                     FormField(account, { account = it }, stringResource(R.string.netbird_account), placeholder = "alice-admin")
                     Text(stringResource(R.string.netbird_account_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+                // Shown here, not only as a snackbar, which sits behind the dialog.
+                error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
             }
         },
         confirmButton = {
             if (waiting) {
                 TextButton(onClick = { url?.let { openBrowser(context, it) } }) { Text(stringResource(R.string.netbird_reopen_browser)) }
             } else {
-                TextButton(onClick = {
+                TextButton(enabled = !starting, onClick = {
+                    error = null
+                    starting = true
                     scope.launch {
                         try {
-                            val u = repo.read { transportSignInBegin(id, account.trim().ifEmpty { null }) }
+                            val u = try {
+                                repo.read { transportSignInBegin(id, account.trim().ifEmpty { null }) }
+                            } finally {
+                                starting = false
+                            }
                             url = u
                             if (!openBrowser(context, u)) {
                                 repo.read { transportSignInCancel(id) }
-                                onNotify(str(R.string.netbird_no_browser))
+                                error = str(R.string.netbird_no_browser)
                                 return@launch
                             }
                             waiting = true
@@ -317,7 +337,8 @@ fun NetbirdSignInDialog(
                             throw e
                         } catch (e: Exception) {
                             waiting = false
-                            onNotify(e.userMessage())
+                            Log.w("LabtermNetbird", "sign-in to ${network.label} failed", e)
+                            error = e.userMessage()
                         }
                     }
                 }) { Text(stringResource(R.string.netbird_sign_in)) }

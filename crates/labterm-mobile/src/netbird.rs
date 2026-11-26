@@ -259,7 +259,8 @@ pub(crate) async fn sign_in_finish(store: &Arc<Store>, network_id: &str) -> Resu
             &StoreKeys(store.clone()),
             Duration::from_secs(300),
         )
-        .await?;
+        .await
+        .inspect_err(|e| tracing::warn!(network = %id, "netbird: sign-in failed: {e}"))?;
     Ok(done.email)
 }
 

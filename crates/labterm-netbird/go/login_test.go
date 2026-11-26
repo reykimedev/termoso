@@ -1,6 +1,18 @@
 package main
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/netbirdio/netbird/client/iface/netstack"
+)
+
+// Sign-in dials the management server before any embed.New; on Android
+// that dial needs netstack mode or it waits for a socket protector.
+func TestNetstackModeIsSetAtLoad(t *testing.T) {
+	if !netstack.IsEnabled() {
+		t.Fatal("netstack mode not enabled at load")
+	}
+}
 
 func TestIsAccount(t *testing.T) {
 	for _, c := range []struct {

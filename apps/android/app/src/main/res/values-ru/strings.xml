@@ -1934,4 +1934,5 @@
     <string name="overlay_removed">Снова используются командные учётные данные</string>
     <string name="overlay_use_again">Использовать снова</string>
     <string name="overlay_paused">Команда изменила адрес этого хоста после привязки ваших учётных данных (был %1$s). Они не используются, пока вы не подтвердите.</string>
+    <string name="netbird_sign_in_starting">Подключение к серверу NetBird…</string>
 </resources>
