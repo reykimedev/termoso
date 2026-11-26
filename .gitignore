@@ -13,3 +13,4 @@ node_modules
 /apps/web/.build
 /apps/web/dist
 /apps/desktop/src-tauri/vpn/liblabterm_netbird.*
+deploy/prebuilt/

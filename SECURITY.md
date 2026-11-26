@@ -75,8 +75,9 @@ Each release ships an SBOM of the exact source tree it was built from, in
 SPDX (`labterm-<version>.spdx.json`) and CycloneDX
 (`labterm-<version>.cdx.json`), covering Cargo, npm and Gradle dependencies.
 Feed it to your scanner of choice (`grype sbom:labterm-<version>.cdx.json`,
-Dependency-Track, Snyk). In CI, `cargo deny` and `npm audit` gate every
-change on advisories, licences and sources (see "Dependencies" above); the
+Dependency-Track, Snyk). In CI, `cargo deny` gates every
+change on licences and sources, and advisories (`cargo deny`, `npm audit`)
+are checked daily and on every lockfile change (see "Dependencies" above); the
 controls map for auditors lives in [docs/COMPLIANCE.md](docs/COMPLIANCE.md).
 
 ## Threat model
@@ -192,10 +193,11 @@ upgrading is the fix.
 * Every release is built from tagged source on CI; desktop updates are signed
   and the updater is off unless you turn it on.
 * Dependencies are updated weekly by Dependabot and reviewed like any change.
-  CI fails on RustSec advisories, licences outside the allow-list, crates
+  CI fails on licences outside the allow-list, crates
   from unknown registries or git sources and banned legacy TLS/HTTP stacks
-  (`deny.toml`), and on `npm audit` findings of moderate severity or higher
-  in the web cabinet and desktop webview. The full transitive Gradle graph of
+  (`deny.toml`); a daily advisories run (also on every lockfile change) fails
+  on RustSec advisories and on `npm audit` findings of moderate severity or
+  higher in the web cabinet and desktop webview. The full transitive Gradle graph of
   the Android app is submitted to GitHub so Dependabot alerts cover it too.
   Every accepted advisory carries a written reason in `deny.toml`.
 * The one accepted vulnerability advisory (the others are unmaintained

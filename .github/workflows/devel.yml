@@ -1,7 +1,9 @@
 # Devel pipeline: every push to main runs in stages, each needing the one before, so a failed
 # lint or test never builds or publishes anything:
 #
-#   ci (lint, then tests: ci.yml)  →  build (Android, Linux, Windows, macOS; images)  →  sign + publish
+#   ci (lint, then tests: ci.yml)  →  build (Android, Linux, Windows; images)  →  sign + publish
+#
+# macOS is off for now (Mike, 2026-11-26): `desktop-macos` and `publish-macos` are `if: false`.
 #
 # Each commit gets its own prerelease `devel-<build>` with the Labterm Debug APK, the Labterm Dev
 # desktop bundles, their updater signatures, SHA256SUMS.txt and provenance attestations. The
@@ -153,9 +155,11 @@ jobs:
 
   # Its own job, not a matrix leg: macOS runners here are often slow to start, and a job waits for
   # every leg of a matrix it needs. The release goes out without it; macOS joins when it is done.
+  # Off for now: a macOS runner that never starts fails the run after 24 hours.
   desktop-macos:
     name: macos Apple Silicon (app, dmg)
     needs: plan
+    if: false
     runs-on: macos-latest
     timeout-minutes: 60
     steps:
@@ -174,11 +178,23 @@ jobs:
       contents: read
       packages: write
 
+  web-images:
+    name: labterm web images
+    needs: ci
+    uses: ./.github/workflows/web-images.yml
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
   # Signs the desktop updater artifacts (the only job holding the dev updater key), creates the
   # devel release and moves both feeds to it.
   publish:
     name: sign + publish devel release
     needs: [plan, android, desktop]
+    # Android must not wait on a desktop build: installed Labterm Debug builds only update when
+    # this job runs. A failed desktop leg still turns the run red, and its feed stays put.
+    if: ${{ !cancelled() && needs.plan.result == 'success' && needs.android.result == 'success' }}
     runs-on: ubuntu-latest
     environment: desktop-dev
     permissions:
@@ -213,9 +229,11 @@ jobs:
         run: |
           [ -n "$TAURI_SIGNING_PRIVATE_KEY" ] || { echo "::error::TAURI_SIGNING_PRIVATE_KEY is not set in the desktop-dev environment"; exit 1; }
           ls -l out
-          for f in out/labterm-debug.apk out/Labterm-Dev_amd64.AppImage out/Labterm-Dev_amd64.deb out/Labterm-Dev_x64-setup.exe; do
-            test -f "$f" || { echo "::error::missing $f"; exit 1; }
+          test -f out/labterm-debug.apk || { echo "::error::missing out/labterm-debug.apk"; exit 1; }
+          for f in out/Labterm-Dev_amd64.AppImage out/Labterm-Dev_amd64.deb out/Labterm-Dev_x64-setup.exe; do
+            test -f "$f" || { echo "::warning::missing $f; this release is Android only"; echo DESKTOP=0 >> "$GITHUB_ENV"; exit 0; }
           done
+          echo DESKTOP=1 >> "$GITHUB_ENV"
           for f in out/Labterm-Dev_amd64.AppImage out/Labterm-Dev_x64-setup.exe; do
             apps/desktop/node_modules/.bin/tauri signer sign "$f" > /dev/null
             test -s "$f.sig"
@@ -223,7 +241,7 @@ jobs:
       - name: Feeds and checksums
         run: |
           base="https://github.com/$REPO/releases/download/$TAG"
-          (cd out && sha256sum -- *.apk *.AppImage *.deb *.exe > SHA256SUMS.txt && cat SHA256SUMS.txt)
+          (cd out && shopt -s nullglob && sha256sum -- *.apk *.AppImage *.deb *.exe > SHA256SUMS.txt && cat SHA256SUMS.txt)
           apk_sha=$(sha256sum out/labterm-debug.apk | cut -d' ' -f1)
           apk_size=$(stat -c %s out/labterm-debug.apk)
           # Android: the app resolves `apk` against the feed URL, so an absolute URL points
@@ -231,6 +249,8 @@ jobs:
           jq -n --argjson build "$BUILD" --arg commit "$COMMIT" --arg apk "$base/labterm-debug.apk" \
             --arg sha "$apk_sha" --argjson size "$apk_size" \
             '{build: $build, commit: $commit, apk: $apk, sha256: $sha, size: $size}' > out/android-latest.json
+          jq . out/android-latest.json
+          [ "$DESKTOP" = 1 ] || exit 0
           jq -n --arg v "$VERSION" --arg notes "Devel build $BUILD from $COMMIT" \
             --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg base "$base" \
             --rawfile linux out/Labterm-Dev_amd64.AppImage.sig --rawfile win out/Labterm-Dev_x64-setup.exe.sig '
@@ -240,12 +260,14 @@ jobs:
               "windows-x86_64":        {url: "\($base)/Labterm-Dev_x64-setup.exe", signature: $win},
               "windows-x86_64-nsis":   {url: "\($base)/Labterm-Dev_x64-setup.exe", signature: $win}
             }}' > out/desktop-latest.json
-          jq . out/android-latest.json
           jq '.platforms | map_values(.url)' out/desktop-latest.json
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
+          subject-path: out/*.apk
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        if: env.DESKTOP == '1'
+        with:
           subject-path: |
-            out/*.apk
             out/*.AppImage
             out/*.deb
             out/*.exe
@@ -255,8 +277,9 @@ jobs:
             echo "Devel build $BUILD from commit \`$COMMIT\` on main."
             echo
             echo "- Android: \`labterm-debug.apk\` (Labterm Debug)"
-            echo "- Desktop: Labterm Dev $VERSION for Linux and Windows; macOS is added when its build finishes"
+            echo "- Desktop: Labterm Dev $VERSION for Linux and Windows (macOS is paused for now)"
             echo "- Server images: \`ghcr.io/${REPO%%/*}/labterm-{server,bridge,backup}:main\` when this commit changed them"
+            echo "- Labterm Web images: \`ghcr.io/${REPO%%/*}/labterm-{web,relay}:dev\` when this commit changed them"
             echo
             echo "For testing, not for production. Installed Labterm Debug and Labterm Dev builds update"
             echo "themselves to the newest devel release. Verify a download with \`sha256sum -c SHA256SUMS.txt\`"
@@ -266,11 +289,15 @@ jobs:
             cat out/SHA256SUMS.txt
             echo '```'
           } > notes.md
-          cp out/desktop-latest.json out/latest.json
+          files=(out/labterm-debug.apk out/SHA256SUMS.txt)
+          if [ "$DESKTOP" = 1 ]; then
+            cp out/desktop-latest.json out/latest.json
+            files+=(out/*.AppImage out/*.AppImage.sig out/*.deb out/*.exe out/*.exe.sig out/latest.json)
+          else
+            echo "**Desktop builds failed for this commit; this release has the Android APK only.**" >> notes.md
+          fi
           gh release create "$TAG" --prerelease --latest=false --target "$COMMIT" \
-            --title "Labterm devel $BUILD" --notes-file notes.md \
-            out/labterm-debug.apk out/*.AppImage out/*.AppImage.sig out/*.deb out/*.exe out/*.exe.sig \
-            out/SHA256SUMS.txt out/latest.json
+            --title "Labterm devel $BUILD" --notes-file notes.md "${files[@]}"
       - name: Move the feeds forward
         run: |
           # Feed releases hold only latest.json now. An older run finishing late must not move
@@ -289,6 +316,7 @@ jobs:
           else
             echo "::notice::android-debug-main already at build $cur; left as is"
           fi
+          [ "$DESKTOP" = 1 ] || { echo "::notice::desktop-dev left as is (no desktop build)"; exit 0; }
           cur=$(feed_build desktop-dev '.version // "" | capture("dev\\.(?<n>[0-9]+)$").n // "0"')
           if [ "$BUILD" -gt "${cur:-0}" ]; then
             ensure desktop-dev "Labterm Dev feed"
@@ -310,6 +338,7 @@ jobs:
   publish-macos:
     name: sign + publish (macOS)
     needs: [plan, desktop-macos, publish]
+    if: false
     runs-on: ubuntu-latest
     environment: desktop-dev
     permissions:

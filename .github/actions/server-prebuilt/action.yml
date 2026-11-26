@@ -1,0 +1,80 @@
+name: Prebuild server image inputs
+description: >-
+  Builds the release binaries (and optionally the web cabinet) for the server images on the runner,
+  with the Rust cache, into deploy/prebuilt/. The Dockerfiles copy them in when built with
+  SERVER_STAGE=server-prebuilt / BRIDGE_STAGE=bridge-prebuilt / WEB_STAGE=web-prebuilt, instead of
+  compiling inside Docker, where GitHub's runners keep no cargo cache between runs.
+inputs:
+  packages:
+    description: Cargo packages to build in release mode, space separated (labterm-server, labterm-bridge)
+    required: true
+  web:
+    description: Also build the web cabinet (web/dist with the labterm-wasm module)
+    default: "false"
+runs:
+  using: composite
+  steps:
+    # Runners on Ubuntu 22.04 (glibc 2.35) build binaries that run on Debian bookworm (2.36), the
+    # base of every image.
+    - name: Check the runner's glibc
+      shell: bash
+      run: |
+        v=$(ldd --version | head -1 | awk '{print $NF}')
+        echo "glibc $v"
+        [ "$(printf '%s\n2.36\n' "$v" | sort -V | tail -1)" = 2.36 ] \
+          || { echo "::error::glibc $v is newer than the images' 2.36; build on ubuntu-22.04"; exit 1; }
+    - name: System libraries
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends pkg-config libssl-dev
+    - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+      with:
+        targets: ${{ inputs.web == 'true' && 'wasm32-unknown-unknown' || '' }}
+    - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      with:
+        shared-key: server-images
+        save-if: ${{ github.ref == 'refs/heads/main' }}
+    - name: Release binaries
+      shell: bash
+      env:
+        PACKAGES: ${{ inputs.packages }}
+      run: |
+        mkdir -p deploy/prebuilt
+        # One package per build, as in the Dockerfiles, so features are unified the same way.
+        for p in $PACKAGES; do
+          cargo build --release --locked -p "$p"
+          cp "target/release/$p" "deploy/prebuilt/$p"
+          # Only libraries every image base has (distroless cc and bookworm-slim).
+          extra=$(ldd "deploy/prebuilt/$p" | awk '{print $1}' \
+            | grep -vE '^(linux-vdso|/lib.*/ld-linux.*|libc|libm|libgcc_s|libpthread|libdl|librt|libssl|libcrypto)\.so' || true)
+          [ -z "$extra" ] || { echo "::error::$p links libraries the images lack: $extra"; exit 1; }
+        done
+        ls -l deploy/prebuilt
+    - if: inputs.web == 'true'
+      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version: 22
+        cache: npm
+        cache-dependency-path: web/package-lock.json
+    - if: inputs.web == 'true'
+      uses: taiki-e/install-action@073e1fd0bc889c9aee68dbaaa927cde1b5653a83 # v2.90.11
+      with:
+        tool: wasm-pack@0.15.0
+    # Like deploy/Dockerfile: wasm-pack's own download of wasm-bindgen needs a newer glibc on aarch64.
+    - if: inputs.web == 'true'
+      name: wasm-bindgen at the version in Cargo.lock
+      shell: bash
+      run: |
+        v="$(awk '/^name = "wasm-bindgen"$/ { getline; gsub(/version = |"/, ""); print; exit }' Cargo.lock)"
+        wasm-bindgen --version 2>/dev/null | grep -qx "wasm-bindgen $v" || cargo install wasm-bindgen-cli --locked --version "$v"
+    - if: inputs.web == 'true'
+      name: Web cabinet
+      shell: bash
+      working-directory: web
+      run: |
+        npm ci --no-audit --no-fund
+        npm run wasm
+        npm run build
+        rm -rf ../deploy/prebuilt/web
+        cp -r dist ../deploy/prebuilt/web

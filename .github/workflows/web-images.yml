@@ -1,19 +1,12 @@
-# Builds and pushes Labterm Web's labterm-web and labterm-relay images on every push to main that
-# touches them: tags dev and sha-<7>, amd64 for now, signed keyless with cosign, with SBOM and
-# provenance. Release tags can later promote these digests without rebuilding.
+# Builds and pushes Labterm Web's labterm-web and labterm-relay images for every push to main that
+# changes their inputs, as a stage of devel.yml after lint and tests passed (or by hand): tags dev
+# and sha-<7>, amd64 for now, signed keyless with cosign, with SBOM and provenance. Release tags
+# can later promote these digests without rebuilding. Pull requests only build them, in ci.yml.
 name: Labterm Web images
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - apps/web/**
-      - apps/desktop/**
-      - crates/**
-      - deploy/web/**
-      - Cargo.toml
-      - Cargo.lock
-      - .github/workflows/web-images.yml
+  workflow_call:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -23,7 +16,36 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  changes:
+    name: changes
+    runs-on: ubuntu-latest
+    outputs:
+      build: ${{ steps.filter.outputs.build }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+      - id: filter
+        env:
+          REF: ${{ github.ref }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          # Manual runs, and a push that is not a single step from the previous main build.
+          if [ "$REF" != refs/heads/main ] || [ "$(git rev-parse HEAD^1 2>/dev/null)" != "$BEFORE" ]; then
+            echo "build=true" | tee -a "$GITHUB_OUTPUT"; exit 0
+          fi
+          files=$(git diff --name-only HEAD^1 HEAD)
+          printf 'Changed files:\n%s\n' "$files"
+          # What deploy/web/Dockerfile copies, plus this workflow.
+          if grep -qE '^(apps/web/|apps/desktop/|crates/|Cargo\.(toml|lock)$|deploy/web/|\.github/workflows/web-images\.yml$)' <<<"$files"; then
+            echo "build=true" | tee -a "$GITHUB_OUTPUT"
+          else
+            echo "build=false" | tee -a "$GITHUB_OUTPUT"
+          fi
+
   build:
+    needs: changes
+    if: needs.changes.outputs.build == 'true'
     strategy:
       fail-fast: true
       matrix:
@@ -64,12 +86,10 @@ jobs:
           retention-days: 1
           if-no-files-found: error
 
+  # One job tags and signs both images.
   publish:
     needs: build
     runs-on: ubuntu-24.04
-    strategy:
-      matrix:
-        target: [web, relay]
     permissions:
       contents: read
       packages: write
@@ -77,9 +97,8 @@ jobs:
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          pattern: web-digests-${{ matrix.target }}-*
+          pattern: web-digests-*
           path: digests
-          merge-multiple: true
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
@@ -89,19 +108,22 @@ jobs:
       - uses: sigstore/cosign-installer@881c63bd87e38389154debd8331404ce7ca8a3ab # v4.1.4
       - name: Tag dev and sha-<7>, sign
         env:
-          IMAGE: ghcr.io/${{ github.repository_owner }}/labterm-${{ matrix.target }}
+          OWNER: ${{ github.repository_owner }}
           SHA: ${{ github.sha }}
         run: |
           short="sha-${SHA:0:7}"
-          # sha-* tags never move; GHCR can't lock them, so refuse to overwrite one.
-          if docker buildx imagetools inspect "$IMAGE:$short" >/dev/null 2>&1; then
-            echo "$IMAGE:$short already exists" >&2
-            exit 1
-          fi
-          refs=()
-          for f in digests/*; do refs+=("$IMAGE@sha256:$(basename "$f")"); done
-          docker buildx imagetools create -t "$IMAGE:$short" -t "$IMAGE:dev" "${refs[@]}"
-          digest="$(docker buildx imagetools inspect "$IMAGE:$short" --format '{{json .Manifest}}' | jq -r .digest)"
-          cosign sign --yes "$IMAGE@$digest"
-          echo "### $IMAGE" >> "$GITHUB_STEP_SUMMARY"
-          echo "\`$IMAGE:$short\` = \`$digest\` (also \`dev\`)" >> "$GITHUB_STEP_SUMMARY"
+          for target in web relay; do
+            IMAGE="ghcr.io/$OWNER/labterm-$target"
+            # sha-* tags never move; GHCR can't lock them, so a re-run leaves an existing one alone.
+            if docker buildx imagetools inspect "$IMAGE:$short" >/dev/null 2>&1; then
+              echo "::notice::$IMAGE:$short already exists; left as is"
+              continue
+            fi
+            refs=()
+            for f in digests/web-digests-"$target"-*/*; do refs+=("$IMAGE@sha256:$(basename "$f")"); done
+            docker buildx imagetools create -t "$IMAGE:$short" -t "$IMAGE:dev" "${refs[@]}"
+            digest="$(docker buildx imagetools inspect "$IMAGE:$short" --format '{{json .Manifest}}' | jq -r .digest)"
+            cosign sign --yes "$IMAGE@$digest"
+            echo "### $IMAGE" >> "$GITHUB_STEP_SUMMARY"
+            echo "\`$IMAGE:$short\` = \`$digest\` (also \`dev\`)" >> "$GITHUB_STEP_SUMMARY"
+          done
