@@ -1,25 +1,31 @@
 #!/usr/bin/env python3
-"""Rename the client code from Termoso to Labterm. Safe to rerun.
+"""Rename the code from Termoso to Labterm. Safe to rerun.
 
     python3 scripts/rename-to-labterm.py
 
-Branches started before the rename run this once on their own tree, commit, and
+Branches started before a rename run this once on their own tree, commit, and
 then merge main: the rename is mechanical, so their remaining conflicts are real.
 
-What changes: the client crates (termoso-{core,client,crypto,proto,mobile,wasm,oidc-cert,
-awslc-rsa} and termoso-desktop) become labterm-*; Rust, Kotlin and Swift type and
-package names; the app ids become dev.labdex.labterm (Android debug:
-dev.labdex.labterm.debug); the iOS project, targets and folders.
+Pass 1 (crates and app ids): the client crates become labterm-*; Rust, Kotlin and
+Swift type and package names; the app ids become dev.labdex.labterm (Android
+debug: dev.labdex.labterm.debug); the iOS project, targets and folders.
 
-What stays, on purpose (Labterm must keep talking to Termoso servers and keep
-reading existing data):
-  - every string the server, the vault or the disk sees: HTTP headers, API paths,
-    metrics, TERMOSO_* variables, crypto context strings, the backup magic, the
-    "termoso-core/<version>" user agent, the data dir <data>/termoso and the
-    keychain service "termoso" (desktop) / com.termoso.ios.* (iOS);
-  - the termoso:// link scheme and the TermosoCaptcha bridge the server page calls;
-  - the Termoso server and its relay: crates/termoso-server, crates/termoso-bridge,
-    deploy/, packaging/ (they only follow the renamed crate names they depend on);
+Pass 2 (everywhere): every other "termoso" in code, docs, deploy files and paths,
+in all its spellings, including the server and bridge crates and the TERMOSO_*
+settings (the code still reads the old TERMOSO_* names as a fallback).
+
+What stays, on purpose (Labterm keeps talking to Termoso servers and keeps
+reading existing data), listed in KEEP_EVERYWHERE below:
+  - what a server, a vault or the disk already holds: X-Termoso-* headers, crypto
+    labels (termoso/v1/..., HKDF salt, OPAQUE server id, FIDO2 "ssh:termoso"),
+    the backup magic, the "termoso-core/<version>" user agent, metric names, the
+    audit chain format, the data dir, keychain and Android keystore names, saved
+    setting ids (termoso-dark/light) and browser storage keys;
+  - the termoso://sso callback upstream servers allow; other termoso:// links
+    still open (lines marked rename:keep), new links use labterm://;
+  - Termoso's own services and repo (termoso.dev, github.com/termoso, Termoso
+    Cloud), GitHub secret names, packaging/ (upstream's store manifests), SQL
+    migrations (their checksums are recorded) and signed test fixtures;
   - AGPL notices and credit to Termoso as upstream.
 """
 import os
@@ -167,9 +173,106 @@ def edit_tree():
     print(f"edited {changed} files")
 
 
+# Pass 2. Text that keeps its Termoso spelling, protected before the rename runs.
+KEEP_EVERYWHERE = [
+    r"[^\n]*rename:keep[^\n]*",  # a line marked by hand
+    r'"labterm", "termoso"',  # both link schemes, where a comment can't go (JSON)
+    r"termoso:\\/\\/sso",  # the sign-in callback in a regex
+    r"[Xx]-[Tt]ermoso-[A-Za-z-]+",  # HTTP headers
+    r"termoso/v\d+",  # crypto labels and AAD paths
+    r"TERMOSO-BACKUP",
+    r'"termoso-core/\{\}"',
+    r"termoso-hkdf-salt-v\d",
+    r'SERVER_ID: &\[u8\] = b"termoso"',
+    r"ssh:termoso",  # FIDO2 application of existing security keys
+    r"termoso-audit(?:-checkpoint-v\d)?",
+    r"termoso-job:",
+    r'redis_prefix: "termoso:"',
+    r"termoso:captcha",
+    r"termoso:audit",  # Splunk sourcetype in SIEM configs
+    r"termoso-team-export/\d",  # team export format id
+    r"reykimedev/termoso\b",  # this repository, until it moves
+    r'android:scheme="termoso" android:host="sso"',
+    r"[Tt]ermosoCaptcha",
+    r"\btermoso_[a-z0-9_]+_(?:total|seconds|connections|bytes|count)\b",  # metric names
+    r'"termoso_live_connections"|"termoso_ws_connections"',
+    r'target: "termoso_audit"|\btermoso_audit\b',
+    r'setup_scaffolding!\("termoso"\)',  # UniFFI namespace (generated file names)
+    r'const SERVICE: &str = "termoso"',  # desktop keychain service
+    r'\.join\("termoso"\)',  # desktop data dir
+    r'appendingPathComponent\("Termoso", isDirectory: true\)',  # iOS data dir
+    r"com\.termoso\.ios[A-Za-z.]*",  # iOS keychain
+    r'"termoso\.master(?:\.auth)?"',  # Android keystore aliases
+    r'\?: "termoso(?:-debug)?"',  # signing key alias defaults
+    r"termoso-(?:dark|light)\b",  # saved terminal theme ids
+    r'"termoso\.(?:theme|language|activeVault|teamSteps\.hidden|suggestPausedUntil|unlocked|device|session|sso\.next|session_ended)"',
+    r"termoso://sso[A-Za-z/]*",  # the callback upstream servers accept
+    r"secrets\.TERMOSO_\w+",
+    r"(?:[\w.+-]+@)?(?:[a-z0-9-]+\.)*termoso\.dev\b[\w./?=&%#-]*",  # Termoso's own sites, with their paths
+    r"(?:github\.com|githubusercontent\.com|ghcr\.io|hosted\.weblate\.org/projects)/termoso\b[\w./-]*",
+    r"termoso/(?:homebrew-termoso|termoso-repo)\b",
+    r"Termoso Cloud",
+    r"(?:fork of|based on|upstream,?|credit to|Termoso as upstream:?) Termoso\b|Termoso (?:contributors|authors|project|as (?:the )?upstream)",
+    r"packaging/[\w./-]*termoso[\w./-]*|dev\.termoso\.Termoso[\w.]*|com\.termoso\.android\.yml",
+]
+KEEP_EVERYWHERE_RE = re.compile("|".join(KEEP_EVERYWHERE))
+# Never edited in pass 2 (paths still move unless listed in NO_MOVE).
+NO_EDIT = (
+    "packaging/", "LICENSE", "NOTICE", "CHANGELOG", "THIRD_PARTY",
+)
+NO_EDIT_PARTS = ("/migrations/", "/fixtures/")
+NO_MOVE = ("packaging/",)
+WORD = re.compile(r"termoso|Termoso|TERMOSO")
+SPELL = {"termoso": "labterm", "Termoso": "Labterm", "TERMOSO": "LABTERM"}
+
+
+def everywhere_moves():
+    for path in git("ls-files").splitlines():
+        if path.startswith(NO_MOVE) or not WORD.search(path):
+            continue
+        move(path, WORD.sub(lambda m: SPELL[m.group(0)], path))
+
+
+def everywhere_edit():
+    changed = 0
+    for path in git("ls-files").splitlines():
+        if path == SELF or path.startswith(NO_EDIT) or any(p in f"/{path}" for p in NO_EDIT_PARTS):
+            continue
+        if any(part in SKIP_DIRS for part in path.split("/")):
+            continue
+        if os.path.splitext(path)[1] not in TEXT_EXT | {".tpl", ".container", ".volume", ".network", ".example",
+                                                       ".desktop", ".env", ".sql", ".conf", ".service", ".rb",
+                                                       ".svg", ".in", ".cfg", ".ini", ".lock", ".tmpl", ".py", ".patch"}:
+            continue
+        full = os.path.join(ROOT, path)
+        try:
+            text = open(full, encoding="utf-8").read()
+        except (UnicodeDecodeError, FileNotFoundError, IsADirectoryError):
+            continue
+        kept = []
+
+        def protect(m):
+            kept.append(m.group(0))
+            return f"\x00{len(kept) - 1}\x00"
+
+        # this fork builds its own images (ci.yml docker job), which read LABTERM_* settings
+        new = re.sub(r"ghcr\.io/(?:termoso|rep0rtdev)/termoso-", "ghcr.io/reykimedev/labterm-", text)
+        new = new.replace("github.com/rep0rtDev/termoso", "github.com/reykimedev/termoso")
+        new = KEEP_EVERYWHERE_RE.sub(protect, new)
+        new = new.replace("com.termoso.android", APP_ID).replace("com.termoso", "dev.labdex.labterm")
+        new = WORD.sub(lambda m: SPELL[m.group(0)], new)
+        new = re.sub("\x00(\\d+)\x00", lambda m: kept[int(m.group(1))], new)
+        if new != text:
+            open(full, "w", encoding="utf-8").write(new)
+            changed += 1
+    print(f"pass 2: edited {changed} files")
+
+
 if __name__ == "__main__":
     if git("status", "--porcelain").strip() and "--dirty-ok" not in sys.argv:
         sys.exit("commit or stash first (or pass --dirty-ok)")
     moves()
     edit_tree()
+    everywhere_moves()
+    everywhere_edit()
     print("now: cargo update -w --offline, then build and test")
