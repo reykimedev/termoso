@@ -21,5 +21,6 @@ COPY web ./web
 RUN ./web/build.sh /src/dist
 
 FROM nginxinc/nginx-unprivileged:1.29-alpine AS web
+COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=web-build /src/dist /usr/share/nginx/html
 EXPOSE 8080
