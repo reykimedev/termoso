@@ -158,6 +158,9 @@ object DebugUpdater {
         conn.connectTimeout = 15_000
         conn.readTimeout = 60_000
         conn.instanceFollowRedirects = true
+        // latest.json is rewritten in place; never answer from a cache.
+        conn.useCaches = false
+        conn.setRequestProperty("Cache-Control", "no-cache")
         val code = conn.responseCode
         if (code !in 200..299) {
             conn.disconnect()
