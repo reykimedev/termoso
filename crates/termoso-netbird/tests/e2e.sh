@@ -64,6 +64,9 @@ pids+=($!)
 for _ in $(seq 60); do [ "$(wc -l < "$work/peer.out")" -ge 2 ] && break; sleep 1; done
 
 cd "$here"
+# The setup's admin doubles as the SSO user (the server's embedded identity
+# provider); tests/sso-login.py plays the browser.
 NB_E2E_LIB="$work/libtermoso_netbird.so" NB_E2E_MANAGEMENT="$mgmt" NB_E2E_SETUP_KEY="$key" \
   NB_E2E_TARGET="$(sed -n 1p "$work/peer.out")" NB_E2E_TARGET_NAME="$(sed -n 2p "$work/peer.out")" \
-  cargo test -p termoso-netbird --test e2e -- --ignored
+  NB_E2E_SSO_USER="admin@example.com" NB_E2E_SSO_PASSWORD="Example-passw0rd-123" \
+  cargo test -p termoso-netbird --test e2e -- --ignored --test-threads=1

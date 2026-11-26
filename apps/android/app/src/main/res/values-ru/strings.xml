@@ -1870,13 +1870,27 @@
     <string name="tunnel_saved">Туннель сохранён</string>
     <string name="netbird_networks">Сети NetBird</string>
     <string name="netbird_networks_subtitle">Доступ к хостам через NetBird без VPN</string>
-    <string name="netbird_networks_hint">К хостам и группам, использующим сеть, приложение подключается через клиент NetBird внутри приложения. Он запускается при подключении к такому хосту и останавливается, когда больше не нужен. Сети хранилища может использовать каждый, кто открывает это хранилище.</string>
+    <string name="netbird_networks_hint">К хостам и группам, использующим сеть, приложение подключается через клиент NetBird внутри приложения. Он запускается при подключении к такому хосту и останавливается, когда больше не нужен.</string>
     <string name="netbird_no_networks">Нет сетей NetBird</string>
     <string name="netbird_new_network">Новая сеть NetBird</string>
     <string name="netbird_cloud">Облако NetBird</string>
     <string name="netbird_management_url">URL сервера управления (пусто = облако NetBird)</string>
     <string name="netbird_setup_key">Ключ настройки</string>
     <string name="netbird_setup_key_stored">Сохранён. Введите новый, чтобы заменить</string>
-    <string name="netbird_setup_key_hint">Этот ключ может использовать каждый, кто открывает это хранилище. Лучше многоразовый эфемерный ключ для группы, которой политики доступа NetBird разрешают только SSH к нужным хостам. Каждое устройство подключается как отдельный пир.</string>
+    <string name="netbird_setup_key_hint">Без ключа вы входите с учётной записью NetBird. С ключом устройство подключается по нему: лучше многоразовый эфемерный ключ для группы, которой политики доступа NetBird разрешают только SSH к нужным хостам.</string>
     <string name="netbird_no_networks_add_in_vault">В этом хранилище ещё нет сетей NetBird. Добавьте сеть в разделе Хранилище, Сети NetBird.</string>
+    <string name="netbird_networks_hint_team">Хосты и группы, настроенные на сеть, доступны через клиент NetBird внутри приложения. Он запускается при подключении к такому хосту и останавливается, когда больше не нужен. Команда делит только эти настройки: каждый участник входит в NetBird со своей учётной записью, и NetBird решает, кому открыт доступ.</string>
+    <string name="netbird_team_sign_in_hint">У командных сетей нет ключа настройки: каждый участник входит в NetBird со своей учётной записью и подключается как своё устройство. Доступ определяют пользователи, группы и политики NetBird.</string>
+    <string name="netbird_setup_key_optional">Ключ настройки (необязательно)</string>
+    <string name="netbird_joins_with_key">Ключ настройки</string>
+    <string name="netbird_signed_in">Вход выполнен</string>
+    <string name="netbird_not_signed_in">Вход не выполнен</string>
+    <string name="netbird_sign_in">Войти</string>
+    <string name="netbird_sign_in_again">Войти снова</string>
+    <string name="netbird_sign_in_to">Вход в %1$s</string>
+    <string name="netbird_sign_in_hint">Войдите с учётной записью NetBird (например, через Authentik). Телефон подключится к сети как ваше устройство.</string>
+    <string name="netbird_sign_in_waiting">Завершите вход в браузере и вернитесь сюда.</string>
+    <string name="netbird_reopen_browser">Открыть браузер снова</string>
+    <string name="netbird_no_browser">Нет браузера для входа</string>
+    <string name="netbird_signed_in_as">Вход в NetBird: %1$s</string>
 </resources>

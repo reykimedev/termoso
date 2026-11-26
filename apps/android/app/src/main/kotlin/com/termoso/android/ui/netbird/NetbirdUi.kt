@@ -1,5 +1,9 @@
 package com.termoso.android.ui.netbird
 
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.net.Uri
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,6 +36,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -49,15 +54,18 @@ import com.termoso.android.ui.components.SectionCard
 import com.termoso.android.ui.components.SubScreen
 import com.termoso.android.ui.shell.ShellViewModel
 import com.termoso.core.TransportItem
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private const val NETBIRD = "netbird"
 
 /**
- * The selected vault's NetBird networks (team-wide in a team vault). Hosts set to use
- * one are reached through a NetBird client inside the app, started on demand: no VPN.
+ * The selected vault's NetBird networks. Hosts set to use one are reached through a
+ * NetBird client inside the app, started on demand: no VPN. A team vault shares only
+ * the network settings; each member signs in to NetBird as themselves.
  */
 @Composable
 fun NetbirdNetworksScreen(shell: ShellViewModel, onBack: () -> Unit) {
@@ -66,10 +74,12 @@ fun NetbirdNetworksScreen(shell: ShellViewModel, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     var networks by remember { mutableStateOf<List<TransportItem>?>(null) }
     var editing by remember { mutableStateOf<TransportItem?>(null) }
+    var signInOnly by remember { mutableStateOf(false) }
+    var signingIn by remember { mutableStateOf<TransportItem?>(null) }
     LaunchedEffect(vaultId, revision) {
         val v = vaultId ?: return@LaunchedEffect
-        runCatching { shell.repo.read { transports(v) } }
-            .onSuccess { networks = it }
+        runCatching { shell.repo.read { transports(v) to transportSignInOnly(v) } }
+            .onSuccess { (list, team) -> networks = list; signInOnly = team }
             .onFailure { shell.notify(it.userMessage()) }
     }
 
@@ -82,6 +92,8 @@ fun NetbirdNetworksScreen(shell: ShellViewModel, onBack: () -> Unit) {
             managementUrl = null,
             setupKey = null,
             hasSetupKey = false,
+            team = signInOnly,
+            signedIn = false,
         )
     }
 
@@ -100,7 +112,7 @@ fun NetbirdNetworksScreen(shell: ShellViewModel, onBack: () -> Unit) {
             list.isEmpty() -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 EmptyState(
                     title = stringResource(R.string.netbird_no_networks),
-                    hint = stringResource(R.string.netbird_networks_hint),
+                    hint = stringResource(if (signInOnly) R.string.netbird_networks_hint_team else R.string.netbird_networks_hint),
                     icon = Icons.Filled.Hub,
                     action = { TextButton(onClick = { editing = newNetwork() }) { Text(stringResource(R.string.netbird_new_network)) } },
                 )
@@ -113,14 +125,20 @@ fun NetbirdNetworksScreen(shell: ShellViewModel, onBack: () -> Unit) {
                         if (i > 0) RowDivider()
                         ChevronRow(
                             title = n.label,
-                            subtitle = n.managementUrl ?: str(R.string.netbird_cloud),
+                            subtitle = (n.managementUrl ?: str(R.string.netbird_cloud)) + " · " + str(
+                                when {
+                                    n.hasSetupKey -> R.string.netbird_joins_with_key
+                                    n.signedIn -> R.string.netbird_signed_in
+                                    else -> R.string.netbird_not_signed_in
+                                },
+                            ),
                             leading = { IconTile(Icons.Filled.Hub) },
                             modifier = Modifier.clickable { editing = n },
                         )
                     }
                 }
                 Text(
-                    stringResource(R.string.netbird_networks_hint),
+                    stringResource(if (signInOnly) R.string.netbird_networks_hint_team else R.string.netbird_networks_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 12.dp, start = 4.dp, end = 4.dp),
@@ -134,6 +152,7 @@ fun NetbirdNetworksScreen(shell: ShellViewModel, onBack: () -> Unit) {
         NetworkEditDialog(
             n,
             onDismiss = { editing = null },
+            onSignIn = if (id == null || n.hasSetupKey) null else ({ editing = null; signingIn = n }),
             onDelete = if (id == null) null else ({
                 scope.launch {
                     runCatching { shell.repo.write { deleteTransport(id) } }
@@ -149,20 +168,26 @@ fun NetbirdNetworksScreen(shell: ShellViewModel, onBack: () -> Unit) {
             }
         }
     }
+
+    signingIn?.let { n ->
+        NetbirdSignInDialog(n, shell.repo, shell::notify) { signingIn = null }
+    }
 }
 
 @Composable
 private fun NetworkEditDialog(
     current: TransportItem,
     onDismiss: () -> Unit,
+    onSignIn: (() -> Unit)?,
     onDelete: (() -> Unit)?,
     onSave: (TransportItem) -> Unit,
 ) {
     var label by remember { mutableStateOf(current.label) }
     var url by remember { mutableStateOf(current.managementUrl.orEmpty()) }
     var setupKey by remember { mutableStateOf("") }
-    // A stored key is never shown again: leaving the field empty keeps it.
-    val valid = label.isNotBlank() && (current.hasSetupKey || setupKey.isNotBlank())
+    // A stored key is never shown again: leaving the field empty keeps it. Without
+    // a key, each user joins by signing in.
+    val valid = label.isNotBlank()
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (current.id == null) stringResource(R.string.netbird_new_network) else current.label) },
@@ -175,17 +200,31 @@ private fun NetworkEditDialog(
                     stringResource(R.string.netbird_management_url),
                     placeholder = "https://netbird.example.com",
                 )
-                SecretField(
-                    setupKey,
-                    { setupKey = it },
-                    stringResource(R.string.netbird_setup_key),
-                    placeholder = if (current.hasSetupKey) str(R.string.netbird_setup_key_stored) else null,
-                )
-                Text(
-                    stringResource(R.string.netbird_setup_key_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                if (current.team) {
+                    // A key here would let every vault member in without a NetBird account.
+                    Text(
+                        stringResource(R.string.netbird_team_sign_in_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    SecretField(
+                        setupKey,
+                        { setupKey = it },
+                        stringResource(R.string.netbird_setup_key_optional),
+                        placeholder = if (current.hasSetupKey) str(R.string.netbird_setup_key_stored) else null,
+                    )
+                    Text(
+                        stringResource(R.string.netbird_setup_key_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (onSignIn != null) {
+                    TextButton(onClick = onSignIn) {
+                        Text(stringResource(if (current.signedIn) R.string.netbird_sign_in_again else R.string.netbird_sign_in))
+                    }
+                }
                 if (onDelete != null) {
                     TextButton(onClick = onDelete) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
                 }
@@ -198,12 +237,86 @@ private fun NetworkEditDialog(
                         label = label.trim(),
                         provider = NETBIRD,
                         managementUrl = url.trim().ifEmpty { null },
-                        setupKey = setupKey.trim().ifEmpty { null },
+                        setupKey = if (current.team) null else setupKey.trim().ifEmpty { null },
                     ),
                 )
             }) { Text(stringResource(R.string.save)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
+}
+
+/** Opens [url] in a Custom Tab (falls back to the default browser); false when no browser exists. */
+private fun openBrowser(context: Context, url: String): Boolean =
+    try {
+        CustomTabsIntent.Builder().setShowTitle(true).build().launchUrl(context, Uri.parse(url))
+        true
+    } catch (_: ActivityNotFoundException) {
+        false
+    }
+
+/**
+ * Sign in to a NetBird network with the user's own account at the identity provider the
+ * NetBird server uses (Authentik, ...). The browser comes back to a short-lived listener on
+ * localhost; this device then joins as the user's own peer. Calls [onDone] with true once
+ * signed in, false when cancelled or failed.
+ */
+@Composable
+fun NetbirdSignInDialog(
+    network: TransportItem,
+    repo: VaultRepository,
+    onNotify: (String) -> Unit,
+    onDone: (Boolean) -> Unit,
+) {
+    val id = network.id ?: return
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var waiting by remember { mutableStateOf(false) }
+    var url by remember { mutableStateOf<String?>(null) }
+
+    fun cancel() {
+        if (waiting) scope.launch(NonCancellable) { repo.read { transportSignInCancel(id) } }
+        onDone(false)
+    }
+
+    AlertDialog(
+        onDismissRequest = ::cancel,
+        title = { Text(str(R.string.netbird_sign_in_to, network.label)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(stringResource(if (waiting) R.string.netbird_sign_in_waiting else R.string.netbird_sign_in_hint))
+                if (waiting) CircularProgressIndicator(Modifier.size(20.dp))
+            }
+        },
+        confirmButton = {
+            if (waiting) {
+                TextButton(onClick = { url?.let { openBrowser(context, it) } }) { Text(stringResource(R.string.netbird_reopen_browser)) }
+            } else {
+                TextButton(onClick = {
+                    scope.launch {
+                        try {
+                            val u = repo.read { transportSignInBegin(id) }
+                            url = u
+                            if (!openBrowser(context, u)) {
+                                repo.read { transportSignInCancel(id) }
+                                onNotify(str(R.string.netbird_no_browser))
+                                return@launch
+                            }
+                            waiting = true
+                            val email = repo.write { transportSignInFinish(id) }
+                            onNotify(if (email != null) str(R.string.netbird_signed_in_as, email) else str(R.string.netbird_signed_in))
+                            onDone(true)
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            waiting = false
+                            onNotify(e.userMessage())
+                        }
+                    }
+                }) { Text(stringResource(R.string.netbird_sign_in)) }
+            }
+        },
+        dismissButton = { TextButton(onClick = ::cancel) { Text(stringResource(R.string.cancel)) } },
     )
 }
 

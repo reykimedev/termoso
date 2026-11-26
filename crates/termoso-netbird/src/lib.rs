@@ -14,6 +14,10 @@
 //! the caller through [`PeerKeys`] (Termoso's encrypted device store, never
 //! synced), so a phone keeps one peer across restarts instead of registering
 //! again with the setup key every time.
+//!
+//! A peer joins with a setup key (personal networks) or by signing in at the
+//! identity provider of the NetBird server ([`Netbird::sign_in`]): team
+//! networks never carry a key, so each person is their own NetBird user.
 
 mod ffi;
 
@@ -110,6 +114,66 @@ impl NetworkConfig {
     pub fn peer_slot(&self) -> String {
         format!("{}@{}", self.id, self.management_url)
     }
+}
+
+/// Start of the error when a network needs its user to sign in (no setup
+/// key and no peer yet, or the server's login expiry ran out). The app looks
+/// for it to offer the sign-in.
+pub const SIGN_IN_NEEDED: &str = "NetBird sign-in needed";
+
+/// An SSO sign-in waiting for the browser.
+pub struct SignIn {
+    /// Open this in a browser (on Android: a Custom Tab).
+    pub auth_url: String,
+    handle: usize,
+}
+
+impl SignIn {
+    /// Handle to cancel this sign-in from elsewhere.
+    pub fn handle(&self) -> SignInHandle {
+        SignInHandle(self.handle)
+    }
+}
+
+/// Cancels a sign-in, see [`Netbird::cancel_sign_in`].
+#[derive(Debug, Clone, Copy)]
+pub struct SignInHandle(usize);
+
+/// Whether a start error means the server wants the user to sign in again
+/// (peer login expired, or the peer was removed).
+fn login_refused(e: &str) -> bool {
+    let e = e.to_ascii_lowercase();
+    [
+        "permissiondenied",
+        "permission denied",
+        "login expired",
+        "unauthenticated",
+        "no setup key",
+    ]
+    .iter()
+    .any(|m| e.contains(m))
+}
+
+/// The result of a sign-in.
+#[derive(Debug, Clone, Deserialize)]
+pub struct SignedIn {
+    /// The identity provider's email for the user, for display only.
+    #[serde(default)]
+    pub email: Option<String>,
+}
+
+#[derive(Serialize)]
+struct LoginOptions<'a> {
+    management_url: &'a str,
+    private_key: &'a str,
+    device_name: &'a str,
+}
+
+#[derive(Deserialize)]
+struct LoginResult {
+    private_key: String,
+    #[serde(default)]
+    email: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -235,8 +299,8 @@ impl Netbird {
         let slot = config.peer_slot();
         let saved = keys.load(&slot);
         if saved.is_none() && config.setup_key.is_none() {
-            return Err(CoreError::Invalid(format!(
-                "NetBird network \"{}\" has no setup key",
+            return Err(CoreError::Ssh(format!(
+                "{SIGN_IN_NEEDED} for \"{}\"",
                 config.label
             )));
         }
@@ -263,7 +327,13 @@ impl Netbird {
         })
         .await
         .map_err(|e| CoreError::Ssh(format!("netbird: {e}")))?
-        .map_err(|e| CoreError::Ssh(format!("NetBird \"{label}\": {e}")))?;
+        .map_err(|e| {
+            if config.setup_key.is_none() && login_refused(&e) {
+                CoreError::Ssh(format!("{SIGN_IN_NEEDED} for \"{label}\": {e}"))
+            } else {
+                CoreError::Ssh(format!("NetBird \"{label}\": {e}"))
+            }
+        })?;
         let result: StartResult = serde_json::from_str(&result)
             .map_err(|e| CoreError::Ssh(format!("netbird: bad start result: {e}")))?;
         let result_key = Zeroizing::new(result.private_key);
@@ -284,6 +354,93 @@ impl Netbird {
         });
         nodes.insert(config.id, node.clone());
         Ok(node)
+    }
+
+    /// Whether this device has joined `config`'s network (a peer key is
+    /// saved), so connecting needs no sign-in or setup key.
+    pub fn has_peer(&self, config: &NetworkConfig, keys: &dyn PeerKeys) -> bool {
+        keys.load(&config.peer_slot()).is_some()
+    }
+
+    /// Start an SSO sign-in to `config`'s network. Open
+    /// [`SignIn::auth_url`] in a browser, then call [`Self::finish_sign_in`].
+    /// Signing in again keeps this device's peer (the saved key).
+    pub async fn sign_in(
+        &self,
+        config: &NetworkConfig,
+        device_name: &str,
+        keys: &dyn PeerKeys,
+    ) -> Result<SignIn> {
+        let saved = keys.load(&config.peer_slot());
+        let options = Zeroizing::new(
+            serde_json::to_string(&LoginOptions {
+                management_url: &config.management_url,
+                private_key: saved.as_deref().map(String::as_str).unwrap_or(""),
+                device_name,
+            })
+            .map_err(|e| CoreError::Invalid(e.to_string()))?,
+        );
+        let path = self.library_path.clone();
+        let label = config.label.clone();
+        let (handle, out) = tokio::task::spawn_blocking(move || {
+            let lib = ffi::library(path.as_deref())?;
+            lib.login_begin(&options)
+        })
+        .await
+        .map_err(|e| CoreError::Ssh(format!("netbird: {e}")))?
+        .map_err(|e| CoreError::Ssh(format!("NetBird \"{label}\": {e}")))?;
+        #[derive(Deserialize)]
+        struct Begin {
+            auth_url: String,
+        }
+        let begin: Begin = serde_json::from_str(&out)
+            .map_err(|e| CoreError::Ssh(format!("netbird: bad sign-in result: {e}")))?;
+        Ok(SignIn {
+            auth_url: begin.auth_url,
+            handle,
+        })
+    }
+
+    /// Wait (up to `timeout`) for the browser to come back, register this
+    /// device's peer for the signed-in user and save its key.
+    pub async fn finish_sign_in(
+        &self,
+        sign_in: SignIn,
+        config: &NetworkConfig,
+        keys: &dyn PeerKeys,
+        timeout: Duration,
+    ) -> Result<SignedIn> {
+        let path = self.library_path.clone();
+        let handle = sign_in.handle;
+        let ms = timeout.as_millis().min(u128::from(u32::MAX)) as u32;
+        let out = Zeroizing::new(
+            tokio::task::spawn_blocking(move || {
+                let lib = ffi::library(path.as_deref())?;
+                lib.login_finish(handle, ms)
+            })
+            .await
+            .map_err(|e| CoreError::Ssh(format!("netbird: {e}")))?
+            .map_err(|e| CoreError::Ssh(format!("NetBird \"{}\": {e}", config.label)))?,
+        );
+        let result: LoginResult = serde_json::from_str(&out)
+            .map_err(|e| CoreError::Ssh(format!("netbird: bad sign-in result: {e}")))?;
+        let key = Zeroizing::new(result.private_key);
+        keys.save(&config.peer_slot(), &key);
+        // A peer that kept running on the old authorization starts afresh.
+        if let Some(n) = self.nodes.lock().await.remove(&config.id) {
+            self.stop_node(n).await;
+        }
+        tracing::info!(network = %config.id, "netbird: signed in");
+        Ok(SignedIn {
+            email: result.email.filter(|e| !e.is_empty()),
+        })
+    }
+
+    /// Make a waiting [`Self::finish_sign_in`] return with an error.
+    pub fn cancel_sign_in(&self, handle: SignInHandle) {
+        if let Ok(lib) = ffi::library(self.library_path.as_deref()) {
+            lib.login_cancel(handle.0);
+        }
     }
 
     async fn dial(&self, d: &Dialer, host: &str, port: u16) -> Result<BoxStream> {
@@ -460,7 +617,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn no_setup_key_and_no_peer_is_a_clear_error() {
+    async fn no_setup_key_and_no_peer_asks_to_sign_in() {
         let nb = Netbird::new();
         let c = NetworkConfig::from_entity(&entity("netbird", None, None)).unwrap();
         let err = match nb
@@ -471,6 +628,6 @@ mod tests {
             Err(e) => e.to_string(),
             Ok(_) => panic!("dialled without credentials"),
         };
-        assert!(err.contains("no setup key"), "{err}");
+        assert!(err.contains(SIGN_IN_NEEDED), "{err}");
     }
 }

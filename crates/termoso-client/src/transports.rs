@@ -1,10 +1,15 @@
 //! Overlay networks (NetBird; Tailscale later) that hosts can be reached
 //! through, run inside the app instead of a system VPN. A network lives in a
-//! vault like a proxy, so a team vault gives the whole team the same
-//! network; hosts and groups pick one with `SshConfig::transport_id`.
+//! vault like a proxy; hosts and groups pick one with
+//! `SshConfig::transport_id`.
+//!
+//! A team vault shares only the network settings, never a setup key: a key
+//! would let every vault member join the network without being onboarded in
+//! NetBird. In a team vault each person signs in to NetBird themselves and
+//! joins as their own peer, so NetBird decides who gets in.
 
 use termoso_core::model::{Entity, SshConfig, Transport};
-use termoso_core::store::Store;
+use termoso_core::store::{LocalVaultKind, Store};
 use termoso_proto::entities::TRANSPORT_NETBIRD;
 use uuid::Uuid;
 
@@ -58,8 +63,15 @@ pub fn normalize(mut t: Transport) -> Result<Transport> {
     Ok(t)
 }
 
+/// Whether a vault may hold a setup key: personal and local vaults only.
+pub fn setup_key_allowed(store: &Store, vault_id: Uuid) -> Result<bool> {
+    Ok(store.vault(vault_id)?.kind != LocalVaultKind::Team)
+}
+
 /// Insert (`id = None`) or update a network. Updating without a setup key
-/// keeps the stored one, so editors never have to show it again.
+/// keeps the stored one, so editors never have to show it again. A network
+/// without a key is joined by signing in. In a team vault a setup key is
+/// refused, and saving drops one stored before.
 pub fn save(
     store: &Store,
     vault_id: Uuid,
@@ -67,24 +79,26 @@ pub fn save(
     transport: Transport,
 ) -> Result<Entity<Transport>> {
     let mut t = normalize(transport)?;
+    let keys = setup_key_allowed(store, vault_id)?;
+    if !keys && t.setup_key.is_some() {
+        return Err(ClientError::invalid(
+            "a team vault can't hold a setup key: each member signs in to NetBird themselves",
+        ));
+    }
     let id = match id {
         Some(id) => {
             let existing = store.require::<Transport>(id)?;
             if existing.vault_id != vault_id {
                 return Err(ClientError::invalid("network belongs to another vault"));
             }
-            if t.setup_key.is_none() {
+            if keys && t.setup_key.is_none() {
                 t.setup_key = existing.data.setup_key.clone();
             }
             store.update(id, &t)?;
             id
         }
-        None => {
-            if t.setup_key.is_none() {
-                return Err(ClientError::invalid("a setup key is required"));
-            }
-            store.insert(vault_id, &t)?
-        }
+        // Without a setup key the user joins by signing in.
+        None => store.insert(vault_id, &t)?,
     };
     Ok(store.require::<Transport>(id)?)
 }
@@ -117,6 +131,8 @@ pub(crate) fn check(store: &Store, vault_id: Uuid, id: Option<Uuid>) -> Result<(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use termoso_core::termoso_crypto::keys::SymmetricKey;
+    use termoso_proto::vault::VaultRole;
 
     fn netbird(url: Option<&str>, key: Option<&str>) -> Transport {
         Transport {
@@ -148,5 +164,42 @@ mod tests {
         let mut ts = netbird(None, None);
         ts.provider = "tailscale".into();
         assert!(normalize(ts).is_err());
+    }
+
+    #[test]
+    fn team_vaults_never_hold_a_setup_key() {
+        let store = Store::open_in_memory(SymmetricKey::generate()).unwrap();
+        let team = Uuid::new_v4();
+        store
+            .upsert_vault(
+                team,
+                LocalVaultKind::Team,
+                "Team",
+                Some(Uuid::new_v4()),
+                VaultRole::Manager,
+                Some(&SymmetricKey::generate()),
+                1,
+            )
+            .unwrap();
+        let local = store.local_vault().unwrap().id;
+        assert!(setup_key_allowed(&store, local).unwrap());
+        assert!(!setup_key_allowed(&store, team).unwrap());
+
+        let personal = save(&store, local, None, netbird(None, Some("K"))).unwrap();
+        assert_eq!(personal.data.setup_key.as_deref(), Some("K"));
+        let kept = save(&store, local, Some(personal.id), netbird(None, None)).unwrap();
+        assert_eq!(kept.data.setup_key.as_deref(), Some("K"));
+        assert!(save(&store, local, None, netbird(None, None)).is_ok());
+
+        assert!(save(&store, team, None, netbird(None, Some("K"))).is_err());
+        let t = save(&store, team, None, netbird(None, None)).unwrap();
+        assert!(t.data.setup_key.is_none());
+
+        // A key that got into a team network some other way is dropped on save.
+        let mut with_key = t.data.clone();
+        with_key.setup_key = Some("K".into());
+        store.update(t.id, &with_key).unwrap();
+        let t = save(&store, team, Some(t.id), netbird(None, None)).unwrap();
+        assert!(t.data.setup_key.is_none());
     }
 }
