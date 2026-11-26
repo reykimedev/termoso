@@ -5,6 +5,8 @@ on:
     branches: [main]
     tags: ["v*"]
   pull_request:
+    # ready_for_review starts the heavy jobs that were skipped while the PR was a draft.
+    types: [opened, synchronize, reopened, ready_for_review]
 
 # A new push to a pull request cancels that PR's older queued or running CI, so scarce runners
 # go to the latest commit. Pushes to main and tags get a group of their own per run (run_id),
@@ -18,6 +20,49 @@ env:
   RUSTFLAGS: -D warnings
 
 jobs:
+  # Decides which heavy jobs run on a pull request: none on drafts, otherwise only the ones whose
+  # paths changed (shared Rust code and this workflow count for all of them). Pushes to main and
+  # tags always run everything. Jobs are skipped with `if:` rather than a workflow-level `paths`
+  # filter, because a skipped job satisfies a required check and a workflow that never started
+  # leaves it pending.
+  changes:
+    name: changes
+    runs-on: ubuntu-latest
+    outputs:
+      macos: ${{ steps.filter.outputs.macos }}
+      ios: ${{ steps.filter.outputs.ios }}
+      android: ${{ steps.filter.outputs.android }}
+      netbird: ${{ steps.filter.outputs.netbird }}
+      fuzz: ${{ steps.filter.outputs.fuzz }}
+      docker: ${{ steps.filter.outputs.docker }}
+    steps:
+      - uses: actions/checkout@v7
+        if: github.event_name == 'pull_request'
+        with:
+          # The PR merge commit and its first parent, the base it merges into.
+          fetch-depth: 2
+      - id: filter
+        env:
+          EVENT: ${{ github.event_name }}
+          DRAFT: ${{ github.event.pull_request.draft }}
+        run: |
+          jobs="macos ios android netbird fuzz docker"
+          set_all() { for j in $jobs; do echo "$j=$1" >> "$GITHUB_OUTPUT"; done; }
+          if [ "$EVENT" != pull_request ]; then set_all true; exit 0; fi
+          if [ "$DRAFT" = true ]; then echo "Draft PR: heavy jobs skipped until it is ready for review."; set_all false; exit 0; fi
+          changed=$(git diff --name-only HEAD^1 HEAD)
+          printf 'Changed files:\n%s\n' "$changed"
+          shared='^(crates/|Cargo\.(toml|lock)$|rust-toolchain|\.cargo/|\.github/workflows/ci\.yml$|\.github/actions/)'
+          match() { if grep -qE "$shared|$2" <<<"$changed"; then echo "$1=true"; else echo "$1=false"; fi; }
+          {
+            match macos '^apps/desktop/'
+            match ios '^apps/ios/'
+            match android '^apps/android/'
+            match netbird '^crates/labterm-netbird/'
+            match fuzz '^fuzz/'
+            match docker '^(apps/desktop/src-tauri/|web/|deploy/Dockerfile|\.dockerignore$)'
+          } | tee -a "$GITHUB_OUTPUT"
+
   check:
     name: fmt + clippy
     runs-on: ubuntu-latest
@@ -247,6 +292,8 @@ jobs:
   # settings inside the real WKWebView and screenshots the window.
   macos:
     name: macos (clippy + core tests + tauri build --debug + runtime smoke)
+    needs: changes
+    if: needs.changes.outputs.macos == 'true'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
@@ -295,6 +342,8 @@ jobs:
   # smoke (XCUITest) — screenshots and the .xcresult are uploaded.
   ios:
     name: ios (rust sim core + uniffi swift + xcodebuild + XCTest/XCUITest)
+    needs: changes
+    if: needs.changes.outputs.ios == 'true'
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v7
@@ -376,6 +425,8 @@ jobs:
 
   android:
     name: android (cargo-ndk + gradle assembleDebug + lint)
+    needs: changes
+    if: needs.changes.outputs.android == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -418,6 +469,8 @@ jobs:
   # built from the same release), a far-end peer and the Rust crate, all on loopback.
   netbird:
     name: netbird (embedded client e2e)
+    needs: changes
+    if: needs.changes.outputs.netbird == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -459,6 +512,8 @@ jobs:
   # target catches shallow panics early. Long campaigns are run by hand.
   fuzz:
     name: fuzz targets (nightly check + smoke)
+    needs: changes
+    if: needs.changes.outputs.fuzz == 'true'
     runs-on: ubuntu-latest
     env:
       RUSTFLAGS: ""
@@ -504,7 +559,7 @@ jobs:
   docker:
     name: docker image (${{ matrix.image }}, ${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
-    needs: [check, test, web]
+    needs: [changes, check, test, web]
     permissions:
       contents: read
       packages: write
@@ -518,9 +573,13 @@ jobs:
             runner: ubuntu-latest
           - arch: arm64
             runner: ubuntu-24.04-arm
+    # A skipped matrix job reports under its unexpanded name, which would leave per-image required
+    # checks pending, so this job always runs and only its build steps are skipped.
     steps:
       - uses: actions/checkout@v7
+        if: needs.changes.outputs.docker == 'true'
       - uses: docker/setup-buildx-action@v4
+        if: needs.changes.outputs.docker == 'true'
       - name: Log in to GHCR
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v4
@@ -531,6 +590,7 @@ jobs:
       - id: image
         run: echo "name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/termoso-${{ matrix.image }}" >> "$GITHUB_OUTPUT"
       - id: build
+        if: needs.changes.outputs.docker == 'true'
         uses: docker/build-push-action@v7
         with:
           context: .
