@@ -95,7 +95,7 @@ separately.
    and verifies the checksum matches before the release goes public.
 
 Nothing in the pipeline signs the app or needs Apple credentials. `ci.yml`
-(job `ios`) builds the simulator slice on every PR and runs the XCTest and
+(job `ios`) builds the simulator slice on PRs that touch the iOS app and nightly, and runs the XCTest and
 XCUITest suites in an iPhone simulator, uploading screenshots and the
 `.xcresult` as the `ios-simulator` artifact.
 
