@@ -1,4 +1,4 @@
-# Debug channel: every push to the listed branches builds a "Termoso Debug" APK signed
+# Debug channel: every push to the listed branches builds a "Labterm Debug" APK signed
 # with a fixed debug key and publishes it to the rolling prerelease `android-debug`,
 # together with latest.json, which the in-app updater of those builds reads.
 #
@@ -89,8 +89,8 @@ jobs:
             '{build: $build, commit: $commit, apk: "termoso-debug.apk", sha256: $sha}' > "$out/latest.json"
           if ! gh release view android-debug >/dev/null 2>&1; then
             gh release create android-debug --prerelease --target "$COMMIT" \
-              --title "Termoso Debug (rolling)" \
+              --title "Labterm Debug (rolling)" \
               --notes "Debug builds for testing; the app updates itself from here. Not for production use."
           fi
           gh release upload android-debug "$out/termoso-debug.apk" "$out/latest.json" --clobber
-          gh release edit android-debug --notes "Debug build $BUILD from $COMMIT. The app updates itself from here."
+          gh release edit android-debug --title "Labterm Debug (rolling)" --notes "Debug build $BUILD from $COMMIT. The app updates itself from here."
