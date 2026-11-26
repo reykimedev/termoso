@@ -38,6 +38,17 @@ use crate::error::{CoreError, Result};
 use crate::store::{EntityFilter, EntityRow, LocalVaultKind, Store};
 
 const STALE_KEY_VERSION: &str = "stale_key_version";
+const UNKNOWN_KIND: &str = "unknown_kind";
+
+/// Plural name, for messages, of the kinds an older server may not know yet.
+fn kind_label(kind: &str) -> &str {
+    match kind {
+        "oidc_provider" => "OpenID providers",
+        "transport" => "network transports",
+        "host_overlay" => "personal host settings",
+        other => other,
+    }
+}
 
 /// How to resolve an entity that changed both here and on the server.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -103,6 +114,9 @@ pub struct SyncReport {
     pub conflicts: usize,
     /// Per-entity server errors (`id`, `code`). The rows stay dirty.
     pub errors: Vec<(Uuid, String)>,
+    /// Kinds the server refused as `unknown_kind` (an older server), sorted.
+    /// Those items stay on this device until the server is updated.
+    pub unknown_kinds: Vec<String>,
     /// History entries pushed / pulled.
     pub history: (usize, usize),
     /// Session logs uploaded / metadata rows pulled.
@@ -110,6 +124,20 @@ pub struct SyncReport {
 }
 
 impl SyncReport {
+    /// The first error in words, for a sync status line.
+    pub fn error_message(&self) -> Option<String> {
+        if !self.unknown_kinds.is_empty() {
+            let kinds: Vec<&str> = self.unknown_kinds.iter().map(|k| kind_label(k)).collect();
+            return Some(format!(
+                "This server does not sync {} yet; they stay on this device until the server is updated (unknown_kind)",
+                kinds.join(", ")
+            ));
+        }
+        self.errors
+            .first()
+            .map(|(id, code)| format!("{code} ({id})"))
+    }
+
     /// Anything changed locally that a UI should re-render?
     pub fn changed_locally(&self) -> bool {
         self.pulled > 0 || self.history.1 > 0 || self.logs.1 > 0
@@ -513,6 +541,13 @@ impl SyncEngine {
                         }
                         if code == STALE_KEY_VERSION {
                             stale_key = true;
+                        }
+                        if code == UNKNOWN_KIND
+                            && let Some(r) = by_id.get(&id)
+                            && !report.unknown_kinds.contains(&r.kind)
+                        {
+                            report.unknown_kinds.push(r.kind.clone());
+                            report.unknown_kinds.sort();
                         }
                         report.errors.push((id, code));
                     }
@@ -1221,6 +1256,21 @@ mod tests {
         let o = SyncOptions::default();
         assert!(o.batch <= MAX_BATCH);
         assert_eq!(o.conflict, ConflictPolicy::NewestWins);
+    }
+
+    #[test]
+    fn error_message_names_kinds_the_server_does_not_know() {
+        let id = Uuid::nil();
+        let mut r = SyncReport {
+            errors: vec![(id, "too_large".into())],
+            ..SyncReport::default()
+        };
+        assert_eq!(r.error_message().unwrap(), format!("too_large ({id})"));
+        r.errors.push((id, UNKNOWN_KIND.into()));
+        r.unknown_kinds = vec!["oidc_provider".into(), "transport".into()];
+        let m = r.error_message().unwrap();
+        assert!(m.contains("OpenID providers, network transports"), "{m}");
+        assert!(SyncReport::default().error_message().is_none());
     }
 
     #[test]
