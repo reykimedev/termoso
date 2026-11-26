@@ -4,6 +4,7 @@ Labterm Web's own changes. It started as Hatch (bitsandbricks-ch/hatch).
 
 ## Unreleased
 
+- Tag settings in the browser: open a tag in the tag manager to set its username, key, port and other defaults; rename, recolour, merge and delete tags. The OpenID key can be set on groups and tags.
 - Moved into the Labterm repository as Labterm Web: `apps/web`, `crates/labterm-relay`, `crates/labterm-relay-proto`, `crates/labterm-web-wasm`, `deploy/web` and `docs/web`. Images are now `ghcr.io/reykimedev/labterm-web` and `labterm-relay`.
 - Repository setup: Cargo workspace, signed relay tickets, a relay skeleton with health and metrics, the web build of Termoso's desktop UI with a demo backend, threat model and decision records
 - Images for hatch-web and hatch-relay on every push to main (dev, sha-<7>, signed), and example Kubernetes manifests

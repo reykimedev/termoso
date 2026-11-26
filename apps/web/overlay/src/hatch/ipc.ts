@@ -218,6 +218,11 @@ const commands: Record<string, Handler> = {
   group_save_form: (a) => m.groupSaveForm(a.form),
   group_delete: (a) => m.groupDelete(a.id, !!a.recursive),
   tags_list: (a) => m.tags(a.vaultId ?? null),
+  tag_update: (a) => m.tagUpdate(a.id, String(a.label ?? ""), a.color ?? null),
+  tag_delete: (a) => m.tagDelete(a.id),
+  tags_merge: (a) => m.tagsMerge(a.sources ?? [], a.target),
+  tag_form: (a) => m.tagForm(a.id),
+  tag_save_form: (a) => m.tagSaveForm(a.form),
   entity_delete: (a) => {
     st.remove(a.id);
     return null;
