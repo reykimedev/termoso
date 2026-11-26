@@ -16,6 +16,11 @@ use crate::state::AppState;
 
 pub const UPDATE_EVENT: &str = "update";
 
+/// Off in Labterm builds: the baked-in key and default feed are upstream
+/// Termoso's, so an "update" would replace Labterm with Termoso. Turn back on
+/// once Labterm has its own signing key and release feed.
+pub const ENABLED: bool = false;
+
 /// Release feed used when `Settings::update_url` is empty.
 pub const DEFAULT_FEED: &str =
     "https://github.com/termoso/termoso/releases/latest/download/latest.json";
@@ -84,6 +89,12 @@ fn emit<R: Runtime>(app: &AppHandle<R>, ev: UpdateEvent) {
 
 /// Contact the configured feed once and remember the result.
 pub async fn check<R: Runtime>(app: &AppHandle<R>) -> Result<Option<UpdateInfo>> {
+    if !ENABLED {
+        return Err(DesktopError::new(
+            "update",
+            "in-app updates are turned off in this build",
+        ));
+    }
     let settings = app.state::<AppState>().settings()?;
     let url = feed_url(&settings.update_url)?;
     let updater = app

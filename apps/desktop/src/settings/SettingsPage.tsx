@@ -40,6 +40,7 @@ import { useSnackbar } from "@/components/Snackbar";
 import { Loading, Mono, SectionCard, SettingRow } from "@/components/ui";
 import * as ipc from "@/ipc/commands";
 import { useAppInfo, useSaveSettings, useSettings } from "@/ipc/hooks";
+import { UPDATES_ENABLED } from "@/update/store";
 import { UpdatesCard } from "@/update/UpdatesCard";
 import { FontPicker, FontPreview } from "./FontPicker";
 import { KeyboardPage } from "./KeyboardPage";
@@ -65,7 +66,7 @@ import {
 import { tr, trn, msg, LOCALE_NAMES, type Language } from "@/i18n";
 import { fmtBytes } from "@/hosts/LocalCopiesSection";
 
-const PAGES: { id: PageId; label: string; icon: ReactNode }[] = [
+const ALL_PAGES: { id: PageId; label: string; icon: ReactNode }[] = [
   { id: "account", label: msg("Account & sync"), icon: <PersonRoundedIcon /> },
   { id: "team", label: msg("Team"), icon: <GroupsRoundedIcon /> },
   { id: "vaults", label: msg("Vaults"), icon: <LockRoundedIcon /> },
@@ -79,6 +80,7 @@ const PAGES: { id: PageId; label: string; icon: ReactNode }[] = [
   { id: "updates", label: msg("Updates"), icon: <SystemUpdateAltRoundedIcon /> },
   { id: "about", label: msg("About"), icon: <InfoOutlinedIcon /> },
 ];
+const PAGES = ALL_PAGES.filter((p) => UPDATES_ENABLED || p.id !== "updates");
 
 export function SettingsPage() {
   const page = useNav((s) => s.settingsPage);
@@ -155,7 +157,7 @@ function PreferencesPage({
         {page === "keyboard" && <KeyboardPage s={s} update={update} />}
         {page === "sftp" && <SftpPage s={s} update={update} />}
         {page === "logs" && <Logs s={s} update={update} />}
-        {page === "updates" && <UpdatesCard settings={s} onChange={update} />}
+        {UPDATES_ENABLED && page === "updates" && <UpdatesCard settings={s} onChange={update} />}
         {page === "about" && <About />}
       </Box>
     </PageBody>

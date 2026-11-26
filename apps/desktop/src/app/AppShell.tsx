@@ -21,7 +21,7 @@ import { startMultiplayerEvents } from "@/terminal/multiplayer";
 import { startWorkspaces } from "@/terminal/workspaces";
 import { RestoreBanner } from "@/terminal/RestoreBanner";
 import { dropAllSftp, startSftpEvents } from "@/sftp/store";
-import { startUpdateEvents } from "@/update/store";
+import { startUpdateEvents, UPDATES_ENABLED } from "@/update/store";
 import { UpdateBanner } from "@/update/UpdateBanner";
 import {
   useAccount,
@@ -169,7 +169,9 @@ function UnlockedShell() {
             position: "relative",
           }}
         >
-          {home && <UpdateBanner onOpenSettings={() => goToSettings("updates")} />}
+          {home && UPDATES_ENABLED && (
+            <UpdateBanner onOpenSettings={() => goToSettings("updates")} />
+          )}
           {home && <RestoreBanner />}
           {tabs.map((t) => (
             <Box
