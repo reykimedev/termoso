@@ -166,6 +166,53 @@ try {
   });
   check(copied, "host copied into another vault with its login");
 
+  // ── SFTP over the relay: upload a dropped file, list, download, rename, delete ──
+  const sftpOk = await b.evaluate(async () => {
+    const ipc = window.__TAURI_INTERNALS__;
+    const [host] = (await ipc.invoke("hosts_list", { vaultId: null })).filter((h) => h.label === "test-vm");
+    const id = crypto.randomUUID();
+    const info = await ipc.invoke("sftp_open", { id, target: { kind: "host", host_id: host.id } });
+    const dir = `${info.home}/hatch-e2e-sftp`;
+    await ipc.invoke("sftp_mkdir", { id, path: dir });
+    const drop = await ipc.invoke("drop_begin");
+    const b64 = (s) => btoa(s);
+    const body = new TextEncoder().encode("hello from the browser\n".repeat(100000));
+    await ipc.invoke("drop_write", body.slice(0, 1500000), {
+      headers: { "x-drop-dir": b64(drop), "x-drop-path": b64("up.txt"), "x-drop-append": "0" },
+    });
+    await ipc.invoke("drop_write", body.slice(1500000), {
+      headers: { "x-drop-dir": b64(drop), "x-drop-path": b64("up.txt"), "x-drop-append": "1" },
+    });
+    const done = new Promise((resolve) => {
+      window.__hatchTransfers = resolve;
+    });
+    await ipc.invoke("plugin:event|listen", {
+      event: "transfer",
+      handler: ipc.transformCallback((e) => {
+        if (["finished", "failed"].includes(e.payload.type)) window.__hatchTransfers?.(e.payload);
+      }),
+    });
+    await ipc.invoke("transfer_start", { sftpId: id, direction: "upload", local: `${drop}/up.txt`, remote: `${dir}/up.txt` });
+    const up = await done;
+    const listing = await ipc.invoke("sftp_list", { id, path: dir });
+    const size = listing.entries.find((e) => e.name === "up.txt")?.size;
+    await ipc.invoke("sftp_rename", { id, from: `${dir}/up.txt`, to: `${dir}/renamed.txt` });
+    const again = new Promise((resolve) => {
+      window.__hatchTransfers = resolve;
+    });
+    await ipc.invoke("transfer_start", { sftpId: id, direction: "download", local: "/Downloads/renamed.txt", remote: `${dir}/renamed.txt` });
+    const down = await again;
+    await ipc.invoke("sftp_remove", { id, path: dir, recursive: true });
+    const gone = await ipc.invoke("sftp_stat", { id, path: dir }).then(() => false, () => true);
+    await ipc.invoke("sftp_close", { id });
+    return { up: up.type, size, expected: body.length, down: down.type, downBytes: down.bytes, gone };
+  });
+  check(
+    sftpOk.up === "finished" && sftpOk.size === sftpOk.expected && sftpOk.down === "finished" &&
+      sftpOk.downBytes === sftpOk.expected && sftpOk.gone,
+    `SFTP upload, list, rename, download and delete (${JSON.stringify(sftpOk)})`,
+  );
+
   // ── Migration: an encrypted backup from B restores in a browser without an account ──
   const openAccountPage = async (page) => {
     await page.getByText("Settings", { exact: true }).first().click();

@@ -47,6 +47,11 @@ interface SessionInfo {
 }
 
 const sessions = new Map<Uuid, Sess>();
+
+/** The host a terminal session is connected to, for "SFTP in this session". */
+export function hostOfSession(id: Uuid): Uuid | null {
+  return sessions.get(id)?.info.hostId ?? null;
+}
 const prompts = new Map<string, (answer: Record<string, unknown> | null) => void>();
 const enc = new TextEncoder();
 
@@ -187,7 +192,8 @@ function hostKeyInfo(k: { host: string; keyType: string; fingerprint: string; pu
   return { host: k.host, key_type: k.keyType, fingerprint: k.fingerprint, public_key: k.publicKey };
 }
 
-async function run(id: Uuid, sess: Sess, target: Target, cols: number, rows: number) {
+/** What a connection to `target` needs: the relay ticket, pins, sign-in methods and prompts. */
+export async function prepare(id: Uuid, target: Target) {
   const plan = planFor(target) as Plan & { password?: string };
   const targetStr = () =>
     `${plan.username}@${plan.address}${plan.port === 22 ? "" : `:${plan.port}`}`;
@@ -197,9 +203,6 @@ async function run(id: Uuid, sess: Sess, target: Target, cols: number, rows: num
     if (!v) fail("cancelled", "No username");
     plan.username = v;
   }
-  sess.info.target = targetStr();
-  const relayHost = new URL(config().relayUrl).host;
-  sessionEvent({ type: "progress", id, hop: null, phase: { kind: "connecting", via: relayHost } });
   await loadWasm();
   const url = await ticket(plan.address, plan.port);
   const auth = [...plan.auth];
@@ -208,6 +211,87 @@ async function run(id: Uuid, sess: Sess, target: Target, cols: number, rows: num
     if (plan.password) auth.push({ type: "password", password: plan.password });
     auth.push({ type: "keyboardInteractive" }, { type: "askPassword" });
   }
+  const prompt = async (kind: string, data: Record<string, unknown>) => {
+    if (kind === "password") {
+      const a = await ask(id, targetStr(), {
+        kind: "password",
+        username: plan.username,
+        retry: !!data.retry,
+      });
+      return typeof a?.value === "string" ? a.value : null;
+    }
+    if (kind === "interactive") {
+      const a = await ask(id, targetStr(), {
+        kind: "interactive",
+        name: data.name,
+        instructions: data.instructions,
+        questions: data.questions,
+      });
+      return Array.isArray(a?.answers) ? a.answers : null;
+    }
+    return null;
+  };
+
+  return {
+    plan,
+    targetStr,
+    prompt,
+    options: {
+      url,
+      host: plan.address,
+      port: plan.port,
+      username: plan.username,
+      knownHosts: pins(plan.vaultId),
+      auth,
+    },
+  };
+}
+
+/** Turns what hatch-wasm rejects with into the desktop's errors (and the host-key prompt). */
+export async function connectFailed(id: Uuid, targetStr: string, e: unknown): Promise<never> {
+  const err = e as {
+    kind?: string;
+    verdict?: { status: string; key?: never; old?: never; new?: never };
+    tried?: string[];
+    offered?: string[];
+    message?: string;
+  };
+  if (err.kind === "host_key" && err.verdict) {
+    const v = err.verdict as unknown as {
+      status: string;
+      key?: Parameters<typeof hostKeyInfo>[0];
+      old?: Parameters<typeof hostKeyInfo>[0];
+      new?: Parameters<typeof hostKeyInfo>[0];
+    };
+    const verdict =
+      v.status === "changed" && v.old && v.new
+        ? { status: "changed", old: hostKeyInfo(v.old), new: hostKeyInfo(v.new) }
+        : v.key
+          ? { status: "unknown", key: hostKeyInfo(v.key) }
+          : null;
+    if (verdict) await ask(id, targetStr, { kind: "host_key", verdict });
+    fail(
+      "host_key",
+      v.status === "changed"
+        ? "The host key differs from your known hosts. Nothing was sent."
+        : "This host is not in your known hosts. Trust it from Termoso on a trusted device first.",
+    );
+  }
+  if (err.kind === "auth")
+    fail("auth", "Sign-in refused (tried {tried}; the server offers {offered})", {
+      tried: err.tried?.length ? err.tried.join(", ") : "–",
+      offered: err.offered?.length ? err.offered.join(", ") : "–",
+    });
+  if (err.kind === "key" || err.kind === "transport")
+    fail(err.kind, err.message ?? "Connection failed");
+  throw e;
+}
+
+async function run(id: Uuid, sess: Sess, target: Target, cols: number, rows: number) {
+  const relayHost = new URL(config().relayUrl).host;
+  sessionEvent({ type: "progress", id, hop: null, phase: { kind: "connecting", via: relayHost } });
+  const { plan, targetStr, prompt, options } = await prepare(id, target);
+  sess.info.target = targetStr();
 
   const onEvent = (e: {
     type: string;
@@ -246,36 +330,10 @@ async function run(id: Uuid, sess: Sess, target: Target, cols: number, rows: num
         break;
     }
   };
-  const prompt = async (kind: string, data: Record<string, unknown>) => {
-    if (kind === "password") {
-      const a = await ask(id, targetStr(), {
-        kind: "password",
-        username: plan.username,
-        retry: !!data.retry,
-      });
-      return typeof a?.value === "string" ? a.value : null;
-    }
-    if (kind === "interactive") {
-      const a = await ask(id, targetStr(), {
-        kind: "interactive",
-        name: data.name,
-        instructions: data.instructions,
-        questions: data.questions,
-      });
-      return Array.isArray(a?.answers) ? a.answers : null;
-    }
-    return null;
-  };
-
   try {
     sess.ssh = await w.connect(
       {
-        url,
-        host: plan.address,
-        port: plan.port,
-        username: plan.username,
-        knownHosts: pins(plan.vaultId),
-        auth,
+        ...options,
         term:
           typeof s().settings.termType === "string"
             ? (s().settings.termType as string)
@@ -288,42 +346,7 @@ async function run(id: Uuid, sess: Sess, target: Target, cols: number, rows: num
       prompt,
     );
   } catch (e) {
-    const err = e as {
-      kind?: string;
-      verdict?: { status: string; key?: never; old?: never; new?: never };
-      tried?: string[];
-      offered?: string[];
-      message?: string;
-    };
-    if (err.kind === "host_key" && err.verdict) {
-      const v = err.verdict as unknown as {
-        status: string;
-        key?: Parameters<typeof hostKeyInfo>[0];
-        old?: Parameters<typeof hostKeyInfo>[0];
-        new?: Parameters<typeof hostKeyInfo>[0];
-      };
-      const verdict =
-        v.status === "changed" && v.old && v.new
-          ? { status: "changed", old: hostKeyInfo(v.old), new: hostKeyInfo(v.new) }
-          : v.key
-            ? { status: "unknown", key: hostKeyInfo(v.key) }
-            : null;
-      if (verdict) await ask(id, targetStr(), { kind: "host_key", verdict });
-      fail(
-        "host_key",
-        v.status === "changed"
-          ? "The host key differs from your known hosts. Nothing was sent."
-          : "This host is not in your known hosts. Trust it from Termoso on a trusted device first.",
-      );
-    }
-    if (err.kind === "auth")
-      fail("auth", "Sign-in refused (tried {tried}; the server offers {offered})", {
-        tried: err.tried?.length ? err.tried.join(", ") : "–",
-        offered: err.offered?.length ? err.offered.join(", ") : "–",
-      });
-    if (err.kind === "key" || err.kind === "transport")
-      fail(err.kind, err.message ?? "Connection failed");
-    throw e;
+    return connectFailed(id, targetStr(), e);
   }
   if (sess.closed) {
     sess.ssh.close();

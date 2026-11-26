@@ -15,6 +15,7 @@ import * as m from "./backend/model";
 import * as oidc from "./backend/oidc";
 import { defaultSettings } from "./backend/settings";
 import * as st from "./backend/state";
+import * as sftp from "./backend/sftp";
 import * as term from "./backend/terminal";
 import * as copy from "./backend/vaultcopy";
 import { TERMOSO_VERSION } from "./build";
@@ -71,6 +72,7 @@ async function lockNow() {
   if (idle) clearTimeout(idle);
   idle = null;
   term.closeAll();
+  sftp.closeAll();
   account.stopSync();
   oidc.forget();
   await st.lock();
@@ -281,8 +283,9 @@ const commands: Record<string, Handler> = {
   history_record_command: () => null,
 
   // what a browser tab has no access to
-  local_list: () => ({ path: "/", parent: null, entries: [] }),
-  local_home: () => "/",
+  // The "local" side of SFTP: downloads go to the browser, uploads come from dropped files.
+  local_list: () => ({ path: "/Downloads", parent: null, entries: [] }),
+  local_home: () => "/Downloads",
   local_drives: () => [],
   local_shells: () => [],
   edits_list: () => [],
@@ -290,7 +293,26 @@ const commands: Record<string, Handler> = {
   file_cache_settings: () => ({ enabled: false, maxMb: 0 }),
   ai_status: () => ({ enabled: false, available: false }),
   multiplayer_info: () => null,
-  sftp_open: notInBrowser("SFTP"),
+
+  // SFTP
+  sftp_sessions_list: () => sftp.sessions(),
+  sftp_open: (a) => sftp.open(a.id, a.target),
+  sftp_close: (a) => sftp.close(a.id),
+  sftp_offline_available: () => false,
+  sftp_list: (a) => sftp.list(a.id, a.path ?? null),
+  sftp_stat: (a) => sftp.stat(a.id, a.path),
+  sftp_mkdir: (a) => sftp.mkdir(a.id, a.path),
+  sftp_rename: (a) => sftp.rename(a.id, a.from, a.to),
+  sftp_remove: (a) => sftp.remove(a.id, a.path, !!a.recursive),
+  sftp_chmod: (a) => sftp.chmod(a.id, a.path, Number(a.mode)),
+  transfer_start: (a) => sftp.start(a as Parameters<typeof sftp.start>[0]),
+  transfer_probe: (a) => sftp.probe(a as Parameters<typeof sftp.probe>[0]),
+  transfer_cancel: (a) => sftp.cancel(a.id),
+  transfer_pause: () => false,
+  transfer_forget: () => null,
+  drop_begin: () => sftp.dropBegin(),
+  drop_mkdir: (a) => sftp.dropMkdir(a.dir, a.rel),
+  drop_abort: (a) => sftp.dropAbort(a.dir),
   pf_start: notInBrowser("Port forwarding"),
   snippet_run: notInBrowser("Running snippets on several hosts"),
 };
@@ -319,3 +341,37 @@ mockIPC(
   },
   { shouldMockEvents: true },
 );
+
+// drop_write sends the file's bytes as the body and its place in headers, which mockIPC drops.
+{
+  type Invoke = (
+    cmd: string,
+    args: unknown,
+    options?: { headers?: Record<string, string> },
+  ) => Promise<unknown>;
+  const internals = (window as unknown as { __TAURI_INTERNALS__: { invoke: Invoke } })
+    .__TAURI_INTERNALS__;
+  const invoke = internals.invoke.bind(internals);
+  const unb64 = (v: string) =>
+    new TextDecoder().decode(Uint8Array.from(atob(v), (c) => c.charCodeAt(0)));
+  internals.invoke = (
+    cmd: string,
+    args: unknown,
+    options?: { headers?: Record<string, string> },
+  ) => {
+    if (cmd !== "drop_write") return invoke(cmd, args, options);
+    const h = options?.headers ?? {};
+    try {
+      return Promise.resolve(
+        sftp.dropWrite(
+          unb64(h["x-drop-dir"] ?? ""),
+          unb64(h["x-drop-path"] ?? ""),
+          args as Uint8Array,
+          h["x-drop-append"] === "1",
+        ),
+      );
+    } catch (e) {
+      return Promise.reject(asDesktopError(e));
+    }
+  };
+}
