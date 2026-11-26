@@ -240,7 +240,7 @@ def everywhere_edit():
             continue
         if any(part in SKIP_DIRS for part in path.split("/")):
             continue
-        if os.path.splitext(path)[1] not in TEXT_EXT | {".tpl", ".container", ".volume", ".network", ".example",
+        if not os.path.basename(path).startswith("Dockerfile") and os.path.splitext(path)[1] not in TEXT_EXT | {".tpl", ".container", ".volume", ".network", ".example",
                                                        ".desktop", ".env", ".sql", ".conf", ".service", ".rb",
                                                        ".svg", ".in", ".cfg", ".ini", ".lock", ".tmpl", ".py", ".patch"}:
             continue
