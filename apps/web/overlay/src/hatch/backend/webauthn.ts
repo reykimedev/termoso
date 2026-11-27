@@ -4,6 +4,7 @@
 // desktop and Android apps sign with the same key over USB/NFC. Ed25519 has no WebAuthn format in
 // OpenSSH, so keys made here are ECDSA P-256.
 import { tr } from "@/i18n";
+import type { PrfAnswer } from "./db";
 import { fail } from "./errors";
 import { keyCard, type SshKey } from "./model";
 import { put, type Uuid } from "./state";
@@ -157,4 +158,113 @@ export async function sign(
     signature: new Uint8Array(r.signature),
     clientDataJSON: new Uint8Array(r.clientDataJSON),
   };
+}
+
+// ── unlocking this browser's copy with a passkey (decision 0014) ──────────────────────────────
+
+const b64url = (b: Uint8Array) =>
+  btoa(String.fromCharCode(...b))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+const unb64url = (s: string) =>
+  Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
+const unb64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+
+/** The UV flag (bit 2) of WebAuthn authenticator data. */
+const verified = (authData: ArrayBuffer) => ((new Uint8Array(authData)[32] ?? 0) & 0x04) !== 0;
+
+interface PrfResults {
+  prf?: { enabled?: boolean; results?: { first?: ArrayBuffer } };
+}
+
+/** Thrown when the browser or authenticator has no PRF: the panel says to use the password. */
+function noPrf(): never {
+  fail("fido2_no_prf", "This browser or key can't unlock Labterm Web. Use the lock password.");
+}
+
+/**
+ * Asks any of `entries` for its PRF value (one touch). Non-resident credentials, no user
+ * verification asked, so a YubiKey answers with a touch like on the desktop.
+ */
+export async function prfGet(
+  entries: { credentialId: string; salt: string }[],
+): Promise<PrfAnswer> {
+  if (!supported()) fail("fido2_no_device", "This browser has no security key support");
+  if (entries.length === 0) fail("fido2_wrong_device", "No passkey is set up in this browser");
+  const evalByCredential: Record<string, { first: Uint8Array<ArrayBuffer> }> = {};
+  for (const e of entries) evalByCredential[e.credentialId] = { first: unb64(e.salt) };
+  let cred: PublicKeyCredential | null;
+  try {
+    cred = (await navigator.credentials.get({
+      publicKey: {
+        rpId: location.hostname,
+        challenge: crypto.getRandomValues(new Uint8Array(32)),
+        allowCredentials: entries.map((e) => ({
+          type: "public-key" as const,
+          id: unb64url(e.credentialId),
+        })),
+        userVerification: "discouraged",
+        timeout: TIMEOUT_MS,
+        extensions: { prf: { evalByCredential } },
+      },
+    })) as PublicKeyCredential | null;
+  } catch (e) {
+    if (e instanceof DOMException && e.name === "NotAllowedError")
+      fail("cancelled", "Cancelled, or the security key timed out");
+    failWith(e);
+  }
+  if (!cred) fail("cancelled", "Cancelled, or the security key timed out");
+  const first = (cred.getClientExtensionResults() as PrfResults).prf?.results?.first;
+  if (!first) noPrf();
+  return {
+    credentialId: b64url(new Uint8Array(cred.rawId)),
+    prf: new Uint8Array(first),
+    uv: verified((cred.response as AuthenticatorAssertionResponse).authenticatorData),
+  };
+}
+
+/**
+ * Makes a new unlock credential for this site, then reads its PRF value for `salt` with a second
+ * touch. Not at create: a key with a PIN verifies the user there, and `hmac-secret` answers
+ * differently with and without verification, so the value must come from the same kind of
+ * request as unlock. Nothing is saved when PRF is missing.
+ */
+export async function prfCreate(name: string, salt: string, exclude: string[]): Promise<PrfAnswer> {
+  if (!supported()) fail("fido2_no_device", "This browser has no security key support");
+  let cred: PublicKeyCredential | null;
+  try {
+    cred = (await navigator.credentials.create({
+      publicKey: {
+        rp: { id: location.hostname, name: "Labterm" },
+        // A user id per enrolment: a passkey manager replaces a passkey with the same user id,
+        // which would leave the older wrapper unopenable.
+        user: { id: crypto.getRandomValues(new Uint8Array(16)), name, displayName: name },
+        challenge: crypto.getRandomValues(new Uint8Array(32)),
+        pubKeyCredParams: [
+          { type: "public-key", alg: -7 },
+          { type: "public-key", alg: -8 },
+          { type: "public-key", alg: -257 },
+        ],
+        excludeCredentials: exclude.map((id) => ({
+          type: "public-key" as const,
+          id: unb64url(id),
+        })),
+        authenticatorSelection: { residentKey: "discouraged", userVerification: "discouraged" },
+        attestation: "none",
+        timeout: TIMEOUT_MS,
+        extensions: { prf: {} },
+      },
+    })) as PublicKeyCredential | null;
+  } catch (e) {
+    if (e instanceof DOMException && e.name === "NotAllowedError")
+      fail("cancelled", "Cancelled, or the security key timed out");
+    if (e instanceof DOMException && e.name === "InvalidStateError")
+      fail("fido2", "This key already unlocks Labterm Web in this browser");
+    failWith(e);
+  }
+  if (!cred) fail("cancelled", "Cancelled, or the security key timed out");
+  const ext = (cred.getClientExtensionResults() as PrfResults).prf;
+  if (!ext?.enabled) noPrf();
+  return prfGet([{ credentialId: b64url(new Uint8Array(cred.rawId)), salt }]);
 }

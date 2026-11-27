@@ -49,3 +49,9 @@ HATCH_E2E_SIGNED=1 node apps/web/e2e/app.mjs
 
 It then also checks the build badge, that the service worker serves the app, and that a changed
 manifest, module or wasm file stops the app before it runs.
+
+## Passkey unlock
+
+`passkey-unlock.mjs` needs only the built app on `serve.mjs` (no server, relay or SSH): it uses
+Chromium's virtual authenticators with PRF to check decision 0014, including the move of a v1
+store to a data key. `node apps/web/e2e/passkey-unlock.mjs`.

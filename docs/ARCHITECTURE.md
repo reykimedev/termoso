@@ -220,6 +220,9 @@ another one. The secret comes out of hardware only after the user is checked:
   wrapper goes, so the vault opens with a key, or with the device
   authentication when app lock is on. Removing the last key while app lock is
   off needs a touch of it and brings the plain wrapper back.
+* **Labterm Web** has its own store and wrappers (decision
+  [0014](web/decisions/0014-passkey-unlock-with-prf.md)): any passkey or security
+  key with WebAuthn PRF, bound to the Labterm Web host name, enrolled per browser.
 * macOS Touch ID follows (#159).
 
 Rules: with any method or the password present the profile starts locked and

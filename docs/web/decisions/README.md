@@ -19,4 +19,4 @@ separate repository it came from; [0012](0012-in-the-labterm-repo.md) records th
 | [0011](0011-upstream-is-the-fork.md) | Hatch builds on the Labterm fork (amends 0006) | 2026-11-26 |
 | [0012](0012-in-the-labterm-repo.md) | Labterm Web lives in the Labterm repository (supersedes 0011) | 2026-11-26 |
 | [0013](0013-security-keys-through-webauthn.md) | Security keys through WebAuthn, bound to the Labterm Web address | 2026-11-27 |
-| [0014](0014-passkey-unlock-with-prf.md) | Passkeys and security keys unlock this browser through WebAuthn PRF (proposed) | 2026-11-27 |
+| [0014](0014-passkey-unlock-with-prf.md) | Passkeys and security keys unlock this browser through WebAuthn PRF | 2026-11-27 |

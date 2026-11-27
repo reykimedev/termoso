@@ -1,6 +1,6 @@
 # 0014 Passkeys and security keys unlock this browser's copy through WebAuthn PRF
 
-**Status:** proposed, for review before any code ([#45](https://github.com/reykimedev/termoso/issues/45)).
+**Status:** accepted 2026-11-27 ([#45](https://github.com/reykimedev/termoso/issues/45), design in #186).
 
 **Context:** Labterm Web asks for the lock password on every visit ([0008](0008-browser-copy-and-lock-password.md)).
 The desktop and Android apps can also unlock with Windows Hello or a FIDO2 security key: more
@@ -36,9 +36,14 @@ Keychain and Google Password Manager passkeys do the same in software or a TPM).
    after a changed service worker blocks this path the same way.
 5. *Same rules as the apps.* Several passkeys are allowed. The lock password is an optional
    fallback: it can be turned off once a passkey is enrolled, and then the last passkey can't be
-   removed (removing it turns the lock off only after a fresh touch, and then the app asks for a new
-   lock password). Without a password a lost passkey means resetting this browser; synced data
-   comes back after signing in, entries in the local "This browser" vault don't.
+   removed until a lock password is set again (the browser copy is never left unprotected, unlike
+   the desktop's "protection off"). Setting the password again needs a touch of an enrolled key.
+   Without a password a lost passkey means resetting this browser; synced data comes back after
+   signing in, entries in the local "This browser" vault don't. Removing a passkey or changing
+   the password keeps the same data key (no re-encryption): someone with an old copy of the
+   profile and a removed key, or the old password, can still open copies taken later. Accepted;
+   "Reset this browser" is the way to a fresh key. Keys can only be changed while unlocked, and
+   the last-way-in check reads the stored meta, so another tab's change counts.
 6. *Nothing leaves the browser.* Credentials and wrappers live only in IndexedDB. They are not
    synced into a vault and the Labterm server gets nothing new.
 
@@ -65,4 +70,9 @@ Keychain and Google Password Manager passkeys do the same in software or a TPM).
 - Code touches `apps/web/overlay/src/hatch/backend/db.ts`, `webauthn.ts` and `ipc.ts`; the
   desktop's lock screen and Security page are reused through the existing `vaultStatus` fields, so
   `apps/web/patches/` needs no new hunk. Tests: Chromium's virtual authenticator with
-  `hasPrf` in `apps/web/e2e`, plus unit tests for v1 → v2 and wrapper binding.
+  `hasPrf` (`apps/web/e2e/passkey-unlock.mjs`), which also moves a v1 store to v2.
+- The PRF value is always read with a separate `get()`, never at `create()`: a key with a PIN
+  verifies the user while making the credential, and `hmac-secret` answers differently with and
+  without verification. So enrolment always takes two touches.
+- Each enrolment uses a random WebAuthn user id, so a passkey manager never replaces an older
+  unlock passkey with a newer one.

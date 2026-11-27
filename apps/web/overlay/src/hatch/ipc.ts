@@ -61,18 +61,43 @@ function lockedSettings(): Record<string, unknown> {
 }
 
 function vaultStatus() {
+  const m = db.current();
+  const passkeys = m?.passkeys ?? [];
   return {
     locked: !st.isUnlocked(),
     protected: true,
-    passwordProtected: true,
-    // Unlock methods (Windows Hello, security keys) are desktop-only for now.
-    factors: [],
+    passwordProtected: m?.password != null,
+    // Passkeys and security keys through WebAuthn PRF (decision 0014); no Windows Hello of our own:
+    // the browser offers it as a passkey.
+    factors: passkeys.map((p) => ({
+      id: p.id,
+      kind: "security_key",
+      name: p.name,
+      createdAt: p.createdAt,
+      lastUsedAt: p.lastUsedAt,
+    })),
     helloAvailable: false,
-    securityKeysSupported: false,
-    masterSource: "password",
+    securityKeysSupported: webauthn.supported(),
+    masterSource: m?.password != null ? "password" : "factor",
     minPasswordChars: MIN_PASSWORD,
   };
 }
+
+/** Enrolled passkeys as `prfGet` wants them. */
+const passkeyEntries = () =>
+  (db.current()?.passkeys ?? []).map((p) => ({ credentialId: p.credentialId, salt: p.salt }));
+
+/** The owner's proof for a change: the lock password while one is set, else a passkey touch. */
+async function proof(password: unknown): Promise<db.Proof> {
+  if (db.current()?.password != null) {
+    const pw = typeof password === "string" ? password : "";
+    if (!(await db.checkPassword(pw))) fail("wrong_password", "Wrong password");
+    return { password: pw };
+  }
+  return { passkey: await webauthn.prfGet(passkeyEntries()) };
+}
+
+const b64 = (b: Uint8Array) => btoa(String.fromCharCode(...b));
 
 // ── idle lock (Settings → Security → lock after) ────────────────────────
 let idle: ReturnType<typeof setTimeout> | null = null;
@@ -96,15 +121,39 @@ async function lockNow() {
   await st.lock();
 }
 
-async function unlock(password: string) {
-  // The loader saw a service worker on the server that no signed release contains: this load is
-  // still the checked one, the next may not be. Don't open the vault on it.
+/** A changed service worker blocks every way in: this load is checked, the next may not be. */
+function checkIntegrity() {
   if (integrity().workerChanged)
     fail(
       "integrity",
       "This copy of Labterm Web changed on the server outside a signed release. Compare the manifest hash with the release page before you unlock.",
     );
+}
+
+async function unlock(password: string) {
+  checkIntegrity();
   if (!(await st.unlock(password))) fail("wrong_password", "Wrong password");
+  return unlocked();
+}
+
+async function unlockPasskey() {
+  checkIntegrity();
+  const answer = await webauthn.prfGet(passkeyEntries());
+  try {
+    await st.unlockPasskey(answer);
+  } catch (e) {
+    const why = e instanceof Error ? e.message : "";
+    if (why === "uv")
+      fail(
+        "fido2",
+        "This key answered with a different PIN or fingerprint setting than when it was added. Use the lock password, then add the key again.",
+      );
+    fail("fido2_wrong_device", "This security key is not set up for Labterm");
+  }
+  return unlocked();
+}
+
+function unlocked() {
   rememberUi(st.s().settings);
   touch();
   if (st.s().account) {
@@ -155,15 +204,53 @@ const commands: Record<string, Handler> = {
     touch();
     return null;
   },
+  vault_unlock_security_key: () => unlockPasskey(),
+  vault_unlock_hello: notInBrowser("Windows Hello (add it as a passkey instead)"),
+  unlock_hello_add: notInBrowser("Windows Hello (add it as a passkey instead)"),
+  unlock_security_key_add: async (a) => {
+    st.s();
+    const name = String(a.name ?? "").trim() || tr("Passkey");
+    const p = await proof(a.password);
+    const salt = b64(crypto.getRandomValues(new Uint8Array(32)));
+    const existing = (db.current()?.passkeys ?? []).map((k) => k.credentialId);
+    const answer = await webauthn.prfCreate(name, salt, existing);
+    const ok = await db.addPasskey(
+      p,
+      { id: crypto.randomUUID(), name, credentialId: answer.credentialId, salt, uv: answer.uv },
+      answer.prf,
+    );
+    if (!ok) fail("wrong_password", "Wrong password");
+    return vaultStatus();
+  },
+  unlock_factor_remove: async (a) => {
+    st.s(); // only while unlocked, like the desktop
+    // db refuses the last way in, on the stored meta.
+    await db.removePasskey(String(a.id ?? ""));
+    return vaultStatus();
+  },
+  unlock_factor_rename: async (a) => {
+    st.s();
+    const name = String(a.name ?? "").trim();
+    if (!name) fail("invalid", "Enter a name");
+    await db.renamePasskey(String(a.id ?? ""), name);
+    return vaultStatus();
+  },
   master_password_set: async (a) => {
+    st.s();
     const next = String(a.password ?? "");
     if (next.length < MIN_PASSWORD)
       fail("invalid", "Use at least {count} characters", { count: MIN_PASSWORD });
-    if (!(await db.unlock(String(a.current ?? "")))) fail("wrong_password", "Wrong password");
-    await st.changePassword(next);
+    if (!(await db.setPassword(await proof(a.current), next)))
+      fail("wrong_password", "Wrong password");
     return vaultStatus();
   },
-  master_password_remove: notInBrowser("A vault without a lock password"),
+  master_password_remove: async (a) => {
+    st.s();
+    if (!(await db.checkPassword(String(a.current ?? ""))))
+      fail("wrong_password", "Wrong password");
+    await db.removePassword();
+    return vaultStatus();
+  },
   master_key_migrate: () => "password",
   vaults_list: () => account.vaultsView(),
   vault_default: () => account.vaultsView().find((v) => v.is_default) ?? account.vaultsView()[0],
