@@ -36,3 +36,30 @@ Needs Node 22 and the Chromium that Playwright uses (`npx playwright install chr
 
 To add a picture: add its steps to `steps/desktop.mjs` or `steps/web.mjs` (named like the file),
 any data it needs to `mock/fixtures.ts`, and a cell in [`docs/SCREENSHOTS.md`](../../docs/SCREENSHOTS.md).
+
+## Android
+
+The Android pictures need an emulator, so they are taken on a GitHub runner:
+[`screenshots-android.yml`](../../.github/workflows/screenshots-android.yml) builds an x86_64
+release APK (signed with a throwaway key), starts a Pixel 7 emulator (API 35) and the test SSH
+server from [`android/sshd/`](android/sshd/), and runs [`android.sh`](android.sh). It runs by hand
+(`workflow_dispatch`) and on pushes to `claude/**` that touch the Android scripts.
+
+The pictures and the run log (`shots.log`) are pushed to the branch `<branch>-android-shots`,
+nothing is committed to the branch that ran it. Look at them, then copy them over:
+
+```sh
+git fetch origin <branch>-android-shots
+git archive FETCH_HEAD | tar -x -C /tmp/shots
+cp /tmp/shots/android-*.png docs/screenshots/
+```
+
+- `android.sh` sends `192.0.2.0/24` ports 22 and 2222 to the test server (iptables in the
+  emulator), switches to dark mode, turns animations off and installs the APK.
+- [`android/shots.py`](android/shots.py) drives the app through `adb` and `uiautomator dump`
+  ([`android/drive.py`](android/drive.py)), one step per picture, in order: hosts are imported
+  first, then a session opens, and so on. A failed step saves `<name>.failed.png` and logs what the
+  screen showed; the run goes on.
+- The SSH server is Alpine with user `deploy` and password `example-password`. The app trusts its
+  host key once, like a person would, inside the throwaway emulator.
+- `android-linux-shell` downloads the Ubuntu root filesystem from Ubuntu's mirror.
