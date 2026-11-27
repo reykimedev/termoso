@@ -197,16 +197,11 @@ def quick_import():
     tap("Add")
     tap("Import hosts")
     time.sleep(1)
-    for _ in range(3):
-        text_field(0)
-        type_text(IMPORT)
-        typed = next(n.text for n in nodes() if n.cls.endswith("EditText"))
-        if typed.split() == IMPORT.split():
-            break
-        # A key went missing or came out shifted: clear and type again.
-        print(f"retyping import, got {typed!r}", flush=True)
-        sh("input keycombination 113 29")
-        key("DEL")
+    text_field(0)
+    type_text(IMPORT)
+    typed = next(n.text for n in nodes() if n.cls.endswith("EditText"))
+    if typed.split() != IMPORT.split():
+        raise RuntimeError(f"import text came out as {typed!r}")
     hide_keyboard()
     wait("Detected: ssh_config", exact=False)
 
@@ -290,6 +285,7 @@ def gesture_overlay():
     w, h = screen_size()
     x, y = w // 2, int(h * 0.35)
     sh(f"input motionevent DOWN {x} {y}")
+    time.sleep(0.9)  # long-press first, then the drag sends arrows
     for dx in range(40, 361, 40):
         sh(f"input motionevent MOVE {x + dx} {y}")
     time.sleep(0.5)
@@ -389,7 +385,7 @@ def settings():
 @step("android-gestures-settings")
 def gestures():
     tap("Keyboard & gestures")
-    scroll_to("Arrow gesture")
+    scroll_to("Long-press for arrows")
     w, h = screen_size()
     swipe(w // 2, int(h * 0.7), w // 2, int(h * 0.45))
 
@@ -404,7 +400,10 @@ def linux_env():
 @step("android-linux-shell")
 def linux_shell():
     if not has("Open a shell in it"):
-        tap("Ubuntu", exact=False)
+        tap("Ubuntu 24.04 LTS")
+        time.sleep(2)
+        if has("Install"):
+            tap("Install")
         wait("Open a shell in it", timeout=420)
     tap("Open a shell in it")
     wait("Session actions", timeout=60)
