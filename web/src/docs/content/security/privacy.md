@@ -14,7 +14,7 @@ description: Labterm collects nothing. Here is exactly which network connections
 | Update check (desktop)                         | Only when you press **Check now** or chose **Once at startup**                                                                                        |
 | Cloud provider APIs (AWS, DigitalOcean, Azure) | Only when you use an import integration                                                                                                               |
 | AI suggestions                                 | Only if you turned them on and ask for a suggestion                                                                                                   |
-| Cloudflare Turnstile (captcha)                 | Only on sign-up, account recovery and after repeated failed sign-ins, and only on servers whose operator enabled it (the free cloud does — see below) |
+| Cloudflare Turnstile (captcha)                 | Only on sign-up, account recovery and after repeated failed sign-ins, and only on servers whose operator enabled it (the labdex cloud does not — see below) |
 
 Nothing else. There is no "phone home" on start, and no third-party SDK in any app.
 
@@ -22,10 +22,10 @@ Nothing else. There is no "phone home" on start, and no third-party SDK in any a
 
 The server keeps the minimum it needs to sync and to show you your own security events. Metrics are off by default; when an operator enables them they go to a private Prometheus endpoint of that server, never to the project. Logs never contain credentials, session tokens, keys or vault contents.
 
-## The free cloud
+## The labdex cloud
 
-The hosted server at `app.termoso.dev` runs the same open-source server as everyone else, with the same zero-knowledge storage. If you prefer not to trust it at all, [run your own](/docs/self-hosting/overview) or stay offline — every feature except sync works without an account.
+The hosted server at `sync.labdex.dev` runs the same open-source server as everyone else, with the same zero-knowledge storage. If you prefer not to trust it at all, [run your own](/docs/self-hosting/overview) or stay offline — every feature except sync works without an account.
 
-### The one third party: a captcha
+### Captcha
 
-We would rather have none, but a public sign-up form with no bot check is abused within days, and e-mail verification alone does not stop that. So the free cloud asks Cloudflare Turnstile for a token in exactly three moments: creating an account, recovering one, and signing in after several failed attempts from the same address. While the widget is on screen, Cloudflare sees what any website visit shows it — your IP address and browser characteristics — and nothing about your account, hosts or vault; we never see those signals either. The widget never loads inside a signed-in app or during normal use. Self-hosted servers have it off unless the operator adds keys, and nothing else in Labterm depends on it.
+The labdex cloud is invite only for now, so it has no public sign-up form and no captcha. A server operator can turn on Cloudflare Turnstile; it then asks for a token in exactly three moments: creating an account, recovering one, and signing in after several failed attempts from the same address. While the widget is on screen, Cloudflare sees what any website visit shows it — your IP address and browser characteristics — and nothing about your account, hosts or vault. The widget never loads inside a signed-in app or during normal use, and nothing else in Labterm depends on it.

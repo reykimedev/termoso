@@ -137,7 +137,7 @@ export function TeamPage() {
           icon={<GroupsRoundedIcon />}
           title={tr("Teams live in your account")}
           description={tr(
-            "Sign in to Termoso Cloud or your own server to create a team, invite people and share vaults with them.",
+            "Sign in to the labdex cloud or your own server to create a team, invite people and share vaults with them.",
           )}
           action={
             <Button variant="contained" onClick={() => goToSettings("account")}>

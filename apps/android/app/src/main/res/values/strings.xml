@@ -1205,7 +1205,7 @@
     <string name="welcome_to_labterm">Welcome to Labterm</string>
     <string name="free_open_source_ssh_client_end_to_end">Free, open-source SSH client. End-to-end encrypted sync, teams and live sharing — no telemetry.</string>
     <string name="create_a_free_account">Create a free account</string>
-    <string name="labterm_cloud_is_completely_free_for_everyone_no">Termoso Cloud is completely free for everyone — no limits, no plans, no strings attached. Or sign in to your own self-hosted server.</string>
+    <string name="labterm_cloud_is_completely_free_for_everyone_no">The labdex cloud is invite only for now: an invitation from a team gets you an account. Or sign in to your own self-hosted server.</string>
     <string name="continue_without_sync">Continue without sync</string>
     <string name="free_forever_open_source_no_telemetry">Free forever · Open source · No telemetry</string>
     <string name="system">System</string>
@@ -1254,7 +1254,7 @@
     <string name="min_ago">%1$d min ago</string>
     <string name="h_ago">%1$d h ago</string>
     <string name="d_ago">%1$d d ago</string>
-    <string name="cloud_server_blurb">%1$s · free forever, no limits, no plans. Everything is end-to-end encrypted — the server never sees your hosts, keys or passwords.</string>
+    <string name="cloud_server_blurb">%1$s · invite only for now. Everything is end-to-end encrypted — the server never sees your hosts, keys or passwords.</string>
     <string name="sep_no_email">" · no email"</string>
     <string name="ssh_id_delete_text">@%1$s and every key published under it are removed from the server; the passkeys on this phone are wiped.</string>
     <string name="quick_connect_placeholder">user@host, telnet://host or link</string>

@@ -6,7 +6,7 @@ description: Let Ansible, Terraform or a CMDB manage hosts in a vault over a RES
 The API Bridge is a small container you run **in your own infrastructure**. It holds the keys of the vaults you give it, exposes a Termius-compatible REST API for hosts and groups, encrypts everything locally and pushes only ciphertext through the ordinary sync API. To the server it is one more device.
 
 > [!NOTE]
-> The bridge runs on your side; nothing is hosted per user. It is offered by the hosted cloud at `app.termoso.dev` and by self-hosted servers unless the operator sets `LABTERM_BRIDGES=false`.
+> The bridge runs on your side; nothing is hosted per user. It is offered by the labdex cloud at `sync.labdex.dev` and by self-hosted servers unless the operator sets `LABTERM_BRIDGES=false`.
 
 ## Setting it up
 

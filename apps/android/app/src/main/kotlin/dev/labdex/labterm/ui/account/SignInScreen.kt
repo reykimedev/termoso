@@ -74,7 +74,7 @@ import dev.labdex.labterm.core.Fido2Transport
 import dev.labdex.labterm.core.MfaMethod
 
 /**
- * Sign in / create account against Termoso Cloud or a self-hosted server,
+ * Sign in / create account against the labdex cloud or a self-hosted server,
  * including MFA, device approval and the one-time recovery phrase.
  * [onDone] fires once the account is signed in and (for sign-up) the
  * recovery phrase was acknowledged.
@@ -173,7 +173,7 @@ private fun CredentialsForm(vm: SignInViewModel, onDone: () -> Unit) {
         }
 
         Text(stringResource(R.string.server), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        val servers = listOf(ServerChoice.Cloud to "Termoso Cloud", ServerChoice.SelfHosted to stringResource(R.string.self_hosted))
+        val servers = listOf(ServerChoice.Cloud to "labdex cloud", ServerChoice.SelfHosted to stringResource(R.string.self_hosted))
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
             servers.forEachIndexed { i, (s, label) ->
                 SegmentedButton(

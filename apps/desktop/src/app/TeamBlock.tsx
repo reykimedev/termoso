@@ -250,7 +250,7 @@ function AccountAvatar() {
                 </ListItemIcon>
                 <ListItemText
                   primary={tr("Sign in")}
-                  secondary={tr("Termoso Cloud or your own server")}
+                  secondary={tr("labdex cloud or your own server")}
                 />
               </MenuItem>,
             ]}

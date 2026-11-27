@@ -63,7 +63,7 @@ describe("ru table", () => {
     "Tenant ID",
     "Termius / CSV",
     "Labterm",
-    "Termoso Cloud",
+    "labdex cloud",
     "URL (https://…)",
     "WebDAV",
     "WinSCP.ini…",

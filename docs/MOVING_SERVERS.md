@@ -2,7 +2,11 @@
 
 Every Labterm client (desktop, Android, Labterm Web) reads and writes the same encrypted `.labterm`
 backup, so vaults move between servers through a backup file. For example from Termoso Cloud to
-your own Labterm server ([Self-hosting](SELF_HOSTING.md)).
+the labdex cloud at `sync.labdex.dev` (the default server, invite only for now) or to your
+own Labterm server ([Self-hosting](SELF_HOSTING.md)).
+
+Accounts already signed in to Termoso Cloud keep working: the apps remember each account's server.
+To sign in there again, choose "Own server" and enter `https://app.termoso.dev`.
 
 ## Guided move
 

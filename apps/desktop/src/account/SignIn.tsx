@@ -87,7 +87,7 @@ export function RecoveryPrompt() {
 }
 
 /**
- * Sign in / create account against Termoso Cloud or a self-hosted server.
+ * Sign in / create account against the labdex cloud or a self-hosted server.
  * The server is only probed once the user picked it; nothing is contacted
  * before that.
  */
@@ -259,7 +259,7 @@ export function SignInForm({
       >
         <ToggleButton value="cloud">
           <CloudOutlinedIcon sx={{ fontSize: 16, mr: 0.75 }} />
-          {tr("Termoso Cloud")}
+          {tr("labdex cloud")}
         </ToggleButton>
         <ToggleButton value="custom">
           <DnsOutlinedIcon sx={{ fontSize: 16, mr: 0.75 }} />
@@ -310,7 +310,7 @@ export function SignInForm({
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
               {tr(
-                "Completely free for everyone — no limits, no plans, no strings attached. End-to-end encrypted, no telemetry.",
+                "Invite only for now: an invitation from a team gets you an account. End-to-end encrypted, no telemetry.",
               )}
             </Typography>
             {(info.data !== undefined || info.isError || info.isFetching) && (
