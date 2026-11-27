@@ -13,6 +13,11 @@ struct HostsView: View {
     @State private var editor: HostEditorTarget?
     @State private var newGroupName: String?
     @State private var alert: String?
+    /// A big group's "Connect all" waiting for a yes.
+    @State private var confirmConnect: (label: String, hosts: [HostItem])?
+
+    /// Opening more sessions than this at once asks first.
+    private static let connectAllConfirmAbove = 10
 
     private var title: String {
         groupId.flatMap { model.group($0)?.label } ?? "Hosts"
@@ -51,6 +56,7 @@ struct HostsView: View {
                                 .buttonStyle(.plain)
                                 .accessibilityIdentifier("hosts.group.\(group.label)")
                                 .contextMenu {
+                                    Button("Connect all", systemImage: "play.fill") { connectAll(group.id, label: group.label) }
                                     Button("Delete group", systemImage: "trash", role: .destructive) { model.deleteGroup(id: group.id) }
                                 }
                             }
@@ -88,6 +94,10 @@ struct HostsView: View {
         .navigationTitle(title)
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
+                if let groupId {
+                    Button("Connect all", systemImage: "play.fill") { connectAll(groupId, label: title) }
+                        .accessibilityIdentifier("hosts.connectAll")
+                }
                 tagMenu
                 addMenu
             }
@@ -109,6 +119,18 @@ struct HostsView: View {
             }
             .accessibilityIdentifier("hosts.newGroup.create")
         }
+        .alert(
+            "Connect \(confirmConnect?.hosts.count ?? 0) hosts?",
+            isPresented: Binding(get: { confirmConnect != nil }, set: { if !$0 { confirmConnect = nil } })
+        ) {
+            Button("Cancel", role: .cancel) { confirmConnect = nil }
+            Button("Connect all") {
+                if let c = confirmConnect { c.hosts.forEach { sessions.connect(host: $0, tabGroup: c.label) } }
+                confirmConnect = nil
+            }
+        } message: {
+            Text("Opens a session for every host in “\(confirmConnect?.label ?? "")” and its sub-groups.")
+        }
         .alert("Error", isPresented: Binding(get: { alert != nil }, set: { if !$0 { alert = nil } })) {
             Button("OK", role: .cancel) { alert = nil }
         } message: {
@@ -116,6 +138,18 @@ struct HostsView: View {
         }
         .onChange(of: model.error) { _, newValue in
             if let newValue { alert = newValue }
+        }
+    }
+
+    /// One session per terminal host in the group and its sub-groups.
+    private func connectAll(_ id: String, label: String) {
+        let hosts = model.connectAllHosts(inGroup: id)
+        if hosts.isEmpty {
+            alert = "No hosts to connect in “\(label)”."
+        } else if hosts.count > Self.connectAllConfirmAbove {
+            confirmConnect = (label, hosts)
+        } else {
+            hosts.forEach { sessions.connect(host: $0, tabGroup: label) }
         }
     }
 
@@ -241,16 +275,9 @@ struct HostRow: View {
                         .foregroundStyle(Color.accentColor)
                         .lineLimit(1)
                 }
+                HostBadgesRow(host: host)
             }
             Spacer(minLength: 8)
-            if host.useMosh {
-                Text("mosh")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Theme.cardInset, in: Capsule())
-            }
             if let onEdit {
                 Button(action: onEdit) {
                     Image(systemName: "pencil")
@@ -280,5 +307,74 @@ struct HostRow: View {
             text = host.groupPath.joined(separator: " / ") + " · " + text
         }
         return text
+    }
+}
+
+/// VPN network and connection facts under a host row, the same set as Android and desktop.
+/// iOS cannot join a VPN network yet, so the network chip has no tunnel state colour.
+struct HostBadgesRow: View {
+    let host: HostItem
+
+    private struct Fact: Identifiable {
+        let id: String
+        let symbol: String
+        let label: String
+        var warn = false
+    }
+
+    private var facts: [Fact] {
+        let b = host.badges
+        var out: [Fact] = []
+        switch b.auth {
+        case "opkssh": out.append(Fact(id: "auth", symbol: "person.text.rectangle", label: "OpenID (opkssh)"))
+        case "ssh_id": out.append(Fact(id: "auth", symbol: "touchid", label: "SSH ID"))
+        case "certificate": out.append(Fact(id: "auth", symbol: "checkmark.shield", label: "Certificate"))
+        case "key": out.append(Fact(id: "auth", symbol: "key", label: "SSH key"))
+        case "password": out.append(Fact(id: "auth", symbol: "ellipsis.rectangle", label: "Password"))
+        default: break
+        }
+        if b.overlayPaused {
+            out.append(Fact(id: "overlay", symbol: "person.slash", label: "My credentials paused", warn: true))
+        } else if b.overlay {
+            out.append(Fact(id: "overlay", symbol: "person", label: "My credentials"))
+        }
+        if b.hostKeyTrusted == false {
+            out.append(Fact(id: "hostKey", symbol: "exclamationmark.shield", label: "Server key not yet trusted", warn: true))
+        }
+        if b.jump { out.append(Fact(id: "jump", symbol: "point.3.connected.trianglepath.dotted", label: "Jump host")) }
+        if b.gateway { out.append(Fact(id: "gateway", symbol: "wifi.router", label: "Gateway")) }
+        if b.proxy { out.append(Fact(id: "proxy", symbol: "shield", label: "Proxy")) }
+        if host.useMosh { out.append(Fact(id: "mosh", symbol: "bolt", label: "Mosh")) }
+        return out
+    }
+
+    private func vpnLabel(_ vpn: HostVpnItem) -> String {
+        vpn.inherited ? "VPN network \(vpn.label), from its group" : "VPN network \(vpn.label)"
+    }
+
+    var body: some View {
+        let list = facts
+        if host.vpn != nil || !list.isEmpty {
+            HStack(spacing: 6) {
+                if let vpn = host.vpn {
+                    Label(vpn.label, systemImage: "lock.shield")
+                        .font(.caption2.weight(.semibold))
+                        .lineLimit(1)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(vpn.inherited ? Color.clear : Theme.cardInset, in: Capsule())
+                        .overlay(Capsule().strokeBorder(vpn.inherited ? Color.secondary.opacity(0.5) : Color.clear))
+                        .accessibilityLabel(vpnLabel(vpn))
+                }
+                ForEach(list) { f in
+                    Image(systemName: f.symbol)
+                        .font(.caption2)
+                        .foregroundStyle(f.warn ? Color.orange : Color.secondary)
+                        .accessibilityLabel(f.label)
+                }
+            }
+            .padding(.top, 2)
+        }
     }
 }

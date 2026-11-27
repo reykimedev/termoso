@@ -61,11 +61,13 @@ export const canonicalThemeId = (id: string): string => LEGACY_IDS[id] ?? id;
 export const AUTO_THEME = "auto";
 
 // labdex's Blueprint palette: lantern orange cursor on warm neutrals, and labdex's status
-// colours, so a colour means the same in the terminal as in labdex.
+// colours, so a colour means the same in the terminal as in labdex. Every dark colour but
+// black reads at 4.5:1 or more on the background; bright black is labdex's faint text grey
+// because shells draw comments and suggestions in it.
 // prettier-ignore
 const labtermDark = t(LABTERM_DARK, "Labterm Dark", appDark.lowest, appDark.text, lantern.main, "#F59A2340", [
   "#1E1E1C", "#F2555A", "#3ECF8E", "#F5C84C", "#5AA9FF", "#E879F9", "#4FD1C5", "#C9C9C4",
-  "#5F5F5C", "#FF7B7F", "#6EE0AB", "#FFDB7A", "#8CC5FF", "#F0A6FB", "#84E7DD", "#F2F2EF",
+  "#8F8F8A", "#FF7B7F", "#6EE0AB", "#FFDB7A", "#8CC5FF", "#F0A6FB", "#84E7DD", "#F2F2EF",
 ]);
 // prettier-ignore
 const labtermLight = t(LABTERM_LIGHT, "Labterm Light", appLight.high, appLight.text, lantern.dark, "#E8870E40", [

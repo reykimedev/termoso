@@ -7,6 +7,7 @@ import { emit } from "@tauri-apps/api/event";
 import * as account from "./backend/account";
 import * as acl from "./backend/acl";
 import * as backup from "./backend/backup";
+import { withBadges } from "./backend/badges";
 import { call, normalizeServer } from "./backend/api";
 import { config } from "./backend/config";
 import * as db from "./backend/db";
@@ -209,7 +210,7 @@ const commands: Record<string, Handler> = {
   user_avatar: () => null,
 
   // hosts, groups, tags
-  hosts_list: (a) => m.hostCards(a.vaultId ?? null),
+  hosts_list: (a) => withBadges(m.hostCards(a.vaultId ?? null)),
   host_form: (a) => {
     acl.checkHostSettings(st.require<m.Host>(a.id, "host"));
     return m.hostForm(a.id);

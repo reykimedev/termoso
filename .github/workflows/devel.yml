@@ -5,9 +5,11 @@
 #
 # macOS is off for now (Mike, 2026-11-26): `desktop-macos` and `publish-macos` are `if: false`.
 #
-# Each commit gets its own prerelease `devel-<build>` with the Labterm Debug APK, the Labterm Dev
-# desktop bundles, their updater signatures, SHA256SUMS.txt and provenance attestations. The
-# newest 10 are kept. Nothing is cancelled: every commit on main gets its release.
+# A run makes a prerelease `devel-<build>` with the Labterm Debug APK, the Labterm Dev desktop
+# bundles, their updater signatures, SHA256SUMS.txt and provenance attestations. The newest 10
+# are kept. One run at a time: a running build always finishes, and while it runs only the newest
+# push waits; older queued pushes are dropped (Mike, 2026-11-27), so a burst of merges builds the
+# newest commit, not each one.
 #
 # Installed builds keep updating from the feeds baked into them, which now point into the newest
 # devel release:
@@ -30,6 +32,12 @@ on:
 
 permissions:
   contents: read
+
+# Not cancel-in-progress: a half-done publish could leave the feeds pointing at missing assets.
+# GitHub keeps one pending run per group and cancels the older pending one when a newer arrives.
+concurrency:
+  group: devel-${{ github.ref }}
+  cancel-in-progress: false
 
 # Same as ci.yml and the old Android channel: rust-cache keys on these, so the builds here reuse
 # (and on main, save) the same caches.

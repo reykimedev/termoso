@@ -28,6 +28,7 @@ import {
   splitActivePane,
   terminalStore,
   toggleBroadcast,
+  toggleCommandWindow,
   toggleSidePanel,
   toggleTabViewMode,
   zoomTab,
@@ -382,6 +383,16 @@ export const COMMANDS: Command[] = [
     keys: ["ctrl+alt+b"],
     enabled: hasPanes,
     run: onActiveTab(toggleBroadcast),
+  },
+
+  {
+    id: "term.commandWindow",
+    title: msg("Command window"),
+    group: "Panes",
+    keywords: "send to all sessions tab groups broadcast",
+    keys: ["ctrl+shift+m"],
+    enabled: hasTab,
+    run: () => toggleCommandWindow(),
   },
 
   // Terminal

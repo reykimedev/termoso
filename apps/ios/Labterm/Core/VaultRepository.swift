@@ -75,6 +75,11 @@ struct VaultRepository: Sendable {
         try app.deleteGroup(id: id)
     }
 
+    /// Terminal hosts of a group and its sub-groups, in tree order ("Connect all").
+    func groupConnectAll(groupId: String) throws -> [HostItem] {
+        try app.groupConnectAll(groupId: groupId)
+    }
+
     @discardableResult
     func createTag(vaultId: String, label: String) throws -> TagItem {
         try app.createTag(vaultId: vaultId, label: label)

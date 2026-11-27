@@ -113,6 +113,11 @@ final class VaultsModel {
         run { try repository.deleteGroup(id: id) }
     }
 
+    /// The hosts "Connect all" opens for a group; empty when it has none or on error.
+    func connectAllHosts(inGroup id: String) -> [HostItem] {
+        (try? repository.groupConnectAll(groupId: id)) ?? []
+    }
+
     func hostKeyPins(host: String, port: UInt16) throws -> [HostKeyPinItem] {
         try repository.hostKeyPins(host: host, port: port)
     }
