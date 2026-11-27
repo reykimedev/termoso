@@ -100,7 +100,6 @@ import dev.labdex.labterm.ui.shell.ShellViewModel
 import dev.labdex.labterm.ui.vault.VaultPickerTitle
 import dev.labdex.labterm.ui.vault.vaultLabel
 import dev.labdex.labterm.core.GroupItem
-import dev.labdex.labterm.core.TagItem
 import dev.labdex.labterm.core.VaultKind
 import dev.labdex.labterm.ui.components.ItemMoreButton
 import dev.labdex.labterm.ui.components.itemClicks
@@ -129,9 +128,13 @@ fun HostsScreen(
     onOpenSftp: (String) -> Unit,
     onOpenTerminal: () -> Unit,
     onForward: (String) -> Unit,
+    /** Opens the Tags page (toolbar button). */
+    onOpenTags: () -> Unit = {},
+    /** Show all hosts with this tag label instead of a group level. */
+    tag: String? = null,
 ) {
-    val vm: HostsViewModel = viewModel(key = "hosts/${groupId ?: "root"}") {
-        HostsViewModel(shell.repo, shell.selectedVaultId, groupId)
+    val vm: HostsViewModel = viewModel(key = "hosts/${groupId ?: "root"}/${tag ?: ""}") {
+        HostsViewModel(shell.repo, shell.selectedVaultId, groupId, tag)
     }
     val state by vm.state.collectAsStateWithLifecycle()
     val vaults by shell.vaults.collectAsStateWithLifecycle()
@@ -209,8 +212,8 @@ fun HostsScreen(
                             Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.search))
                         }
                     }
-                    if (!searching) {
-                        IconButton(onClick = { dialog = HostsDialog.Tags }) {
+                    if (!searching && tag == null) {
+                        IconButton(onClick = onOpenTags) {
                             Icon(Icons.Outlined.Sell, contentDescription = stringResource(R.string.tags))
                         }
                     }
@@ -223,6 +226,11 @@ fun HostsScreen(
                         actions = actions,
                     )
                     // Vault root: the vault itself is the title and switches vaults, like Termius.
+                    tag != null -> TopAppBar(
+                        title = { Text("# $tag") },
+                        navigationIcon = navigationIcon,
+                        actions = actions,
+                    )
                     groupId == null -> CenterAlignedTopAppBar(
                         title = { VaultPickerTitle(vaults, selectedVaultId, shell::selectVault) },
                         navigationIcon = navigationIcon,
@@ -435,26 +443,6 @@ fun HostsScreen(
             onPick = { vm.moveGroup(d.group, it); dialog = null },
             onDismiss = { dialog = null },
         )
-        is HostsDialog.TagMenu -> TagActionsSheet(
-            tag = d.tag,
-            onEdit = { dialog = HostsDialog.Settings(DefaultsTarget.Tag(d.tag.id)) },
-            onRename = { dialog = HostsDialog.RenameTag(d.tag) },
-            onDelete = { dialog = HostsDialog.DeleteTag(d.tag) },
-            onClose = { if (dialog == d) dialog = HostsDialog.Tags },
-        )
-        is HostsDialog.RenameTag -> NameDialog(
-            title = stringResource(R.string.rename_tag),
-            initial = d.tag.label,
-            onConfirm = { vm.renameTag(d.tag.id, it); dialog = HostsDialog.Tags },
-            onDismiss = { dialog = HostsDialog.Tags },
-        )
-        is HostsDialog.DeleteTag -> ConfirmDialog(
-            title = stringResource(R.string.delete_tag_title, d.tag.label),
-            text = stringResource(R.string.delete_tag_text),
-            confirm = stringResource(R.string.delete),
-            onConfirm = { vm.deleteTag(d.tag.id); dialog = HostsDialog.Tags },
-            onDismiss = { dialog = HostsDialog.Tags },
-        )
         is HostsDialog.RenameGroup -> NameDialog(
             title = stringResource(R.string.rename_group),
             initial = d.group.label,
@@ -466,18 +454,6 @@ fun HostsScreen(
             target = d.target,
             onDismiss = { dialog = null },
         )
-        HostsDialog.Tags -> {
-            var tags by remember { mutableStateOf<List<TagItem>>(emptyList()) }
-            LaunchedEffect(selectedVaultId) {
-                tags = runCatching { shell.repo.read { tags(selectedVaultId) } }.getOrDefault(emptyList())
-            }
-            TagsDialog(
-                tags = tags,
-                onEdit = { t -> dialog = HostsDialog.Settings(DefaultsTarget.Tag(t.id)) },
-                onMenu = { t -> dialog = HostsDialog.TagMenu(t) },
-                onDismiss = { dialog = null },
-            )
-        }
         HostsDialog.QuickImport -> QuickImportSheet(parse = vm::parseImport, onImport = { items -> dialog = null; vm.importHosts(items) }, onDismiss = { dialog = null })
         HostsDialog.Discover -> DiscoverSheet(onPick = { t -> dialog = null; onNewHostFrom(t) }, onDismiss = { dialog = null })
         HostsDialog.Online -> {
@@ -513,11 +489,7 @@ private sealed interface HostsDialog {
     data class RenameGroup(val group: GroupItem) : HostsDialog
     data class DeleteGroup(val group: GroupItem) : HostsDialog
     data class MoveGroup(val group: GroupItem) : HostsDialog
-    data class TagMenu(val tag: TagItem) : HostsDialog
-    data class RenameTag(val tag: TagItem) : HostsDialog
-    data class DeleteTag(val tag: TagItem) : HostsDialog
     data class Settings(val target: DefaultsTarget) : HostsDialog
-    data object Tags : HostsDialog
     data object Online : HostsDialog
     data object Discover : HostsDialog
     data object QuickImport : HostsDialog

@@ -4,15 +4,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -40,8 +37,6 @@ import androidx.compose.ui.window.DialogProperties
 import dev.labdex.labterm.R
 import dev.labdex.labterm.data.userMessage
 import dev.labdex.labterm.ui.components.FormField
-import dev.labdex.labterm.ui.components.ItemMoreButton
-import dev.labdex.labterm.ui.components.itemClicks
 import dev.labdex.labterm.ui.components.PickerRow
 import dev.labdex.labterm.ui.components.ChevronRow
 import dev.labdex.labterm.ui.components.RowDivider
@@ -52,7 +47,6 @@ import dev.labdex.labterm.core.GroupItem
 import dev.labdex.labterm.core.InheritedInfo
 import dev.labdex.labterm.core.KeyItem
 import dev.labdex.labterm.core.SshDefaultsDraft
-import dev.labdex.labterm.core.TagItem
 import kotlinx.coroutines.launch
 
 /** Whose SSH defaults the editor edits. */
@@ -338,38 +332,5 @@ private fun ParentPicker(groups: List<GroupItem>, current: String?, onPick: (Str
         current = current,
         onPick = onPick,
         onDismiss = onDismiss,
-    )
-}
-
-/** Tags of the vault. Tap edits a tag; long-press or ⋯ opens its quick menu. */
-@Composable
-fun TagsDialog(tags: List<TagItem>, onEdit: (TagItem) -> Unit, onMenu: (TagItem) -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.tags)) },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState())) {
-                if (tags.isEmpty()) {
-                    Text(stringResource(R.string.no_tags_yet), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                tags.sortedBy { it.label.lowercase() }.forEach { tag ->
-                    Row(
-                        Modifier.fillMaxWidth().itemClicks(onClick = { onEdit(tag) }, onMenu = { onMenu(tag) }).padding(vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(Modifier.weight(1f)) {
-                            Text(tag.label)
-                            Text(
-                                tagSubtitle(tag),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        ItemMoreButton({ onMenu(tag) }, stringResource(R.string.tag_actions))
-                    }
-                }
-            }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.done)) } },
     )
 }

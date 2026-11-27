@@ -13,7 +13,6 @@ import androidx.compose.material.icons.filled.DriveFileRenameOutline
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material.icons.filled.VpnLock
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
@@ -152,36 +151,6 @@ private fun ChoiceLine(text: String, selected: Boolean, onClick: () -> Unit) {
         RadioButton(selected = selected, onClick = onClick)
         Text(text, style = MaterialTheme.typography.bodyMedium)
     }
-}
-
-/** Quick menu of a tag: edit (full-screen page with its settings), rename, delete. */
-@Composable
-fun TagActionsSheet(
-    tag: TagItem,
-    onEdit: () -> Unit,
-    onRename: () -> Unit,
-    onDelete: () -> Unit,
-    onClose: () -> Unit,
-) {
-    ItemActionsSheet(
-        title = tag.label,
-        subtitle = tagSubtitle(tag),
-        leading = { IconTile(Icons.Filled.Sell) },
-        sections = listOf(
-            SheetSection(
-                stringResource(R.string.tag),
-                listOf(
-                    SheetAction(Icons.Filled.Edit, stringResource(R.string.edit), onClick = onEdit),
-                    SheetAction(Icons.Filled.DriveFileRenameOutline, stringResource(R.string.rename), onClick = onRename),
-                ),
-            ),
-            SheetSection(
-                null,
-                listOf(SheetAction(Icons.Filled.Delete, stringResource(R.string.delete), danger = true, onClick = onDelete)),
-            ),
-        ),
-        onClose = onClose,
-    )
 }
 
 @Composable

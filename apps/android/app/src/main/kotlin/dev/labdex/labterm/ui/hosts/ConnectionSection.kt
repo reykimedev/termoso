@@ -5,13 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -20,11 +13,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import dev.labdex.labterm.R
 import dev.labdex.labterm.ui.components.FormField
@@ -48,8 +38,6 @@ private val CHARSETS = listOf(
     "Windows-1250", "Windows-1251", "Windows-1252",
     "KOI8-R", "KOI8-U", "GBK", "GB18030", "Big5", "Shift_JIS", "EUC-JP", "EUC-KR",
 )
-
-private val PROXY_KINDS = listOf("socks5" to "SOCKS5", "socks4" to "SOCKS4", "http" to "HTTP")
 
 /**
  * Termius-style "Connection" block of the host editor: jump chain, proxy,
@@ -167,18 +155,18 @@ fun ConnectionSection(state: HostEditorState, draft: HostDraft, vm: HostEditorVi
     )
 
     proxyEditor?.let { initial ->
-        ProxyEditorDialog(
+        ProxyEditorPage(
             initial = initial,
-            state = state,
+            identities = state.identities,
             onSave = { d -> vm.saveProxy(d) { id -> vm.update { it.copy(proxyId = id) } }; proxyEditor = null },
             onDelete = initial.id?.let { id -> { vm.deleteProxy(id); vm.update { it.copy(proxyId = null) }; proxyEditor = null } },
             onDismiss = { proxyEditor = null },
         )
     }
     chainEditor?.let { initial ->
-        ChainEditorDialog(
+        ChainEditorPage(
             initial = initial,
-            state = state,
+            hosts = state.hosts.filter { it.id != state.draft?.id },
             onSave = { d -> vm.saveChain(d) { id -> vm.update { it.copy(hostChainId = id) } }; chainEditor = null },
             onDelete = initial.id?.let { id -> { vm.deleteChain(id); vm.update { it.copy(hostChainId = null) }; chainEditor = null } },
             onDismiss = { chainEditor = null },
@@ -191,137 +179,6 @@ private fun EditLink(onClick: () -> Unit) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
         TextButton(onClick = onClick) { Text(stringResource(R.string.edit)) }
     }
-}
-
-@Composable
-private fun ProxyEditorDialog(
-    initial: ProxyDraft,
-    state: HostEditorState,
-    onSave: (ProxyDraft) -> Unit,
-    onDelete: (() -> Unit)?,
-    onDismiss: () -> Unit,
-) {
-    var kind by remember { mutableStateOf(initial.kind) }
-    var host by remember { mutableStateOf(initial.host) }
-    var port by remember { mutableStateOf(initial.port.toString()) }
-    var identityId by remember { mutableStateOf(initial.identityId) }
-    var username by remember { mutableStateOf(initial.username ?: "") }
-    var password by remember { mutableStateOf(initial.password ?: "") }
-    val valid = host.isNotBlank() && (port.toIntOrNull() ?: 0) in 1..65535
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(if (initial.id == null) stringResource(R.string.new_proxy) else stringResource(R.string.proxy)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                PickerRow(
-                    label = stringResource(R.string.proxy_type),
-                    value = PROXY_KINDS.firstOrNull { it.first == kind }?.second ?: kind,
-                    options = PROXY_KINDS.map { it.first to it.second },
-                    selected = kind,
-                    onPick = { it?.let { k -> kind = k } },
-                    empty = null,
-                )
-                FormField(host, { host = it }, stringResource(R.string.hostname_or_ip_address), keyboard = KeyboardType.Uri)
-                FormField(port, { port = it.filter(Char::isDigit).take(5) }, stringResource(R.string.port), keyboard = KeyboardType.Number)
-                val identity = state.identities.firstOrNull { it.id == identityId }
-                PickerRow(
-                    label = stringResource(R.string.identity),
-                    value = identity?.label ?: stringResource(R.string.none),
-                    options = listOf<Pair<String?, String>>(null to stringResource(R.string.none)) + state.identities.map { it.id to it.label },
-                    selected = identityId,
-                    onPick = { identityId = it },
-                    empty = null,
-                )
-                if (identityId == null) {
-                    FormField(username, { username = it }, stringResource(R.string.username))
-                    if (kind != "socks4") {
-                        FormField(password, { password = it }, stringResource(R.string.password), keyboard = KeyboardType.Password, visual = PasswordVisualTransformation())
-                    }
-                    Text(
-                        stringResource(R.string.proxy_credentials_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                enabled = valid,
-                onClick = {
-                    onSave(
-                        ProxyDraft(
-                            initial.id, initial.vaultId, kind, host.trim(), port.toInt().toUShort(), identityId,
-                            username.trim().ifEmpty { null }.takeIf { identityId == null },
-                            password.ifEmpty { null }.takeIf { identityId == null && kind != "socks4" },
-                        ),
-                    )
-                },
-            ) { Text(stringResource(R.string.save)) }
-        },
-        dismissButton = {
-            Row {
-                if (onDelete != null) {
-                    TextButton(onClick = onDelete) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
-                }
-                TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
-            }
-        },
-    )
-}
-
-@Composable
-private fun ChainEditorDialog(
-    initial: HostChainDraft,
-    state: HostEditorState,
-    onSave: (HostChainDraft) -> Unit,
-    onDelete: (() -> Unit)?,
-    onDismiss: () -> Unit,
-) {
-    var label by remember { mutableStateOf(initial.label) }
-    var hostIds by remember { mutableStateOf(initial.hostIds) }
-    val candidates = state.hosts.filter { it.id !in hostIds && it.id != state.draft?.id }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(if (initial.id == null) stringResource(R.string.new_chain) else stringResource(R.string.host_chaining)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                FormField(label, { label = it }, stringResource(R.string.name))
-                Text(stringResource(R.string.jump_hosts_in_order), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                hostIds.forEachIndexed { i, id ->
-                    val h = state.hosts.firstOrNull { it.id == id }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("${i + 1}. ${h?.label ?: id}", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                        IconButton(enabled = i > 0, onClick = { hostIds = hostIds.toMutableList().also { l -> l.add(i - 1, l.removeAt(i)) } }) {
-                            Icon(Icons.Filled.ArrowUpward, contentDescription = stringResource(R.string.move_up))
-                        }
-                        IconButton(onClick = { hostIds = hostIds - id }) { Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.remove_2)) }
-                    }
-                }
-                PickerRow(
-                    label = stringResource(R.string.add_host),
-                    value = "",
-                    options = candidates.map { it.id to it.label },
-                    selected = null,
-                    onPick = { id -> id?.let { hostIds = hostIds + it } },
-                    empty = stringResource(R.string.no_hosts_yet),
-                )
-            }
-        },
-        confirmButton = {
-            Button(enabled = hostIds.isNotEmpty(), onClick = { onSave(HostChainDraft(initial.id, initial.vaultId, label, hostIds)) }) {
-                Text(stringResource(R.string.save))
-            }
-        },
-        dismissButton = {
-            Row {
-                if (onDelete != null) {
-                    TextButton(onClick = onDelete) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
-                }
-                TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
-            }
-        },
-    )
 }
 
 /** Scheme ids saved before the rename open the Labterm pair. */
