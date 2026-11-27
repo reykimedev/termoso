@@ -553,7 +553,7 @@ private fun HostForm(
 
         if (draft.ssh || draft.telnet != null || draft.webdav != null) {
             Spacer(Modifier.height(12.dp))
-            SectionCard { ConnectionSection(state, draft, vm) }
+            SectionCard { ConnectionSection(state, draft, vm, rememberVpnNetworks(repo, draft.vaultId)) }
         }
 
         Row(

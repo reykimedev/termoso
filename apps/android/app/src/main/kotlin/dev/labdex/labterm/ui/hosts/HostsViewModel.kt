@@ -192,8 +192,25 @@ class HostsViewModel(
         repo.write { saveGroup(group.vaultId, group.id, label.trim(), group.parentId) }
     }
 
-    fun deleteGroup(group: GroupItem) = mutate {
-        repo.write { deleteGroup(group.id) }
+    /** `withContents` deletes the hosts and sub-groups too; otherwise they move up one level. */
+    fun deleteGroup(group: GroupItem, withContents: Boolean = false) = mutate {
+        repo.write { if (withContents) deleteGroupRecursive(group.id) else deleteGroup(group.id) }
+    }
+
+    fun duplicateGroup(group: GroupItem) = mutate {
+        repo.write { duplicateGroup(group.id) }
+    }
+
+    fun moveGroup(group: GroupItem, parentId: String?) = mutate {
+        repo.write { saveGroup(group.vaultId, group.id, group.label, parentId) }
+    }
+
+    fun renameTag(tagId: String, label: String) = mutate {
+        repo.write { saveTag(tagId, label.trim()) }
+    }
+
+    fun deleteTag(tagId: String) = mutate {
+        repo.write { deleteTag(tagId) }
     }
 
     fun errorShown() = _state.update { it.copy(error = null) }

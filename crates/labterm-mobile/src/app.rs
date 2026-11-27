@@ -717,6 +717,16 @@ impl LabtermApp {
         Ok(hosts::delete_group(&self.store, parse_id(&id)?)?)
     }
 
+    /// Delete a group with all its hosts and sub-groups.
+    pub fn delete_group_recursive(&self, id: String) -> Result<()> {
+        Ok(hosts::delete_group_recursive(&self.store, parse_id(&id)?)?)
+    }
+
+    /// Copy a group with its settings, hosts and sub-groups next to it.
+    pub fn duplicate_group(&self, id: String) -> Result<GroupItem> {
+        Ok(hosts::duplicate_group(&self.store, parse_id(&id)?)?.into())
+    }
+
     /// Find-or-create a tag by label in `vault_id`.
     pub fn create_tag(&self, vault_id: String, label: String) -> Result<TagItem> {
         let vault = parse_id(&vault_id)?;

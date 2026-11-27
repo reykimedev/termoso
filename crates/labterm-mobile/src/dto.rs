@@ -113,7 +113,52 @@ pub struct HostItem {
     pub files_provider: bool,
     pub updated_at: i64,
     pub last_connected: Option<i64>,
+    /// VPN network the host is reached through (own or inherited), for the
+    /// badge on host rows.
+    pub vpn: Option<HostVpnItem>,
+    /// How the host connects (auth, overlay, route, host key), for badges.
+    pub badges: HostBadgesItem,
     pub dirty: bool,
+}
+
+/// See `labterm_client::hosts::HostBadges`.
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct HostBadgesItem {
+    /// `opkssh` | `ssh_id` | `certificate` | `key` | `password`; `None` =
+    /// nothing stored.
+    pub auth: Option<String>,
+    pub overlay: bool,
+    pub overlay_paused: bool,
+    pub jump: bool,
+    pub gateway: bool,
+    pub proxy: bool,
+    /// SSH hosts only; `Some(false)` = the first connect confirms the key.
+    pub host_key_trusted: Option<bool>,
+}
+
+impl From<hosts::HostBadges> for HostBadgesItem {
+    fn from(b: hosts::HostBadges) -> Self {
+        Self {
+            auth: b.auth,
+            overlay: b.overlay,
+            overlay_paused: b.overlay_paused,
+            jump: b.jump,
+            gateway: b.gateway,
+            proxy: b.proxy,
+            host_key_trusted: b.host_key_trusted,
+        }
+    }
+}
+
+/// VPN network on a host row. `provider` is `Transport::provider`
+/// (`netbird`, later `tailscale`); the client names it.
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct HostVpnItem {
+    pub id: String,
+    pub label: String,
+    pub provider: String,
+    /// Set by a group or tag, not by the host itself.
+    pub inherited: bool,
 }
 
 impl From<hosts::HostCard> for HostItem {
@@ -139,6 +184,13 @@ impl From<hosts::HostCard> for HostItem {
             files_provider: c.files_provider,
             updated_at: millis(c.updated_at),
             last_connected: c.last_connected.map(millis),
+            vpn: c.vpn.map(|v| HostVpnItem {
+                id: v.id.to_string(),
+                label: v.label,
+                provider: v.provider,
+                inherited: v.inherited,
+            }),
+            badges: c.badges.into(),
             dirty: c.dirty,
         }
     }
@@ -199,6 +251,9 @@ pub struct HostDraft {
     pub proxy_id: Option<String>,
     /// Team gateway (API bridge) to reach a host behind NAT; `None` dials directly.
     pub gateway_id: Option<String>,
+    /// VPN network the host is reached through (`None` = direct or as its
+    /// group says).
+    pub transport_id: Option<String>,
     /// MAC address for Wake-on-LAN, `aa:bb:cc:dd:ee:ff`.
     pub mac_address: Option<String>,
     /// Terminal colour scheme id; `None` follows the app setting.
@@ -403,6 +458,7 @@ impl HostDraft {
             host_chain_id: None,
             proxy_id: None,
             gateway_id: None,
+            transport_id: None,
             mac_address: None,
             color_scheme: None,
             charset: None,
@@ -457,6 +513,7 @@ impl From<hosts::HostForm> for HostDraft {
             host_chain_id: f.host_chain_id.map(|i| i.to_string()),
             proxy_id: f.proxy_id.map(|i| i.to_string()),
             gateway_id: f.gateway_id.map(|i| i.to_string()),
+            transport_id: f.transport_id.map(|i| i.to_string()),
             mac_address: f.mac_address,
             color_scheme: f.color_scheme,
             charset: f.charset,
@@ -515,6 +572,7 @@ impl HostDraft {
         base.host_chain_id = parse_opt_id(&self.host_chain_id)?;
         base.proxy_id = parse_opt_id(&self.proxy_id)?;
         base.gateway_id = parse_opt_id(&self.gateway_id)?;
+        base.transport_id = parse_opt_id(&self.transport_id.filter(|t| !t.is_empty()))?;
         base.mac_address = self
             .mac_address
             .map(|m| m.trim().to_string())
@@ -707,6 +765,8 @@ pub struct SshDefaultsDraft {
     pub env_variables: Vec<EnvVar>,
     pub keep_alive_interval: Option<u32>,
     pub timeout: Option<u32>,
+    /// VPN network the hosts are reached through (`None` = not set here).
+    pub transport_id: Option<String>,
 }
 
 impl From<hosts::SshDefaultsForm> for SshDefaultsDraft {
@@ -733,6 +793,7 @@ impl From<hosts::SshDefaultsForm> for SshDefaultsDraft {
                 .collect(),
             keep_alive_interval: f.keep_alive_interval,
             timeout: f.timeout,
+            transport_id: f.transport_id.map(|i| i.to_string()),
         }
     }
 }
@@ -764,6 +825,7 @@ impl SshDefaultsDraft {
             .collect();
         base.keep_alive_interval = self.keep_alive_interval;
         base.timeout = self.timeout;
+        base.transport_id = parse_opt_id(&self.transport_id.filter(|t| !t.is_empty()))?;
         Ok(())
     }
 }
@@ -834,6 +896,8 @@ pub struct InheritedInfo {
     pub identity_label: Option<String>,
     /// The inherited credentials log in with SSH ID.
     pub ssh_id: bool,
+    /// VPN network inherited from the group chain or tags.
+    pub transport_id: Option<String>,
 }
 
 impl From<hosts::Inherited> for InheritedInfo {
@@ -850,6 +914,7 @@ impl From<hosts::Inherited> for InheritedInfo {
             identity_id: i.identity_id.map(|k| k.to_string()),
             identity_label: i.identity_label,
             ssh_id: i.ssh_id,
+            transport_id: i.transport_id.map(|t| t.to_string()),
         }
     }
 }

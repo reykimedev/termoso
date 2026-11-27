@@ -38,6 +38,15 @@ import dev.labdex.labterm.data.userMessage
 import dev.labdex.labterm.ui.components.EmptyState
 import dev.labdex.labterm.ui.components.IconTile
 import dev.labdex.labterm.ui.components.ListRow
+import dev.labdex.labterm.ui.components.ItemActionsSheet
+import dev.labdex.labterm.ui.components.ItemMoreButton
+import dev.labdex.labterm.ui.components.SheetAction
+import dev.labdex.labterm.ui.components.SheetSection
+import dev.labdex.labterm.ui.components.itemClicks
+import dev.labdex.labterm.ui.terminal.copyToClipboard
+import dev.labdex.labterm.str
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material.icons.filled.ContentCopy
 import dev.labdex.labterm.ui.components.RowDivider
 import dev.labdex.labterm.ui.components.SectionCard
 import dev.labdex.labterm.ui.components.SectionLabel
@@ -58,6 +67,8 @@ fun KnownHostsScreen(shell: ShellViewModel, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     var items by remember { mutableStateOf<List<KnownHostItem>>(emptyList()) }
     var confirm by remember { mutableStateOf<KnownHostItem?>(null) }
+    var menu by remember { mutableStateOf<KnownHostItem?>(null) }
+    val context = LocalContext.current
     LaunchedEffect(revision) {
         runCatching { shell.repo.read { knownHosts() } }
             .onSuccess { items = it }
@@ -84,15 +95,34 @@ fun KnownHostsScreen(shell: ShellViewModel, onBack: () -> Unit) {
                             title = k.hostname,
                             subtitle = "${k.keyType} · ${k.fingerprint}",
                             leading = { IconTile(Icons.Filled.Fingerprint) },
+                            modifier = Modifier.itemClicks(onClick = { menu = k }, onMenu = { menu = k }),
                         ) {
-                            IconButton(onClick = { confirm = k }) {
-                                Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.forget), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
+                            ItemMoreButton({ menu = k })
                         }
                     }
                 }
             }
         }
+    }
+    menu?.let { k ->
+        ItemActionsSheet(
+            title = k.hostname,
+            subtitle = "${k.keyType} · ${k.fingerprint}",
+            leading = { IconTile(Icons.Filled.Fingerprint) },
+            sections = listOf(
+                SheetSection(
+                    stringResource(R.string.known_hosts),
+                    listOf(
+                        SheetAction(Icons.Filled.ContentCopy, stringResource(R.string.copy_fingerprint)) {
+                            copyToClipboard(context, k.fingerprint)
+                            shell.notify(str(R.string.copied, k.fingerprint))
+                        },
+                    ),
+                ),
+                SheetSection(null, listOf(SheetAction(Icons.Filled.Delete, stringResource(R.string.forget), danger = true) { confirm = k })),
+            ),
+            onClose = { menu = null },
+        )
     }
     confirm?.let { k ->
         ConfirmDialog(

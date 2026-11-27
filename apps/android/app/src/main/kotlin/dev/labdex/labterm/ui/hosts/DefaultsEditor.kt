@@ -12,7 +12,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -32,7 +31,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -42,10 +40,15 @@ import androidx.compose.ui.window.DialogProperties
 import dev.labdex.labterm.R
 import dev.labdex.labterm.data.userMessage
 import dev.labdex.labterm.ui.components.FormField
+import dev.labdex.labterm.ui.components.ItemMoreButton
+import dev.labdex.labterm.ui.components.itemClicks
 import dev.labdex.labterm.ui.components.PickerRow
+import dev.labdex.labterm.ui.components.ChevronRow
+import dev.labdex.labterm.ui.components.RowDivider
 import dev.labdex.labterm.ui.components.SectionCard
 import dev.labdex.labterm.ui.components.SwitchRow
 import dev.labdex.labterm.ui.shell.ShellViewModel
+import dev.labdex.labterm.core.GroupItem
 import dev.labdex.labterm.core.InheritedInfo
 import dev.labdex.labterm.core.KeyItem
 import dev.labdex.labterm.core.SshDefaultsDraft
@@ -66,6 +69,10 @@ private data class Loaded(
     val defaults: SshDefaultsDraft,
     val keys: List<KeyItem>,
     val inherited: InheritedInfo?,
+    /** Groups only: the parent, and the groups it may move under. */
+    val parentId: String? = null,
+    val parents: List<GroupItem> = emptyList(),
+    val allGroups: List<GroupItem> = emptyList(),
 )
 
 /**
@@ -83,6 +90,8 @@ fun DefaultsEditorDialog(shell: ShellViewModel, target: DefaultsTarget, onDismis
     var label by remember(target) { mutableStateOf("") }
     var priority by remember(target) { mutableStateOf("0") }
     var d by remember(target) { mutableStateOf<SshDefaultsDraft?>(null) }
+    var parentId by remember(target) { mutableStateOf<String?>(null) }
+    var parentPicker by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
 
     LaunchedEffect(target) {
@@ -91,7 +100,13 @@ fun DefaultsEditorDialog(shell: ShellViewModel, target: DefaultsTarget, onDismis
                 when (target) {
                     is DefaultsTarget.Group -> {
                         val g = groupDraft(target.id)
-                        Loaded(g.label, null, g.vaultId, g.defaults, keys(g.vaultId), g.parentId?.let { inherited(it) })
+                        val all = groups(g.vaultId)
+                        Loaded(
+                            g.label, null, g.vaultId, g.defaults, keys(g.vaultId), g.parentId?.let { inherited(it) },
+                            parentId = g.parentId,
+                            parents = parentCandidates(all, target.id),
+                            allGroups = all,
+                        )
                     }
                     is DefaultsTarget.Tag -> {
                         val t = tagDraft(target.id)
@@ -104,6 +119,7 @@ fun DefaultsEditorDialog(shell: ShellViewModel, target: DefaultsTarget, onDismis
             label = it.label
             priority = it.priority?.toString() ?: "0"
             d = it.defaults
+            parentId = it.parentId
         }.onFailure { shell.notify(it.userMessage()); onDismiss() }
     }
 
@@ -117,7 +133,7 @@ fun DefaultsEditorDialog(shell: ShellViewModel, target: DefaultsTarget, onDismis
                     when (target) {
                         is DefaultsTarget.Group -> {
                             val g = groupDraft(target.id)
-                            saveGroupDraft(g.copy(label = label.trim(), defaults = draft))
+                            saveGroupDraft(g.copy(label = label.trim(), parentId = parentId, defaults = draft))
                         }
                         is DefaultsTarget.Tag -> {
                             val t = tagDraft(target.id)
@@ -146,8 +162,8 @@ fun DefaultsEditorDialog(shell: ShellViewModel, target: DefaultsTarget, onDismis
                     title = {
                         Text(
                             when (target) {
-                                is DefaultsTarget.Group -> stringResource(R.string.group_settings)
-                                is DefaultsTarget.Tag -> stringResource(R.string.tag_settings)
+                                is DefaultsTarget.Group -> stringResource(R.string.edit_group)
+                                is DefaultsTarget.Tag -> stringResource(R.string.edit_tag)
                             },
                         )
                     },
@@ -173,6 +189,7 @@ fun DefaultsEditorDialog(shell: ShellViewModel, target: DefaultsTarget, onDismis
                 return@Scaffold
             }
             val inh = l.inherited
+            val networks = rememberVpnNetworks(shell.repo, l.vaultId)
             Column(
                 Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -195,6 +212,15 @@ fun DefaultsEditorDialog(shell: ShellViewModel, target: DefaultsTarget, onDismis
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    if (target is DefaultsTarget.Group) {
+                        val paths = remember(l.allGroups) { groupPaths(l.allGroups) }
+                        RowDivider()
+                        ChevronRow(
+                            title = stringResource(R.string.parent_group),
+                            badge = parentId?.let { paths[it] } ?: stringResource(R.string.none),
+                            modifier = Modifier.clickable { parentPicker = true },
                         )
                     }
                 }
@@ -253,6 +279,13 @@ fun DefaultsEditorDialog(shell: ShellViewModel, target: DefaultsTarget, onDismis
                 }
                 SectionCard {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(stringResource(R.string.connection), style = MaterialTheme.typography.labelLarge)
+                        VpnNetworkPicker(
+                            networks = networks,
+                            selected = draft.transportId,
+                            inheritedId = inh?.transportId,
+                            onPick = { id -> d = draft.copy(transportId = id) },
+                        )
                         FormField(
                             draft.port?.toString() ?: "",
                             { v -> d = draft.copy(port = v.filter(Char::isDigit).take(5).toUIntOrNull()?.takeIf { p -> p in 1u..65535u }?.toUShort()) },
@@ -290,39 +323,49 @@ fun DefaultsEditorDialog(shell: ShellViewModel, target: DefaultsTarget, onDismis
                 )
             }
         }
+        val l = loaded
+        if (parentPicker && l != null) {
+            ParentPicker(l.parents, parentId, onPick = { parentId = it; parentPicker = false }, onDismiss = { parentPicker = false })
+        }
     }
 }
 
-/** Tags of the vault with a settings button each; opens [DefaultsEditorDialog]. */
 @Composable
-fun TagsDialog(tags: List<TagItem>, onSettings: (TagItem) -> Unit, onDismiss: () -> Unit) {
+private fun ParentPicker(groups: List<GroupItem>, current: String?, onPick: (String?) -> Unit, onDismiss: () -> Unit) {
+    GroupPickerDialog(
+        title = stringResource(R.string.parent_group),
+        groups = groups,
+        current = current,
+        onPick = onPick,
+        onDismiss = onDismiss,
+    )
+}
+
+/** Tags of the vault. Tap edits a tag; long-press or ⋯ opens its quick menu. */
+@Composable
+fun TagsDialog(tags: List<TagItem>, onEdit: (TagItem) -> Unit, onMenu: (TagItem) -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.tags)) },
         text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
                 if (tags.isEmpty()) {
                     Text(stringResource(R.string.no_tags_yet), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 tags.sortedBy { it.label.lowercase() }.forEach { tag ->
                     Row(
-                        Modifier.fillMaxWidth().clickable { onSettings(tag) }.padding(vertical = 4.dp),
+                        Modifier.fillMaxWidth().itemClicks(onClick = { onEdit(tag) }, onMenu = { onMenu(tag) }).padding(vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Column(Modifier.weight(1f)) {
                             Text(tag.label)
                             Text(
-                                listOfNotNull(
-                                    pluralStringResource(R.plurals.tag_host_count, tag.hosts.toInt(), tag.hosts.toInt()),
-                                    if (tag.hasConfig) stringResource(R.string.tag_has_settings) else null,
-                                ).joinToString(" · "),
+                                tagSubtitle(tag),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                        IconButton(onClick = { onSettings(tag) }) {
-                            Icon(Icons.Filled.Tune, contentDescription = stringResource(R.string.settings_for, tag.label))
-                        }
+                        ItemMoreButton({ onMenu(tag) }, stringResource(R.string.tag_actions))
                     }
                 }
             }

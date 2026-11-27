@@ -35,6 +35,7 @@ import dev.labdex.labterm.core.HostChainDraft
 import dev.labdex.labterm.core.HostDraft
 import dev.labdex.labterm.core.GatewayCard
 import dev.labdex.labterm.core.ProxyDraft
+import dev.labdex.labterm.core.TransportItem
 import dev.labdex.labterm.core.terminalThemes
 import androidx.compose.runtime.produceState
 
@@ -56,7 +57,7 @@ private val PROXY_KINDS = listOf("socks5" to "SOCKS5", "socks4" to "SOCKS4", "ht
  * the vault model but had no mobile UI.
  */
 @Composable
-fun ConnectionSection(state: HostEditorState, draft: HostDraft, vm: HostEditorViewModel) {
+fun ConnectionSection(state: HostEditorState, draft: HostDraft, vm: HostEditorViewModel, networks: List<TransportItem> = emptyList()) {
     var proxyEditor by remember { mutableStateOf<ProxyDraft?>(null) }
     var chainEditor by remember { mutableStateOf<HostChainDraft?>(null) }
     val themes by produceState(initialValue = terminalThemes()) { value = vm.allThemes() }
@@ -80,6 +81,15 @@ fun ConnectionSection(state: HostEditorState, draft: HostDraft, vm: HostEditorVi
         )
         if (draft.ssh && chain != null) {
             EditLink { chainEditor = HostChainDraft(chain.id, chain.vaultId, chain.label, chain.hostIds) }
+        }
+
+        if (draft.ssh) {
+            VpnNetworkPicker(
+                networks = networks,
+                selected = draft.transportId,
+                inheritedId = state.inherited?.transportId,
+                onPick = { id -> vm.update { it.copy(transportId = id) } },
+            )
         }
 
         val proxy = state.proxies.firstOrNull { it.id == draft.proxyId }
