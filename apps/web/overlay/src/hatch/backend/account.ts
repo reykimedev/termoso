@@ -570,7 +570,11 @@ async function push(changedVaults: Set<Uuid>): Promise<{ pushed: number; conflic
     deletes.push({ id: e.id, base_version: e.version });
     order.push(e);
   }
-  const r = await authed<{ results: PushResult[] }>("POST", "sync/push", { changes, deletes, protocol: SYNC_PROTOCOL });
+  const r = await authed<{ results: PushResult[] }>("POST", "sync/push", {
+    changes,
+    deletes,
+    protocol: SYNC_PROTOCOL,
+  });
   let pushed = 0;
   let conflicts = 0;
   r.results.forEach((res, i) => {
