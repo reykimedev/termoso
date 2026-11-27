@@ -31,13 +31,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import dev.labdex.labterm.R
+import dev.labdex.labterm.core.VaultInfo
 import dev.labdex.labterm.data.KeyExportBridge
 import dev.labdex.labterm.data.KeyExportState
 import dev.labdex.labterm.data.VaultRepository
 import dev.labdex.labterm.data.userMessage
 import dev.labdex.labterm.str
 import dev.labdex.labterm.ui.components.FormField
+import dev.labdex.labterm.ui.components.NewItemVaultPicker
+import dev.labdex.labterm.ui.components.SectionCard
+import dev.labdex.labterm.ui.hosts.FullScreenEditor
 import dev.labdex.labterm.ui.components.SecretField
 import dev.labdex.labterm.ui.components.SwitchRow
 import dev.labdex.labterm.ui.terminal.PromptDialog
@@ -46,6 +52,7 @@ import dev.labdex.labterm.core.KeyExport
 import dev.labdex.labterm.core.KeyItem
 import dev.labdex.labterm.core.OidcKeyChoice
 import dev.labdex.labterm.core.OidcProviderItem
+import dev.labdex.labterm.ui.hosts.NONE_ID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -175,84 +182,30 @@ fun OidcKeyChoiceDialog(
     )
 }
 
-/** The OpenID providers of [vaultId] (team-wide in a team vault): list, add, edit, delete. */
+/**
+ * The OpenID providers of [vaultId] (team-wide in a team vault) as a full-screen page over the
+ * current screen, for flows that start from a key or the "new OpenID key" dialog.
+ */
 @Composable
 fun OidcProvidersDialog(repo: VaultRepository, vaultId: String, onNotify: (String) -> Unit, onDismiss: () -> Unit) {
-    var reload by remember { mutableStateOf(0) }
-    val providers = rememberProviders(repo, vaultId, reload)
-    var editing by remember { mutableStateOf<OidcProviderItem?>(null) }
-    val scope = rememberCoroutineScope()
-
-    fun delete(id: String) {
-        scope.launch {
-            runCatching { repo.write { deleteOidcProvider(id) } }
-                .onSuccess { editing = null; reload++ }
-                .onFailure { onNotify(it.userMessage()) }
-        }
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        OidcProvidersPage(repo, vaultId, onNotify, onBack = onDismiss)
     }
-
-    editing?.let { p ->
-        val id = p.id
-        ProviderEditDialog(
-            p,
-            onDismiss = { editing = null },
-            onDelete = if (id == null) null else ({ delete(id) }),
-        ) { saved ->
-            scope.launch {
-                runCatching { repo.write { saveOidcProvider(saved) } }
-                    .onSuccess { editing = null; reload++ }
-                    .onFailure { onNotify(it.userMessage()) }
-            }
-        }
-        return
-    }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.openid_providers)) },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(stringResource(R.string.openid_providers_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                when {
-                    providers == null -> CircularProgressIndicator(Modifier.size(20.dp))
-                    providers.isEmpty() -> Text(stringResource(R.string.openid_no_providers), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    else -> providers.forEach { p ->
-                        Column(Modifier.fillMaxWidth().clickable { editing = p }.padding(vertical = 8.dp)) {
-                            Text(p.label + if (p.isDefault) " · " + str(R.string.openid_default) else "", style = MaterialTheme.typography.bodyLarge)
-                            Text(p.issuer, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                editing = OidcProviderItem(
-                    id = null,
-                    vaultId = vaultId,
-                    label = "",
-                    issuer = "",
-                    clientId = "",
-                    clientSecret = null,
-                    scopes = emptyList(),
-                    isDefault = providers.isNullOrEmpty(),
-                    reuseSecs = null,
-                    expirationPolicy = "24h",
-                )
-            }) { Text(stringResource(R.string.add)) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } },
-    )
 }
 
 private val POLICIES = listOf("24h", "48h", "1week", "oidc", "oidc-refreshed", "never")
 
+/** Full-screen editor of an OpenID provider, in the shared edit page layout. */
 @Composable
-internal fun ProviderEditDialog(
+internal fun ProviderEditorPage(
     current: OidcProviderItem,
+    /** New providers: vaults to pick from (empty = keep [current]'s vault). */
+    vaults: List<VaultInfo> = emptyList(),
     onDismiss: () -> Unit,
     onDelete: (() -> Unit)?,
     onSave: (OidcProviderItem) -> Unit,
 ) {
+    var vaultId by remember { mutableStateOf(current.vaultId) }
     var label by remember { mutableStateOf(current.label) }
     var issuer by remember { mutableStateOf(current.issuer) }
     var clientId by remember { mutableStateOf(current.clientId) }
@@ -263,43 +216,49 @@ internal fun ProviderEditDialog(
     var isDefault by remember { mutableStateOf(current.isDefault) }
     val reuse = reuseHours.trim().takeIf { it.isNotEmpty() }?.toULongOrNull()
     val valid = issuer.isNotBlank() && clientId.isNotBlank() && (reuseHours.isBlank() || reuse != null)
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(if (current.id == null) stringResource(R.string.openid_new_provider) else current.label) },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    FullScreenEditor(
+        title = if (current.id == null) stringResource(R.string.openid_new_provider) else stringResource(R.string.openid_edit_provider),
+        canSave = valid,
+        onSave = {
+            onSave(
+                current.copy(
+                    vaultId = vaultId,
+                    label = label.trim(),
+                    issuer = issuer.trim(),
+                    clientId = clientId.trim(),
+                    clientSecret = secret.trim().ifEmpty { null },
+                    scopes = words(scopes),
+                    isDefault = isDefault,
+                    reuseSecs = reuse?.let { it * 3600u },
+                    expirationPolicy = policy,
+                ),
+            )
+        },
+        onDismiss = onDismiss,
+        onDelete = onDelete,
+    ) {
+        SectionCard {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (current.id == null) NewItemVaultPicker(vaults, vaultId) { vaultId = it }
                 FormField(label, { label = it }, stringResource(R.string.label))
                 FormField(issuer, { issuer = it }, stringResource(R.string.openid_issuer), placeholder = "https://auth.example.com/")
                 FormField(clientId, { clientId = it }, stringResource(R.string.openid_client_id))
                 SecretField(secret, { secret = it }, stringResource(R.string.openid_client_secret))
                 FormField(scopes, { scopes = it }, stringResource(R.string.openid_scopes))
+            }
+        }
+        SectionCard {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(stringResource(R.string.openid_expiration_policy), style = MaterialTheme.typography.labelMedium)
                 POLICIES.forEach { p -> ChoiceRow(p, policy == p) { policy = p } }
+                Spacer(Modifier.size(8.dp))
                 FormField(reuseHours, { reuseHours = it }, stringResource(R.string.openid_reuse_hours))
-                SwitchRow(title = stringResource(R.string.openid_default_for_vault), checked = isDefault, onCheckedChange = { isDefault = it })
-                if (onDelete != null) {
-                    TextButton(onClick = onDelete) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
-                }
             }
-        },
-        confirmButton = {
-            TextButton(enabled = valid, onClick = {
-                onSave(
-                    current.copy(
-                        label = label.trim(),
-                        issuer = issuer.trim(),
-                        clientId = clientId.trim(),
-                        clientSecret = secret.trim().ifEmpty { null },
-                        scopes = words(scopes),
-                        isDefault = isDefault,
-                        reuseSecs = reuse?.let { it * 3600u },
-                        expirationPolicy = policy,
-                    ),
-                )
-            }) { Text(stringResource(R.string.save)) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
-    )
+        }
+        SectionCard {
+            SwitchRow(title = stringResource(R.string.openid_default_for_vault), checked = isDefault, onCheckedChange = { isDefault = it })
+        }
+    }
 }
 
 /** Pick a host, then install opkssh there and allow the signed-in identity, like "Export key to host". */
@@ -403,6 +362,7 @@ fun HostOidcKeyDialog(repo: VaultRepository, host: HostItem, onNotify: (String) 
                     CircularProgressIndicator(Modifier.size(20.dp))
                 } else {
                     ChoiceRow(stringResource(R.string.openid_none_inherit), choice == null) { choice = null }
+                    ChoiceRow(stringResource(R.string.openid_none_explicit), choice == NONE_ID) { choice = NONE_ID }
                     list.forEach { k -> ChoiceRow(k.label, choice == k.id) { choice = k.id } }
                     if (list.isEmpty()) Text(stringResource(R.string.openid_no_keys), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }

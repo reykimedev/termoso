@@ -68,6 +68,7 @@ private data class Loaded(
     /** Groups only: the parent, and the groups it may move under. */
     val parentId: String? = null,
     val icon: String? = null,
+    val color: String? = null,
     val parents: List<GroupItem> = emptyList(),
     val allGroups: List<GroupItem> = emptyList(),
 )
@@ -90,6 +91,7 @@ fun DefaultsEditorDialog(shell: ShellViewModel, target: DefaultsTarget, onDismis
     var parentId by remember(target) { mutableStateOf<String?>(null) }
     var parentPicker by remember { mutableStateOf(false) }
     var icon by remember(target) { mutableStateOf<String?>(null) }
+    var color by remember(target) { mutableStateOf<String?>(null) }
     var iconPicker by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
 
@@ -104,6 +106,7 @@ fun DefaultsEditorDialog(shell: ShellViewModel, target: DefaultsTarget, onDismis
                             g.label, null, g.vaultId, g.defaults, keys(g.vaultId), g.parentId?.let { inherited(it) },
                             parentId = g.parentId,
                             icon = g.icon,
+                            color = g.color,
                             parents = parentCandidates(all, target.id),
                             allGroups = all,
                         )
@@ -121,6 +124,7 @@ fun DefaultsEditorDialog(shell: ShellViewModel, target: DefaultsTarget, onDismis
             d = it.defaults
             parentId = it.parentId
             icon = it.icon
+            color = it.color
         }.onFailure { shell.notify(it.userMessage()); onDismiss() }
     }
 
@@ -134,7 +138,7 @@ fun DefaultsEditorDialog(shell: ShellViewModel, target: DefaultsTarget, onDismis
                     when (target) {
                         is DefaultsTarget.Group -> {
                             val g = groupDraft(target.id)
-                            saveGroupDraft(g.copy(label = label.trim(), parentId = parentId, icon = icon, defaults = draft))
+                            saveGroupDraft(g.copy(label = label.trim(), parentId = parentId, icon = icon, color = color, defaults = draft))
                         }
                         is DefaultsTarget.Tag -> {
                             val t = tagDraft(target.id)
@@ -225,8 +229,8 @@ fun DefaultsEditorDialog(shell: ShellViewModel, target: DefaultsTarget, onDismis
                         )
                         RowDivider()
                         ChevronRow(
-                            title = stringResource(R.string.icon),
-                            leading = { GroupIconTile(icon) },
+                            title = stringResource(R.string.icon_and_colour),
+                            leading = { GroupIconTile(icon, color) },
                             badge = icon?.let { IconCatalog.picked(it)?.title ?: stringResource(R.string.icon_custom) } ?: stringResource(R.string.icon_folder),
                             modifier = Modifier.clickable { iconPicker = true },
                         )
@@ -338,6 +342,8 @@ fun DefaultsEditorDialog(shell: ShellViewModel, target: DefaultsTarget, onDismis
                 automaticLabel = stringResource(R.string.icon_folder),
                 onPick = { icon = it; iconPicker = false },
                 onDismiss = { iconPicker = false },
+                color = color,
+                onColor = { color = it },
             )
         }
         if (parentPicker && l != null) {

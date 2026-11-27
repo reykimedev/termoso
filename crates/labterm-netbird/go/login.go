@@ -42,6 +42,8 @@ import (
 // in with that key alone until the server's login expiry asks again.
 
 type loginOptions struct {
+	// "netbird" (or empty) or "tailscale" (tailscale.go).
+	Provider      string `json:"provider,omitempty"`
 	ManagementURL string `json:"management_url"`
 	// The device's peer key from an earlier start; empty registers a new
 	// peer. Signing in again with the same key keeps one peer per phone.
@@ -53,7 +55,38 @@ type loginOptions struct {
 	// Where the browser goes once it handed over the code (an app link
 	// that brings Labterm back to the front); empty shows a page instead.
 	ReturnURL string `json:"return_url,omitempty"`
+	// Tailscale only, as in startOptions.
+	DataDir   string `json:"data_dir,omitempty"`
+	NetworkID string `json:"network_id,omitempty"`
 }
+
+// signIn is a sign-in in progress: NetBird's PKCE flow or Tailscale's.
+type signIn interface {
+	finish(timeout time.Duration) (loginResult, error)
+	// abort makes a waiting finish return err.
+	abort(err error)
+	// cancel frees a sign-in nobody waits for.
+	cancel()
+	waiting() bool
+}
+
+func (p *pendingLogin) finish(timeout time.Duration) (loginResult, error) {
+	p.finishing.Store(true)
+	return finishLogin(p, timeout)
+}
+
+func (p *pendingLogin) abort(err error) {
+	select {
+	case p.errs <- err:
+	default:
+	}
+}
+
+func (p *pendingLogin) cancel() { p.close() }
+
+func (p *pendingLogin) waiting() bool { return p.finishing.Load() }
+
+func (l *tsLogin) waiting() bool { return l.waitingFlag.Load() }
 
 type loginBegin struct {
 	AuthURL string `json:"auth_url"`
@@ -107,7 +140,7 @@ type pendingLogin struct {
 // cancel for a finished sign-in is a no-op instead of a crash.
 var (
 	loginsMu  sync.Mutex
-	logins    = map[uint64]*pendingLogin{}
+	logins    = map[uint64]signIn{}
 	nextLogin uint64
 )
 
@@ -490,11 +523,23 @@ func tnb_login_begin(optsJSON *C.char, handle *C.uintptr_t) *C.char {
 	if err := json.Unmarshal([]byte(C.GoString(optsJSON)), &o); err != nil {
 		return cstr("bad options: " + err.Error())
 	}
-	p, authURL, err := beginLogin(o)
-	if err != nil {
-		return cstr(err.Error())
+	var p signIn
+	var out []byte
+	if o.Provider == providerTailscale {
+		l, authURL, err := beginTsLogin(o)
+		if err != nil {
+			return cstr(err.Error())
+		}
+		p = l
+		out, _ = json.Marshal(loginBegin{AuthURL: authURL})
+	} else {
+		nb, authURL, err := beginLogin(o)
+		if err != nil {
+			return cstr(err.Error())
+		}
+		p = nb
+		out, _ = json.Marshal(loginBegin{AuthURL: authURL, Timings: nb.timings})
 	}
-	out, _ := json.Marshal(loginBegin{AuthURL: authURL, Timings: p.timings})
 	loginsMu.Lock()
 	nextLogin++
 	logins[nextLogin] = p
@@ -503,7 +548,7 @@ func tnb_login_begin(optsJSON *C.char, handle *C.uintptr_t) *C.char {
 	return cstr(string(out))
 }
 
-func takeLogin(h C.uintptr_t, remove bool) *pendingLogin {
+func takeLogin(h C.uintptr_t, remove bool) signIn {
 	loginsMu.Lock()
 	defer loginsMu.Unlock()
 	p := logins[uint64(h)]
@@ -525,12 +570,11 @@ func tnb_login_finish(h C.uintptr_t, timeoutMs C.int, ok *C.int) *C.char {
 		return cstr("no sign-in")
 	}
 	defer takeLogin(h, true)
-	p.finishing.Store(true)
 	timeout := time.Duration(timeoutMs) * time.Millisecond
 	if timeout <= 0 {
 		timeout = 5 * time.Minute
 	}
-	res, err := finishLogin(p, timeout)
+	res, err := p.finish(timeout)
 	if err != nil {
 		return cstr(err.Error())
 	}
@@ -547,12 +591,9 @@ func tnb_login_cancel(h C.uintptr_t) {
 	if p == nil {
 		return
 	}
-	select {
-	case p.errs <- errors.New("sign-in cancelled"):
-	default:
-	}
-	if !p.finishing.Load() {
+	p.abort(errors.New("sign-in cancelled"))
+	if !p.waiting() {
 		takeLogin(h, true)
-		p.close()
+		p.cancel()
 	}
 }

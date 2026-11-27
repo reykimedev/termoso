@@ -81,7 +81,9 @@ import type {
   KeyCard,
   OidcKeyOptions,
   OidcProvider,
+  VpnActivity,
   VpnDetails,
+  VpnHostTest,
   VpnNetwork,
   VpnNetworkForm,
   VpnState,
@@ -171,6 +173,9 @@ import type {
   WebhookDelivery,
   WebhookKind,
   WorkspacesState,
+  TransferPlan,
+  TransferRequest,
+  TransferResult,
 } from "./types";
 import type {
   AccessRequest,
@@ -201,7 +206,18 @@ export const settingsGet = () => invoke<Settings>("settings_get");
 
 export const vaultStatus = () => invoke<VaultStatus>("vault_status");
 export const vaultUnlock = (password: string) => invoke<VaultStatus>("vault_unlock", { password });
+export const vaultUnlockHello = () => invoke<VaultStatus>("vault_unlock_hello");
 export const vaultLock = () => invoke<VaultStatus>("vault_lock");
+export const unlockHelloAdd = (password: string | null, name: string) =>
+  invoke<VaultStatus>("unlock_hello_add", { password, name });
+export const vaultUnlockSecurityKey = () => invoke<VaultStatus>("vault_unlock_security_key");
+/** `pin` only after the key answered `fido2_pin_required`. */
+export const unlockSecurityKeyAdd = (password: string | null, name: string, pin: string | null) =>
+  invoke<VaultStatus>("unlock_security_key_add", { password, name, pin });
+export const unlockFactorRemove = (id: string) =>
+  invoke<VaultStatus>("unlock_factor_remove", { id });
+export const unlockFactorRename = (id: string, name: string) =>
+  invoke<VaultStatus>("unlock_factor_rename", { id, name });
 export const vaultActivity = () => invoke<null>("vault_activity");
 export const masterPasswordSet = (current: string | null, password: string) =>
   invoke<VaultStatus>("master_password_set", { current, password });
@@ -513,6 +529,9 @@ export const vpnRunning = (ids: Uuid[]) => invoke<Uuid[]>("vpn_running", { ids }
 /** Each network's state on this device, by id. */
 export const vpnStates = (ids: Uuid[]) => invoke<Record<Uuid, VpnState>>("vpn_states", { ids });
 export const vpnDetails = (id: Uuid) => invoke<VpnDetails>("vpn_details", { id });
+/** Connection test for a host that uses a VPN network: join, look up, dial, read the SSH banner. */
+export const vpnActivity = (since: number | null) => invoke<VpnActivity>("vpn_activity", { since });
+export const vpnTestHost = (hostId: Uuid) => invoke<VpnHostTest>("vpn_test_host", { hostId });
 /** Leave a network now; the next connection joins again. */
 export const vpnDisconnect = (id: Uuid) => invoke<null>("vpn_disconnect", { id });
 /** Leave and forget this device's peer key: the next connection signs in again. */
@@ -531,6 +550,10 @@ export const keySetupOpksshOnHost = (args: {
   principal: string | null;
   identity: string | null;
 }) => invoke<OpksshHostSetup>("key_setup_opkssh_on_host", args);
+export const vaultTransferPlan = (request: TransferRequest) =>
+  invoke<TransferPlan>("vault_transfer_plan", { request });
+export const vaultTransfer = (request: TransferRequest) =>
+  invoke<TransferResult>("vault_transfer", { request });
 export const keyCopyToVault = (id: Uuid, vaultId: Uuid, moveKey: boolean) =>
   invoke<KeyCard>("key_copy_to_vault", { id, vaultId, moveKey });
 export const keyRename = (id: Uuid, label: string) => invoke<KeyCard>("key_rename", { id, label });
@@ -568,6 +591,10 @@ export const identitiesList = (vaultId?: Uuid | null) =>
   invoke<IdentityCard[]>("identities_list", { vaultId: vaultId ?? null });
 export const identitySave = (form: IdentityForm) => invoke<IdentityCard>("identity_save", { form });
 export const identityDelete = (id: Uuid) => invoke<null>("identity_delete", { id });
+export const vaultPins = () => invoke<Uuid[]>("vault_pins");
+export const vaultPinToggle = (vaultId: Uuid) => invoke<boolean>("vault_pin_toggle", { vaultId });
+export const vaultPinsReorder = (vaultIds: Uuid[]) =>
+  invoke<null>("vault_pins_reorder", { vaultIds });
 export const overlaysList = () => invoke<OverlayCard[]>("overlays_list");
 export const overlayForTarget = (targetVaultId: Uuid, scope: OverlayScope, targetId: Uuid | null) =>
   invoke<OverlayCard | null>("overlay_for_target", { targetVaultId, scope, targetId });
@@ -738,6 +765,9 @@ export const logAnnotate = (id: Uuid, patch: { pinned?: boolean; note?: string }
   invoke<LogCard>("log_annotate", { id, pinned: patch.pinned ?? null, note: patch.note ?? null });
 export const vaultSessionLoggingSet = (vaultId: Uuid, on: boolean) =>
   invoke<null>("vault_session_logging_set", { vaultId, on });
+/** Tile colour and icon of a vault (manager; any user for the local vault). null clears. */
+export const vaultStyleSet = (vaultId: Uuid, color: string | null, icon: string | null) =>
+  invoke<null>("vault_style_set", { vaultId, color, icon });
 export const logBookmarks = (logId: Uuid) => invoke<BookmarkCard[]>("log_bookmarks", { logId });
 export const logBookmarkAdd = (logId: Uuid, offset: number, note: string) =>
   invoke<BookmarkCard>("log_bookmark_add", { logId, offset, note });
@@ -820,6 +850,9 @@ export const teamsList = () => invoke<Team[]>("teams_list");
 export const teamCreate = (name: string) => invoke<Team>("team_create", { name });
 export const teamRename = (teamId: Uuid, name: string) =>
   invoke<Team>("team_rename", { teamId, name });
+/** Tile colour and icon of a team (admins). null clears. */
+export const teamStyleSet = (teamId: Uuid, color: string | null, icon: string | null) =>
+  invoke<Team>("team_style_set", { teamId, color, icon });
 export const teamSetSecurity = (
   teamId: Uuid,
   patch: { multiplayerEnabled?: boolean; requireMfa?: boolean; presenceEnabled?: boolean },
@@ -907,8 +940,9 @@ export const teamPendingKeys = (teamId: Uuid) =>
   invoke<PendingVaultKey[]>("team_pending_keys", { teamId });
 export const teamAudit = (teamId: Uuid, filter: AuditFilter = {}) =>
   invoke<AuditPage>("team_audit", { teamId, filter });
+/** Returns the new vault's id. */
 export const teamVaultCreate = (teamId: Uuid, name: string, access: VaultAccess[]) =>
-  invoke<null>("team_vault_create", { teamId, name, access });
+  invoke<Uuid>("team_vault_create", { teamId, name, access });
 export const teamVaultRename = (vaultId: Uuid, name: string) =>
   invoke<null>("team_vault_rename", { vaultId, name });
 export const teamVaultDelete = (vaultId: Uuid) => invoke<null>("team_vault_delete", { vaultId });

@@ -19,14 +19,17 @@ import * as m from "./backend/model";
 import * as oidc from "./backend/oidc";
 import * as opkssh from "./backend/opkssh";
 import * as overlays from "./backend/overlays";
+import * as pins from "./backend/pins";
 import * as policyview from "./backend/policyview";
 import * as vpn from "./backend/vpn";
+import * as webauthn from "./backend/webauthn";
 import { defaultSettings } from "./backend/settings";
 import * as snippets from "./backend/snippets";
 import * as st from "./backend/state";
 import * as sftp from "./backend/sftp";
 import * as term from "./backend/terminal";
 import * as copy from "./backend/vaultcopy";
+import * as vaultmove from "./backend/vaultmove";
 import { LABTERM_VERSION } from "./build";
 import { integrity } from "./integrity";
 import { tr } from "@/i18n";
@@ -38,11 +41,11 @@ type Handler = (a: Args) => unknown;
 
 const MIN_PASSWORD = 8;
 
-/** Theme and language survive the lock, so the lock screen looks like the app. Not secret. */
+/** The theme survives the lock, so the lock screen looks like the app. Not secret. */
 const UI_KEY = "hatch.ui";
 function rememberUi(s: Record<string, unknown>) {
   try {
-    localStorage.setItem(UI_KEY, JSON.stringify({ theme: s.theme, language: s.language }));
+    localStorage.setItem(UI_KEY, JSON.stringify({ theme: s.theme }));
   } catch {
     /* private mode */
   }
@@ -60,7 +63,12 @@ function lockedSettings(): Record<string, unknown> {
 function vaultStatus() {
   return {
     locked: !st.isUnlocked(),
+    protected: true,
     passwordProtected: true,
+    // Unlock methods (Windows Hello, security keys) are desktop-only for now.
+    factors: [],
+    helloAvailable: false,
+    securityKeysSupported: false,
     masterSource: "password",
     minPasswordChars: MIN_PASSWORD,
   };
@@ -160,6 +168,7 @@ const commands: Record<string, Handler> = {
   vaults_list: () => account.vaultsView(),
   vault_default: () => account.vaultsView().find((v) => v.is_default) ?? account.vaultsView()[0],
   vault_session_logging_set: () => null,
+  vault_style_set: (a) => account.setVaultStyle(a.vaultId, a.color ?? null, a.icon ?? null),
 
   // settings
   settings_get: () => (st.isUnlocked() ? st.s().settings : lockedSettings()),
@@ -227,7 +236,16 @@ const commands: Record<string, Handler> = {
   host_duplicate: (a) => m.hostDuplicate(a.id),
   hosts_move: (a) => m.hostsMove(a.ids, a.groupId ?? null),
   hosts_copy_to_vault: (a) =>
-    copy.hostsCopyToVault(a.ids, a.vaultId, !!a.moveHosts, a.withCredentials),
+    vaultmove
+      .transfer({
+        hostIds: a.ids as string[],
+        vaultId: a.vaultId as string,
+        mode: a.moveHosts ? "move" : "copy",
+        withCredentials: (a.withCredentials as boolean | null | undefined) ?? true,
+      })
+      .hosts.map((p) => p.to),
+  vault_transfer_plan: (a) => vaultmove.transferPlan(a.request),
+  vault_transfer: (a) => vaultmove.transfer(a.request),
   host_inherited: (a) => m.inherited(a.groupId ?? null, a.vaultId ?? null, a.tagIds ?? []),
   groups_list: (a) => m.groupNodes(a.vaultId ?? null),
   group_save: (a) => m.groupSave(a as Parameters<typeof m.groupSave>[0]),
@@ -254,6 +272,12 @@ const commands: Record<string, Handler> = {
   identity_copy_to_vault: (a) => copy.identityCopyToVault(a.id, a.vaultId, !!a.moveIdentity),
   identity_delete: (a) => {
     st.remove(a.id);
+    return null;
+  },
+  vault_pins: () => pins.pinned(),
+  vault_pin_toggle: (a) => pins.toggle(a.vaultId),
+  vault_pins_reorder: (a) => {
+    pins.reorder(a.vaultIds ?? []);
     return null;
   },
   overlays_list: () => overlays.overlayCards(),
@@ -286,7 +310,10 @@ const commands: Record<string, Handler> = {
   vpn_sign_in: notInBrowser("Joining VPN networks"),
   vpn_sign_in_cancel: () => null,
   vpn_connect: notInBrowser("Joining VPN networks"),
+  vpn_test_host: notInBrowser("Joining VPN networks"),
   vpn_running: () => [],
+  // The browser joins no network: nothing in use, nothing stops.
+  vpn_activity: () => ({ networks: [], stops: [], seq: 0 }),
   vpn_states: (a) => vpn.states(a.ids ?? []),
   vpn_details: (a) => vpn.details(a.id),
   vpn_disconnect: () => null,
@@ -298,6 +325,10 @@ const commands: Record<string, Handler> = {
   key_oidc_sign_out: (a) => opkssh.forget(a.id),
   key_setup_opkssh_on_host: (a) =>
     opkssh.setupOnHost(a as Parameters<typeof opkssh.setupOnHost>[0]),
+  // security keys through the browser's WebAuthn (sk-ecdsa keys for this site)
+  fido2_devices: () => webauthn.devices(),
+  fido2_generate: (a) => webauthn.generate(a.form),
+  fido2_load_resident: notInBrowser("Loading resident keys from a security key"),
   key_inspect_file: notInBrowser("Reading key files from disk"),
   key_import_file: notInBrowser("Reading key files from disk"),
   key_export_file: notInBrowser("Saving files to disk"),

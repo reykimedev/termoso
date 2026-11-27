@@ -174,6 +174,30 @@ impl Auth {
         })
     }
 
+    fn hmac_secret_credential(
+        &mut self,
+        rp_id: &str,
+        user_name: &str,
+        pin: Option<&str>,
+    ) -> std::result::Result<Vec<u8>, Fido2Error> {
+        match self {
+            Auth::Usb(a) => a.hmac_secret_credential(rp_id, user_name, pin),
+            Auth::Nfc(a) => a.hmac_secret_credential(rp_id, user_name, pin),
+        }
+    }
+
+    fn hmac_secret(
+        &mut self,
+        rp_id: &str,
+        credentials: &[&[u8]],
+        salt: &[u8; 32],
+    ) -> std::result::Result<(Vec<u8>, Zeroizing<Vec<u8>>), Fido2Error> {
+        match self {
+            Auth::Usb(a) => a.hmac_secret(rp_id, credentials, salt),
+            Auth::Nfc(a) => a.hmac_secret(rp_id, credentials, salt),
+        }
+    }
+
     fn webauthn_register(
         &mut self,
         options: &webauthn::CreationOptions,
@@ -491,6 +515,53 @@ impl Fido2Devices {
         self.first_recognising(&candidates, |auth| {
             auth.webauthn_assert(&options, origin, pin)
         })
+    }
+
+    /// Make an `hmac-secret` credential for vault unlock on the named token
+    /// (or the only one attached) and read its output over `salt`: two
+    /// touches. Returns the credential id and the output. Blocking.
+    pub(crate) fn unlock_enroll(
+        &self,
+        device_id: Option<&str>,
+        rp_id: &str,
+        user_name: &str,
+        pin: Option<&str>,
+        salt: &[u8; 32],
+    ) -> Result<(Vec<u8>, Zeroizing<Vec<u8>>)> {
+        let device = self.pick(device_id)?;
+        Ok(self.with_device(&device, |auth| {
+            let credential = auth.hmac_secret_credential(rp_id, user_name, pin)?;
+            let (_, secret) = auth.hmac_secret(rp_id, &[&credential], salt)?;
+            Ok((credential, secret))
+        })?)
+    }
+
+    /// The first of `credentials` (index, id, salt) that an attached token
+    /// (or the named one) holds, with its `hmac-secret` output: one touch.
+    /// `Ok(None)` when no token holds any of them. Blocking.
+    pub(crate) fn unlock_secret(
+        &self,
+        device_id: Option<&str>,
+        rp_id: &str,
+        credentials: &[(&[u8], [u8; 32])],
+    ) -> labterm_core::error::Result<Option<(usize, Zeroizing<Vec<u8>>)>> {
+        for device in self.candidates(device_id)? {
+            let found = self.with_device(&device, |auth| {
+                // CTAP takes one salt per request: ask per credential.
+                for (n, (id, salt)) in credentials.iter().enumerate() {
+                    match auth.hmac_secret(rp_id, &[id], salt) {
+                        Ok((_, secret)) => return Ok(Some((n, secret))),
+                        Err(Fido2Error::WrongDevice) => {}
+                        Err(e) => return Err(e.into()),
+                    }
+                }
+                Ok(None)
+            })?;
+            if found.is_some() {
+                return Ok(found);
+            }
+        }
+        Ok(None)
     }
 
     /// WebAuthn registration for `options` (the relying party's creation
@@ -994,6 +1065,64 @@ mod tests {
         .unwrap();
         assert!(describe(&s, plain.id).unwrap().is_none());
         assert!(!KeyItem::from(plain).security_key);
+    }
+
+    #[test]
+    fn unlock_secret_is_stable_and_found_on_the_right_token() {
+        let devices = fresh();
+        let mine = SoftToken::default();
+        let stranger = SoftToken::default();
+        devices
+            .insert(
+                "usb:a".into(),
+                Fido2Transport::Usb,
+                "A",
+                0,
+                0,
+                Link::Usb(usb(&stranger)),
+            )
+            .unwrap();
+        devices
+            .insert(
+                "nfc:b".into(),
+                Fido2Transport::Nfc,
+                "B",
+                0,
+                0,
+                Link::Nfc(nfc(&mine)),
+            )
+            .unwrap();
+        let salt = [7u8; 32];
+        let other_salt = [9u8; 32];
+        let (cred, secret) = devices
+            .unlock_enroll(
+                Some("nfc:b"),
+                "labterm:unlock",
+                "Labterm vault",
+                Some("123456"),
+                &salt,
+            )
+            .unwrap();
+        assert_eq!(secret.len(), 32);
+        // A credential the tokens don't know comes first; the stranger is
+        // asked first too. Only the enrolled one answers, with the same
+        // secret as at enrolment, without a PIN.
+        let bogus = vec![1u8; cred.len()];
+        let found = devices
+            .unlock_secret(
+                None,
+                "labterm:unlock",
+                &[(bogus.as_slice(), other_salt), (cred.as_slice(), salt)],
+            )
+            .unwrap()
+            .expect("enrolled token answers");
+        assert_eq!(found.0, 1);
+        assert_eq!(found.1, secret);
+        // Only the stranger: nobody holds the credential.
+        let none = devices
+            .unlock_secret(Some("usb:a"), "labterm:unlock", &[(cred.as_slice(), salt)])
+            .unwrap();
+        assert!(none.is_none());
     }
 
     #[test]

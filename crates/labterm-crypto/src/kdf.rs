@@ -27,6 +27,9 @@ pub enum Label {
     LiveJoin,
     /// Multiplayer: key that encrypts terminal frames end-to-end.
     LiveStream,
+    /// Key that wraps the device master key under an unlock factor's secret
+    /// (Windows Hello signature, FIDO2 hmac-secret).
+    UnlockFactorKek,
 }
 
 impl Label {
@@ -39,6 +42,7 @@ impl Label {
             Label::ServerAtRest => "server-at-rest",
             Label::LiveJoin => "live-join",
             Label::LiveStream => "live-stream",
+            Label::UnlockFactorKek => "unlock-factor-kek",
         };
         format!("{PROTOCOL_VERSION}/{name}").into_bytes()
     }

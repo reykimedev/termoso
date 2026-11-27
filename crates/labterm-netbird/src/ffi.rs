@@ -16,6 +16,7 @@ type LoginBeginFn = unsafe extern "C" fn(*const c_char, *mut usize) -> *mut c_ch
 type LoginFinishFn = unsafe extern "C" fn(usize, c_int, *mut c_int) -> *mut c_char;
 type LoginCancelFn = unsafe extern "C" fn(usize);
 type StatusFn = unsafe extern "C" fn(usize, *mut c_int) -> *mut c_char;
+type ProbeFn = unsafe extern "C" fn(usize, *const c_char, c_int, c_int) -> *mut c_char;
 
 pub(crate) struct Library {
     start: StartFn,
@@ -27,6 +28,8 @@ pub(crate) struct Library {
     login_cancel: LoginCancelFn,
     /// Missing in libraries older than the details page.
     status: Option<StatusFn>,
+    /// Missing in libraries older than the connection test.
+    probe: Option<ProbeFn>,
 }
 
 // The functions are plain C entry points of a library that is never
@@ -91,6 +94,9 @@ unsafe fn open(path: &str) -> std::result::Result<Library, String> {
             status: sym(handle, "tnb_status")
                 .ok()
                 .map(|p| std::mem::transmute::<*mut c_void, StatusFn>(p)),
+            probe: sym(handle, "tnb_probe")
+                .ok()
+                .map(|p| std::mem::transmute::<*mut c_void, ProbeFn>(p)),
         })
     }
 }
@@ -191,6 +197,22 @@ impl Library {
         let out = unsafe { status(handle, &mut ok) };
         let text = self.take(out);
         if ok == 1 { Ok(text) } else { Err(text) }
+    }
+
+    /// The connection test's dial to `host:port` (JSON, see `go/probe.go`).
+    pub(crate) fn probe(
+        &self,
+        handle: usize,
+        host: &str,
+        port: u16,
+        timeout_ms: i32,
+    ) -> std::result::Result<String, String> {
+        let Some(probe) = self.probe else {
+            return Err("this NetBird library has no connection test".into());
+        };
+        let c = CString::new(host).map_err(|e| e.to_string())?;
+        let out = unsafe { probe(handle, c.as_ptr(), c_int::from(port), timeout_ms) };
+        Ok(self.take(out))
     }
 
     /// Make a waiting [`Self::login_finish`] return; a no-op once it has.

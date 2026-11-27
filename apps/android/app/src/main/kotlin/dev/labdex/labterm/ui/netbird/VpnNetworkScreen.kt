@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -26,6 +27,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -43,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.labdex.labterm.R
 import dev.labdex.labterm.core.TransportDetails
+import dev.labdex.labterm.core.TransportHost
 import dev.labdex.labterm.core.TransportPeer
 import dev.labdex.labterm.core.TransportState
 import dev.labdex.labterm.data.userMessage
@@ -53,6 +56,7 @@ import dev.labdex.labterm.ui.components.RowDivider
 import dev.labdex.labterm.ui.components.SectionCard
 import dev.labdex.labterm.ui.components.SectionLabel
 import dev.labdex.labterm.ui.components.SubScreen
+import dev.labdex.labterm.ui.hosts.vpnProviderName
 import dev.labdex.labterm.ui.shell.ShellViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -76,6 +80,7 @@ fun VpnNetworkScreen(
     var busy by remember { mutableStateOf(false) }
     var signingIn by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf(false) }
+    var testing by remember { mutableStateOf<TransportHost?>(null) }
     // Bumped after an action, so the next read happens right away.
     var poke by remember { mutableIntStateOf(0) }
 
@@ -131,7 +136,7 @@ fun VpnNetworkScreen(
                         if (busy) CircularProgressIndicator(Modifier.padding(start = 12.dp).size(16.dp))
                     }
                     Text(
-                        "NetBird · " + (n.managementUrl ?: str(R.string.netbird_cloud)),
+                        vpnProviderName(n.provider) + " · " + serverLabel(n),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -215,11 +220,52 @@ fun VpnNetworkScreen(
                         subtitle = h.address,
                         leading = { IconTile(Icons.Filled.Dns) },
                         modifier = Modifier.clickable { onOpenHost(h.id) },
-                    )
+                    ) {
+                        if (state !is TransportState.Unavailable) {
+                            TextButton(onClick = { testing = h }) { Text(stringResource(R.string.vpn_test)) }
+                        }
+                    }
                 }
             }
 
             if (joined) {
+                val routes = d.peers.flatMap { p -> p.routes.map { it to p.fqdn.ifEmpty { p.ip } } }
+                SectionLabel(stringResource(R.string.vpn_routes, routes.size))
+                SectionCard {
+                    if (routes.isEmpty()) {
+                        Text(
+                            stringResource(R.string.vpn_no_routes),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(16.dp),
+                        )
+                    }
+                    routes.forEachIndexed { i, (network, via) ->
+                        if (i > 0) RowDivider()
+                        ListRow(
+                            title = if (network == "0.0.0.0/0" || network == "::/0") {
+                                stringResource(R.string.vpn_exit_node, network)
+                            } else network,
+                            subtitle = stringResource(R.string.vpn_route_through, via),
+                            leading = { IconTile(Icons.Filled.Public) },
+                        )
+                    }
+                }
+
+                if (d.dns.isNotEmpty()) {
+                    SectionLabel(stringResource(R.string.vpn_dns))
+                    SectionCard {
+                        d.dns.forEachIndexed { i, g ->
+                            if (i > 0) RowDivider()
+                            ListRow(
+                                title = if (g.domains.isEmpty()) stringResource(R.string.vpn_dns_all_names) else g.domains.joinToString(", "),
+                                subtitle = g.servers.joinToString(", ") + " · " +
+                                    stringResource(if (g.tunnel) R.string.vpn_dns_tunnel else R.string.vpn_dns_netbird),
+                            )
+                        }
+                    }
+                }
+
                 SectionLabel(stringResource(R.string.vpn_peers, d.peers.size))
                 SectionCard {
                     if (d.peers.isEmpty()) {
@@ -239,6 +285,8 @@ fun VpnNetworkScreen(
         }
     }
 
+    testing?.let { h -> HostTestDialog(h, shell.repo) { testing = null } }
+
     if (signingIn) {
         d?.network?.let { n ->
             NetbirdSignInDialog(n, shell.repo, shell::notify) { ok ->
@@ -250,7 +298,7 @@ fun VpnNetworkScreen(
 
     if (editing) {
         d?.network?.let { n ->
-            NetworkEditDialog(
+            NetworkEditorPage(
                 n,
                 onDismiss = { editing = false },
                 onSignIn = if (n.hasSetupKey) null else ({ editing = false; signingIn = true }),

@@ -375,7 +375,24 @@ jobs:
             out/*.AppImage
             out/*.deb
             out/*.exe
+      # GitHub refuses (HTTP 403, "Resource not accessible by integration") to let the workflow
+      # token create a tag on a commit whose .github/workflows differ from main's: that would need
+      # the `workflows` permission, which GITHUB_TOKEN never has. That happens when a workflow change
+      # merged while this run was building. The push that changed them queued a newer Devel run,
+      # which publishes; this one stops here without a red X.
+      - name: Are this commit's workflows still main's?
+        id: fresh
+        run: |
+          git fetch --no-tags --depth=1 origin main
+          if git diff --quiet "$COMMIT" FETCH_HEAD -- .github/workflows; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::main's workflows changed since $COMMIT; the newer Devel run publishes instead"
+            git diff --stat "$COMMIT" FETCH_HEAD -- .github/workflows
+          fi
       - name: Create the devel release
+        if: steps.fresh.outputs.publish == 'true'
         run: |
           {
             echo "Devel build $BUILD from commit \`$COMMIT\` on main."
@@ -403,6 +420,7 @@ jobs:
           gh release create "$TAG" --prerelease --latest=false --target "$COMMIT" \
             --title "Labterm devel $BUILD" --notes-file notes.md "${files[@]}"
       - name: Move the feeds forward
+        if: steps.fresh.outputs.publish == 'true'
         run: |
           # Feed releases hold only latest.json now. An older run finishing late must not move
           # a feed back, so compare builds first.
@@ -431,6 +449,7 @@ jobs:
             echo "::notice::desktop-dev already at build $cur; left as is"
           fi
       - name: Keep the newest 10 devel releases
+        if: steps.fresh.outputs.publish == 'true'
         run: |
           gh api "repos/$REPO/releases?per_page=100" --paginate \
             --jq '.[] | select(.prerelease and (.tag_name | test("^devel-[0-9]+$"))) | .tag_name' \

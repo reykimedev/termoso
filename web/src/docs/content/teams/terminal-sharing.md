@@ -10,7 +10,7 @@ Terminal sharing (multiplayer) lets other people watch — or type into — one 
 Open the session's menu and choose **Share this terminal**. Labterm creates a link like
 
 ```
-https://app.termoso.dev/join/<id>#<secret>
+https://sync.labdex.dev/join/<id>#<secret>
 ```
 
 The part after `#` is the session key. Browsers never send the fragment to the server, so the server that relays the session never sees it.

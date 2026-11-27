@@ -150,6 +150,10 @@ author.
 * **Tests** accompany behaviour: Rust unit/integration tests, Vitest for the
   desktop webview, Android unit tests, XCTest for iOS. Server tests run
   against real PostgreSQL/Redis/RustFS from the dev stack.
+* **UI text is English only**, on every client. Write strings in English
+  through `tr()` / `trn()` / `trx()` (desktop, web) or `values/strings.xml`
+  (Android); don't add locale files (`<lang>.json`, `values-<lang>/`,
+  `*.lproj`) or a language picker.
 * **Secrets** never enter the tree or logs: no `.env`, keystores,
   credentials files, or test fixtures with real keys. Log lines must not
   contain passwords, tokens, key material or host addresses.

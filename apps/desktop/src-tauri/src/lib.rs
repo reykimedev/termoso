@@ -16,6 +16,7 @@ mod complete;
 mod edits;
 mod error;
 mod forwarding;
+mod hello;
 mod import;
 #[cfg(target_os = "linux")]
 mod linux_graphics;
@@ -29,6 +30,7 @@ mod quick;
 mod rotation;
 mod s3;
 mod security;
+mod security_key;
 mod sessions;
 mod sftp;
 mod smoke;
@@ -155,6 +157,12 @@ pub fn run() {
             commands::settings_set,
             security::vault_status,
             security::vault_unlock,
+            security::vault_unlock_hello,
+            security::unlock_hello_add,
+            security::vault_unlock_security_key,
+            security::unlock_security_key_add,
+            security::unlock_factor_remove,
+            security::unlock_factor_rename,
             security::vault_lock,
             security::vault_activity,
             security::master_password_set,
@@ -178,6 +186,8 @@ pub fn run() {
             commands::serial_ports,
             commands::local_shells,
             commands::hosts_copy_to_vault,
+            commands::vault_transfer,
+            commands::vault_transfer_plan,
             commands::host_inherited,
             commands::groups_list,
             commands::group_save,
@@ -282,6 +292,8 @@ pub fn run() {
             vpn::vpn_running,
             vpn::vpn_states,
             vpn::vpn_details,
+            vpn::vpn_test_host,
+            vpn::vpn_activity,
             vpn::vpn_disconnect,
             vpn::vpn_sign_out,
             commands_tools::key_create_opkssh,
@@ -304,6 +316,9 @@ pub fn run() {
             commands_tools::identity_save,
             commands_tools::identity_delete,
             commands_tools::identity_copy_to_vault,
+            commands_tools::vault_pins,
+            commands_tools::vault_pin_toggle,
+            commands_tools::vault_pins_reorder,
             commands_tools::overlays_list,
             commands_tools::overlay_for_target,
             commands_tools::overlay_save,
@@ -374,6 +389,7 @@ pub fn run() {
             commands_tools::log_export,
             commands_tools::log_annotate,
             commands_tools::vault_session_logging_set,
+            commands_tools::vault_style_set,
             commands_tools::log_delete,
             commands_tools::log_bookmarks,
             commands_tools::log_bookmark_add,
@@ -409,6 +425,7 @@ pub fn run() {
             commands_tools::teams_list,
             commands_tools::team_create,
             commands_tools::team_rename,
+            commands_tools::team_style_set,
             commands_tools::team_set_security,
             commands_tools::team_delete,
             commands_tools::team_leave,

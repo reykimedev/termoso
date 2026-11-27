@@ -12,6 +12,9 @@
 //! random key is then wrapped with an Argon2id-derived key and stored in
 //! `master.pw`, and no plaintext copy is kept anywhere. The database format
 //! never changes — only who holds the key.
+//!
+//! [`factors`] adds hardware-backed wrappers next to (or instead of) the
+//! password: Windows Hello, FIDO2 security keys.
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -24,6 +27,8 @@ use serde::{Deserialize, Serialize};
 use zeroize::Zeroizing;
 
 use crate::error::{CoreError, Result};
+
+pub mod factors;
 
 #[cfg(feature = "keychain")]
 const SERVICE: &str = "termoso";
@@ -43,6 +48,8 @@ pub enum MasterKeySource {
     File,
     /// Wrapped with a key derived from the user's master password.
     Password,
+    /// Unwrapped with an unlock factor (Windows Hello, security key).
+    Factor,
 }
 
 /// On-disk shape of `master.pw`.
@@ -71,9 +78,9 @@ pub struct MasterKey {
 /// Order: keychain → file → generate and store in keychain (or file when the
 /// keychain is unavailable). Set `allow_file = false` to refuse the fallback.
 pub fn load_or_create(profile_dir: &Path, profile: &str, allow_file: bool) -> Result<MasterKey> {
-    if password_protected(profile_dir) {
+    if protected(profile_dir) {
         return Err(CoreError::Invalid(
-            "the master key is protected by a password".into(),
+            "the master key is protected by a password or unlock method".into(),
         ));
     }
     let file = profile_dir.join(FILE_NAME);
@@ -134,12 +141,19 @@ pub fn delete(profile_dir: &Path, profile: &str) -> Result<()> {
             std::fs::remove_file(&file)?;
         }
     }
+    factors::remove_all(profile_dir)?;
     keychain_delete(profile)
 }
 
 /// Whether this profile's master key is behind a master password.
 pub fn password_protected(profile_dir: &Path) -> bool {
     profile_dir.join(PASSWORD_FILE_NAME).exists()
+}
+
+/// Whether the profile starts locked: a master password or an unlock factor
+/// holds the key and no plaintext copy exists.
+pub fn protected(profile_dir: &Path) -> bool {
+    password_protected(profile_dir) || factors::any(profile_dir)
 }
 
 /// Unwrap the master key of a password-protected profile.
@@ -201,6 +215,40 @@ pub fn set_password(
     Ok(())
 }
 
+/// Drop only the master password while unlock factors keep the key wrapped
+/// (the password fallback switched off). Refused without a factor, since
+/// that would leave no way in; [`remove_password`] is the way back to plain
+/// storage.
+pub fn remove_password_fallback(profile_dir: &Path) -> Result<()> {
+    if !factors::any(profile_dir) {
+        return Err(CoreError::Invalid(
+            "add an unlock method before turning the master password off".into(),
+        ));
+    }
+    let path = profile_dir.join(PASSWORD_FILE_NAME);
+    if path.exists() {
+        std::fs::remove_file(path)?;
+    }
+    Ok(())
+}
+
+/// Turn protection off entirely: store `key` in the keychain (or
+/// `master.key`), then delete the password and every unlock factor.
+pub fn remove_protection(
+    profile_dir: &Path,
+    profile: &str,
+    key: &SymmetricKey,
+    allow_file: bool,
+) -> Result<MasterKeySource> {
+    let source = store_plain(profile_dir, profile, key, allow_file)?;
+    factors::remove_all(profile_dir)?;
+    let pw = profile_dir.join(PASSWORD_FILE_NAME);
+    if pw.exists() {
+        std::fs::remove_file(pw)?;
+    }
+    Ok(source)
+}
+
 /// Drop the master password: store `key` in the keychain (or `master.key`
 /// when `allow_file` and no keychain is reachable), then delete `master.pw`.
 /// A crash in between leaves both — the profile stays password-protected and
@@ -211,7 +259,24 @@ pub fn remove_password(
     key: &SymmetricKey,
     allow_file: bool,
 ) -> Result<MasterKeySource> {
-    let source = match keychain_set(profile, key) {
+    if factors::any(profile_dir) {
+        return Err(CoreError::Invalid(
+            "unlock methods still protect the key; remove them or keep them without the password"
+                .into(),
+        ));
+    }
+    let source = store_plain(profile_dir, profile, key, allow_file)?;
+    std::fs::remove_file(profile_dir.join(PASSWORD_FILE_NAME))?;
+    Ok(source)
+}
+
+fn store_plain(
+    profile_dir: &Path,
+    profile: &str,
+    key: &SymmetricKey,
+    allow_file: bool,
+) -> Result<MasterKeySource> {
+    Ok(match keychain_set(profile, key) {
         Ok(()) => MasterKeySource::Keychain,
         Err(e) if allow_file => {
             tracing::warn!(error = %e, "storing master key in file");
@@ -223,9 +288,7 @@ pub fn remove_password(
             MasterKeySource::File
         }
         Err(e) => return Err(e),
-    };
-    std::fs::remove_file(profile_dir.join(PASSWORD_FILE_NAME))?;
-    Ok(source)
+    })
 }
 
 fn record_aad(record: &PasswordRecord) -> Aad {

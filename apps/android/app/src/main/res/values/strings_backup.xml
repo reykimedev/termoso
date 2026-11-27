@@ -34,7 +34,7 @@
     <string name="move_carries_over">Moves with you</string>
     <string name="move_carries_items">Hosts, groups, identities, keys, certificates, snippets, forwarding rules, known hosts, OpenID providers and settings in your vaults, team vaults included</string>
     <string name="move_stays_behind">Set up again on the new server</string>
-    <string name="move_stays_teams">Teams, members and access rules (team vaults are restored into your personal vault)</string>
+    <string name="move_stays_teams">Teams, members and access rules (team vaults can go into new team vaults)</string>
     <string name="move_stays_history">Connection history and session recordings</string>
     <string name="move_stays_devices">Signed-in devices: sign in on each of them again</string>
     <string name="move_stays_sshid">SSH ID handle and published keys</string>
@@ -95,4 +95,8 @@
         <item quantity="one">%d item</item>
         <item quantity="other">%d items</item>
     </plurals>
+    <string name="backup_into_new_team_vault">Into a new team vault</string>
+    <string name="move_team_for_new_vaults">Team for the new vaults</string>
+    <string name="move_new_team">New team</string>
+    <string name="move_team_name">Team name</string>
 </resources>

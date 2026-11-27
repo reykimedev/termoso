@@ -1,4 +1,4 @@
-import { msg, type Language } from "@/i18n";
+import { msg } from "@/i18n";
 // Mirrors of the Rust IPC types (apps/desktop/src-tauri/src/*.rs). These are
 // shapes only; all validation and domain logic lives in Rust.
 
@@ -29,12 +29,30 @@ export function errorMessage(e: unknown): string {
   return String(e);
 }
 
-export type MasterKeySource = "keychain" | "file" | "password";
+export type MasterKeySource = "keychain" | "file" | "password" | "factor";
+
+export type UnlockFactorKind = "windows_hello" | "security_key";
+
+/** An enrolled unlock method (Windows Hello, security key); no secrets. */
+export interface UnlockFactor {
+  id: string;
+  kind: UnlockFactorKind;
+  name: string;
+  /** Unix seconds. */
+  createdAt: number;
+  lastUsedAt: number | null;
+}
 
 /** Master password / App Lock state (`vault_status`). */
 export interface VaultStatus {
   locked: boolean;
+  /** Starts locked: a master password or an unlock method holds the key. */
+  protected: boolean;
   passwordProtected: boolean;
+  factors: UnlockFactor[];
+  helloAvailable: boolean;
+  /** Security keys can unlock on this build (not on Windows yet). */
+  securityKeysSupported: boolean;
   masterSource: MasterKeySource;
   minPasswordChars: number;
 }
@@ -98,8 +116,6 @@ export interface Trigger {
 
 export interface Settings {
   theme: ThemeMode;
-  /** UI language; `system` follows the OS locale. */
-  language: Language;
   hostsView: HostsView;
   forwardingView: HostsView;
   keychainView: HostsView;
@@ -224,6 +240,10 @@ export interface LocalVault {
   logs_cursor: number;
   /** Team vault: the team's first vault. It can be renamed but not deleted. */
   is_default: boolean;
+  /** Tile colour (`#rrggbb`) set by a manager; null keeps the kind's colour. */
+  color?: string | null;
+  /** Built-in icon id or `custom:data:` image; null shows the kind's glyph. */
+  icon?: string | null;
 }
 
 /** Member of a team vault as the server sees it. */
@@ -254,6 +274,10 @@ export interface Team {
   /** Permission keys the caller holds; `*` for the owner. Absent on 0.8 servers. */
   my_permissions?: string[];
   policies?: TeamPolicies | null;
+  /** Tile colour (`#rrggbb`) set by an admin. */
+  color?: string | null;
+  /** Built-in icon id or `custom:data:` image. */
+  icon?: string | null;
 }
 
 export interface TeamPolicies {
@@ -462,6 +486,8 @@ export interface HostCard {
   osName: string | null;
   /** User-chosen icon id or `custom:data:`; overrides `osName`. */
   icon: string | null;
+  /** User-chosen tile colour (`#rrggbb`); null keeps the icon or theme colour. */
+  color: string | null;
   ipVersion: IpVersion;
   notes: string;
   sortOrder: number;
@@ -524,6 +550,8 @@ export interface HostForm {
   osName: string | null;
   /** User-chosen icon id or `custom:data:`; null follows OS detection. */
   icon: string | null;
+  /** User-chosen tile colour (`#rrggbb`); null keeps the icon or theme colour. */
+  color: string | null;
   ipVersion: IpVersion;
   agentForwarding: boolean;
   /** Trusted X11 forwarding to the local display. */
@@ -829,6 +857,7 @@ export function emptyHostForm(vaultId: Uuid, groupId: Uuid | null): HostForm {
     notes: "",
     osName: null,
     icon: null,
+    color: null,
     ipVersion: "auto",
     agentForwarding: false,
     forwardX11: false,
@@ -865,6 +894,8 @@ export interface GroupNode {
   hasConfig: boolean;
   /** User-chosen icon id or `custom:data:`; null shows the default folder. */
   icon: string | null;
+  /** User-chosen tile colour (`#rrggbb`); null keeps the icon or theme colour. */
+  color: string | null;
 }
 
 /** Group editor model: name, parent and the SSH defaults its hosts inherit. */
@@ -903,6 +934,8 @@ export interface GroupForm extends SshDefaultsForm {
   parentId: Uuid | null;
   /** User-chosen icon id or `custom:data:`; null shows the default folder. */
   icon: string | null;
+  /** User-chosen tile colour (`#rrggbb`); null keeps the icon or theme colour. */
+  color: string | null;
 }
 
 /** A tag's settings; tags rank below groups (host > groups > tags). */
@@ -947,6 +980,7 @@ export function emptyGroupForm(vaultId: Uuid, parentId: Uuid | null): GroupForm 
     label: "",
     parentId,
     icon: null,
+    color: null,
     ...emptySshDefaults(),
   };
 }
@@ -2371,7 +2405,9 @@ export type PromptRequest =
   | { kind: "passphrase"; key_label: string }
   | { kind: "pin"; key_label: string; retry: boolean; retries: number | null }
   | { kind: "interactive"; name: string; instructions: string; questions: Question[] }
-  | { kind: "agent_sign"; key_label: string; fingerprint: string; process: string | null };
+  | { kind: "agent_sign"; key_label: string; fingerprint: string; process: string | null }
+  /** Labterm Web: the browser needs a click before it asks for the security key. */
+  | { kind: "security_key"; key_label: string };
 
 export type PromptEvent = { id: Uuid; session_id: Uuid; target: string } & PromptRequest;
 
@@ -3102,7 +3138,7 @@ export interface VpnNetwork {
   id: Uuid;
   vaultId: Uuid;
   label: string;
-  /** `netbird`. */
+  /** `netbird` or `tailscale`. */
   provider: string;
   /** null = the provider's cloud. */
   managementUrl: string | null;
@@ -3113,6 +3149,11 @@ export interface VpnNetwork {
   signedIn: boolean;
   /** The account this device signs in as (kept on this device only). */
   account: string | null;
+  /** Try a host's LAN address directly first ("direct at home"). */
+  directFirst: boolean;
+  /** Seconds it stays up without a connection; null = the default
+   *  (2 minutes), 0 = until disconnected. */
+  idleSecs: number | null;
 }
 
 /** What the network editor saves; `setupKey: null` keeps the stored key. */
@@ -3132,6 +3173,8 @@ export interface VpnPeer {
   latencyMs: number;
   /** Unix seconds of the last handshake; 0 = none yet. */
   handshake: number;
+  /** Networks reached through this peer ("0.0.0.0/0" = exit node). */
+  routes: string[];
 }
 
 /** A host that connects through a network. */
@@ -3153,6 +3196,35 @@ export interface VpnDetails {
   liveError: string | null;
   peers: VpnPeer[];
   hosts: VpnHost[];
+  /** NetBird's nameserver groups as this device applied them. */
+  dns: VpnDnsGroup[];
+}
+
+/** One nameserver group on the details page. */
+export interface VpnDnsGroup {
+  /** Match domains; empty = primary (every other name). */
+  domains: string[];
+  servers: string[];
+  /** Reachable through the network, so Labterm asks it itself. */
+  tunnel: boolean;
+}
+
+/** The connection test's result for one host (`vpn_test_host`). */
+export interface VpnHostTest {
+  network: string;
+  /** Time to get the network up; 0 = it was running. */
+  startMs: number;
+  networkError: string | null;
+  name: string;
+  /** `address`, `nameserver`, `netbird` or `tailscale`. */
+  via: string;
+  server: string;
+  remote: string;
+  connectMs: number;
+  banner: string;
+  error: string | null;
+  peer: VpnPeer | null;
+  route: string | null;
 }
 
 export interface VpnNetworkForm {
@@ -3160,4 +3232,84 @@ export interface VpnNetworkForm {
   provider?: string;
   managementUrl: string | null;
   setupKey: string | null;
+  directFirst?: boolean;
+  idleSecs?: number | null;
+}
+
+/** A network in use on this device, for the status strip. */
+export interface VpnActiveNetwork extends VpnState {
+  id: Uuid;
+  label: string;
+  provider: string;
+  /** Seconds until it stops by itself; null while a connection uses it or
+   *  when it stays up until disconnected. */
+  stopsInSecs: number | null;
+}
+
+/** A network that stopped by itself after its idle time. */
+export interface VpnIdleStop {
+  id: Uuid;
+  label: string;
+  provider: string;
+}
+
+/** What the status strip polls (`vpn_activity`). */
+export interface VpnActivity {
+  networks: VpnActiveNetwork[];
+  /** Stops after `since`, oldest first; empty on the first call. */
+  stops: VpnIdleStop[];
+  /** Pass back as `since` next time. */
+  seq: number;
+}
+
+// ── vault transfer (labterm_client::vaultmove) ──
+
+export type TransferMode = "copy" | "move";
+
+export interface TransferRequest {
+  hostIds: Uuid[];
+  groupIds: Uuid[];
+  /** Target vault. */
+  vaultId: Uuid;
+  /** Group in the target vault; null = top level. */
+  groupId: Uuid | null;
+  mode: TransferMode;
+  withCredentials: boolean;
+}
+
+export type TransferBlocker =
+  | "nothing"
+  | "same_vault"
+  | "mixed_vaults"
+  | "target_locked"
+  | "target_read_only"
+  | "target_group"
+  | "source_read_only"
+  | "connect_only"
+  | "hidden"
+  | "restricted";
+
+export type TransferAction =
+  "reuse" | "copy" | "leave_out" | "unlink" | "move_along" | "rewrite" | "remove" | "breaks";
+
+export interface TransferDependency {
+  kind: string;
+  id: Uuid;
+  label: string;
+  action: TransferAction;
+}
+
+export interface TransferPlan {
+  sourceVaultId: Uuid | null;
+  targetVaultId: Uuid;
+  hosts: number;
+  groups: number;
+  blocked: { id: Uuid | null; label: string; reason: TransferBlocker }[];
+  dependencies: TransferDependency[];
+}
+
+export interface TransferResult {
+  hosts: { from: Uuid; to: Uuid }[];
+  groups: { from: Uuid; to: Uuid }[];
+  plan: TransferPlan;
 }

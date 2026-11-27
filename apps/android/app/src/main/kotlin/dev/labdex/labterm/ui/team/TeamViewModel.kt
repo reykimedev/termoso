@@ -167,6 +167,8 @@ class TeamViewModel(
 
     fun rename(name: String) = mutate { repo.write { renameTeam(teamId, name) } }
 
+    fun setStyle(color: String?, icon: String?) = mutate { repo.write { setTeamStyle(teamId, color, icon) } }
+
     fun setMultiplayer(on: Boolean) = mutate { repo.read { setTeamSecurity(teamId, on, null, null) } }
 
     fun setRequireMfa(on: Boolean) = mutate { repo.read { setTeamSecurity(teamId, null, on, null) } }

@@ -40,6 +40,10 @@ pub struct EntityRow {
     pub updated_at: OffsetDateTime,
     /// Local changes pending.
     pub dirty: bool,
+    /// The collection (restricted group) the row belongs to, `None` for the
+    /// vault-wide part. Bound into the AAD, so a changed column fails to
+    /// decrypt.
+    pub collection_id: Option<Uuid>,
 }
 
 impl EntityRow {
@@ -77,7 +81,7 @@ pub struct EntityFilter {
     pub include_deleted: bool,
 }
 
-const SELECT: &str = "SELECT id, kind, vault_id, version, seq, deleted, key_version, data, updated_at, dirty FROM entities";
+const SELECT: &str = "SELECT id, kind, vault_id, version, seq, deleted, key_version, data, updated_at, dirty, collection_id FROM entities";
 
 type RawRow = (
     String,
@@ -90,6 +94,7 @@ type RawRow = (
     String,
     String,
     bool,
+    Option<String>,
 );
 
 fn row_from(r: &rusqlite::Row<'_>) -> rusqlite::Result<RawRow> {
@@ -104,23 +109,11 @@ fn row_from(r: &rusqlite::Row<'_>) -> rusqlite::Result<RawRow> {
         r.get(7)?,
         r.get(8)?,
         r.get(9)?,
+        r.get(10)?,
     ))
 }
 
-fn into_row(
-    t: (
-        String,
-        String,
-        String,
-        i64,
-        i64,
-        bool,
-        i32,
-        String,
-        String,
-        bool,
-    ),
-) -> Result<EntityRow> {
+fn into_row(t: RawRow) -> Result<EntityRow> {
     Ok(EntityRow {
         id: parse_uuid(&t.0)?,
         kind: t.1,
@@ -132,6 +125,7 @@ fn into_row(
         data: t.7,
         updated_at: parse_time(&t.8)?,
         dirty: t.9,
+        collection_id: t.10.as_deref().map(parse_uuid).transpose()?,
     })
 }
 
@@ -139,7 +133,7 @@ impl Store {
     /// The vault, provided our role there allows local edits. Viewers get
     /// `VaultReadOnly` before anything is written, so the store never holds
     /// changes the server would reject on push.
-    fn writable_vault(&self, vault_id: Uuid) -> Result<LocalVault> {
+    pub(super) fn writable_vault(&self, vault_id: Uuid) -> Result<LocalVault> {
         let vault = self.vault(vault_id)?;
         if vault.kind.is_synced() && vault.role == VaultRole::Viewer {
             return Err(CoreError::VaultReadOnly(vault_id));
@@ -150,24 +144,47 @@ impl Store {
     fn encrypt_payload<T: serde::Serialize>(
         &self,
         vault_id: Uuid,
+        collection_id: Option<Uuid>,
         kind: &str,
         id: Uuid,
         data: &T,
     ) -> Result<(String, i32)> {
+        let plaintext = serde_json::to_string(data)?;
+        if let Some(c) = collection_id {
+            let (key, version) = self.current_collection_key(vault_id, c)?;
+            let aad = Aad::collection_entity(kind, &id.to_string(), &c.to_string(), version as u64);
+            return Ok((aead::encrypt_str(&key, &aad, &plaintext)?, version));
+        }
         let key = self.vault_key(vault_id)?;
         let key_version = self.vault(vault_id)?.key_version;
-        let plaintext = serde_json::to_string(data)?;
         let ct = aead::encrypt_str(&key, &Aad::entity(kind, &id.to_string()), &plaintext)?;
         Ok((ct, key_version))
     }
 
     fn decrypt_row<T: DeserializeOwned>(&self, row: &EntityRow) -> Result<Entity<T>> {
-        let key = self.vault_key(row.vault_id)?;
-        let plaintext = aead::decrypt_str(
-            &key,
-            &Aad::entity(&row.kind, &row.id.to_string()),
-            &row.data,
-        )?;
+        let plaintext = match row.collection_id {
+            Some(c) => {
+                if !is_known_kind(&row.kind) {
+                    return Err(CoreError::Invalid(format!(
+                        "unknown entity kind {}",
+                        row.kind
+                    )));
+                }
+                let key = self.collection_row_key(row.vault_id, c, row.key_version)?;
+                let aad = Aad::collection_entity(
+                    &row.kind,
+                    &row.id.to_string(),
+                    &c.to_string(),
+                    row.key_version as u64,
+                );
+                aead::decrypt_str(&key, &aad, &row.data)?
+            }
+            None => aead::decrypt_str(
+                &self.vault_key(row.vault_id)?,
+                &Aad::entity(&row.kind, &row.id.to_string()),
+                &row.data,
+            )?,
+        };
         Ok(Entity {
             id: row.id,
             vault_id: row.vault_id,
@@ -239,15 +256,38 @@ impl Store {
                 return self.put_raw(vault_id, kind, id, &v);
             }
         }
-        let (ct, key_version) = self.encrypt_payload(vault_id, kind, id, data)?;
+        // An update stays in the row's collection; a new row starts
+        // vault-wide unless `put_in_collection` placed it.
+        let collection_id = match self.row(id)? {
+            Some(row) if row.vault_id == vault_id => row.collection_id,
+            Some(row) if row.collection_id.is_some() => {
+                return Err(CoreError::Invalid(
+                    "an item in a restricted group can't change vaults".into(),
+                ));
+            }
+            _ => None,
+        };
+        self.write_row(vault_id, collection_id, kind, id, data)
+    }
+
+    pub(super) fn write_row<T: serde::Serialize>(
+        &self,
+        vault_id: Uuid,
+        collection_id: Option<Uuid>,
+        kind: &str,
+        id: Uuid,
+        data: &T,
+    ) -> Result<()> {
+        let (ct, key_version) = self.encrypt_payload(vault_id, collection_id, kind, id, data)?;
         let dirty = self.writable_vault(vault_id)?.kind.is_synced();
         self.conn().execute(
-            "INSERT INTO entities (id, kind, vault_id, version, seq, deleted, key_version, data, updated_at, dirty)
-             VALUES (?1, ?2, ?3, 0, 0, 0, ?4, ?5, ?6, ?7)
+            "INSERT INTO entities (id, kind, vault_id, version, seq, deleted, key_version, data, updated_at, dirty, collection_id)
+             VALUES (?1, ?2, ?3, 0, 0, 0, ?4, ?5, ?6, ?7, ?8)
              ON CONFLICT(id) DO UPDATE SET
                kind = excluded.kind, vault_id = excluded.vault_id, deleted = 0,
                key_version = excluded.key_version, data = excluded.data,
-               updated_at = excluded.updated_at, dirty = excluded.dirty",
+               updated_at = excluded.updated_at, dirty = excluded.dirty,
+               collection_id = excluded.collection_id",
             params![
                 id.to_string(),
                 kind,
@@ -256,6 +296,7 @@ impl Store {
                 ct,
                 labterm_proto::timestamp::to_rfc3339(OffsetDateTime::now_utc()),
                 dirty,
+                collection_id.map(|c| c.to_string()),
             ],
         )?;
         Ok(())
@@ -322,7 +363,7 @@ impl Store {
         for row in rows {
             match self.decrypt_row::<T>(&row) {
                 Ok(e) => out.push(e),
-                Err(CoreError::VaultLocked(_)) => {}
+                Err(CoreError::VaultLocked(_) | CoreError::CollectionLocked(_)) => {}
                 Err(e) => return Err(e),
             }
         }
@@ -347,7 +388,7 @@ impl Store {
             }
             match self.decrypt_row::<serde_json::Value>(&row) {
                 Ok(e) => out.push(e),
-                Err(CoreError::VaultLocked(_)) => {}
+                Err(CoreError::VaultLocked(_) | CoreError::CollectionLocked(_)) => {}
                 Err(e) => return Err(e),
             }
         }
@@ -381,6 +422,14 @@ impl Store {
         let row = self
             .row(id)?
             .ok_or_else(|| CoreError::NotFound(format!("entity {id}")))?;
+        if row.collection_id.is_some() {
+            // Moving out of a collection is a delete plus a create that only
+            // someone managing both sides may do, and it is audited (layer 1
+            // design); until that exists, refuse.
+            return Err(CoreError::Invalid(
+                "an item in a restricted group can't move to another vault".into(),
+            ));
+        }
         let value: Entity<serde_json::Value> = self.decrypt_row(&row)?;
         let new_id = Uuid::new_v4();
         self.put_raw(vault_id, &row.kind, new_id, &value.data)?;
@@ -429,11 +478,23 @@ impl Store {
             .collect()
     }
 
-    /// Rows with local changes to push, oldest first.
+    /// Rows of a collection with local changes to push, oldest first.
+    pub fn dirty_collection_rows(&self, collection_id: Uuid) -> Result<Vec<EntityRow>> {
+        let conn = self.conn();
+        let mut st = conn.prepare(&format!(
+            "{SELECT} WHERE collection_id = ?1 AND dirty = 1 ORDER BY updated_at ASC"
+        ))?;
+        let rows = st.query_map(params![collection_id.to_string()], row_from)?;
+        rows.map(|r| r.map_err(CoreError::from).and_then(into_row))
+            .collect()
+    }
+
+    /// Vault-wide rows with local changes to push, oldest first. Collection
+    /// rows go through [`Store::dirty_collection_rows`].
     pub fn dirty_rows(&self, vault_id: Uuid) -> Result<Vec<EntityRow>> {
         let conn = self.conn();
         let mut st = conn.prepare(&format!(
-            "{SELECT} WHERE vault_id = ?1 AND dirty = 1 ORDER BY updated_at ASC"
+            "{SELECT} WHERE vault_id = ?1 AND dirty = 1 AND collection_id IS NULL ORDER BY updated_at ASC"
         ))?;
         let rows = st.query_map(params![vault_id.to_string()], row_from)?;
         rows.map(|r| r.map_err(CoreError::from).and_then(into_row))
@@ -459,6 +520,13 @@ impl Store {
     /// Overwrite the local row with the server copy (clears dirty). Tombstones
     /// are removed outright.
     pub fn apply_remote(&self, e: &SyncEntity) -> Result<()> {
+        self.apply_remote_in(e, None)
+    }
+
+    /// [`Store::apply_remote`] for a row of `collection` (`None` = the
+    /// vault-wide part). The collection is bound into the row's AAD, so a
+    /// row filed under the wrong one doesn't decrypt.
+    pub fn apply_remote_in(&self, e: &SyncEntity, collection: Option<Uuid>) -> Result<()> {
         let conn = self.conn();
         if e.deleted {
             conn.execute(
@@ -468,12 +536,13 @@ impl Store {
             return Ok(());
         }
         conn.execute(
-            "INSERT INTO entities (id, kind, vault_id, version, seq, deleted, key_version, data, updated_at, dirty)
-             VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8, 0)
+            "INSERT INTO entities (id, kind, vault_id, version, seq, deleted, key_version, data, updated_at, dirty, collection_id)
+             VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8, 0, ?9)
              ON CONFLICT(id) DO UPDATE SET
                kind = excluded.kind, vault_id = excluded.vault_id, version = excluded.version,
                seq = excluded.seq, deleted = 0, key_version = excluded.key_version,
-               data = excluded.data, updated_at = excluded.updated_at, dirty = 0",
+               data = excluded.data, updated_at = excluded.updated_at, dirty = 0,
+               collection_id = excluded.collection_id",
             params![
                 e.id.to_string(),
                 e.kind,
@@ -483,6 +552,7 @@ impl Store {
                 e.key_version,
                 e.data,
                 labterm_proto::timestamp::to_rfc3339(e.updated_at),
+                collection.map(|c| c.to_string()),
             ],
         )?;
         Ok(())
@@ -524,7 +594,12 @@ impl Store {
         })?;
         let conn = self.conn();
         let mut done = 0;
-        for row in rows.iter().filter(|r| r.key_version != key_version) {
+        // Collection rows are under their collection key, which a vault key
+        // rotation doesn't touch.
+        for row in rows
+            .iter()
+            .filter(|r| r.collection_id.is_none() && r.key_version != key_version)
+        {
             let aad = Aad::entity(&row.kind, &row.id.to_string());
             // Rows we cannot open with the previous key are left untouched:
             // a peer may already have re-uploaded them and a later pull wins.
@@ -654,6 +729,9 @@ impl Store {
                 merge_ssh(&mut ssh, &c.data);
             }
         }
+        // A layer that says "none" on purpose stopped the lower layers;
+        // nobody past this point needs the marker.
+        ssh.clear_explicit_none();
         let mut username = None;
         for iid in identities.iter().rev() {
             if let Some(i) = self.get_in::<Identity>(*iid, vault)?

@@ -7,14 +7,12 @@ import { TrayIcon } from "@tauri-apps/api/tray";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { appQuit } from "@/ipc/commands";
 import type { Settings } from "@/ipc/types";
-import { onLanguageChange, tr } from "@/i18n";
+import { tr } from "@/i18n";
 
 const TRAY_ID = "labterm";
 
 let wanted = false;
 let tray: TrayIcon | null = null;
-let showItem: MenuItem | null = null;
-let quitItem: MenuItem | null = null;
 let pending: Promise<void> = Promise.resolve();
 
 /** Un-hide, un-minimise and focus the main window (tray, deep links, second launch). */
@@ -60,16 +58,12 @@ async function create(): Promise<void> {
       }
     },
   });
-  showItem = show;
-  quitItem = quit;
   tray = created;
 }
 
 async function destroy(): Promise<void> {
   const t = tray;
   tray = null;
-  showItem = null;
-  quitItem = null;
   await t?.close();
 }
 
@@ -111,14 +105,9 @@ export function startTray(): () => void {
       if (stopped) un();
       else unlistenClose = un;
     });
-  const unlistenLanguage = onLanguageChange(() => {
-    void showItem?.setText(tr("Show Labterm"));
-    void quitItem?.setText(tr("Quit Labterm"));
-  });
   return () => {
     stopped = true;
     unlistenClose?.();
-    unlistenLanguage();
     wanted = false;
     pending = pending.then(destroy, destroy);
   };

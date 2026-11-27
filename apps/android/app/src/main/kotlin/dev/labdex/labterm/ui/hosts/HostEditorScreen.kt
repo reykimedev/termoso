@@ -329,8 +329,10 @@ private fun HostForm(
     val identity = state.identities.firstOrNull { it.id == draft.identityId }
 
     Column(modifier) {
-        if (draft.id == null && state.vaults.size > 1) {
-            VaultRow(state.vaults, draft.vaultId, onSelect = vm::setVault)
+        // New hosts go into any vault you can write to; the active one is preselected.
+        val writable = state.vaults.filter { it.access != VaultAccess.VIEW || it.id == draft.vaultId }
+        if (draft.id == null && writable.size > 1) {
+            VaultRow(writable, draft.vaultId, onSelect = vm::setVault)
         } else {
             Spacer(Modifier.height(12.dp))
         }
@@ -352,8 +354,8 @@ private fun HostForm(
             }
             RowDivider()
             ChevronRow(
-                title = stringResource(R.string.icon),
-                leading = { HostAvatar(draft.osName, icon = draft.icon) },
+                title = stringResource(R.string.icon_and_colour),
+                leading = { HostAvatar(draft.osName, icon = draft.icon, color = draft.color) },
                 badge = draft.icon?.let { IconCatalog.picked(it)?.title ?: stringResource(R.string.icon_custom) } ?: stringResource(R.string.icon_automatic),
                 modifier = Modifier.clickable { iconPicker = true },
             )
@@ -651,6 +653,8 @@ private fun HostForm(
             automaticLabel = stringResource(R.string.icon_automatic),
             onPick = { id -> vm.update { it.copy(icon = id) }; iconPicker = false },
             onDismiss = { iconPicker = false },
+            color = draft.color,
+            onColor = { c -> vm.update { it.copy(color = c) } },
         )
     }
     if (groupPicker) {

@@ -1,6 +1,7 @@
 // VPN networks (vault `transport` entities) in the browser: listed and edited like on the desktop
 // (labterm-client `transports`), but not joined. The browser has no NetBird client yet, so hosts
-// set to use a network refuse to connect rather than dial their address directly.
+// set to use a network refuse to connect rather than dial their address directly. NetBird and
+// Tailscale networks alike.
 import { fail } from "./errors";
 import { get, list, put, remove, require, vault, type Ent, type Uuid } from "./state";
 import { resolve, type Host, type SshConfig } from "./model";
@@ -10,6 +11,9 @@ export interface Transport {
   provider: string;
   management_url?: string | null;
   setup_key?: string | null;
+  direct_first?: boolean;
+  /** null/absent = the default (2 minutes), 0 = until disconnected. */
+  idle_secs?: number | null;
   [k: string]: unknown;
 }
 
@@ -18,9 +22,12 @@ interface Form {
   provider?: string;
   managementUrl: string | null;
   setupKey: string | null;
+  directFirst?: boolean;
+  idleSecs?: number | null;
 }
 
 const NETBIRD = "netbird";
+const TAILSCALE = "tailscale";
 
 /** Personal and local vaults may hold a setup key; team members sign in themselves. */
 function keysAllowed(vaultId: Uuid) {
@@ -39,6 +46,8 @@ function card(e: Ent<Transport>) {
     team,
     signedIn: false,
     account: null,
+    directFirst: e.data.direct_first ?? false,
+    idleSecs: e.data.idle_secs ?? null,
   };
 }
 
@@ -54,7 +63,7 @@ export function signInOnly(vaultId: Uuid) {
 
 export function save(vaultId: Uuid, id: Uuid | null, f: Form) {
   const provider = (f.provider ?? NETBIRD).trim().toLowerCase() || NETBIRD;
-  if (provider !== NETBIRD)
+  if (provider !== NETBIRD && provider !== TAILSCALE)
     fail("invalid", 'unsupported network type "{name}"', { name: provider });
   let url = f.managementUrl?.trim().replace(/\/+$/, "") ?? "";
   if (url) {
@@ -73,18 +82,23 @@ export function save(vaultId: Uuid, id: Uuid | null, f: Form) {
   if (!keys && setupKey)
     fail(
       "invalid",
-      "a team vault can't hold a setup key: each member signs in to NetBird themselves",
+      "a team vault can't hold a setup key: each member signs in to the network themselves",
     );
   const prev = id ? require<Transport>(id, "transport") : null;
   if (prev && prev.vaultId !== vaultId) fail("invalid", "network belongs to another vault");
   if (keys && !setupKey) setupKey = prev?.data.setup_key ?? null;
   const data: Transport = {
     ...(prev?.data ?? {}),
-    label: f.label.trim() || "NetBird",
+    label: f.label.trim() || (provider === TAILSCALE ? "Tailscale" : "NetBird"),
     provider,
     management_url: url || null,
     setup_key: keys ? setupKey : null,
+    direct_first: f.directFirst ?? prev?.data.direct_first ?? false,
   };
+  const idle = f.idleSecs === undefined ? (prev?.data.idle_secs ?? null) : f.idleSecs;
+  // Absent rather than null, as the Rust clients write it.
+  if (idle === null) delete data.idle_secs;
+  else data.idle_secs = idle;
   return card(put<Transport>("transport", vaultId, prev?.id ?? null, data));
 }
 
@@ -145,5 +159,6 @@ export function details(id: Uuid) {
     liveError: null,
     peers: [],
     hosts: hostsUsing(t),
+    dns: [],
   };
 }

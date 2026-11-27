@@ -17,7 +17,7 @@ Labterm covers the Termius workflow — hosts, groups, tags, keys, identities, s
 | Port forwarding                           | Same three rule types (local, remote, dynamic), autoreconnect, start from the sidebar or the session   |
 | Terminal sharing                          | **Terminal sharing** with an end-to-end encrypted link                                                 |
 | Logs                                      | **Session logs** (recordings, searchable, pin to keep) plus connection history                         |
-| Termius Cloud                             | The free cloud at `app.termoso.dev`, or [your own server](/docs/self-hosting/overview) — same software |
+| Termius Cloud                             | The labdex cloud at `sync.labdex.dev` (invite only), or [your own server](/docs/self-hosting/overview) — same software |
 | Business / Team plans                     | There are none. Teams, SSO, audit log and the API bridge are in the open-source build                  |
 
 ## Moving your data
@@ -42,7 +42,7 @@ Sign in to the same account and the vault appears. For a phone-only start, **Hos
 
 - **Nothing is sent in plain text, ever.** Termius encrypts vault data too, but Labterm goes further: the server also never sees your password (OPAQUE sign-in), host names and usernames are ciphertext, and there is no analytics or crash-reporting SDK in any app. See [Privacy](/docs/security/privacy).
 - **Local vault.** You can use Labterm for years without an account. Sync is a choice, not a requirement.
-- **Open source, AGPL-3.0.** The server, the apps and the release pipeline are public; the same code runs the free cloud.
+- **Open source, AGPL-3.0.** The server, the apps and the release pipeline are public; the same code runs the labdex cloud.
 - **Updates are manual by default** on the desktop, and the Android APK comes from GitHub, not a store. Both can be switched to "check at startup" or sideloaded through your own feed.
 - **Autocomplete is local.** Suggestions come from your history and snippets on the device; the optional AI command suggestion is opt-in and can point at your own model endpoint.
 

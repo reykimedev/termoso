@@ -323,6 +323,13 @@ pub struct LabtermApp {
     presence: Arc<presence::Tracker>,
 }
 
+impl LabtermApp {
+    /// The profile directory (vault, `master.factors`, logs).
+    pub(crate) fn profile_path(&self) -> &Path {
+        &self.profile_dir
+    }
+}
+
 impl Drop for LabtermApp {
     fn drop(&mut self) {
         self.account.shutdown(RUNTIME.handle());
@@ -343,6 +350,7 @@ impl LabtermApp {
         let dir = PathBuf::from(profile_dir);
         std::fs::create_dir_all(&dir)?;
         let store = Arc::new(Store::open(&dir.join(DB_FILE), master)?);
+        labterm_client::vpn::set_data_dir(&dir.join("vpn").to_string_lossy());
         let presence = presence::Tracker::new(store.clone());
         Ok(Arc::new(Self {
             account: AccountRuntime::new(store.clone(), presence.clone(), dir.join("logs")),
@@ -797,6 +805,7 @@ impl LabtermApp {
                 label: String::new(),
                 parent_id: None,
                 icon: None,
+                color: None,
                 defaults: hosts::SshDefaultsForm::default(),
             },
         };
@@ -806,6 +815,7 @@ impl LabtermApp {
             .icon
             .map(|i| i.trim().to_string())
             .filter(|i| !i.is_empty());
+        form.color = draft.color;
         draft.defaults.apply(&mut form.defaults)?;
         Ok(hosts::save_group_form(&self.store, &form)?.into())
     }
@@ -1126,10 +1136,33 @@ impl LabtermApp {
         crate::netbird::state(&self.store, &transport_id)
     }
 
+    /// The networks in use on this device (connecting, connected, failed),
+    /// for the status strip. Cheap: fine to call every second.
+    pub fn transport_active(&self) -> Vec<crate::TransportActive> {
+        crate::netbird::active(&self.store)
+    }
+
+    /// Networks that stopped by themselves after `seq`, for a notice. Keep
+    /// the last `seq` shown; start from [`Self::transport_idle_stop_seq`].
+    pub fn transport_idle_stops_since(&self, seq: u64) -> Vec<crate::TransportIdleStop> {
+        crate::netbird::idle_stops_since(seq)
+    }
+
+    /// The newest idle stop's sequence number (0 = none yet).
+    pub fn transport_idle_stop_seq(&self) -> u64 {
+        labterm_client::vpn::idle_stop_seq()
+    }
+
     /// Everything the network details page shows: state, this device's
     /// address, the peers it sees and the hosts that use the network.
     pub fn transport_details(&self, transport_id: String) -> Result<crate::TransportDetails> {
         RUNTIME.block_on(crate::netbird::details(&self.store, &transport_id))
+    }
+
+    /// The connection test for a host that uses a VPN network: join, look
+    /// the name up, dial, read the SSH banner. No login.
+    pub fn transport_test_host(&self, host_id: String) -> Result<crate::TransportHostTest> {
+        RUNTIME.block_on(crate::netbird::test_host(&self.store, &host_id))
     }
 
     /// Leave a network now; the next connection through it joins again.
@@ -1263,6 +1296,33 @@ impl LabtermApp {
 
     pub fn delete_identity(&self, id: String) -> Result<()> {
         Ok(keychain::delete_identity(&self.store, parse_id(&id)?)?)
+    }
+
+    // ---- pinned vaults (synced per user, never per team) ----------------
+
+    /// Pinned vault ids, first pin first.
+    pub fn vault_pins(&self) -> Result<Vec<String>> {
+        Ok(labterm_client::pins::pinned(&self.store)?
+            .into_iter()
+            .map(|id| id.to_string())
+            .collect())
+    }
+
+    /// Pin or unpin a vault; returns whether it is pinned now.
+    pub fn toggle_vault_pin(&self, vault_id: String) -> Result<bool> {
+        Ok(labterm_client::pins::toggle(
+            &self.store,
+            parse_id(&vault_id)?,
+        )?)
+    }
+
+    /// Reorder the pins to follow `vault_ids`.
+    pub fn reorder_vault_pins(&self, vault_ids: Vec<String>) -> Result<()> {
+        let ids = vault_ids
+            .iter()
+            .map(|id| parse_id(id))
+            .collect::<Result<Vec<_>>>()?;
+        Ok(labterm_client::pins::reorder(&self.store, &ids)?)
     }
 
     // ---- own credentials on team hosts (personal overlays) -------------
@@ -2070,17 +2130,38 @@ impl LabtermApp {
         RUNTIME.block_on(self.account.pending_keys(team_id))
     }
 
+    /// Returns the new vault's id.
     pub fn create_team_vault(
         &self,
         team_id: String,
         name: String,
         access: Vec<VaultAccessDraft>,
-    ) -> Result<()> {
+    ) -> Result<String> {
         RUNTIME.block_on(self.account.create_team_vault(team_id, name, access))
     }
 
     pub fn rename_team_vault(&self, vault_id: String, name: String) -> Result<()> {
         RUNTIME.block_on(self.account.rename_team_vault(vault_id, name))
+    }
+
+    /// Tile colour and icon of a vault (manager; anyone for the local vault).
+    pub fn set_vault_style(
+        &self,
+        vault_id: String,
+        color: Option<String>,
+        icon: Option<String>,
+    ) -> Result<()> {
+        RUNTIME.block_on(self.account.set_vault_style(vault_id, color, icon))
+    }
+
+    /// Tile colour and icon of a team (admins).
+    pub fn set_team_style(
+        &self,
+        team_id: String,
+        color: Option<String>,
+        icon: Option<String>,
+    ) -> Result<TeamCard> {
+        RUNTIME.block_on(self.account.set_team_style(team_id, color, icon))
     }
 
     pub fn delete_team_vault(&self, vault_id: String) -> Result<()> {

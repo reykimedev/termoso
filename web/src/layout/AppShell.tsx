@@ -32,7 +32,6 @@ import KeyRoundedIcon from "@mui/icons-material/KeyRounded";
 import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router";
 import { Logo } from "@/components/Logo";
-import { LanguageToggle } from "./LanguageToggle";
 import { ThemeToggle } from "./ThemeToggle";
 import { useAuthState } from "@/auth/store";
 import { useAvatarUrl } from "@/components/UserAvatar";
@@ -261,7 +260,6 @@ export function AppShell() {
               sx={{ cursor: "pointer" }}
             />
           )}
-          <LanguageToggle />
           <ThemeToggle />
           <Tooltip title={user?.email ?? ""}>
             <IconButton

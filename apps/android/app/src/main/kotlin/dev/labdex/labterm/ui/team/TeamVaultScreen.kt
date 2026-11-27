@@ -13,7 +13,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
@@ -45,6 +44,8 @@ import dev.labdex.labterm.data.AccountManager
 import dev.labdex.labterm.data.userMessage
 import dev.labdex.labterm.str
 import dev.labdex.labterm.ui.components.IconTile
+import dev.labdex.labterm.ui.components.StylePickerSheet
+import dev.labdex.labterm.ui.components.VaultTile
 import dev.labdex.labterm.ui.components.ListRow
 import dev.labdex.labterm.ui.components.RowDivider
 import dev.labdex.labterm.ui.components.SectionCard
@@ -78,6 +79,7 @@ fun TeamVaultScreen(
     var reload by remember { mutableIntStateOf(0) }
     var menu by remember { mutableStateOf(false) }
     var renaming by remember { mutableStateOf(false) }
+    var stylePicker by remember { mutableStateOf(false) }
     var rotating by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
     var adding by remember { mutableStateOf(false) }
@@ -144,7 +146,12 @@ fun TeamVaultScreen(
                         vault.isDefault -> stringResource(R.string.you_5, vault.access.label()) + stringResource(R.string.sep_default_vault)
                         else -> stringResource(R.string.you_5, vault.access.label())
                     },
-                    leading = { IconTile(if (vault.locked) Icons.Filled.Lock else Icons.Filled.LockOpen) },
+                    leading = {
+                        VaultTile(
+                            vault,
+                            modifier = if (canManage) Modifier.clickable { stylePicker = true } else Modifier,
+                        )
+                    },
                 )
             }
 
@@ -212,6 +219,15 @@ fun TeamVaultScreen(
         }
     }
 
+    if (stylePicker && vault != null) {
+        StylePickerSheet(
+            icon = vault.icon,
+            color = vault.color,
+            automaticLabel = stringResource(R.string.icon_default),
+            onSave = { c, i -> mutate { shell.repo.write { setVaultStyle(vaultId, c, i) }; account.refresh() } },
+            onDismiss = { stylePicker = false },
+        )
+    }
     if (renaming && vault != null) {
         NameDialog(
             title = stringResource(R.string.rename_vault),

@@ -65,7 +65,7 @@ struct AccessOverviewView: View {
         .navigationTitle("Access overview")
         .refreshable { load() }
         .task { load() }
-        .sheet(item: $editor, onDismiss: load) { target in
+        .fullScreenCover(item: $editor, onDismiss: load) { target in
             HostEditorView(model: model, target: target)
         }
     }

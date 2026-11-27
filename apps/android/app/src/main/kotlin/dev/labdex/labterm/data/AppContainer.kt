@@ -8,12 +8,16 @@ import android.app.KeyguardManager
 import dev.labdex.labterm.QuickAction
 import android.net.Uri
 import android.os.SystemClock
+import dev.labdex.labterm.ui.security.DeviceAuthPrompt
 import android.view.KeyEvent
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import dev.labdex.labterm.saf.FilesIntegration
+import dev.labdex.labterm.core.Fido2Listener
 import dev.labdex.labterm.core.LabtermApp
+import dev.labdex.labterm.core.UnlockKeyCard
+import dev.labdex.labterm.core.unlockWithSecurityKey as rustUnlockWithSecurityKey
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -63,6 +67,13 @@ class AppContainer(context: Context) {
     /** Whether opening the vault needs device authentication (auth-bound Keystore wrapper). */
     private val _appLock = MutableStateFlow(masterKeys.authRequired())
     val appLock: StateFlow<Boolean> = _appLock.asStateFlow()
+
+    /** Whether security keys can open the vault (`master.factors` in the profile). */
+    private val factorsFile = File(profileDir, "master.factors")
+    private val _securityKeys = MutableStateFlow(factorsFile.exists())
+    val securityKeys: StateFlow<Boolean> = _securityKeys.asStateFlow()
+
+    fun hasSecurityKeys(): Boolean = factorsFile.exists()
 
     private val _vault = MutableStateFlow<VaultState>(VaultState.Locked)
     val vault: StateFlow<VaultState> = _vault.asStateFlow()
@@ -217,7 +228,10 @@ class AppContainer(context: Context) {
         ProcessLifecycleOwner.get().lifecycle.addObserver(
             object : DefaultLifecycleObserver {
                 override fun onStop(owner: LifecycleOwner) {
-                    backgroundedAt = SystemClock.elapsedRealtime()
+                    // The screen-lock credential screen is another app's activity, so
+                    // entering a PIN there stops us too. That is the unlock itself,
+                    // not time away: counting it would gate again right after.
+                    if (!DeviceAuthPrompt.showing) backgroundedAt = SystemClock.elapsedRealtime()
                 }
 
                 override fun onStart(owner: LifecycleOwner) {
@@ -238,22 +252,75 @@ class AppContainer(context: Context) {
     fun backgroundLockDue(): Boolean {
         val open = _vault.value as? VaultState.Open ?: return false
         val settings = open.repo.settings.value
-        if (!settings.lockOnBackground || !(masterKeys.authRequired() || appPin.isSet) || backgroundedAt == 0L) return false
+        if (!settings.lockOnBackground || !(masterKeys.authRequired() || appPin.isSet || hasSecurityKeys()) || backgroundedAt == 0L) return false
         val away = (SystemClock.elapsedRealtime() - backgroundedAt) / 1000
         return away >= settings.lockAfterSeconds.toLong()
     }
 
     fun gate() {
-        if (_vault.value is VaultState.Open && (masterKeys.authRequired() || appPin.isSet)) _gated.value = true
+        if (_vault.value is VaultState.Open && (masterKeys.authRequired() || appPin.isSet || hasSecurityKeys())) _gated.value = true
     }
 
-    /** Blocking Keystore work; call off the main thread after the user authenticated. */
+    /**
+     * Blocking Keystore work; call off the main thread after the user authenticated.
+     * With security keys enrolled there is no plain wrapper to fall back to: app
+     * lock adds or drops only the device-authentication wrapper.
+     */
     fun setAppLock(enabled: Boolean) {
         try {
-            masterKeys.setAuthRequired(enabled)
+            if (!hasSecurityKeys()) {
+                masterKeys.setAuthRequired(enabled)
+            } else if (enabled) {
+                withMasterKey { masterKeys.storeAuth(it) }
+            } else {
+                masterKeys.removeAuth()
+            }
         } finally {
             _appLock.value = masterKeys.authRequired()
         }
+    }
+
+    /** The open vault's master key for a moment, wiped afterwards. */
+    private fun <T> withMasterKey(block: (ByteArray) -> T): T {
+        val open = _vault.value as? VaultState.Open ?: error("the vault is locked")
+        val key = open.repo.app.masterKeyCopy()
+        try {
+            return block(key)
+        } finally {
+            key.fill(0)
+        }
+    }
+
+    /** Security keys enrolled for this vault (blocking). */
+    fun securityKeyList(): List<UnlockKeyCard> {
+        val open = _vault.value as? VaultState.Open ?: return emptyList()
+        return open.repo.app.unlockKeys()
+    }
+
+    /**
+     * Enroll a security key (blocking: two touches; [pin] only when the key asked
+     * for one). From then on the vault opens with a key, or with the device
+     * authentication when app lock is on; the plain wrapper goes.
+     */
+    fun addSecurityKey(deviceId: String?, name: String, pin: String?, listener: Fido2Listener?): UnlockKeyCard {
+        val open = _vault.value as? VaultState.Open ?: error("the vault is locked")
+        val card = open.repo.app.unlockKeyAdd(deviceId, name, pin, listener)
+        _securityKeys.value = hasSecurityKeys()
+        masterKeys.removePlain()
+        return card
+    }
+
+    /**
+     * Forget an enrolled security key (blocking). When it is the last one and app
+     * lock is off, the vault goes back to opening without the user, so the caller
+     * must have confirmed with that key first.
+     */
+    fun removeSecurityKey(id: String) {
+        val open = _vault.value as? VaultState.Open ?: error("the vault is locked")
+        val last = open.repo.app.unlockKeys().size <= 1
+        if (last && !masterKeys.authRequired()) withMasterKey { masterKeys.storePlain(it) }
+        open.repo.app.unlockKeyRemove(id)
+        _securityKeys.value = hasSecurityKeys()
     }
 
     fun ungate() {
@@ -261,13 +328,35 @@ class AppContainer(context: Context) {
     }
 
     /** True when a profile exists on disk (returning user), false on first launch. */
-    fun hasProfile(): Boolean = masterKeys.exists()
+    fun hasProfile(): Boolean = masterKeys.exists() || hasSecurityKeys()
 
-    /** Open the encrypted store, creating the master key on first launch. */
-    suspend fun unlock(): VaultRepository = lock.withLock {
+    /** Only a security key opens the vault: no Keystore wrapper is left. */
+    class SecurityKeyRequired : Exception("a security key is needed to open the vault")
+
+    /**
+     * Open the encrypted store, creating the master key on first launch. Throws
+     * [SecurityKeyRequired] when only a security key can open it.
+     */
+    suspend fun unlock(): VaultRepository = open {
+        when {
+            masterKeys.exists() -> masterKeys.unwrap()
+            hasSecurityKeys() -> throw SecurityKeyRequired()
+            else -> masterKeys.create()
+        }
+    }
+
+    /**
+     * Open the store with a security key over USB or NFC (blocking on the token:
+     * one touch, or the NFC tap). [deviceId] `null` asks every attached key.
+     */
+    suspend fun unlockWithSecurityKey(deviceId: String?, listener: Fido2Listener?): VaultRepository = open {
+        rustUnlockWithSecurityKey(profileDir.absolutePath, deviceId, listener)
+    }
+
+    private suspend fun open(masterKey: () -> ByteArray): VaultRepository = lock.withLock {
         (_vault.value as? VaultState.Open)?.let { return it.repo }
         withContext(Dispatchers.IO) {
-            val key = if (masterKeys.exists()) masterKeys.unwrap() else masterKeys.create()
+            val key = masterKey()
             val app = try {
                 LabtermApp.open(profileDir.absolutePath, key)
             } finally {
@@ -300,7 +389,7 @@ class AppContainer(context: Context) {
      */
     suspend fun unlockSilently(): VaultRepository? {
         (_vault.value as? VaultState.Open)?.let { return it.repo }
-        if (!hasProfile() || masterKeys.authRequired()) return null
+        if (!masterKeys.exists() || masterKeys.authRequired()) return null
         return unlock()
     }
 

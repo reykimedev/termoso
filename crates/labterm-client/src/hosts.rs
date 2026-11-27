@@ -49,6 +49,9 @@ pub struct HostCard {
     pub os_name: Option<String>,
     /// User-chosen icon id; takes precedence over `os_name`.
     pub icon: Option<String>,
+    /// User-chosen colour (`#rrggbb`) for the icon tile.
+    #[serde(default)]
+    pub color: Option<String>,
     /// `auto` | `4` | `6`.
     pub ip_version: String,
     pub notes: String,
@@ -175,6 +178,9 @@ pub struct HostForm {
     /// User-chosen icon id (`None` = follow detection).
     #[serde(default)]
     pub icon: Option<String>,
+    /// User-chosen colour (`#rrggbb`); `None` keeps the icon's own colour.
+    #[serde(default)]
+    pub color: Option<String>,
     /// `auto` (default) | `4` | `6`.
     #[serde(default = "default_ip_version")]
     pub ip_version: String,
@@ -424,40 +430,8 @@ fn ip_version_of(stored: &str) -> String {
     }
 }
 
-const MAX_CUSTOM_ICON_DATA_LENGTH: usize = 32 * 1024;
-
 fn valid_custom_icon(value: &str) -> bool {
-    let Some(data_url) = value.strip_prefix("custom:data:") else {
-        return false;
-    };
-    if data_url.len() > MAX_CUSTOM_ICON_DATA_LENGTH {
-        return false;
-    }
-    let Some((header, payload)) = data_url.split_once(',') else {
-        return false;
-    };
-    let Some(mime) = header
-        .strip_prefix("data:")
-        .and_then(|h| h.strip_suffix(";base64"))
-    else {
-        return false;
-    };
-    if !matches!(
-        mime.to_ascii_lowercase().as_str(),
-        "image/png"
-            | "image/jpeg"
-            | "image/gif"
-            | "image/webp"
-            | "image/svg+xml"
-            | "image/x-icon"
-            | "image/avif"
-    ) {
-        return false;
-    }
-    !payload.is_empty()
-        && payload
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'+' | b'/' | b'='))
+    labterm_proto::style::valid_custom_icon(value)
 }
 
 fn clean_icon(icon: &Option<String>) -> Result<Option<String>> {
@@ -472,6 +446,12 @@ fn clean_icon(icon: &Option<String>) -> Result<Option<String>> {
         return Err(ClientError::invalid("invalid custom icon"));
     }
     Ok(Some(value.to_string()))
+}
+
+/// Host and group colours are stored as `#rrggbb` so every client can parse
+/// them (Android's `Color.parseColor` has no `#rgb`).
+fn clean_color(color: Option<String>) -> Result<Option<String>> {
+    labterm_proto::style::normalize_color(color.as_deref()).map_err(ClientError::invalid)
 }
 
 /// Empty / whitespace scheme ids mean "follow the app setting".
@@ -682,6 +662,9 @@ pub struct GroupNode {
     pub has_config: bool,
     /// User-chosen icon id (`None` = default folder).
     pub icon: Option<String>,
+    /// User-chosen colour (`#rrggbb`; `None` = theme colour).
+    #[serde(default)]
+    pub color: Option<String>,
 }
 
 /// Editor model for a group: name, parent and the SSH defaults hosts inherit.
@@ -695,6 +678,9 @@ pub struct GroupForm {
     /// User-chosen icon id (`None` = default folder).
     #[serde(default)]
     pub icon: Option<String>,
+    /// User-chosen colour (`#rrggbb`; `None` = theme colour).
+    #[serde(default)]
+    pub color: Option<String>,
     #[serde(flatten)]
     pub defaults: SshDefaultsForm,
 }
@@ -938,6 +924,7 @@ pub fn cards(store: &Store, vault_id: Option<Uuid>) -> Result<Vec<HostCard>> {
             tags: r.tags,
             os_name: h.data.os_name.clone(),
             icon: h.data.icon.clone(),
+            color: h.data.color.clone(),
             ip_version: ip_version_of(&h.data.ip_version),
             notes: h.data.notes.clone(),
             sort_order: h.data.sort_order,
@@ -983,6 +970,7 @@ pub fn groups(store: &Store, vault_id: Option<Uuid>) -> Result<Vec<GroupNode>> {
                 .count(),
             has_config: g.data.ssh_config_id.is_some(),
             icon: g.data.icon.clone(),
+            color: g.data.color.clone(),
             id: g.id,
             vault_id: g.vault_id,
             label: g.data.label.clone(),
@@ -1074,7 +1062,7 @@ fn normalize_tag_color(color: Option<String>) -> Result<Option<String>> {
     }
     let hex = c.strip_prefix('#').unwrap_or(&c);
     if !matches!(hex.len(), 3 | 6) || !hex.chars().all(|ch| ch.is_ascii_hexdigit()) {
-        return Err(ClientError::invalid("tag colour must be a hex value"));
+        return Err(ClientError::invalid("colour must be a hex value"));
     }
     Ok(Some(format!("#{hex}")))
 }
@@ -1283,6 +1271,7 @@ pub fn form(store: &Store, id: Uuid) -> Result<HostForm> {
         os_name: host.data.os_name,
         mac_address: host.data.mac_address,
         icon: host.data.icon,
+        color: host.data.color,
         ip_version: ip_version_of(&host.data.ip_version),
         agent_forwarding: ssh.as_ref().is_some_and(|s| s.agent_forwarding),
         forward_x11: ssh.as_ref().is_some_and(|s| s.forward_x11),
@@ -1326,7 +1315,9 @@ fn inline_identity_of(
 /// webdav_config and their hidden identities.
 /// The OpenID key of host or group settings: an opkssh key of that vault.
 fn check_oidc_key(store: &Store, vault_id: Uuid, id: Option<Uuid>) -> Result<()> {
-    let Some(id) = id else { return Ok(()) };
+    let Some(id) = id.filter(|i| !i.is_nil()) else {
+        return Ok(());
+    };
     match store.get_in::<SshKey>(id, vault_id)? {
         Some(k) if k.data.is_opkssh() => Ok(()),
         _ => Err(ClientError::invalid(
@@ -1690,6 +1681,7 @@ pub fn save(store: &Store, f: &HostForm) -> Result<HostCard> {
         .filter(|s| !s.is_empty())
         .map(str::to_string);
     host.icon = clean_icon(&f.icon)?;
+    host.color = clean_color(f.color.clone())?;
     host.backspace = clean_scheme(&f.backspace);
     host.ip_version = match f.ip_version.as_str() {
         "4" | "6" => f.ip_version.clone(),
@@ -1949,7 +1941,7 @@ fn require_same_vault<T: labterm_core::model::Payload>(
     vault_id: Uuid,
     what: &str,
 ) -> Result<()> {
-    if let Some(id) = id {
+    if let Some(id) = id.filter(|i| !i.is_nil()) {
         let e = store.require::<T>(id)?;
         if e.vault_id != vault_id {
             return Err(ClientError::invalid(format!(
@@ -2055,6 +2047,7 @@ pub fn group_form(store: &Store, id: Uuid) -> Result<GroupForm> {
         label: g.data.label,
         parent_id: g.data.parent_id,
         icon: g.data.icon,
+        color: g.data.color,
         defaults: load_defaults(store, g.data.ssh_config_id)?,
     })
 }
@@ -2229,6 +2222,7 @@ pub fn save_group_form(store: &Store, f: &GroupForm) -> Result<GroupNode> {
     data.label = label.to_string();
     data.parent_id = f.parent_id;
     data.icon = clean_icon(&f.icon)?;
+    data.color = clean_color(f.color.clone())?;
     data.ssh_config_id = ssh_config_id;
     let gid = match &existing {
         Some(e) => {
@@ -2388,6 +2382,8 @@ fn keep_if_in_vault<T: labterm_core::model::Payload>(
     vault_id: Uuid,
 ) -> Result<Option<Uuid>> {
     Ok(match id {
+        // "None" on purpose is valid in every vault.
+        Some(id) if id.is_nil() => Some(id),
         Some(id) => store
             .get::<T>(id)?
             .filter(|e| e.vault_id == vault_id)
@@ -2657,23 +2653,20 @@ pub fn move_hosts(store: &Store, ids: &[Uuid], group_id: Option<Uuid>) -> Result
 }
 
 /// Copy hosts into another vault (top level of that vault). Returns new ids.
+/// See [`crate::vaultmove`], which also moves whole groups.
 pub fn copy_to_vault(
     store: &Store,
     ids: &[Uuid],
     vault_id: Uuid,
     creds: CopyCredentials,
 ) -> Result<Vec<Uuid>> {
-    let vault = store.vault(vault_id)?;
-    if !vault.unlocked {
-        return Err(ClientError::invalid("target vault is locked"));
-    }
-    if !vault.role.can_write() {
-        return Err(ClientError::invalid("you can only view this vault"));
-    }
-    let mut copied_keys = HashMap::new();
-    ids.iter()
-        .map(|id| copy_host_with(store, *id, vault_id, None, None, creds, &mut copied_keys))
-        .collect()
+    transfer(
+        store,
+        ids,
+        vault_id,
+        creds,
+        crate::vaultmove::TransferMode::Copy,
+    )
 }
 
 /// Move hosts into another vault: copy, then delete the originals.
@@ -2683,11 +2676,34 @@ pub fn move_to_vault(
     vault_id: Uuid,
     creds: CopyCredentials,
 ) -> Result<Vec<Uuid>> {
-    let new_ids = copy_to_vault(store, ids, vault_id, creds)?;
-    for id in ids {
-        delete(store, *id)?;
-    }
-    Ok(new_ids)
+    transfer(
+        store,
+        ids,
+        vault_id,
+        creds,
+        crate::vaultmove::TransferMode::Move,
+    )
+}
+
+fn transfer(
+    store: &Store,
+    ids: &[Uuid],
+    vault_id: Uuid,
+    creds: CopyCredentials,
+    mode: crate::vaultmove::TransferMode,
+) -> Result<Vec<Uuid>> {
+    let out = crate::vaultmove::apply(
+        store,
+        &crate::vaultmove::TransferRequest {
+            host_ids: ids.to_vec(),
+            group_ids: Vec::new(),
+            vault_id,
+            group_id: None,
+            mode,
+            with_credentials: creds == CopyCredentials::Shared,
+        },
+    )?;
+    Ok(out.hosts.into_iter().map(|p| p.to).collect())
 }
 
 /// Deep-copy a group (SSH defaults, sub-groups and hosts) next to the original.
@@ -2768,6 +2784,7 @@ mod tests {
             notes: String::new(),
             os_name: None,
             icon: None,
+            color: None,
             ip_version: "auto".into(),
             agent_forwarding: false,
             forward_x11: false,
@@ -2968,6 +2985,8 @@ mod tests {
                 provider: "netbird".into(),
                 management_url: None,
                 setup_key: Some("example-setup-key".into()),
+                direct_first: false,
+                idle_secs: None,
             },
         )
         .unwrap();
@@ -3017,6 +3036,142 @@ mod tests {
 
         // An id that is no network of this vault is refused.
         assert!(set_transport(&s, card.id, Some(Uuid::new_v4())).is_err());
+    }
+
+    #[test]
+    fn explicit_none_overrides_what_the_group_sets() {
+        use labterm_core::model::Transport;
+        use labterm_proto::entities::EXPLICIT_NONE;
+        let s = store();
+        let vault = s.local_vault().unwrap().id;
+        let net = crate::transports::save(
+            &s,
+            vault,
+            None,
+            Transport {
+                label: "home".into(),
+                provider: "netbird".into(),
+                management_url: None,
+                setup_key: Some("example-setup-key".into()),
+                direct_first: false,
+                idle_secs: None,
+            },
+        )
+        .unwrap();
+        let proxy = s
+            .insert(
+                vault,
+                &Proxy {
+                    kind: "socks5".into(),
+                    host: "proxy.example.com".into(),
+                    port: 1080,
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        let jump = save(&s, &new_form(vault)).unwrap();
+        let chain = s
+            .insert(
+                vault,
+                &HostChain {
+                    label: "via jump".into(),
+                    host_ids: vec![jump.id],
+                },
+            )
+            .unwrap();
+        let g = save_group(&s, vault, None, "dc1", None).unwrap();
+        let mut gf = group_form(&s, g.id).unwrap();
+        gf.defaults.transport_id = Some(net.id);
+        gf.defaults.proxy_id = Some(proxy);
+        gf.defaults.host_chain_id = Some(chain);
+        save_group_form(&s, &gf).unwrap();
+
+        // A sub-group says "none" for the network only.
+        let sub = save_group(&s, vault, None, "lan", Some(g.id)).unwrap();
+        let mut sf = group_form(&s, sub.id).unwrap();
+        sf.defaults.transport_id = Some(EXPLICIT_NONE);
+        save_group_form(&s, &sf).unwrap();
+        assert_eq!(
+            group_form(&s, sub.id).unwrap().defaults.transport_id,
+            Some(EXPLICIT_NONE)
+        );
+        let inh = inherited(&s, Some(sub.id)).unwrap();
+        assert_eq!(inh.transport_id, None);
+        assert_eq!(inh.proxy_id, Some(proxy));
+
+        let mut f = new_form(vault);
+        f.group_id = Some(g.id);
+        f.proxy_id = Some(EXPLICIT_NONE);
+        f.host_chain_id = Some(EXPLICIT_NONE);
+        let card = save(&s, &f).unwrap();
+        let r = s.resolve_host(card.id).unwrap();
+        assert!(r.proxy.is_none() && r.chain.is_empty());
+        assert_eq!(r.ssh.proxy_id, None);
+        assert_eq!(r.ssh.host_chain_id, None);
+        // The network still comes from the group.
+        assert_eq!(r.transport.map(|t| t.id), Some(net.id));
+        let back = form(&s, card.id).unwrap();
+        assert_eq!(back.proxy_id, Some(EXPLICIT_NONE));
+        assert_eq!(back.host_chain_id, Some(EXPLICIT_NONE));
+
+        set_transport(&s, card.id, Some(EXPLICIT_NONE)).unwrap();
+        let r = s.resolve_host(card.id).unwrap();
+        assert!(r.transport.is_none());
+        let vpn = cards(&s, Some(vault))
+            .unwrap()
+            .into_iter()
+            .find(|c| c.id == card.id)
+            .unwrap()
+            .vpn;
+        assert_eq!(vpn, None);
+
+        // Moving the host under the sub-group keeps its own choices.
+        move_hosts(&s, &[card.id], Some(sub.id)).unwrap();
+        let r = s.resolve_host(card.id).unwrap();
+        assert!(r.transport.is_none() && r.proxy.is_none() && r.chain.is_empty());
+
+        // Back to "inherit": the group's values apply again.
+        let mut f = form(&s, card.id).unwrap();
+        f.group_id = Some(g.id);
+        f.proxy_id = None;
+        f.host_chain_id = None;
+        f.transport_id = None;
+        save(&s, &f).unwrap();
+        let r = s.resolve_host(card.id).unwrap();
+        assert_eq!(r.proxy.map(|p| p.id), Some(proxy));
+        assert_eq!(r.chain.len(), 1);
+        assert_eq!(r.transport.map(|t| t.id), Some(net.id));
+    }
+
+    #[test]
+    fn explicit_none_survives_copy_to_another_vault() {
+        use labterm_proto::entities::EXPLICIT_NONE;
+        let s = store();
+        let vault = s.local_vault().unwrap().id;
+        let other = Uuid::new_v4();
+        s.upsert_vault(
+            other,
+            labterm_core::store::LocalVaultKind::Personal,
+            "other",
+            None,
+            labterm_proto::vault::VaultRole::Manager,
+            Some(&SymmetricKey::generate()),
+            1,
+        )
+        .unwrap();
+        let mut f = new_form(vault);
+        f.proxy_id = Some(EXPLICIT_NONE);
+        f.host_chain_id = Some(EXPLICIT_NONE);
+        f.transport_id = Some(EXPLICIT_NONE);
+        f.oidc_key_id = Some(EXPLICIT_NONE);
+        let card = save(&s, &f).unwrap();
+        let ids = copy_to_vault(&s, &[card.id], other, CopyCredentials::Shared).unwrap();
+        let back = form(&s, ids[0]).unwrap();
+        assert_eq!(back.proxy_id, Some(EXPLICIT_NONE));
+        assert_eq!(back.host_chain_id, Some(EXPLICIT_NONE));
+        assert_eq!(back.transport_id, Some(EXPLICIT_NONE));
+        assert_eq!(back.oidc_key_id, Some(EXPLICIT_NONE));
+        assert!(s.resolve_host(ids[0]).unwrap().ssh.oidc_key_id.is_none());
     }
 
     #[test]
@@ -3568,6 +3723,39 @@ mod tests {
     }
 
     #[test]
+    fn host_and_group_colors_are_normalized_and_validated() {
+        let s = store();
+        let vault = s.local_vault().unwrap().id;
+        let mut f = new_form(vault);
+        f.color = Some(" #ABC ".into());
+        let card = save(&s, &f).unwrap();
+        assert_eq!(card.color.as_deref(), Some("#aabbcc"));
+        assert_eq!(form(&s, card.id).unwrap().color.as_deref(), Some("#aabbcc"));
+
+        let mut f = form(&s, card.id).unwrap();
+        f.color = Some("1e88e5".into());
+        assert_eq!(save(&s, &f).unwrap().color.as_deref(), Some("#1e88e5"));
+        f.color = Some("red".into());
+        assert!(save(&s, &f).is_err());
+        f.color = Some("url(https://example.com/x)".into());
+        assert!(save(&s, &f).is_err());
+        f.color = Some(String::new());
+        assert_eq!(save(&s, &f).unwrap().color, None);
+
+        let g = save_group(&s, vault, None, "servers", None).unwrap();
+        let mut gf = group_form(&s, g.id).unwrap();
+        gf.color = Some("#43A047".into());
+        let g = save_group_form(&s, &gf).unwrap();
+        assert_eq!(g.color.as_deref(), Some("#43a047"));
+        assert_eq!(
+            duplicate_group(&s, g.id).unwrap().color.as_deref(),
+            Some("#43a047")
+        );
+        gf.color = Some("#12".into());
+        assert!(save_group_form(&s, &gf).is_err());
+    }
+
+    #[test]
     fn custom_icons_round_trip_and_reject_invalid_values() {
         let s = store();
         let vault = s.local_vault().unwrap().id;
@@ -3615,6 +3803,7 @@ mod tests {
                 label: "dc1".into(),
                 parent_id: None,
                 icon: None,
+                color: None,
                 defaults: SshDefaultsForm {
                     port: Some(2200),
                     username: "ops".into(),
@@ -3691,6 +3880,7 @@ mod tests {
                 label: "dc1".into(),
                 parent_id: None,
                 icon: None,
+                color: None,
                 defaults: SshDefaultsForm {
                     port: Some(2200),
                     ..Default::default()

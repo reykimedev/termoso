@@ -35,6 +35,12 @@ pub struct TransportItem {
     /// The account this device signs in as (remembered on this device
     /// only); `None` = whoever signs in.
     pub account: Option<String>,
+    /// Try a host's LAN address directly first, the network only when
+    /// that doesn't answer.
+    pub direct_first: bool,
+    /// Seconds the network stays up after its last connection; `None` =
+    /// the default (2 minutes), `0` = until disconnected.
+    pub idle_secs: Option<u32>,
 }
 
 fn to_item(store: &Arc<Store>, e: Entity<Transport>) -> TransportItem {
@@ -62,12 +68,15 @@ impl From<Entity<Transport>> for TransportItem {
             team: false,
             signed_in: false,
             account: None,
+            direct_first: e.data.direct_first,
+            idle_secs: e.data.idle_secs,
         }
     }
 }
 
 pub(crate) fn list(store: &Arc<Store>, vault_id: Option<String>) -> Result<Vec<TransportItem>> {
     let vault = parse_opt_id(&vault_id)?;
+    vpn::forget_orphans(store);
     Ok(transports::list(store, vault)?
         .into_iter()
         .map(|e| to_item(store, e))
@@ -92,6 +101,8 @@ pub(crate) fn save(store: &Arc<Store>, item: TransportItem) -> Result<TransportI
             provider: item.provider,
             management_url: item.management_url,
             setup_key: item.setup_key,
+            direct_first: item.direct_first,
+            idle_secs: item.idle_secs,
         },
     )?;
     Ok(to_item(store, saved))
@@ -209,6 +220,8 @@ pub struct TransportPeer {
     pub latency_ms: u64,
     /// Unix seconds of the last handshake; 0 = none yet.
     pub handshake: i64,
+    /// Networks reached through this peer ("0.0.0.0/0" = exit node).
+    pub routes: Vec<String>,
 }
 
 /// A host that connects through a network.
@@ -234,6 +247,124 @@ pub struct TransportDetails {
     pub live_error: Option<String>,
     pub peers: Vec<TransportPeer>,
     pub hosts: Vec<TransportHost>,
+    /// NetBird's nameserver groups as this device applied them.
+    pub dns: Vec<TransportDnsGroup>,
+}
+
+/// One nameserver group on the details page.
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct TransportDnsGroup {
+    /// Match domains; empty = primary (every other name).
+    pub domains: Vec<String>,
+    pub servers: Vec<String>,
+    /// Reachable through the network, so Labterm asks it itself.
+    pub tunnel: bool,
+}
+
+/// The connection test's result for one host.
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct TransportHostTest {
+    pub network: String,
+    /// Time to get the network up; 0 = it was running.
+    pub start_ms: u64,
+    pub network_error: Option<String>,
+    /// The name that resolved, and how: `address`, `nameserver`, `netbird`
+    /// or `tailscale`.
+    pub name: String,
+    pub via: String,
+    pub server: String,
+    pub remote: String,
+    pub connect_ms: u64,
+    pub banner: String,
+    pub error: Option<String>,
+    /// The peer the connection goes through, and the route when the address
+    /// isn't the peer's own.
+    pub peer: Option<TransportPeer>,
+    pub route: Option<String>,
+}
+
+fn peer_item(p: vpn::PeerDetails) -> TransportPeer {
+    TransportPeer {
+        fqdn: p.fqdn,
+        ip: p.ip,
+        connected: p.connected,
+        relayed: p.relayed,
+        latency_ms: p.latency_ms,
+        handshake: p.handshake,
+        routes: p.routes,
+    }
+}
+
+/// Join the host's network, dial the host through it and read the SSH
+/// banner. No login.
+pub(crate) async fn test_host(store: &Arc<Store>, host_id: &str) -> Result<TransportHostTest> {
+    let id = parse_id(host_id)?;
+    let network = store
+        .resolve_host(id)?
+        .transport
+        .map(|t| t.data.label)
+        .unwrap_or_default();
+    let t = vpn::test_host(store, id).await?;
+    Ok(TransportHostTest {
+        network,
+        start_ms: t.start_ms,
+        network_error: t.network_error,
+        name: t.name,
+        via: t.via,
+        server: t.server,
+        remote: t.remote,
+        connect_ms: t.connect_ms,
+        banner: t.banner,
+        error: t.error,
+        peer: t.peer.map(peer_item),
+        route: t.route,
+    })
+}
+
+/// A network in use on this device, for the status strip.
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct TransportActive {
+    pub id: String,
+    pub label: String,
+    pub provider: String,
+    pub state: TransportState,
+    /// Seconds until it stops by itself; `None` while a connection uses it
+    /// or when it stays up until disconnected.
+    pub stops_in_secs: Option<u64>,
+}
+
+/// A network that stopped by itself after its idle time.
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct TransportIdleStop {
+    pub seq: u64,
+    pub id: String,
+    pub label: String,
+    pub provider: String,
+}
+
+pub(crate) fn active(store: &Arc<Store>) -> Vec<TransportActive> {
+    vpn::active(store)
+        .into_iter()
+        .map(|a| TransportActive {
+            id: a.id.to_string(),
+            label: a.label,
+            provider: a.provider,
+            state: a.state.into(),
+            stops_in_secs: a.stops_in_secs,
+        })
+        .collect()
+}
+
+pub(crate) fn idle_stops_since(seq: u64) -> Vec<TransportIdleStop> {
+    vpn::idle_stops_since(seq)
+        .into_iter()
+        .map(|s| TransportIdleStop {
+            seq: s.seq,
+            id: s.network.to_string(),
+            label: s.label,
+            provider: s.provider,
+        })
+        .collect()
 }
 
 pub(crate) fn state(store: &Arc<Store>, network_id: &str) -> Result<TransportState> {
@@ -253,16 +384,14 @@ pub(crate) async fn details(store: &Arc<Store>, network_id: &str) -> Result<Tran
         management_connected: live.management,
         signal_connected: live.signal,
         live_error: d.live_error,
-        peers: live
-            .peers
+        peers: live.peers.into_iter().map(peer_item).collect(),
+        dns: live
+            .dns
             .into_iter()
-            .map(|p| TransportPeer {
-                fqdn: p.fqdn,
-                ip: p.ip,
-                connected: p.connected,
-                relayed: p.relayed,
-                latency_ms: p.latency_ms,
-                handshake: p.handshake,
+            .map(|g| TransportDnsGroup {
+                domains: g.domains,
+                servers: g.servers,
+                tunnel: g.tunnel,
             })
             .collect(),
         hosts: d

@@ -315,6 +315,7 @@ pub fn apply_scoped(
                     notes: String::new(),
                     os_name: inst.os_name.clone(),
                     icon: None,
+                    color: None,
                     ip_version: "auto".into(),
                     agent_forwarding: false,
                     forward_x11: false,

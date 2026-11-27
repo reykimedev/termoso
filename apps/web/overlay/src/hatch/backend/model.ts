@@ -21,6 +21,7 @@ export interface Host {
   notes?: string;
   os_name?: string | null;
   icon?: string | null;
+  color?: string | null;
   ip_version?: string;
   mac_address?: string | null;
   startup_snippet_id?: Uuid | null;
@@ -36,6 +37,7 @@ export interface Group {
   telnet_config_id?: Uuid | null;
   sort_order?: number;
   icon?: string | null;
+  color?: string | null;
   [k: string]: unknown;
 }
 export interface SshConfig {
@@ -110,6 +112,22 @@ const some = (v: string | null | undefined) => typeof v === "string" && v.length
 
 // ── resolution (labterm-core `resolve_host`) ──────────────────────────────
 
+/**
+ * Stored in a reference field to say "none" on purpose, so the host or group does not inherit
+ * what its groups or tags set (labterm-proto `EXPLICIT_NONE`). Empty still inherits.
+ */
+export const NONE_ID: Uuid = "00000000-0000-0000-0000-000000000000";
+
+const REF_FIELDS = [
+  "identity_id",
+  "host_chain_id",
+  "proxy_id",
+  "gateway_id",
+  "transport_id",
+  "port_knocking_id",
+  "oidc_key_id",
+] as const;
+
 function mergeSsh(into: SshConfig, from: SshConfig) {
   for (const f of [
     "port",
@@ -118,6 +136,7 @@ function mergeSsh(into: SshConfig, from: SshConfig) {
     "proxy_id",
     "transport_id",
     "port_knocking_id",
+    "oidc_key_id",
     "charset",
     "color_scheme",
     "font_size",
@@ -213,6 +232,8 @@ function mergeLayers(vaultId: Uuid, ids: Uuid[]) {
     if (c.data.identity_id) identities.push(c.data.identity_id);
     mergeSsh(ssh, c.data);
   }
+  // A layer that says "none" on purpose stopped the lower ones; drop the marker.
+  for (const f of REF_FIELDS) if (ssh[f] === NONE_ID) ssh[f] = null;
   let username: string | null = null;
   for (const iid of [...identities].reverse()) {
     const i = get<Identity>(iid, "identity");
@@ -295,6 +316,7 @@ export function hostCard(id: Uuid) {
     tags: r.tags,
     osName: h.data.os_name ?? null,
     icon: h.data.icon ?? null,
+    color: h.data.color ?? null,
     ipVersion: ipVersion(h.data.ip_version),
     notes: h.data.notes ?? "",
     sortOrder: h.data.sort_order ?? 0,
@@ -377,6 +399,7 @@ export function hostForm(id: Uuid) {
     notes: h.data.notes ?? "",
     osName: h.data.os_name ?? null,
     icon: h.data.icon ?? null,
+    color: h.data.color ?? null,
     ipVersion: ipVersion(h.data.ip_version),
     agentForwarding: !!ssh?.agent_forwarding,
     forwardX11: !!ssh?.forward_x11,
@@ -508,6 +531,7 @@ export function hostSave(f: HostFormIn) {
     notes: f.notes ?? "",
     os_name: f.osName,
     icon: f.icon,
+    color: hostColor(f.color),
     ip_version: f.ipVersion === "auto" ? "" : f.ipVersion,
     mac_address: f.macAddress,
     startup_snippet_id: f.startupSnippetId,
@@ -571,6 +595,7 @@ export function groupNodes(vaultId: Uuid | null) {
       groupCount: groups.filter((c) => c.data.parent_id === g.id).length,
       hasConfig: !!g.data.ssh_config_id,
       icon: g.data.icon ?? null,
+      color: g.data.color ?? null,
     }))
     .sort(byOrder);
 }
@@ -658,7 +683,7 @@ function saveDefaults(
 ) {
   const prevSsh = get<SshConfig>(prevId, "ssh_config");
   const oidcKeyId = f.oidcKeyId;
-  if (oidcKeyId) {
+  if (oidcKeyId && oidcKeyId !== NONE_ID) {
     const k = get<SshKey>(oidcKeyId, "ssh_key");
     if (k?.vaultId !== vaultId || k.data.key_type !== "opkssh")
       fail("invalid", "Pick an OpenID key from the same vault");
@@ -715,6 +740,7 @@ export function groupForm(id: Uuid) {
     label: g.data.label,
     parentId: g.data.parent_id ?? null,
     icon: g.data.icon ?? null,
+    color: g.data.color ?? null,
     ...loadDefaults(g.data.ssh_config_id),
   };
 }
@@ -723,7 +749,12 @@ export function groupSaveForm(f: ReturnType<typeof groupForm> & DefaultsIn & { i
   const node = groupSave({ vaultId: f.vaultId, id: f.id, label: f.label, parentId: f.parentId });
   const g = require<Group>(node.id, "group");
   const sshId = saveDefaults(f.vaultId, g.data.ssh_config_id, f, f.label);
-  put<Group>("group", g.vaultId, g.id, { ...g.data, icon: f.icon, ssh_config_id: sshId });
+  put<Group>("group", g.vaultId, g.id, {
+    ...g.data,
+    icon: f.icon,
+    color: hostColor(f.color),
+    ssh_config_id: sshId,
+  });
   return groupNode(g.id);
 }
 
@@ -763,6 +794,7 @@ export function inherited(groupId: Uuid | null, vaultId: Uuid | null = null, tag
     hostChainId: null as Uuid | null,
     proxyId: null as Uuid | null,
     transportId: null as Uuid | null,
+    oidcKeyId: null as Uuid | null,
     keepAliveInterval: null as number | null,
     timeout: null as number | null,
     envVariables: [] as [string, string][],
@@ -794,6 +826,7 @@ export function inherited(groupId: Uuid | null, vaultId: Uuid | null = null, tag
     hostChainId: ssh.host_chain_id ?? null,
     proxyId: ssh.proxy_id ?? null,
     transportId: ssh.transport_id ?? null,
+    oidcKeyId: (ssh.oidc_key_id as Uuid | null | undefined) ?? null,
     keepAliveInterval: ssh.keep_alive_interval ?? null,
     timeout: ssh.timeout ?? null,
     envVariables: ssh.env_variables ?? [],
@@ -831,6 +864,13 @@ function normalizeTagColor(color: string | null | undefined) {
   if (![3, 6].includes(hex.length) || !/^[0-9a-f]+$/.test(hex))
     fail("invalid", "Use a colour like #3a7 or #33aa77");
   return `#${hex}`;
+}
+
+/** Host and group colours are stored as `#rrggbb` (same as labterm-client). */
+export function hostColor(color: string | null | undefined) {
+  const c = normalizeTagColor(color);
+  if (c?.length === 4) return `#${c[1]}${c[1]}${c[2]}${c[2]}${c[3]}${c[3]}`;
+  return c;
 }
 
 /** Rename and/or recolour a tag; renaming onto another tag's label merges into it. */
@@ -969,6 +1009,11 @@ interface KeyInfo {
   fingerprint: string;
   bits: number | null;
   encrypted: boolean;
+  securityKey?: {
+    application: string;
+    flags: { resident: boolean; userPresence: boolean; userVerification: boolean } | null;
+    credentialId: string | null;
+  };
 }
 
 const infoCache = new Map<string, KeyInfo | null>();
@@ -1043,7 +1088,7 @@ export function keyCard(id: Uuid) {
     usedBy: list<Identity>("identity", k.vaultId).filter((i) => i.data.ssh_key_id === k.id).length,
     certificate,
     certificateUnreadable,
-    securityKey: null,
+    securityKey: info?.securityKey ?? null,
     updatedAt: k.updatedAt,
     dirty: k.dirty,
   };

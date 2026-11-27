@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Box,
   Button,
@@ -34,6 +34,7 @@ import { TagsPopover } from "./TagsPopover";
 import { AgentForwardingRow, CredentialsFields, X11ForwardingRow } from "./CredentialsFields";
 import { WebDavAuthFields } from "./WebDavAuthFields";
 import { ServerKeyField } from "./ServerKeyField";
+import { NewItemVaultField } from "./NewItemVaultField";
 import { MyCredentialsSection } from "./MyCredentialsSection";
 import { OidcKeyField } from "./OidcKeyField";
 import { VpnNetworkField } from "@/vpn/VpnNetworkField";
@@ -83,6 +84,7 @@ import { tr, trn, msg } from "@/i18n";
 import { requirePerm } from "@/team/perms";
 import { LocalCopiesSection } from "./LocalCopiesSection";
 import { inheritedSource } from "./inheritedSource";
+import { inheritItems } from "./inheritItems";
 
 const IP_VERSIONS: { value: IpVersion; label: string }[] = [
   { value: "auto", label: msg("Auto") },
@@ -142,9 +144,13 @@ interface Props {
 }
 
 /** Loads the form for an existing host (or starts blank) and hands it to the editor. */
-export function HostEditPanel({ vaultId, hostId, initialGroupId, onClose }: Props) {
+export function HostEditPanel({ vaultId: activeVault, hostId, initialGroupId, onClose }: Props) {
   const loaded = useHostForm(hostId);
-  const blank = useMemo(() => emptyHostForm(vaultId, initialGroupId), [vaultId, initialGroupId]);
+  // A new host may go into another vault; its group belongs to the active one.
+  const [newVault, setNewVault] = useState(activeVault);
+  const vaultId = hostId === null ? newVault : activeVault;
+  const groupId = vaultId === activeVault ? initialGroupId : null;
+  const blank = useMemo(() => emptyHostForm(vaultId, groupId), [vaultId, groupId]);
   if (hostId !== null && loaded.data === undefined) {
     return (
       <SidePanel title={tr("Host Details")} onClose={onClose} width={sizes.panel}>
@@ -158,10 +164,14 @@ export function HostEditPanel({ vaultId, hostId, initialGroupId, onClose }: Prop
   }
   return (
     <HostEditor
+      key={vaultId}
       vaultId={vaultId}
       hostId={hostId}
       initial={loaded.data ?? blank}
       onClose={onClose}
+      vaultField={
+        hostId === null ? <NewItemVaultField value={vaultId} onChange={setNewVault} /> : null
+      }
     />
   );
 }
@@ -249,11 +259,14 @@ function HostEditor({
   hostId,
   initial,
   onClose,
+  vaultField,
 }: {
   vaultId: Uuid;
   hostId: Uuid | null;
   initial: HostForm;
   onClose: () => void;
+  /** New hosts: where the host is saved. */
+  vaultField?: ReactNode;
 }) {
   const snackbar = useSnackbar();
   const groups = useGroups(vaultId);
@@ -498,13 +511,11 @@ function HostEditor({
           else set("proxyId", v === "" ? null : v);
         }}
       >
-        <MenuItem value="">
-          <em>
-            {inh?.proxyId && proxyName(inh.proxyId)
-              ? tr("Inherited — {name}", { name: proxyName(inh.proxyId) ?? "" })
-              : tr("None")}
-          </em>
-        </MenuItem>
+        {inheritItems({
+          inherited: inh?.proxyId ? (proxyName(inh.proxyId) ?? "…") : null,
+          value: form.proxyId,
+          noneLabel: tr("None"),
+        })}
         {(proxies.data ?? []).map((p) => (
           <MenuItem key={p.id} value={p.id}>
             {p.data.kind.toUpperCase()}
@@ -556,10 +567,13 @@ function HostEditor({
         >
           {id && <ConnectedNowCard viewers={presence.get(id) ?? []} />}
           <SectionCard title={tr("Address")}>
+            {vaultField}
             <Box sx={{ display: "flex", gap: 1.5, alignItems: "center" }}>
               <IconPicker
                 value={form.icon}
                 onChange={(v) => set("icon", v)}
+                color={form.color}
+                onColorChange={(c) => set("color", c)}
                 disabled={readOnly}
                 autoLabel={tr("Automatic (detected OS)")}
                 fallback={
@@ -835,13 +849,11 @@ function HostEditor({
                         else set("hostChainId", v === "" ? null : v);
                       }}
                     >
-                      <MenuItem value="">
-                        <em>
-                          {inh?.hostChainId && chainName(inh.hostChainId)
-                            ? tr("Inherited — {name}", { name: chainName(inh.hostChainId) ?? "" })
-                            : tr("Direct connection")}
-                        </em>
-                      </MenuItem>
+                      {inheritItems({
+                        inherited: inh?.hostChainId ? (chainName(inh.hostChainId) ?? "…") : null,
+                        value: form.hostChainId,
+                        noneLabel: tr("Direct connection"),
+                      })}
                       {(chains.data ?? []).map((c) => (
                         <MenuItem key={c.id} value={c.id}>
                           {c.data.label}

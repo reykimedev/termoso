@@ -6,11 +6,12 @@ use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
-use labterm_core::secrets::{self, MasterKeySource};
+use labterm_core::secrets::{self, MasterKeySource, factors};
 use labterm_core::store::Store;
 use labterm_core::sync::ConflictPolicy;
 use labterm_core::terminal::MAX_SCROLLBACK_LINES;
 use serde::{Deserialize, Serialize};
+use zeroize::Zeroizing;
 
 use crate::account::AccountRuntime;
 use crate::edits::Edits;
@@ -114,8 +115,13 @@ impl AppState {
     pub fn open_at(profile_dir: PathBuf) -> Result<Self> {
         std::fs::create_dir_all(&profile_dir)?;
         std::fs::create_dir_all(profile_dir.join(LOGS_DIR))?;
-        let (source, store) = if secrets::password_protected(&profile_dir) {
-            (MasterKeySource::Password, None)
+        let (source, store) = if secrets::protected(&profile_dir) {
+            let source = if secrets::password_protected(&profile_dir) {
+                MasterKeySource::Password
+            } else {
+                MasterKeySource::Factor
+            };
+            (source, None)
         } else {
             let master = secrets::load_or_create(&profile_dir, PROFILE_NAME, true)?;
             let store = Store::open(&profile_dir.join(DB_FILE), master.key)?;
@@ -183,6 +189,210 @@ impl AppState {
         secrets::password_protected(&self.profile_dir)
     }
 
+    /// Starts locked: a master password or an unlock factor holds the key.
+    pub fn protected(&self) -> bool {
+        secrets::protected(&self.profile_dir)
+    }
+
+    pub fn factors(&self) -> Vec<factors::FactorInfo> {
+        if !factors::any(&self.profile_dir) {
+            return Vec::new();
+        }
+        factors::list(&self.profile_dir).unwrap_or_else(|e| {
+            tracing::warn!(error = %e, "cannot read unlock methods");
+            Vec::new()
+        })
+    }
+
+    /// Open the store with the master key unwrapped by unlock factor `id`,
+    /// whose backend computed `secret` over the factor's challenge.
+    pub fn unlock_with_factor(&self, id: &str, secret: &[u8]) -> Result<()> {
+        let mut slot = self.store.write().expect("store poisoned");
+        if slot.is_some() {
+            return Ok(());
+        }
+        let master = factors::unlock(&self.profile_dir, PROFILE_NAME, id, secret)?;
+        let store = Store::open(&self.profile_dir.join(DB_FILE), master.key)?;
+        *slot = Some(Arc::new(store));
+        *self.master_source.lock().expect("master source poisoned") = master.source;
+        self.lock.touch();
+        Ok(())
+    }
+
+    /// Windows Hello factors in enrolment order: what the lock screen offers.
+    pub fn hello_challenges(&self) -> Result<Vec<factors::FactorChallenge>> {
+        if !factors::any(&self.profile_dir) {
+            return Ok(Vec::new());
+        }
+        Ok(factors::challenges(
+            &self.profile_dir,
+            factors::FactorKind::WindowsHello,
+        )?)
+    }
+
+    /// Security key factors in enrolment order.
+    pub fn security_key_challenges(&self) -> Result<Vec<factors::FactorChallenge>> {
+        if !factors::any(&self.profile_dir) {
+            return Ok(Vec::new());
+        }
+        Ok(factors::challenges(
+            &self.profile_dir,
+            factors::FactorKind::SecurityKey,
+        )?)
+    }
+
+    /// Prove the person at the keyboard may change how the vault is
+    /// protected: the current master password when one is set, otherwise a
+    /// fresh confirmation with an enrolled factor (Windows Hello where it
+    /// works, else a touch of an enrolled security key). Nothing to prove
+    /// while the vault is not protected at all. Blocking.
+    pub fn verify_owner(&self, password: Option<&str>) -> Result<()> {
+        let store = self.store()?;
+        if self.password_protected() {
+            return Ok(secrets::verify_password(
+                &self.profile_dir,
+                password.unwrap_or_default(),
+            )?);
+        }
+        if !factors::any(&self.profile_dir) {
+            return Ok(());
+        }
+        let (id, secret) = self.confirm_with_factor()?;
+        let master = factors::unlock(&self.profile_dir, PROFILE_NAME, &id, &secret)?;
+        if master.key.as_bytes() != store.master_key().as_bytes() {
+            return Err(DesktopError::invalid(
+                "unlock method does not match this vault",
+            ));
+        }
+        Ok(())
+    }
+
+    /// The id and secret of one enrolled factor the owner just confirmed.
+    fn confirm_with_factor(&self) -> Result<(String, Zeroizing<Vec<u8>>)> {
+        if crate::hello::available()
+            && let Some(hello) = self.hello_challenges()?.into_iter().next()
+        {
+            let name = String::from_utf8_lossy(&hello.credential).into_owned();
+            let secret = Zeroizing::new(crate::hello::sign(&name, &hello.salt)?);
+            return Ok((hello.id, secret));
+        }
+        let keys = self.security_key_challenges()?;
+        if !keys.is_empty() && crate::security_key::supported() {
+            for key in keys {
+                if let Some(secret) = crate::security_key::secret(&key)? {
+                    return Ok((key.id, secret));
+                }
+            }
+            return Err(DesktopError::new(
+                "fido2_wrong_device",
+                "this security key is not enrolled for Labterm",
+            ));
+        }
+        Err(DesktopError::invalid(
+            "confirm with an enrolled unlock method first",
+        ))
+    }
+
+    /// Enroll a FIDO2 security key as an unlock factor: two touches, and
+    /// `pin` when the key has one (only needed here, never to unlock).
+    pub fn add_security_key_factor(
+        &self,
+        password: Option<&str>,
+        name: &str,
+        pin: Option<&str>,
+    ) -> Result<factors::FactorInfo> {
+        let store = self.store()?;
+        self.verify_owner(password)?;
+        let enrolled = crate::security_key::enroll(pin, factors::new_salt())?;
+        let info = factors::add(
+            &self.profile_dir,
+            PROFILE_NAME,
+            store.master_key(),
+            factors::FactorKind::SecurityKey,
+            name,
+            &enrolled.salt,
+            &enrolled.credential,
+            Some(crate::security_key::RP_ID),
+            &enrolled.secret,
+        )?;
+        if !self.password_protected() {
+            *self.master_source.lock().expect("master source poisoned") = MasterKeySource::Factor;
+        }
+        Ok(info)
+    }
+
+    /// Enroll Windows Hello as an unlock factor (prompts Hello once).
+    pub fn add_hello_factor(
+        &self,
+        password: Option<&str>,
+        name: &str,
+    ) -> Result<factors::FactorInfo> {
+        let store = self.store()?;
+        self.verify_owner(password)?;
+        if !crate::hello::available() {
+            return Err(DesktopError::invalid(
+                "Windows Hello is not set up on this computer",
+            ));
+        }
+        let key_name = format!("{}{}", crate::hello::KEY_NAME_PREFIX, uuid::Uuid::new_v4());
+        let salt = factors::new_salt();
+        let secret = Zeroizing::new(crate::hello::enroll(&key_name, &salt)?);
+        let added = factors::add(
+            &self.profile_dir,
+            PROFILE_NAME,
+            store.master_key(),
+            factors::FactorKind::WindowsHello,
+            name,
+            &salt,
+            key_name.as_bytes(),
+            None,
+            &secret,
+        );
+        match added {
+            Ok(info) => {
+                if !self.password_protected() {
+                    *self.master_source.lock().expect("master source poisoned") =
+                        MasterKeySource::Factor;
+                }
+                Ok(info)
+            }
+            Err(e) => {
+                crate::hello::delete(&key_name);
+                Err(e.into())
+            }
+        }
+    }
+
+    /// Remove unlock factor `id`. When it is the last way in, protection is
+    /// turned off instead (key back to the keychain) after the owner proved
+    /// themselves with it.
+    pub fn remove_factor(&self, id: &str) -> Result<MasterKeySource> {
+        let store = self.store()?;
+        let challenge = factors::challenge(&self.profile_dir, id)?;
+        let last = self.factors().len() == 1 && !self.password_protected();
+        if last {
+            self.verify_owner(None)?;
+            let source = secrets::remove_protection(
+                &self.profile_dir,
+                PROFILE_NAME,
+                store.master_key(),
+                true,
+            )?;
+            *self.master_source.lock().expect("master source poisoned") = source;
+        } else {
+            factors::remove(&self.profile_dir, id)?;
+        }
+        if challenge.kind == factors::FactorKind::WindowsHello {
+            crate::hello::delete(&String::from_utf8_lossy(&challenge.credential));
+        }
+        Ok(self.master_source())
+    }
+
+    pub fn rename_factor(&self, id: &str, name: &str) -> Result<factors::FactorInfo> {
+        self.store()?;
+        Ok(factors::rename(&self.profile_dir, id, name)?)
+    }
+
     /// Open the store with the master key unwrapped by `password`. A wrong
     /// password leaves the on-disk record untouched.
     pub fn unlock_with_password(&self, password: &str) -> Result<()> {
@@ -235,9 +445,9 @@ impl AppState {
     /// password already set, `current` must unlock it first.
     pub fn set_master_password(&self, current: Option<&str>, password: &str) -> Result<()> {
         let store = self.store()?;
-        if self.password_protected() {
-            secrets::verify_password(&self.profile_dir, current.unwrap_or_default())?;
-        }
+        // A new password is a new way in: with only Windows Hello protecting
+        // the key, Hello confirms first.
+        self.verify_owner(current)?;
         secrets::set_password(
             &self.profile_dir,
             PROFILE_NAME,
@@ -248,13 +458,20 @@ impl AppState {
         Ok(())
     }
 
-    /// Go back to keychain / file storage after proving `current`.
+    /// Go back to keychain / file storage after proving `current`. With
+    /// unlock factors enrolled only the password goes: the factors keep the
+    /// key wrapped (the optional password fallback switched off).
     pub fn remove_master_password(&self, current: &str) -> Result<MasterKeySource> {
         let store = self.store()?;
         if !self.password_protected() {
             return Ok(self.master_source());
         }
         secrets::verify_password(&self.profile_dir, current)?;
+        if factors::any(&self.profile_dir) {
+            secrets::remove_password_fallback(&self.profile_dir)?;
+            *self.master_source.lock().expect("master source poisoned") = MasterKeySource::Factor;
+            return Ok(MasterKeySource::Factor);
+        }
         let source =
             secrets::remove_password(&self.profile_dir, PROFILE_NAME, store.master_key(), true)?;
         *self.master_source.lock().expect("master source poisoned") = source;
@@ -306,8 +523,6 @@ pub struct Trigger {
 pub struct Settings {
     /// `dark` | `light` | `system`.
     pub theme: String,
-    /// UI language: `system` (follow the OS) or a locale from [`LANGUAGES`].
-    pub language: String,
     /// `grid` | `list`.
     pub hosts_view: String,
     /// `grid` | `list` for the Port Forwarding page.
@@ -444,9 +659,6 @@ pub const TERM_TYPES: &[&str] = &[
     "tmux-256color",
 ];
 
-/// Values accepted for [`Settings::language`]; `system` plus every bundled UI locale.
-pub const LANGUAGES: &[&str] = &["system", "en", "ru"];
-
 const MAX_SHORTCUTS: usize = 256;
 const MAX_SHORTCUT_LEN: usize = 48;
 const MAX_OPEN_WITH: usize = 256;
@@ -455,7 +667,6 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             theme: "dark".into(),
-            language: "system".into(),
             hosts_view: "grid".into(),
             forwarding_view: "grid".into(),
             keychain_view: "grid".into(),
@@ -518,12 +729,6 @@ impl Settings {
     fn validate(&self) -> Result<()> {
         if !matches!(self.theme.as_str(), "dark" | "light" | "system") {
             return Err(DesktopError::invalid("theme must be dark, light or system"));
-        }
-        if !LANGUAGES.contains(&self.language.as_str()) {
-            return Err(DesktopError::invalid(format!(
-                "language must be one of {}",
-                LANGUAGES.join(", ")
-            )));
         }
         if !matches!(self.hosts_view.as_str(), "grid" | "list") {
             return Err(DesktopError::invalid("hostsView must be grid or list"));
@@ -782,6 +987,69 @@ mod tests {
         assert_eq!(g.label, "kept");
     }
 
+    /// Enroll a factor the way Hello would, with a known secret.
+    fn enroll_factor(dir: &std::path::Path, state: &AppState, secret: &[u8]) -> String {
+        let store = state.store().unwrap();
+        factors::add(
+            dir,
+            PROFILE_NAME,
+            store.master_key(),
+            factors::FactorKind::WindowsHello,
+            "",
+            &factors::new_salt(),
+            b"Labterm unlock test",
+            None,
+            secret,
+        )
+        .unwrap()
+        .id
+    }
+
+    #[test]
+    fn unlock_method_locks_on_restart_and_opens_the_vault() {
+        let (dir, state) = state();
+        let id = group(&state, "kept");
+        let factor = enroll_factor(dir.path(), &state, &[9u8; 32]);
+        assert!(state.protected());
+        assert!(!state.password_protected());
+        assert_eq!(state.factors().len(), 1);
+        drop(state);
+
+        let state = AppState::open_at(dir.path().to_path_buf()).unwrap();
+        assert!(state.is_locked());
+        assert_eq!(state.master_source(), MasterKeySource::Factor);
+        assert_eq!(
+            state
+                .unlock_with_factor(&factor, &[1u8; 32])
+                .unwrap_err()
+                .kind,
+            "wrong_password"
+        );
+        state.unlock_with_factor(&factor, &[9u8; 32]).unwrap();
+        let g: Group = state.store().unwrap().require::<Group>(id).unwrap().data;
+        assert_eq!(g.label, "kept");
+    }
+
+    #[test]
+    fn password_fallback_can_be_turned_off_but_not_the_last_method() {
+        let (dir, state) = state();
+        state.set_master_password(None, "first password").unwrap();
+        let factor = enroll_factor(dir.path(), &state, &[9u8; 32]);
+        // With unlock methods enrolled only the password goes.
+        let source = state.remove_master_password("first password").unwrap();
+        assert_eq!(source, MasterKeySource::Factor);
+        assert!(!state.password_protected());
+        assert!(state.protected());
+        // The last method needs a fresh confirmation (Hello) to go; there is
+        // no Hello here, so it stays.
+        assert!(state.remove_factor(&factor).is_err());
+        assert!(state.protected());
+        drop(state);
+        let state = AppState::open_at(dir.path().to_path_buf()).unwrap();
+        assert!(state.is_locked());
+        state.unlock_with_factor(&factor, &[9u8; 32]).unwrap();
+    }
+
     #[test]
     fn lock_without_password_is_not_locked_on_restart() {
         let (dir, state) = state();
@@ -849,6 +1117,10 @@ mod tests {
         assert!(!s.record_sessions);
         assert!(s.shortcuts.is_empty());
         s.validate().unwrap();
+        // The language picker is gone; a stored choice is dropped, not rejected.
+        let s: Settings = serde_json::from_str(r#"{"theme":"light","language":"ru"}"#).unwrap();
+        s.validate().unwrap();
+        assert!(!serde_json::to_string(&s).unwrap().contains("language"));
     }
 
     #[test]

@@ -42,11 +42,12 @@ pub const KINDS: &[&str] = &[
     "oidc_provider",
     "transport",
     "host_overlay",
+    "vault_pin",
 ];
 
 /// Kinds that may only live in a personal (or the device-local) vault: a
 /// team vault must never hold them. Servers refuse them in team vaults.
-pub const PERSONAL_ONLY_KINDS: &[&str] = &["host_overlay"];
+pub const PERSONAL_ONLY_KINDS: &[&str] = &["host_overlay", "vault_pin"];
 
 /// Whether `kind` is one of [`PERSONAL_ONLY_KINDS`].
 pub fn is_personal_only_kind(kind: &str) -> bool {
@@ -109,6 +110,42 @@ pub const OPKSSH_KEY_TYPE: &str = "opkssh";
 
 /// [`payload::Transport::provider`] of a NetBird network.
 pub const TRANSPORT_NETBIRD: &str = "netbird";
+
+/// [`payload::Transport::provider`] of a Tailscale (or Headscale) network.
+pub const TRANSPORT_TAILSCALE: &str = "tailscale";
+
+/// Stored in a reference field of [`payload::SshConfig`] (`proxy_id`,
+/// `host_chain_id`, `transport_id`, `oidc_key_id`, `port_knocking_id`,
+/// `identity_id`) to say "none" on purpose: the host or group does not
+/// inherit what a group or tag below it sets. Any set value wins the merge,
+/// so this needs no schema change, and clients that predate it find no
+/// record with this id and treat it as none too.
+pub const EXPLICIT_NONE: Uuid = Uuid::nil();
+
+/// Whether a reference field says "none" on purpose ([`EXPLICIT_NONE`]).
+pub fn is_explicit_none(id: Option<Uuid>) -> bool {
+    id == Some(EXPLICIT_NONE)
+}
+
+impl payload::SshConfig {
+    /// Turn [`EXPLICIT_NONE`] into `None` once the layers are merged, so
+    /// code that connects never sees the marker.
+    pub fn clear_explicit_none(&mut self) {
+        for f in [
+            &mut self.identity_id,
+            &mut self.host_chain_id,
+            &mut self.proxy_id,
+            &mut self.gateway_id,
+            &mut self.transport_id,
+            &mut self.port_knocking_id,
+            &mut self.oidc_key_id,
+        ] {
+            if is_explicit_none(*f) {
+                *f = None;
+            }
+        }
+    }
+}
 
 impl payload::SshKey {
     /// The private half is not in the vault; an SSH agent signs.
@@ -188,6 +225,10 @@ pub mod payload {
             /// `None` shows the default folder.
             #[serde(default, skip_serializing_if = "Option::is_none")]
             pub icon: Option<String>,
+            /// Colour chosen by the user (`#rrggbb`); tints the group's icon.
+            /// `None` keeps the theme colour.
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            pub color: Option<String>,
             /// Id of the group in the system that created it through an API
             /// bridge (CMDB, cloud inventory); lets the bridge find it again.
             #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -237,6 +278,10 @@ pub mod payload {
             /// overrides the detected `os_name` for display.
             #[serde(default, skip_serializing_if = "Option::is_none")]
             pub icon: Option<String>,
+            /// Colour chosen by the user (`#rrggbb`); tints the host's icon.
+            /// `None` keeps the icon's own colour.
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            pub color: Option<String>,
             /// Preferred IP version: `auto`, `4`, `6`.
             #[serde(default)]
             pub ip_version: String,
@@ -642,10 +687,10 @@ pub mod payload {
         pub struct Transport {
             /// Label.
             pub label: String,
-            /// [`super::TRANSPORT_NETBIRD`] (Tailscale later).
+            /// [`super::TRANSPORT_NETBIRD`] or [`super::TRANSPORT_TAILSCALE`].
             pub provider: String,
-            /// Management server; `None` = the provider's cloud
-            /// (`https://api.netbird.io`).
+            /// Management server (Tailscale: control server, e.g. a
+            /// Headscale); `None` = the provider's cloud.
             #[serde(default, skip_serializing_if = "Option::is_none")]
             pub management_url: Option<String>,
             /// Setup key every device of this vault joins with. Anyone who
@@ -654,6 +699,16 @@ pub mod payload {
             /// reach SSH. Optional so a sign-in can replace it later.
             #[serde(default, skip_serializing_if = "Option::is_none")]
             pub setup_key: Option<String>,
+            /// Try a host's LAN address directly first (the device is on
+            /// the host's network, at home) and use the network only when
+            /// that doesn't answer.
+            #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+            pub direct_first: bool,
+            /// Seconds the network stays up after its last connection
+            /// closed; `None` = the app's default (2 minutes), `0` = until
+            /// the user disconnects it.
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            pub idle_secs: Option<u32>,
         }
     }
 
@@ -905,6 +960,20 @@ pub mod payload {
             /// Forward X11. Never taken from the team's settings.
             #[serde(default, skip_serializing_if = "std::ops::Not::not")]
             pub forward_x11: bool,
+        }
+    }
+
+    schema! {
+        /// A vault the user pinned to the top of their vault switchers.
+        /// Lives only in the user's personal (or local) vault, so pins
+        /// follow the user across devices and a team never sees them.
+        #[derive(Default, PartialEq, Eq)]
+        pub struct VaultPin {
+            /// The pinned vault (any vault the user can open).
+            pub vault_id: Uuid,
+            /// Sort key among the user's pins; lower comes first.
+            #[serde(default)]
+            pub order: i64,
         }
     }
 

@@ -1,6 +1,17 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, Box, Button, CircularProgress, Stack, TextField } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Button,
+  CircularProgress,
+  FormControlLabel,
+  FormHelperText,
+  MenuItem,
+  Stack,
+  Switch,
+  TextField,
+} from "@mui/material";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
@@ -20,12 +31,20 @@ import {
 } from "@/components/ui";
 import { useActiveVault, ViewOnlyChip } from "@/app/vault";
 import { useVpnNetworkRequests } from "@/app/navigation";
-import { useVpnStates } from "@/ipc/hooks";
+import { useVaults, useVpnStates } from "@/ipc/hooks";
+import { NewItemVaultField } from "@/hosts/NewItemVaultField";
 import { VpnDetailsPanel } from "./VpnDetailsPanel";
 import { VpnStateChip } from "./VpnStateChip";
 import { tr } from "@/i18n";
+import { vpnProviderName } from "@/hosts/HostBadges";
+import {
+  IDLE_CHOICES,
+  idleChoiceLabel,
+  networkTitle,
+  providerCloud,
+  VPN_PROVIDERS,
+} from "./providers";
 
-const NETBIRD_CLOUD = "https://api.netbird.io";
 const mono = { spellCheck: false, style: { fontFamily: "monospace", fontSize: 12 } } as const;
 
 /** The vault's VPN networks with their state on this device. A click opens
@@ -59,6 +78,9 @@ function NetworksBody({ vault }: { vault: ReturnType<typeof useActiveVault> }) {
     enabled: vaultId !== null,
   });
   const [editing, setEditing] = useState<Editing | null>(null);
+  /** New networks may go into another vault; the active one is preselected. */
+  const [newVault, setNewVault] = useState<Uuid | null>(null);
+  const vaults = useVaults();
   const [showing, setShowing] = useState<Uuid | null>(null);
   // A host badge or picker asked for one network's details.
   useVpnNetworkRequests((id) => {
@@ -73,6 +95,7 @@ function NetworksBody({ vault }: { vault: ReturnType<typeof useActiveVault> }) {
 
   const add = () => {
     setShowing(null);
+    setNewVault(vaultId);
     setEditing({ network: null });
   };
   const shown = list.find((n) => n.id === showing) ?? null;
@@ -111,7 +134,7 @@ function NetworksBody({ vault }: { vault: ReturnType<typeof useActiveVault> }) {
               icon={<HubOutlinedIcon />}
               title={tr("No VPN networks yet")}
               description={tr(
-                "Reach hosts through a NetBird network without installing a VPN: the app joins the network itself, only while a connection uses it. Pick the network in a host's or group's settings.",
+                "Reach hosts through a NetBird or Tailscale network without installing a VPN: the app joins the network itself, only while a connection uses it. Pick the network in a host's or group's settings.",
               )}
               action={
                 <Button variant="contained" disabled={readOnly} onClick={add}>
@@ -133,8 +156,12 @@ function NetworksBody({ vault }: { vault: ReturnType<typeof useActiveVault> }) {
                       )}
                     </IconTile>
                   }
-                  title={n.label || "NetBird"}
-                  subtitle={[n.managementUrl ?? NETBIRD_CLOUD, n.account]
+                  title={networkTitle(n)}
+                  subtitle={[
+                    vpnProviderName(n.provider),
+                    n.managementUrl ?? providerCloud(n.provider),
+                    n.account,
+                  ]
                     .filter(Boolean)
                     .join(" · ")}
                   trailing={<VpnStateChip state={states.data?.[n.id]} />}
@@ -163,7 +190,7 @@ function NetworksBody({ vault }: { vault: ReturnType<typeof useActiveVault> }) {
       </Page>
       {shown && !editing && (
         <SidePanel
-          title={shown.label || "NetBird"}
+          title={networkTitle(shown)}
           subtitle={vaultName}
           onClose={() => setShowing(null)}
         >
@@ -183,11 +210,21 @@ function NetworksBody({ vault }: { vault: ReturnType<typeof useActiveVault> }) {
           subtitle={vaultName}
           onClose={() => setEditing(null)}
         >
+          {!editing.network && newVault && (
+            <NewItemVaultField value={newVault} onChange={setNewVault} />
+          )}
           <NetworkForm
-            key={editing.network?.id ?? "new"}
-            vaultId={vaultId}
+            key={editing.network?.id ?? `new-${newVault ?? ""}`}
+            vaultId={editing.network ? vaultId : (newVault ?? vaultId)}
             network={editing.network}
-            signInOnly={signInOnly.data ?? true}
+            signInOnly={
+              // A team vault never holds setup keys.
+              !editing.network &&
+              newVault !== vaultId &&
+              vaults.data?.find((v) => v.id === newVault)?.kind === "team"
+                ? true
+                : (signInOnly.data ?? true)
+            }
             readOnly={readOnly}
             onDone={() => {
               setEditing(null);
@@ -220,8 +257,12 @@ function NetworkForm({
   onChanged: () => void;
 }) {
   const [label, setLabel] = useState(network?.label ?? "");
+  const [provider, setProvider] = useState(network?.provider ?? "netbird");
+  const tailscale = provider === "tailscale";
   const [url, setUrl] = useState(network?.managementUrl ?? "");
   const [setupKey, setSetupKey] = useState("");
+  const [directFirst, setDirectFirst] = useState(network?.directFirst ?? false);
+  const [idleSecs, setIdleSecs] = useState<number | null>(network?.idleSecs ?? null);
   const [account, setAccount] = useState(network?.account ?? "");
   const [busy, setBusy] = useState<"save" | "delete" | "signIn" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -242,9 +283,11 @@ function NetworkForm({
   };
   const form = (): VpnNetworkForm => ({
     label: label.trim(),
-    provider: "netbird",
+    provider,
     managementUrl: url.trim() || null,
     setupKey: !signInOnly && setupKey.trim() ? setupKey.trim() : null,
+    directFirst,
+    idleSecs,
   });
   const save = async () => {
     if (await run("save", () => ipc.vpnNetworkSave(vaultId, network?.id ?? null, form()))) onDone();
@@ -275,13 +318,28 @@ function NetworkForm({
           slotProps={{ htmlInput: { readOnly } }}
         />
         <TextField
+          select
+          value={provider}
+          onChange={(e) => setProvider(e.target.value)}
+          label={tr("Provider")}
+          slotProps={{ htmlInput: { readOnly } }}
+        >
+          {VPN_PROVIDERS.map((p) => (
+            <MenuItem key={p} value={p}>
+              {vpnProviderName(p)}
+            </MenuItem>
+          ))}
+        </TextField>
+        <TextField
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          label={tr("Management URL")}
-          placeholder={NETBIRD_CLOUD}
-          helperText={tr(
-            "Empty: NetBird's cloud. Your own server: the URL you use in the NetBird app.",
-          )}
+          label={tailscale ? tr("Control server URL") : tr("Management URL")}
+          placeholder={providerCloud(provider)}
+          helperText={
+            tailscale
+              ? tr("Empty: Tailscale. Headscale: your server's URL.")
+              : tr("Empty: NetBird's cloud. Your own server: the URL you use in the NetBird app.")
+          }
           slotProps={{ htmlInput: { readOnly, ...mono } }}
         />
         {signInOnly ? (
@@ -294,13 +352,50 @@ function NetworkForm({
           <TextField
             value={setupKey}
             onChange={(e) => setSetupKey(e.target.value)}
-            label={tr("Setup key (optional)")}
+            label={tailscale ? tr("Auth key (optional)") : tr("Setup key (optional)")}
             type="password"
             placeholder={network?.hasSetupKey ? tr("Stored — type to replace") : ""}
             helperText={tr("Without one, this device signs in instead.")}
             slotProps={{ htmlInput: { readOnly } }}
           />
         )}
+        <Box>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={directFirst}
+                disabled={readOnly}
+                onChange={(e) => setDirectFirst(e.target.checked)}
+              />
+            }
+            label={tr("Connect directly on the host's LAN")}
+          />
+          <FormHelperText>
+            {tr(
+              "At home: when the host's LAN address answers with the host key you already trust, connect without the network.",
+            )}
+          </FormHelperText>
+        </Box>
+        <TextField
+          select
+          value={idleSecs === null ? "default" : String(idleSecs)}
+          onChange={(e) =>
+            setIdleSecs(e.target.value === "default" ? null : Number(e.target.value))
+          }
+          label={tr("Stay connected when unused")}
+          helperText={tr(
+            "After the last connection closes. Longer keeps reconnects instant; shorter saves battery.",
+          )}
+          slotProps={{ htmlInput: { readOnly } }}
+        >
+          {(IDLE_CHOICES.includes(idleSecs) ? IDLE_CHOICES : [...IDLE_CHOICES, idleSecs]).map(
+            (c) => (
+              <MenuItem key={c ?? "default"} value={c === null ? "default" : String(c)}>
+                {idleChoiceLabel(c)}
+              </MenuItem>
+            ),
+          )}
+        </TextField>
         {error && (
           <Alert severity="error" variant="outlined">
             {error}

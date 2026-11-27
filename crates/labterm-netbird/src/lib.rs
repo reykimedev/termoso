@@ -1,4 +1,7 @@
-//! Embedded NetBird client for Labterm.
+//! Embedded VPN clients for Labterm: NetBird and Tailscale (tsnet), in one
+//! Go library. The names below say NetBird; Tailscale networks run the same
+//! way, with the tailnet's control server as "management server", an auth
+//! key as "setup key" and the node's state as "peer key".
 //!
 //! A host whose SSH settings name a NetBird [`Transport`] is dialled inside
 //! that network by a NetBird peer that runs in the app process itself, in
@@ -31,7 +34,7 @@ use std::time::{Duration, Instant};
 use labterm_core::error::{CoreError, Result};
 use labterm_core::model::{Entity, Transport};
 use labterm_core::transport::{BoxStream, TransportDial};
-use labterm_proto::entities::TRANSPORT_NETBIRD;
+use labterm_proto::entities::{TRANSPORT_NETBIRD, TRANSPORT_TAILSCALE};
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use uuid::Uuid;
@@ -41,6 +44,26 @@ pub use ffi::LIBRARY;
 
 /// Management server when a network names none.
 pub const DEFAULT_MANAGEMENT_URL: &str = "https://api.netbird.io";
+
+/// Tailscale's control server when a network names none (Headscale: its
+/// own URL).
+pub const DEFAULT_TAILSCALE_URL: &str = "https://controlplane.tailscale.com";
+
+static DATA_DIR: Mutex<Option<String>> = Mutex::new(None);
+
+/// A writable app directory (cache) for Tailscale's working files. Holds no
+/// keys: the node's state goes through [`PeerKeys`].
+pub fn set_data_dir(dir: &str) {
+    *DATA_DIR.lock().unwrap_or_else(|p| p.into_inner()) = Some(dir.to_owned());
+}
+
+fn data_dir() -> String {
+    DATA_DIR
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .clone()
+        .unwrap_or_default()
+}
 
 /// How long a peer stays up after its last connection closed, so a quick
 /// reconnect does not pay for a new start.
@@ -62,10 +85,18 @@ pub struct NetworkConfig {
     pub id: Uuid,
     /// Its label, for progress and errors.
     pub label: String,
+    /// [`TRANSPORT_NETBIRD`] or [`TRANSPORT_TAILSCALE`].
+    pub provider: String,
     /// Management server.
     pub management_url: String,
     /// Setup key; `None` = only an already registered peer can start.
     pub setup_key: Option<Zeroizing<String>>,
+    /// Try a host's LAN address directly first (see
+    /// `labterm_core::transport::TransportDial::direct_first`).
+    pub direct_first: bool,
+    /// Seconds the peer stays up after its last connection closed; `None`
+    /// = [`Netbird`]'s default, `Some(0)` = until disconnected.
+    pub idle_secs: Option<u32>,
 }
 
 impl std::fmt::Debug for NetworkConfig {
@@ -73,30 +104,36 @@ impl std::fmt::Debug for NetworkConfig {
         f.debug_struct("NetworkConfig")
             .field("id", &self.id)
             .field("label", &self.label)
+            .field("provider", &self.provider)
             .field("management_url", &self.management_url)
             .field("setup_key", &self.setup_key.as_ref().map(|_| "…"))
+            .field("direct_first", &self.direct_first)
+            .field("idle_secs", &self.idle_secs)
             .finish()
     }
 }
 
 impl NetworkConfig {
-    /// From a NetBird transport entity; `None` for other providers.
+    /// From a NetBird or Tailscale transport entity; `None` for others.
     pub fn from_entity(t: &Entity<Transport>) -> Option<Self> {
-        if t.data.provider != TRANSPORT_NETBIRD {
-            return None;
-        }
+        let default_url = match t.data.provider.as_str() {
+            TRANSPORT_NETBIRD => DEFAULT_MANAGEMENT_URL,
+            TRANSPORT_TAILSCALE => DEFAULT_TAILSCALE_URL,
+            _ => return None,
+        };
         let url = t
             .data
             .management_url
             .as_deref()
             .map(str::trim)
             .filter(|u| !u.is_empty())
-            .unwrap_or(DEFAULT_MANAGEMENT_URL)
+            .unwrap_or(default_url)
             .trim_end_matches('/')
             .to_string();
         Some(Self {
             id: t.id,
             label: t.data.label.clone(),
+            provider: t.data.provider.clone(),
             management_url: url,
             setup_key: t
                 .data
@@ -105,6 +142,8 @@ impl NetworkConfig {
                 .map(str::trim)
                 .filter(|k| !k.is_empty())
                 .map(|k| Zeroizing::new(k.to_string())),
+            direct_first: t.data.direct_first,
+            idle_secs: t.data.idle_secs,
         })
     }
 
@@ -117,7 +156,8 @@ impl NetworkConfig {
             Ok(())
         } else {
             Err(CoreError::Invalid(format!(
-                "NetBird \"{}\": the management URL must use https://",
+                "{} \"{}\": the server URL must use https://",
+                self.provider_name(),
                 self.label
             )))
         }
@@ -127,7 +167,20 @@ impl NetworkConfig {
     /// to one management server, so moving the network to another server
     /// registers anew.
     pub fn peer_slot(&self) -> String {
-        format!("{}@{}", self.id, self.management_url)
+        if self.provider == TRANSPORT_NETBIRD {
+            format!("{}@{}", self.id, self.management_url)
+        } else {
+            format!("{}@{}:{}", self.id, self.provider, self.management_url)
+        }
+    }
+
+    /// "NetBird" or "Tailscale", for messages.
+    pub fn provider_name(&self) -> &'static str {
+        if self.provider == TRANSPORT_TAILSCALE {
+            "Tailscale"
+        } else {
+            "NetBird"
+        }
     }
 }
 
@@ -165,7 +218,7 @@ fn web_url(url: &str) -> bool {
 /// Start of the error when a network needs its user to sign in (no setup
 /// key and no peer yet, or the server's login expiry ran out). The app looks
 /// for it to offer the sign-in.
-pub const SIGN_IN_NEEDED: &str = "NetBird sign-in needed";
+pub const SIGN_IN_NEEDED: &str = "VPN sign-in needed";
 
 /// An SSO sign-in waiting for the browser.
 pub struct SignIn {
@@ -210,6 +263,9 @@ pub struct SignedIn {
 
 #[derive(Serialize)]
 struct LoginOptions<'a> {
+    provider: &'a str,
+    data_dir: &'a str,
+    network_id: String,
     management_url: &'a str,
     private_key: &'a str,
     device_name: &'a str,
@@ -230,6 +286,9 @@ struct LoginResult {
 
 #[derive(Serialize)]
 struct StartOptions<'a> {
+    provider: &'a str,
+    data_dir: &'a str,
+    network_id: String,
     management_url: &'a str,
     setup_key: &'a str,
     private_key: &'a str,
@@ -244,6 +303,20 @@ struct StartResult {
     #[serde(default)]
     registered: bool,
 }
+
+/// A network whose peer stopped by itself after its idle time, for a
+/// notice ("NetBird "home" disconnected").
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IdleStop {
+    /// Increases with every stop, so a shell shows each one once.
+    pub seq: u64,
+    pub network: Uuid,
+    pub label: String,
+    pub provider: String,
+}
+
+/// How many idle stops [`Netbird::idle_stops_since`] remembers.
+const IDLE_STOPS_KEPT: usize = 16;
 
 /// What this process is doing with one network's peer, for badges.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -277,6 +350,133 @@ pub struct Details {
     /// The peers this device may reach.
     #[serde(default)]
     pub peers: Vec<PeerDetails>,
+    /// NetBird's nameserver groups as this device applied them.
+    #[serde(default)]
+    pub dns: Vec<DnsGroup>,
+}
+
+/// One nameserver group in [`Details`].
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DnsGroup {
+    /// Match domains; empty = primary (every other name).
+    #[serde(default)]
+    pub domains: Vec<String>,
+    /// `ip:port` of each server.
+    #[serde(default)]
+    pub servers: Vec<String>,
+    /// A server is reachable through the network, so Labterm asks it
+    /// through the tunnel; otherwise the provider's resolver does.
+    #[serde(default)]
+    pub tunnel: bool,
+}
+
+/// What the connection test found for one host (see [`Netbird::test_host`]).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HostTest {
+    /// Time to get the network up (0 when it was running).
+    #[serde(default)]
+    pub start_ms: u64,
+    /// The network didn't come up: why. The other fields stay empty.
+    #[serde(default)]
+    pub network_error: Option<String>,
+    /// The name that resolved (a short name with its search domain).
+    #[serde(default)]
+    pub name: String,
+    /// How: `address`, `nameserver`, `netbird` or `tailscale`.
+    #[serde(default)]
+    pub via: String,
+    /// The nameserver that answered (`via = nameserver`).
+    #[serde(default)]
+    pub server: String,
+    /// Where the connection went (`ip:port`).
+    #[serde(default)]
+    pub remote: String,
+    #[serde(default)]
+    pub connect_ms: u64,
+    /// The server's SSH identification line.
+    #[serde(default)]
+    pub banner: String,
+    /// The dial or the banner failed: why.
+    #[serde(default)]
+    pub error: Option<String>,
+    /// The peer the connection goes through (the host itself, or the
+    /// routing peer / exit node of `route`).
+    #[serde(default)]
+    pub peer: Option<PeerDetails>,
+    /// The route that covers the address, when it isn't a peer's own.
+    #[serde(default)]
+    pub route: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct ProbeJson {
+    #[serde(default)]
+    name: String,
+    #[serde(default)]
+    via: String,
+    #[serde(default)]
+    server: String,
+    #[serde(default)]
+    remote: String,
+    #[serde(default)]
+    connect_ms: u64,
+    #[serde(default)]
+    banner: String,
+    #[serde(default)]
+    error: String,
+}
+
+/// Whether `cidr` ("192.0.2.0/24") contains `ip`.
+fn cidr_contains(cidr: &str, ip: std::net::IpAddr) -> Option<u8> {
+    let (net, bits) = cidr.split_once('/')?;
+    let net: std::net::IpAddr = net.parse().ok()?;
+    let bits: u8 = bits.parse().ok()?;
+    let ok = match (net, ip) {
+        (std::net::IpAddr::V4(n), std::net::IpAddr::V4(a)) if bits <= 32 => {
+            let mask = if bits == 0 {
+                0
+            } else {
+                u32::MAX << (32 - bits)
+            };
+            u32::from(n) & mask == u32::from(a) & mask
+        }
+        (std::net::IpAddr::V6(n), std::net::IpAddr::V6(a)) if bits <= 128 => {
+            let mask = if bits == 0 {
+                0
+            } else {
+                u128::MAX << (128 - bits)
+            };
+            u128::from(n) & mask == u128::from(a) & mask
+        }
+        _ => false,
+    };
+    ok.then_some(bits)
+}
+
+/// The peer `remote` goes through: the peer with that address, else the
+/// connected peer with the most specific route covering it.
+fn path_to(peers: &[PeerDetails], remote: &str) -> (Option<PeerDetails>, Option<String>) {
+    let Ok(addr) = remote.parse::<std::net::SocketAddr>() else {
+        return (None, None);
+    };
+    let ip = addr.ip();
+    if let Some(p) = peers.iter().find(|p| p.ip.parse() == Ok(ip)) {
+        return (Some(p.clone()), None);
+    }
+    let mut best: Option<(u8, &PeerDetails, &String)> = None;
+    for p in peers.iter().filter(|p| p.connected) {
+        for r in &p.routes {
+            if let Some(bits) = cidr_contains(r, ip)
+                && best.is_none_or(|(b, _, _)| bits > b)
+            {
+                best = Some((bits, p, r));
+            }
+        }
+    }
+    match best {
+        Some((_, p, r)) => (Some(p.clone()), Some(r.clone())),
+        None => (None, None),
+    }
 }
 
 /// One peer in [`Details`].
@@ -297,6 +497,10 @@ pub struct PeerDetails {
     /// Unix seconds of the last handshake; 0 = none yet.
     #[serde(default)]
     pub handshake: i64,
+    /// Networks reached through this peer: a routing peer's LAN routes, or
+    /// "0.0.0.0/0" for an exit node.
+    #[serde(default)]
+    pub routes: Vec<String>,
 }
 
 /// One running peer.
@@ -310,6 +514,18 @@ struct Node {
     /// Runtime the node was started on; runs its idle timer even when the
     /// last stream is dropped outside of it.
     rt: tokio::runtime::Handle,
+    /// When the idle timer stops the peer; `None` while a stream is open or
+    /// when the network stays up until disconnected.
+    stops_at: Mutex<Option<Instant>>,
+}
+
+impl Node {
+    /// A stream opened: no idle timer runs until it closes.
+    fn opened(&self) {
+        self.streams.fetch_add(1, Ordering::SeqCst);
+        self.epoch.fetch_add(1, Ordering::SeqCst);
+        *self.stops_at.lock().unwrap_or_else(|p| p.into_inner()) = None;
+    }
 }
 
 /// Starts, shares and stops the NetBird peers of this process.
@@ -325,6 +541,9 @@ pub struct Netbird {
     states: Mutex<HashMap<Uuid, NodeState>>,
     /// Handles to stop once the last stream is gone.
     me: Mutex<Weak<Netbird>>,
+    /// The latest idle stops, oldest first.
+    idle_stops: Mutex<std::collections::VecDeque<IdleStop>>,
+    idle_seq: AtomicU64,
 }
 
 impl Netbird {
@@ -343,6 +562,8 @@ impl Netbird {
             nodes: tokio::sync::Mutex::new(HashMap::new()),
             states: Mutex::new(HashMap::new()),
             me: Mutex::new(Weak::new()),
+            idle_stops: Mutex::new(Default::default()),
+            idle_seq: AtomicU64::new(0),
         });
         *n.me.lock().expect("netbird self") = Arc::downgrade(&n);
         n
@@ -379,6 +600,80 @@ impl Netbird {
             self.clone().released(node);
         }
         Ok(())
+    }
+
+    /// The connection test: bring the network up, dial `host:port` through
+    /// it the way an SSH connection would, read the server's SSH banner and
+    /// hang up. Nothing is sent to the host, and no credential is used.
+    pub async fn test_host(
+        self: &Arc<Self>,
+        config: &NetworkConfig,
+        device_name: &str,
+        keys: &dyn PeerKeys,
+        host: &str,
+        port: u16,
+    ) -> HostTest {
+        let started = Instant::now();
+        let running = self.is_running(config.id).await;
+        let node = match self.node(config, device_name, keys).await {
+            Ok(n) => n,
+            Err(e) => {
+                return HostTest {
+                    network_error: Some(e.to_string()),
+                    ..Default::default()
+                };
+            }
+        };
+        let start_ms = if running {
+            0
+        } else {
+            started.elapsed().as_millis() as u64
+        };
+        // The probe counts as a connection, so the idle timer can't stop the
+        // network under it; dropping the guard starts the timer as usual.
+        node.opened();
+        let _guard = StreamGuard {
+            netbird: self.me.lock().expect("netbird self").clone(),
+            node: node.clone(),
+        };
+        let path = self.library_path.clone();
+        let handle = node.handle;
+        let host_owned = host.to_string();
+        let probe = tokio::task::spawn_blocking(move || {
+            let lib = ffi::library(path.as_deref())?;
+            lib.probe(handle, &host_owned, port, 20_000)
+        })
+        .await
+        .map_err(|e| e.to_string())
+        .and_then(|r| r)
+        .and_then(|json| serde_json::from_str::<ProbeJson>(&json).map_err(|e| e.to_string()));
+        let p = match probe {
+            Ok(p) => p,
+            Err(e) => {
+                return HostTest {
+                    start_ms,
+                    error: Some(e),
+                    ..Default::default()
+                };
+            }
+        };
+        let (peer, route) = match self.details(config.id).await {
+            Some(Ok(d)) => path_to(&d.peers, &p.remote),
+            _ => (None, None),
+        };
+        HostTest {
+            start_ms,
+            network_error: None,
+            name: p.name,
+            via: p.via,
+            server: p.server,
+            remote: p.remote,
+            connect_ms: p.connect_ms,
+            banner: p.banner,
+            error: (!p.error.is_empty()).then_some(p.error),
+            peer,
+            route,
+        }
     }
 
     /// Whether a peer for `network` is running.
@@ -486,6 +781,9 @@ impl Netbird {
         }
         let options = Zeroizing::new(
             serde_json::to_string(&StartOptions {
+                provider: &config.provider,
+                data_dir: &data_dir(),
+                network_id: config.id.to_string(),
                 management_url: &config.management_url,
                 setup_key: config
                     .setup_key
@@ -501,6 +799,7 @@ impl Netbird {
         );
         let path = self.library_path.clone();
         let label = config.label.clone();
+        let name = config.provider_name();
         let t_start = Instant::now();
         tracing::info!(
             network = %config.id,
@@ -521,7 +820,7 @@ impl Netbird {
                 if config.setup_key.is_none() && login_refused(&e) {
                     CoreError::Transport(format!("{SIGN_IN_NEEDED} for \"{label}\": {e}"))
                 } else {
-                    CoreError::Transport(format!("NetBird \"{label}\": {e}"))
+                    CoreError::Transport(format!("{name} \"{label}\": {e}"))
                 }
             })
         });
@@ -555,6 +854,7 @@ impl Netbird {
             streams: AtomicUsize::new(0),
             epoch: AtomicU64::new(0),
             rt: tokio::runtime::Handle::current(),
+            stops_at: Mutex::new(None),
         });
         nodes.insert(config.id, node.clone());
         self.set_state(config.id, Some(NodeState::Running));
@@ -586,6 +886,9 @@ impl Netbird {
         let saved = keys.load(&config.peer_slot());
         let options = Zeroizing::new(
             serde_json::to_string(&LoginOptions {
+                provider: &config.provider,
+                data_dir: &data_dir(),
+                network_id: config.id.to_string(),
                 management_url: &config.management_url,
                 private_key: saved.as_deref().map(String::as_str).unwrap_or(""),
                 device_name,
@@ -596,6 +899,7 @@ impl Netbird {
         );
         let path = self.library_path.clone();
         let label = config.label.clone();
+        let name = config.provider_name();
         let started = Instant::now();
         tracing::info!(
             network = %config.id,
@@ -616,7 +920,7 @@ impl Netbird {
                 ms = started.elapsed().as_millis(),
                 "netbird: sign-in could not start: {e}"
             );
-            CoreError::Transport(format!("NetBird \"{label}\": {e}"))
+            CoreError::Transport(format!("{name} \"{label}\": {e}"))
         })?;
         #[derive(Deserialize)]
         struct Begin {
@@ -632,7 +936,8 @@ impl Netbird {
                 lib.login_cancel(handle);
             }
             return Err(CoreError::Transport(format!(
-                "NetBird \"{}\": the server's sign-in page is not an https:// address",
+                "{} \"{}\": the server's sign-in page is not an https:// address",
+                config.provider_name(),
                 config.label
             )));
         }
@@ -674,7 +979,11 @@ impl Netbird {
                     ms = started.elapsed().as_millis(),
                     "netbird: sign-in did not finish: {e}"
                 );
-                CoreError::Transport(format!("NetBird \"{}\": {e}", config.label))
+                CoreError::Transport(format!(
+                    "{} \"{}\": {e}",
+                    config.provider_name(),
+                    config.label
+                ))
             })?,
         );
         let result: LoginResult = serde_json::from_str(&out)
@@ -710,8 +1019,7 @@ impl Netbird {
         let started = Instant::now();
         let node = self.node(config, &d.device_name, d.keys.as_ref()).await?;
         let peer_ms = started.elapsed().as_millis();
-        node.streams.fetch_add(1, Ordering::SeqCst);
-        node.epoch.fetch_add(1, Ordering::SeqCst);
+        node.opened();
         let guard = StreamGuard {
             netbird: self.me.lock().expect("netbird self").clone(),
             node: node.clone(),
@@ -735,7 +1043,8 @@ impl Netbird {
                 "netbird: dial failed: {e}"
             );
             CoreError::Transport(format!(
-                "{host}:{port} via NetBird \"{}\": {e}",
+                "{host}:{port} via {} \"{}\": {e}",
+                config.provider_name(),
                 config.label
             ))
         })?;
@@ -756,11 +1065,83 @@ impl Netbird {
         }))
     }
 
+    /// How long `config`'s peer stays up without a connection; `None` =
+    /// until disconnected.
+    fn idle_for(&self, config: &NetworkConfig) -> Option<Duration> {
+        match config.idle_secs {
+            None => Some(self.idle),
+            Some(0) => None,
+            Some(s) => Some(Duration::from_secs(s.into())),
+        }
+    }
+
+    fn record_idle_stop(&self, config: &NetworkConfig) {
+        let seq = self.idle_seq.fetch_add(1, Ordering::SeqCst) + 1;
+        let mut stops = self.idle_stops.lock().unwrap_or_else(|p| p.into_inner());
+        if stops.len() == IDLE_STOPS_KEPT {
+            stops.pop_front();
+        }
+        stops.push_back(IdleStop {
+            seq,
+            network: config.id,
+            label: config.label.clone(),
+            provider: config.provider.clone(),
+        });
+    }
+
+    /// Idle stops after `seq` (0 = all remembered), oldest first. A shell
+    /// keeps the last `seq` it showed, so each notice shows once.
+    pub fn idle_stops_since(&self, seq: u64) -> Vec<IdleStop> {
+        self.idle_stops
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .iter()
+            .filter(|s| s.seq > seq)
+            .cloned()
+            .collect()
+    }
+
+    /// The newest idle stop's `seq` (0 = none yet): where a shell that just
+    /// started begins, so it doesn't show old notices.
+    pub fn idle_stop_seq(&self) -> u64 {
+        self.idle_seq.load(Ordering::SeqCst)
+    }
+
+    /// Networks with a peer starting, running or failed, with the seconds
+    /// until a running one stops by itself (`None`: a connection is open,
+    /// or it stays up until disconnected).
+    pub fn active(&self) -> Vec<(Uuid, NodeState, Option<u64>)> {
+        let states: Vec<(Uuid, NodeState)> = self
+            .states
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .iter()
+            .map(|(k, v)| (*k, v.clone()))
+            .collect();
+        // try_lock: a start in progress holds the nodes lock; its state is
+        // Starting, which has no countdown anyway.
+        let nodes = self.nodes.try_lock().ok();
+        states
+            .into_iter()
+            .map(|(id, st)| {
+                let left = nodes
+                    .as_ref()
+                    .and_then(|n| n.get(&id))
+                    .and_then(|n| *n.stops_at.lock().unwrap_or_else(|p| p.into_inner()))
+                    .map(|at| at.saturating_duration_since(Instant::now()).as_secs());
+                (id, st, left)
+            })
+            .collect()
+    }
+
     /// The last stream of `node` closed: stop it after the idle time unless
     /// a new stream opens meanwhile.
     fn released(self: Arc<Self>, node: Arc<Node>) {
         let epoch = node.epoch.load(Ordering::SeqCst);
-        let idle = self.idle;
+        let Some(idle) = self.idle_for(&node.config) else {
+            return;
+        };
+        *node.stops_at.lock().unwrap_or_else(|p| p.into_inner()) = Some(Instant::now() + idle);
         let rt = node.rt.clone();
         rt.spawn(async move {
             tokio::time::sleep(idle).await;
@@ -780,6 +1161,7 @@ impl Netbird {
                 // Under the nodes lock: a new start can't be overwritten.
                 self.set_state(node.config.id, None);
                 drop(nodes);
+                self.record_idle_stop(&node.config);
                 self.stop_node(node).await;
             }
         });
@@ -795,7 +1177,11 @@ struct Dialer {
 
 impl TransportDial for Dialer {
     fn label(&self) -> String {
-        format!("NetBird \"{}\"", self.config.label)
+        format!("{} \"{}\"", self.config.provider_name(), self.config.label)
+    }
+
+    fn direct_first(&self) -> bool {
+        self.config.direct_first
     }
 
     fn dial<'a>(
@@ -857,6 +1243,30 @@ impl AsyncWrite for Tracked {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn path_to_picks_the_peer_or_its_most_specific_route() {
+        let peer = |ip: &str, routes: &[&str]| PeerDetails {
+            ip: ip.into(),
+            connected: true,
+            routes: routes.iter().map(|r| r.to_string()).collect(),
+            ..Default::default()
+        };
+        let peers = [
+            peer("100.64.0.2", &["0.0.0.0/0"]),
+            peer("100.64.0.3", &["192.0.2.0/24"]),
+        ];
+        let (p, r) = path_to(&peers, "100.64.0.3:22");
+        assert_eq!(p.unwrap().ip, "100.64.0.3");
+        assert_eq!(r, None);
+        let (p, r) = path_to(&peers, "192.0.2.10:22");
+        assert_eq!(p.unwrap().ip, "100.64.0.3");
+        assert_eq!(r.as_deref(), Some("192.0.2.0/24"));
+        let (p, r) = path_to(&peers, "198.51.100.1:22");
+        assert_eq!(p.unwrap().ip, "100.64.0.2");
+        assert_eq!(r.as_deref(), Some("0.0.0.0/0"));
+        assert_eq!(path_to(&peers, "nonsense"), (None, None));
+    }
     use super::*;
 
     #[test]
@@ -893,6 +1303,30 @@ mod tests {
         c.management_url = DEFAULT_MANAGEMENT_URL.into();
         assert!(c.check().is_ok());
     }
+    #[test]
+    fn idle_time_per_network_and_idle_stop_notices() {
+        let nb = Netbird::with_options(None, Duration::from_secs(120));
+        let mut c = NetworkConfig::from_entity(&entity(TRANSPORT_NETBIRD, None, None)).unwrap();
+        assert_eq!(nb.idle_for(&c), Some(Duration::from_secs(120)));
+        c.idle_secs = Some(600);
+        assert_eq!(nb.idle_for(&c), Some(Duration::from_secs(600)));
+        c.idle_secs = Some(0);
+        assert_eq!(nb.idle_for(&c), None);
+
+        assert_eq!(nb.idle_stop_seq(), 0);
+        for _ in 0..IDLE_STOPS_KEPT + 2 {
+            nb.record_idle_stop(&c);
+        }
+        let all = nb.idle_stops_since(0);
+        assert_eq!(all.len(), IDLE_STOPS_KEPT);
+        assert_eq!(all.last().unwrap().seq, nb.idle_stop_seq());
+        assert_eq!(all.last().unwrap().label, "home");
+        let seen = nb.idle_stop_seq();
+        assert!(nb.idle_stops_since(seen).is_empty());
+        nb.record_idle_stop(&c);
+        assert_eq!(nb.idle_stops_since(seen).len(), 1);
+    }
+
     fn entity(provider: &str, url: Option<&str>, key: Option<&str>) -> Entity<Transport> {
         Entity {
             id: Uuid::nil(),
@@ -905,13 +1339,24 @@ mod tests {
                 provider: provider.into(),
                 management_url: url.map(Into::into),
                 setup_key: key.map(Into::into),
+                direct_first: false,
+                idle_secs: None,
             },
         }
     }
 
     #[test]
     fn config_from_entity() {
-        assert!(NetworkConfig::from_entity(&entity("tailscale", None, None)).is_none());
+        assert!(NetworkConfig::from_entity(&entity("zerotier", None, None)).is_none());
+        let ts = NetworkConfig::from_entity(&entity("tailscale", None, None)).unwrap();
+        assert_eq!(ts.management_url, DEFAULT_TAILSCALE_URL);
+        assert_eq!(ts.provider_name(), "Tailscale");
+        assert_ne!(
+            ts.peer_slot(),
+            NetworkConfig::from_entity(&entity("netbird", None, None))
+                .unwrap()
+                .peer_slot()
+        );
         let c = NetworkConfig::from_entity(&entity("netbird", None, Some(" K "))).unwrap();
         assert_eq!(c.management_url, DEFAULT_MANAGEMENT_URL);
         assert_eq!(c.setup_key.as_deref().map(String::as_str), Some("K"));

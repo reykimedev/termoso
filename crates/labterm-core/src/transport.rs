@@ -27,6 +27,13 @@ pub trait TransportDial: Send + Sync {
     /// Shown in the connect progress (`NetBird "home"`).
     fn label(&self) -> String;
 
+    /// Try a LAN address directly first ("direct at home", see
+    /// `ssh::direct`): the network is only used when the host isn't on
+    /// this LAN with its trusted host key.
+    fn direct_first(&self) -> bool {
+        false
+    }
+
     /// Connect to `host:port` inside the network, starting the network on
     /// demand.
     fn dial<'a>(

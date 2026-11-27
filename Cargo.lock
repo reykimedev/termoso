@@ -4725,6 +4725,7 @@ dependencies = [
  "labterm-crypto",
  "labterm-proto",
  "labterm-server",
+ "labterm-winhello",
  "md5",
  "mdns-sd",
  "ocb3",
@@ -4770,6 +4771,7 @@ dependencies = [
  "blake3",
  "chacha20poly1305",
  "crypto_box",
+ "ed25519-dalek 3.0.0",
  "getrandom 0.2.17",
  "hkdf 0.12.4",
  "opaque-ke",
@@ -5045,11 +5047,20 @@ dependencies = [
  "serde",
  "serde-wasm-bindgen",
  "serde_json",
+ "sha2 0.10.9",
  "tokio",
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+]
+
+[[package]]
+name = "labterm-winhello"
+version = "0.12.1"
+dependencies = [
+ "thiserror 2.0.21",
+ "windows 0.62.2",
 ]
 
 [[package]]

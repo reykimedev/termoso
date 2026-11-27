@@ -41,6 +41,7 @@ labterm-crypto ─┬─► labterm-proto ─┬─► labterm-server           
 | `labterm-client` | Higher-level repositories over the store used identically by desktop and mobile: hosts with inherited group credentials, keychain façade (keys, identities, certificates), snippets with variables. | `hosts`, `keychain`, `snippets` |
 | `labterm-mobile` | UniFFI façade (`cdylib` + `staticlib`) exposing `labterm-core`/`labterm-client` to Kotlin and Swift. Owns the tokio runtime and terminal emulation (`alacritty_terminal`) so both mobile apps get identical grid frames. | `app`, `connect`, `session`, `sftp`, `webdav`, `forward`, `keys`, `account`, `live`, `presence`, `fido2`, `ai` |
 | `labterm-bridge` | Headless client for automation: pulls a vault, exposes a Termius-compatible REST API for hosts/groups, pushes ciphertext back. See [API_BRIDGE.md](API_BRIDGE.md). | `rest`, `sync` |
+| `labterm-winhello` | FIDO2 security keys through the Windows WebAuthn API (`webauthn.dll`, loaded at run time), the only way an unelevated process reaches them on Windows. A small `unsafe` FFI layer with byte-level inputs and outputs; `labterm-core::fido2::winhello` builds the OpenSSH keys and signatures. Stubs on other platforms. | — |
 | `labterm-wasm` | `labterm-crypto` compiled with `wasm-bindgen` for the web cabinet, so passwords and keys never leave the browser in clear. | — |
 
 `apps/desktop/src-tauri` (`labterm-desktop`) is also a workspace member: it
@@ -188,6 +189,47 @@ keychain / file. Deleting `master.pw` — or both the keychain entry and
 `master.key` while the password is off — makes the database permanently
 unreadable.
 
+### Desktop unlock methods (Windows Hello, security keys)
+
+Unlock methods are more wrappers of the same device master key, kept in
+`master.factors` next to `master.pw` (`labterm_core::secrets::factors`). Each
+entry holds a random 32-byte challenge, a backend handle and the key wrapped
+with XChaCha20-Poly1305 under HKDF-SHA256(secret, label `unlock-factor-kek`,
+kind/id/challenge). The AAD names the entry, so a wrapper cannot be moved to
+another one. The secret comes out of hardware only after the user is checked:
+
+* **Windows Hello.** `KeyCredentialManager` creates a TPM-backed RSA key per
+  entry (`Labterm unlock <uuid>`); its PKCS#1 v1.5 signature over the challenge
+  is deterministic and is the secret. Hello accepts face, fingerprint or the
+  Hello PIN, like Android accepts the screen lock.
+* **FIDO2 security keys** (YubiKey and friends). Enrolling makes a
+  non-resident credential with the `hmac-secret` extension for the relying
+  party `labterm:unlock` (nothing is stored on the key; the credential id is
+  the handle), then reads HMAC(CredRandom, challenge) with one more touch. That
+  output is the secret. Unlocking asks for it without user verification, so a
+  key PIN is needed only at enrolment and the output never depends on it.
+  Several keys can be enrolled, so a backup key works like the first one.
+  Linux and macOS talk raw CTAP over HID; Windows needs `webauthn.dll` and
+  follows.
+* **Android security keys** (USB-C or NFC, `labterm-mobile::unlock`): the
+  same credentials and `master.factors` file in the profile. The Keystore
+  wrappers stay in Kotlin (`MasterKeyStore`): once a key is enrolled the plain
+  wrapper goes, so the vault opens with a key, or with the device
+  authentication when app lock is on. Removing the last key while app lock is
+  off needs a touch of it and brings the plain wrapper back.
+* macOS Touch ID follows (#159).
+
+Rules: with any method or the password present the profile starts locked and
+no plaintext copy of the key is kept. The master password is an optional
+fallback: turning it off with methods enrolled deletes only `master.pw`, and
+from then on the last method cannot be removed (removing it after a fresh
+confirmation turns protection off and moves the key back to the keychain).
+Adding a method needs the current password, or a fresh confirmation with an
+enrolled method (Hello first, else a touch of an enrolled key) when no password
+is set. A broken method (Hello reset, TPM cleared, lost key) leaves
+the password or another method as the way in; with neither, only an encrypted
+backup or a sync sign-in restores the data.
+
 ### Server storage
 
 PostgreSQL (migrations in `crates/labterm-server/migrations`, applied on start)
@@ -269,8 +311,8 @@ sync_once
   (`rsa-oaep-mgf1p`, `rsa-oaep` with any SHA-1/2 digest and MGF1 hash
   combination, `rsa-1_5` only with `SAML_ALLOW_SHA1`; AES-CBC/GCM content).
   All SP private-key operations — request signing and key unwrapping — run in
-  AWS-LC (`aws-lc-rs`, plus `crates/labterm-awslc-rsa`, the one `unsafe` FFI
-  boundary in the workspace, so OAEP digest and MGF1 hash can be set
+  AWS-LC (`aws-lc-rs`, plus `crates/labterm-awslc-rsa`, the server's one `unsafe` FFI
+  boundary, so OAEP digest and MGF1 hash can be set
   independently as XML Encryption allows); the RustCrypto `rsa` crate only
   parses keys and verifies IdP signatures. Every
   response is checked for `InResponseTo`, `Destination`, `Issuer`, audience,

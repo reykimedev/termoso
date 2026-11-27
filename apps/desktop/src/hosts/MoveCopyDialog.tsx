@@ -20,7 +20,7 @@ import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
 import { useSnackbar } from "@/components/Snackbar";
 import { useCopyHostsToVault, useGroups, useMoveHosts, useVaults } from "@/ipc/hooks";
 import { errorMessage, type HostCard, type Uuid } from "@/ipc/types";
-import { vaultHint, vaultIcon } from "@/app/vault";
+import { vaultHint, vaultIcon, vaultName } from "@/app/vault";
 import { groupPathLabel } from "./GroupPanel";
 import { tr, trn } from "@/i18n";
 import { requirePerm } from "@/team/perms";
@@ -255,7 +255,7 @@ function Body({
                 sx={{ borderRadius: 1.5 }}
               >
                 <ListItemIcon sx={{ minWidth: 32 }}>{vaultIcon(v)}</ListItemIcon>
-                <ListItemText primary={v.name} secondary={vaultHint(v)} />
+                <ListItemText primary={vaultName(v)} secondary={vaultHint(v)} />
               </ListItemButton>
             ))}
           </List>
@@ -290,7 +290,7 @@ function Body({
   );
 }
 
-function CredentialsChoice({
+export function CredentialsChoice({
   selected,
   onSelect,
   icon,

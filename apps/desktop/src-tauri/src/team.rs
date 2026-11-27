@@ -182,6 +182,30 @@ pub async fn set_security<R: Runtime>(
                 multiplayer_enabled,
                 require_mfa,
                 presence_enabled,
+                color: None,
+                icon: None,
+            },
+        )
+        .await?;
+    refresh(app).await?;
+    Ok(team)
+}
+
+/// Team tile colour and icon (admins); the server validates them. `None` clears.
+pub async fn set_style<R: Runtime>(
+    app: &AppHandle<R>,
+    team_id: Uuid,
+    color: Option<String>,
+    icon: Option<String>,
+) -> Result<Team> {
+    let team = api(app)
+        .await?
+        .update_team(
+            team_id,
+            &UpdateTeamRequest {
+                color: Some(color.unwrap_or_default()),
+                icon: Some(icon.unwrap_or_default()),
+                ..Default::default()
             },
         )
         .await?;
@@ -666,7 +690,7 @@ pub async fn create_vault<R: Runtime>(
     team_id: Uuid,
     name: &str,
     access: Vec<VaultAccess>,
-) -> Result<()> {
+) -> Result<Uuid> {
     let name = clean_name(name)?;
     let api = api(app).await?;
     let state = app.state::<AppState>();
@@ -693,9 +717,11 @@ pub async fn create_vault<R: Runtime>(
             sealed_key: seal_for(pk, &key)?,
         });
     }
-    api.create_team_vault(team_id, &CreateVaultRequest { name, members })
+    let vault = api
+        .create_team_vault(team_id, &CreateVaultRequest { name, members })
         .await?;
-    refresh(app).await
+    refresh(app).await?;
+    Ok(vault.id)
 }
 
 pub async fn rename_vault<R: Runtime>(
@@ -711,6 +737,8 @@ pub async fn rename_vault<R: Runtime>(
             &UpdateVaultRequest {
                 name: Some(name),
                 session_logging: None,
+                color: None,
+                icon: None,
             },
         )
         .await?;

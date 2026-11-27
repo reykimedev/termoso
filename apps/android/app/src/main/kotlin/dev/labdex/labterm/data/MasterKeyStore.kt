@@ -34,6 +34,11 @@ import javax.crypto.spec.PSource
  *
  * When an unwrap needs the user first, [unwrap] throws [UserNotAuthenticatedException];
  * the UI shows a BiometricPrompt and retries within [AUTH_WINDOW_SECONDS].
+ *
+ * Security keys (Rust, `master.factors` in the profile) are a third way in.
+ * While any is enrolled there is no plain wrapper: the vault opens with a key
+ * or, when app lock is on, with the device authentication. [AppContainer]
+ * keeps those rules; this class only moves blobs.
  */
 class MasterKeyStore(context: Context) {
     private val plainFile = File(context.noBackupFilesDir, "master.key")
@@ -77,6 +82,30 @@ class MasterKeyStore(context: Context) {
         } finally {
             key.fill(0)
         }
+    }
+
+    /** Drop the plain wrapper (a security key now guards the vault). */
+    fun removePlain() {
+        plainFile.delete()
+        deleteAlias(PLAIN_ALIAS)
+    }
+
+    /** Drop the app-lock wrapper (app lock off while security keys guard the vault). */
+    fun removeAuth() {
+        authFile.delete()
+        deleteAlias(AUTH_ALIAS)
+    }
+
+    /** Wrap [key] for opening without the user (last security key removed, app lock off). */
+    fun storePlain(key: ByteArray) {
+        checkKey(key)
+        wrapPlain(key)
+    }
+
+    /** Wrap [key] behind device authentication (app lock on while security keys guard the vault). */
+    fun storeAuth(key: ByteArray) {
+        checkKey(key)
+        wrapAuth(key)
     }
 
     /** Remove the wrapped blobs and the Keystore keys (profile reset). */

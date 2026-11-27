@@ -15,6 +15,7 @@ struct HostsView: View {
     @State private var alert: String?
     /// A big group's "Connect all" waiting for a yes.
     @State private var confirmConnect: (label: String, hosts: [HostItem])?
+    @State private var transfer: TransferRequestState?
 
     /// Opening more sessions than this at once asks first.
     private static let connectAllConfirmAbove = 10
@@ -57,6 +58,7 @@ struct HostsView: View {
                                 .accessibilityIdentifier("hosts.group.\(group.label)")
                                 .contextMenu {
                                     Button("Connect all", systemImage: "play.fill") { connectAll(group.id, label: group.label) }
+                                    transferMenus(hostIds: [], groupIds: [group.id])
                                     Button("Delete group", systemImage: "trash", role: .destructive) { model.deleteGroup(id: group.id) }
                                 }
                             }
@@ -102,8 +104,11 @@ struct HostsView: View {
                 addMenu
             }
         }
-        .sheet(item: $editor) { target in
+        .fullScreenCover(item: $editor) { target in
             HostEditorView(model: model, target: target)
+        }
+        .sheet(item: $transfer) { request in
+            VaultTransferSheet(model: model, request: request)
         }
         .alert("New group", isPresented: Binding(
             get: { newGroupName != nil },
@@ -173,6 +178,24 @@ struct HostsView: View {
         .accessibilityIdentifier("hosts.empty")
     }
 
+    /// "Move to vault" / "Copy to vault" submenus, one entry per writable vault.
+    @ViewBuilder
+    private func transferMenus(hostIds: [String], groupIds: [String]) -> some View {
+        let targets = model.transferTargets
+        if !targets.isEmpty {
+            Menu("Move to vault", systemImage: "folder") {
+                ForEach(targets, id: \.id) { v in
+                    Button(v.name) { transfer = TransferRequestState(hostIds: hostIds, groupIds: groupIds, targetId: v.id, move: true) }
+                }
+            }
+            Menu("Copy to vault", systemImage: "doc.on.doc") {
+                ForEach(targets, id: \.id) { v in
+                    Button(v.name) { transfer = TransferRequestState(hostIds: hostIds, groupIds: groupIds, targetId: v.id, move: false) }
+                }
+            }
+        }
+    }
+
     @ViewBuilder
     private func hostMenu(_ host: HostItem) -> some View {
         Button("Connect", systemImage: "terminal") { sessions.connect(host: host) }
@@ -186,6 +209,7 @@ struct HostsView: View {
         Divider()
         Button("Edit", systemImage: "pencil") { editor = .edit(id: host.id) }
             .accessibilityIdentifier("hosts.menu.edit")
+        transferMenus(hostIds: [host.id], groupIds: [])
         Button("Delete", systemImage: "trash", role: .destructive) { model.deleteHost(id: host.id) }
             .accessibilityIdentifier("hosts.menu.delete")
     }
@@ -240,7 +264,7 @@ struct GroupRow: View {
 
     var body: some View {
         CardRow(title: group.label, subtitle: summary, chevron: true) {
-            GroupAvatar()
+            GroupAvatar(icon: group.icon, color: group.color)
         }
     }
 

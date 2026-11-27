@@ -4,6 +4,8 @@ Labterm Web's own changes. It started as Hatch (bitsandbricks-ch/hatch).
 
 ## Unreleased
 
+- Removed: the German translation. Labterm Web, like every Labterm app, is English only now.
+- Security keys (FIDO2, for example a YubiKey): create one in the keychain with the browser's own dialog and sign in to hosts with it. The keys are `sk-ecdsa` keys for this Labterm Web address and also work in the desktop and Android apps ([decision 0013](../../docs/web/decisions/0013-security-keys-through-webauthn.md)).
 - Debug log under Settings → About: this tab's commands, API calls, sync passes, opkssh sign-ins and SSH connects with timings, in memory only and with secrets removed.
 - Security: the service worker no longer lets a page or script past the checked release (`?network`, `config.json` and `sw.js` are passed to the server only for `fetch`, never as a page); the relay's example route keeps `/metrics` inside the cluster; opkssh host setup quotes the issuer and client ID; sign-in pages must be `https://`; a link with own credentials pauses when the team changes the host's proxy, jump hosts, gateway or VPN network.
 - Tag settings in the browser: open a tag in the tag manager to set its username, key, port and other defaults; rename, recolour, merge and delete tags. The OpenID key can be set on groups and tags.

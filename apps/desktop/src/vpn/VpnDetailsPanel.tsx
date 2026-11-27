@@ -6,20 +6,23 @@ import {
   Button,
   Chip,
   List,
+  ListItem,
   ListItemButton,
   ListItemText,
   Stack,
   Typography,
 } from "@mui/material";
 import * as ipc from "@/ipc/commands";
-import { errorMessage, type VpnNetwork, type VpnPeer } from "@/ipc/types";
+import { errorMessage, type VpnHost, type VpnNetwork, type VpnPeer } from "@/ipc/types";
 import { Loading, SectionCard } from "@/components/ui";
 import { useSnackbar } from "@/components/Snackbar";
 import { requestEditHost } from "@/app/navigation";
 import { tr } from "@/i18n";
 import { VpnStateChip } from "./VpnStateChip";
+import { vpnProviderName } from "@/hosts/HostBadges";
+import { providerCloud } from "./providers";
+import { HostTestDialog } from "./HostTestDialog";
 
-const NETBIRD_CLOUD = "https://api.netbird.io";
 const mono = { fontFamily: "monospace", fontSize: 12 } as const;
 
 /** One network on this device: state, address, peers and the hosts that
@@ -33,6 +36,7 @@ export function VpnDetailsPanel({ network, onEdit }: { network: VpnNetwork; onEd
     refetchInterval: 3_000,
   });
   const [busy, setBusy] = useState<string | null>(null);
+  const [testing, setTesting] = useState<VpnHost | null>(null);
 
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: ["vpnDetails", network.id] });
@@ -63,6 +67,7 @@ export function VpnDetailsPanel({ network, onEdit }: { network: VpnNetwork; onEd
   const n = d.network;
   const state = d.state.state;
   const joined = state === "connected";
+  const routes = routesOf(d.peers);
   const canJoin = state !== "unavailable" && state !== "connecting" && !joined;
   const signedIn = n.signedIn;
 
@@ -82,7 +87,7 @@ export function VpnDetailsPanel({ network, onEdit }: { network: VpnNetwork; onEd
         <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
           <VpnStateChip state={d.state} />
           <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
-            {n.provider === "netbird" ? "NetBird" : n.provider} · {n.managementUrl ?? NETBIRD_CLOUD}
+            {vpnProviderName(n.provider)} · {n.managementUrl ?? providerCloud(n.provider)}
           </Typography>
         </Stack>
         {d.state.error && (
@@ -178,17 +183,71 @@ export function VpnDetailsPanel({ network, onEdit }: { network: VpnNetwork; onEd
         ) : (
           <List dense disablePadding>
             {d.hosts.map((h) => (
-              <ListItemButton key={h.id} onClick={() => requestEditHost(h.id)}>
-                <ListItemText
-                  primary={h.label || h.address}
-                  secondary={h.address}
-                  slotProps={{ secondary: { sx: mono } }}
-                />
-              </ListItemButton>
+              <ListItem
+                key={h.id}
+                disablePadding
+                secondaryAction={
+                  state !== "unavailable" && (
+                    <Button size="small" onClick={() => setTesting(h)}>
+                      {tr("Test")}
+                    </Button>
+                  )
+                }
+              >
+                <ListItemButton onClick={() => requestEditHost(h.id)}>
+                  <ListItemText
+                    primary={h.label || h.address}
+                    secondary={h.address}
+                    slotProps={{ secondary: { sx: mono } }}
+                  />
+                </ListItemButton>
+              </ListItem>
             ))}
           </List>
         )}
       </SectionCard>
+
+      {joined && (
+        <SectionCard title={tr("Routes ({count})", { count: String(routes.length) })}>
+          {routes.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              {tr("No routes: only the peers' own addresses are reachable.")}
+            </Typography>
+          ) : (
+            <List dense disablePadding>
+              {routes.map((r) => (
+                <ListItemText
+                  key={`${r.network} ${r.via}`}
+                  primary={
+                    isDefaultRoute(r.network)
+                      ? tr("Exit node ({network})", { network: r.network })
+                      : r.network
+                  }
+                  secondary={tr("through {peer}", { peer: r.via })}
+                  slotProps={{ primary: { sx: mono }, secondary: { sx: mono } }}
+                />
+              ))}
+            </List>
+          )}
+        </SectionCard>
+      )}
+
+      {joined && d.dns.length > 0 && (
+        <SectionCard title={tr("DNS")}>
+          <List dense disablePadding>
+            {d.dns.map((g) => (
+              <ListItemText
+                key={`${g.domains.join(",")} ${g.servers.join(",")}`}
+                primary={g.domains.length > 0 ? g.domains.join(", ") : tr("All other names")}
+                secondary={`${g.servers.join(", ")} · ${
+                  g.tunnel ? tr("asked through the network") : tr("asked by NetBird")
+                }`}
+                slotProps={{ primary: { sx: mono }, secondary: { sx: mono } }}
+              />
+            ))}
+          </List>
+        </SectionCard>
+      )}
 
       {joined && (
         <SectionCard title={tr("Peers ({count})", { count: String(d.peers.length) })}>
@@ -205,8 +264,18 @@ export function VpnDetailsPanel({ network, onEdit }: { network: VpnNetwork; onEd
           )}
         </SectionCard>
       )}
+      {testing && <HostTestDialog host={testing} onClose={() => setTesting(null)} />}
     </Stack>
   );
+}
+
+/** Networks reached through a routing peer or an exit node, by peer. */
+function routesOf(peers: VpnPeer[]): { network: string; via: string }[] {
+  return peers.flatMap((p) => p.routes.map((network) => ({ network, via: p.fqdn || p.ip })));
+}
+
+function isDefaultRoute(network: string): boolean {
+  return network === "0.0.0.0/0" || network === "::/0";
 }
 
 function Row({ label, value, mono: m }: { label: string; value: string; mono?: boolean }) {

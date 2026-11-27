@@ -687,6 +687,8 @@ mod tests {
             provider: "netbird".into(),
             management_url: None,
             setup_key: Some("example-setup-key".into()),
+            direct_first: false,
+            idle_secs: None,
         };
         // However it gets there (editor, restored backup, copy): dropped.
         let in_team = f.s.insert(f.team, &t).unwrap();

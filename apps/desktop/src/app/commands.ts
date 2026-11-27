@@ -44,7 +44,8 @@ import {
   goToSftp,
   requestCreate,
 } from "./navigation";
-import { commandForEvent, registerCommands, tabDigit, type Command } from "./shortcuts";
+import { commandForEvent, registerCommands, tabDigit, vaultDigit, type Command } from "./shortcuts";
+import { selectPinnedVault } from "./vault";
 import { IS_MAC } from "@/lib/platform";
 import * as ipc from "@/ipc/commands";
 import { errorMessage } from "@/ipc/types";
@@ -597,6 +598,14 @@ function onKeyDown(ev: KeyboardEvent) {
   const n = tabDigit(ev);
   if (n !== null) {
     if (selectTabByIndex(n)) ev.preventDefault();
+    return;
+  }
+  const v = vaultDigit(ev);
+  if (v !== null) {
+    if (selectPinnedVault(v)) {
+      ev.preventDefault();
+      setActiveTab(HOME_TAB);
+    }
     return;
   }
   const cmd = commandForEvent(ev);

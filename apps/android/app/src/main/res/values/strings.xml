@@ -457,6 +457,7 @@
     <string name="add_tag">Add tag</string>
     <string name="done">Done</string>
     <string name="hosts">Hosts</string>
+    <string name="tools">Tools</string>
     <string name="search">Search</string>
     <string name="add">Add</string>
     <string name="new_group">New group</string>
@@ -740,6 +741,8 @@
     <string name="pin_recording">Pin recording</string>
     <string name="unpin_recording">Unpin recording</string>
     <string name="pinned">Pinned</string>
+    <string name="pin_vault">Pin vault</string>
+    <string name="unpin_vault">Unpin vault</string>
     <string name="running">Running</string>
     <string name="reconnecting">Reconnecting…</string>
     <string name="connecting">Connecting…</string>
@@ -1199,13 +1202,14 @@
     <string name="vault_hint_personal">Synced to your devices, end-to-end encrypted</string>
     <string name="vault_hint_local">Only on this device</string>
     <string name="all_vaults">All vaults</string>
+    <string name="vault_bar_all">All</string>
     <string name="known_hosts_shared_by_all_vaults">Shared by all vaults</string>
-    <string name="local_vault">Local vault</string>
-    <string name="personal_vault">Personal vault</string>
+    <string name="local_vault">Local</string>
+    <string name="personal_vault">Personal</string>
     <string name="welcome_to_labterm">Welcome to Labterm</string>
     <string name="free_open_source_ssh_client_end_to_end">Free, open-source SSH client. End-to-end encrypted sync, teams and live sharing — no telemetry.</string>
     <string name="create_a_free_account">Create a free account</string>
-    <string name="labterm_cloud_is_completely_free_for_everyone_no">Termoso Cloud is completely free for everyone — no limits, no plans, no strings attached. Or sign in to your own self-hosted server.</string>
+    <string name="labterm_cloud_is_completely_free_for_everyone_no">The labdex cloud is invite only for now: an invitation from a team gets you an account. Or sign in to your own self-hosted server.</string>
     <string name="continue_without_sync">Continue without sync</string>
     <string name="free_forever_open_source_no_telemetry">Free forever · Open source · No telemetry</string>
     <string name="system">System</string>
@@ -1215,10 +1219,6 @@
     <string name="after_5_minutes">After 5 minutes</string>
     <string name="after_15_minutes">After 15 minutes</string>
     <string name="after_1_hour">After 1 hour</string>
-    <string name="language">Language</string>
-    <string name="system_default">System default</string>
-    <string name="language_english" translatable="false">English</string>
-    <string name="language_russian" translatable="false">Русский</string>
     <string name="last_connected">Last connected</string>
     <string name="recently_updated">Recently updated</string>
     <string name="date">Date</string>
@@ -1254,7 +1254,7 @@
     <string name="min_ago">%1$d min ago</string>
     <string name="h_ago">%1$d h ago</string>
     <string name="d_ago">%1$d d ago</string>
-    <string name="cloud_server_blurb">%1$s · free forever, no limits, no plans. Everything is end-to-end encrypted — the server never sees your hosts, keys or passwords.</string>
+    <string name="cloud_server_blurb">%1$s · invite only for now. Everything is end-to-end encrypted — the server never sees your hosts, keys or passwords.</string>
     <string name="sep_no_email">" · no email"</string>
     <string name="ssh_id_delete_text">@%1$s and every key published under it are removed from the server; the passkeys on this phone are wiped.</string>
     <string name="quick_connect_placeholder">user@host, telnet://host or link</string>
@@ -1830,11 +1830,14 @@
     <string name="tag_settings_hint">Hosts with this tag use these when neither the host nor its groups set them. When several tags set the same thing, the higher priority wins, then the name in A to Z order.</string>
     <string name="defaults_use_shared_identity">Credentials come from a shared identity. Change it on the desktop app.</string>
     <string name="inherited_value">Inherited: %1$s</string>
+    <string name="inherited_nothing">Inherited (nothing set)</string>
     <string name="settings_saved">Settings saved</string>
     <string name="settings_for">Settings for %1$s</string>
     <string name="tag_has_settings">has settings</string>
     <!-- Item quick menus, group/tag editors and host badges -->
+    <string name="vpn_edit_network">Edit VPN network</string>
     <string name="vpn_network">VPN network</string>
+    <string name="vpn_new_network">New VPN network</string>
     <string name="group_actions">Group actions</string>
     <string name="tag_actions">Tag actions</string>
     <string name="tag">Tag</string>
@@ -1890,6 +1893,13 @@
     <string name="icon_automatic">Automatic</string>
     <string name="icon_folder">Folder</string>
     <string name="icon_custom">Custom</string>
+    <string name="icon_and_colour">Icon and colour</string>
+    <string name="icon_colour">Colour</string>
+    <string name="icon_colour_none">No colour</string>
+    <string name="icon_colour_hex">Hex colour (#rrggbb)</string>
+    <string name="icon_custom_image">Custom image…</string>
+    <string name="icon_custom_image_error">This image can\'t be used. Pick a PNG, JPEG or WebP image, or an SVG under 16 KiB.</string>
+    <string name="icon_default">Default</string>
     <string name="icon_section_generic">General</string>
     <string name="icon_section_apps">Apps and products</string>
     <string name="icon_section_systems">Operating systems</string>
@@ -1916,6 +1926,9 @@
     <string name="openid_no_providers">No provider yet: add one to this vault</string>
     <string name="openid_vault_default">Vault default</string>
     <string name="openid_default">default</string>
+    <string name="openid_delete_provider_text">Keys that use this provider sign in with the vault\'s default provider afterwards.</string>
+    <string name="openid_delete_provider_title">Delete %1$s?</string>
+    <string name="openid_edit_provider">Edit provider</string>
     <string name="openid_new_provider">New provider</string>
     <string name="openid_overrides_hint">Optional overrides for this key only</string>
     <string name="openid_issuer">Issuer URL</string>
@@ -1957,6 +1970,7 @@
     <string name="openid_key_for_host">OpenID key</string>
     <string name="openid_key_for_host_hint">Tried before the host\u2019s credentials, which stay as the fallback. Hosts without one use their group\u2019s.</string>
     <string name="openid_none_inherit">None (use the group\u2019s)</string>
+    <string name="openid_none_explicit">None, not even the group\u2019s</string>
     <string name="openid_key_for_host_saved">OpenID key saved</string>
 
     <!-- NetBird networks and the host/group tunnel choice -->
@@ -1981,6 +1995,9 @@
     <string name="netbird_networks_hint_team">Hosts and groups set to use a network are reached through a NetBird client inside the app. It starts when such a host connects and stops once it is no longer used. The team shares only these settings: each member signs in to NetBird with their own account, so NetBird decides who gets in.</string>
     <string name="netbird_team_sign_in_hint">Team networks have no setup key: each member signs in to NetBird with their own account and joins as their own device. NetBird\'s users, groups and policies decide who gets in.</string>
     <string name="netbird_setup_key_optional">Setup key (optional)</string>
+    <string name="tailscale_control_url">Control server URL (empty = Tailscale; Headscale: your server)</string>
+    <string name="tailscale_auth_key_optional">Auth key (optional)</string>
+    <string name="tailscale_auth_key_hint">Without a key you sign in with your Tailscale account. With a key, this device joins with it: prefer a tagged key whose access rules only let it reach SSH on the hosts you need.</string>
     <string name="netbird_joins_with_key">Setup key</string>
     <string name="netbird_signed_in">Signed in</string>
     <string name="netbird_not_signed_in">Not signed in</string>
@@ -2041,6 +2058,43 @@
     <string name="vpn_hosts_using">Hosts using this network</string>
     <string name="vpn_no_hosts_using">No host or group uses this network yet. Pick it in a host\'s or group\'s settings.</string>
     <string name="vpn_peers">Peers (%1$d)</string>
+    <string name="vpn_routes">Routes (%1$d)</string>
+    <string name="vpn_no_routes">No routes: only the peers\' own addresses are reachable.</string>
+    <string name="vpn_exit_node">Exit node (%1$s)</string>
+    <string name="vpn_route_through">through %1$s</string>
+    <string name="vpn_direct_first">Connect directly on the host\'s LAN</string>
+    <string name="vpn_direct_first_hint">At home: when the host\'s LAN address answers with the host key you already trust, connect without the network.</string>
+    <string name="vpn_idle">Stay connected when unused</string>
+    <string name="vpn_idle_hint">After the last connection closes. Longer keeps reconnects instant; shorter saves battery.</string>
+    <string name="vpn_idle_default">2 minutes (default)</string>
+    <string name="vpn_idle_forever">Until I disconnect</string>
+    <string name="vpn_idle_30s">30 seconds</string>
+    <string name="vpn_idle_10min">10 minutes</string>
+    <string name="vpn_idle_1h">1 hour</string>
+    <string name="vpn_idle_seconds">%1$d s</string>
+    <string name="vpn_idle_minutes">%1$d min</string>
+    <string name="vpn_idle_stopped">%1$s disconnected after being unused</string>
+    <string name="vpn_strip_stops_in">disconnects in %1$s unless a connection uses it</string>
+    <string name="vpn_test">Test</string>
+    <string name="vpn_test_title">Test %1$s</string>
+    <string name="vpn_test_again">Test again</string>
+    <string name="vpn_test_network">Network %1$s</string>
+    <string name="vpn_test_joined_in">joined in %1$d ms</string>
+    <string name="vpn_test_already_connected">already connected</string>
+    <string name="vpn_test_lookup">Name lookup</string>
+    <string name="vpn_test_via_address">an address, no lookup</string>
+    <string name="vpn_test_via_nameserver">nameserver %1$s through the network</string>
+    <string name="vpn_test_via_tailscale">the tailnet\'s DNS</string>
+    <string name="vpn_test_via_netbird">NetBird\'s resolver</string>
+    <string name="vpn_test_path">Path</string>
+    <string name="vpn_test_route">route %1$s through %2$s</string>
+    <string name="vpn_test_no_path">no peer or route covers this address</string>
+    <string name="vpn_test_ssh">SSH server</string>
+    <string name="vpn_test_connected_in">connected in %1$d ms</string>
+    <string name="vpn_dns">DNS</string>
+    <string name="vpn_dns_all_names">All other names</string>
+    <string name="vpn_dns_tunnel">asked through the network</string>
+    <string name="vpn_dns_netbird">asked by NetBird</string>
     <string name="vpn_no_peers">This device may not reach any peer in this network.</string>
     <string name="vpn_peer_idle">idle</string>
     <string name="vpn_peer_relayed">relayed</string>
@@ -2067,4 +2121,21 @@
         <item quantity="one">Send to %d session</item>
         <item quantity="other">Send to %d sessions</item>
     </plurals>
+    <!-- Vault unlock with security keys -->
+    <string name="security_key_not_set_up_for_labterm">This security key is not set up to open Labterm.</string>
+    <string name="backup_security_key_n">Backup security key %1$d</string>
+    <string name="security_key_added">%1$s can now open Labterm</string>
+    <string name="security_key_removed">Security key removed</string>
+    <string name="remove_security_key_hint">%1$s will no longer open Labterm. Nothing is stored on the key, so it keeps working for SSH and websites.</string>
+    <string name="remove_last_security_key_hint">This is the last security key and app lock is off, so Labterm will open without asking again. Confirm with the key to remove it.</string>
+    <string name="confirm_with_this_security_key">Confirm with this security key</string>
+    <string name="security_keys_unlock_hint">Open Labterm with a FIDO2 security key such as a YubiKey: plug it into USB-C or hold it to the back of the phone. Once a key is added, Labterm only opens with a key, or with your fingerprint or screen lock when app lock is on.</string>
+    <string name="add_a_backup_security_key_hint">Add a backup key and keep it somewhere safe: if this one is lost, only a backup or signing in to sync restores your data.</string>
+    <string name="added_on">Added %1$s</string>
+    <string name="last_used_on">last used %1$s</string>
+    <string name="add_security_key_unlock_hint">Name the key, then plug it in or hold it to the phone. A key with a PIN asks for it once now, never to unlock.</string>
+    <string name="security_key_pin_only_now">Needed only now, never to unlock.</string>
+    <string name="plug_in_or_hold_the_new_key_touch_twice">Plug in or hold the new key; touch it when it blinks (twice)</string>
+    <string name="unlock_with_security_key">Unlock with security key</string>
+    <string name="use_your_security_key_to_open_labterm">Plug in your security key or hold it to the back of the phone.</string>
 </resources>

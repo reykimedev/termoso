@@ -38,6 +38,10 @@ use crate::error::{CoreError, Result};
 use crate::store::{EntityFilter, EntityRow, LocalVaultKind, Store};
 
 const STALE_KEY_VERSION: &str = "stale_key_version";
+/// A collection's membership log failed verification on this device.
+pub const COLLECTION_LOG_REJECTED: &str = "collection_log_rejected";
+/// A key envelope for a collection didn't open or wasn't from a manager.
+pub const COLLECTION_KEY_REJECTED: &str = "collection_key_rejected";
 const UNKNOWN_KIND: &str = "unknown_kind";
 
 /// Plural name, for messages, of the kinds an older server may not know yet.
@@ -46,6 +50,7 @@ fn kind_label(kind: &str) -> &str {
         "oidc_provider" => "OpenID providers",
         "transport" => "network transports",
         "host_overlay" => "personal host settings",
+        "vault_pin" => "pinned vaults",
         other => other,
     }
 }
@@ -379,6 +384,12 @@ impl SyncEngine {
         let push_ms = t.elapsed().as_millis();
         let t = Instant::now();
         self.pull_entities_into(&vaults, &mut report).await?;
+        // Restricted groups are newer than the rest of sync: a failure there
+        // is reported but doesn't stop the pass.
+        if let Err(e) = self.sync_collections_into(&vaults, &mut report).await {
+            tracing::warn!("sync: restricted groups: {e}");
+            report.errors.push((Uuid::nil(), api_code(&e)));
+        }
         let pull_ms = t.elapsed().as_millis();
         let t = Instant::now();
         self.sync_history_into(&mut report).await?;
@@ -710,6 +721,207 @@ impl SyncEngine {
         Ok(resolved_remote)
     }
 
+    // ───────────────────────────── collections ─────────────────────────────
+
+    /// Create a restricted group in a team vault: sign the first log entry,
+    /// make its key and register it with the server.
+    pub async fn create_collection(&self, vault_id: Uuid, name: &str) -> Result<Uuid> {
+        let new = self.store.create_collection(vault_id)?;
+        let req = labterm_proto::collection::CreateCollectionRequest {
+            id: new.id,
+            name: self.store.seal_collection_name(vault_id, new.id, name)?,
+            entry: serde_json::to_value(&new.entry)?,
+            envelope: new.envelope,
+        };
+        self.api.create_collection(vault_id, &req).await?;
+        self.emit(SyncEvent::EntitiesChanged { vault_id });
+        Ok(new.id)
+    }
+
+    /// Verify the membership logs of the team vaults' collections, install
+    /// keys sealed to us, push local changes and pull rows. A log that fails
+    /// verification (a swapped creator, a rollback, a bad signature) is
+    /// reported as `collection_log_rejected` and that collection is left as
+    /// it was.
+    async fn sync_collections_into(
+        &self,
+        vault_ids: &[Uuid],
+        report: &mut SyncReport,
+    ) -> Result<()> {
+        let mut open: Vec<(Uuid, Uuid)> = Vec::new();
+        for vault_id in vault_ids {
+            if self.store.vault(*vault_id)?.kind != LocalVaultKind::Team {
+                continue;
+            }
+            let list = match self.api.collections(*vault_id).await {
+                Ok(l) => l,
+                // An older server without collections.
+                Err(CoreError::Api { status: 404, .. }) => return Ok(()),
+                Err(e) => return Err(e),
+            };
+            for c in list.collections {
+                let log = self.api.collection_log(c.id).await?;
+                let entries: std::result::Result<Vec<labterm_crypto::memberlog::LogEntry>, _> = log
+                    .entries
+                    .into_iter()
+                    .map(serde_json::from_value)
+                    .collect();
+                let state = match entries
+                    .map_err(CoreError::from)
+                    .and_then(|e| self.store.apply_collection_log(*vault_id, c.id, &e))
+                {
+                    Ok(s) => s,
+                    Err(e) => {
+                        tracing::warn!(collection = %c.id, "membership log rejected: {e}");
+                        report.errors.push((c.id, COLLECTION_LOG_REJECTED.into()));
+                        continue;
+                    }
+                };
+                if !c.member {
+                    continue;
+                }
+                let unlocked = self
+                    .store
+                    .collections(*vault_id)?
+                    .iter()
+                    .any(|i| i.id == c.id && i.unlocked);
+                if !unlocked {
+                    let keys = self.api.collection_keys(c.id).await?;
+                    let current = keys
+                        .keys
+                        .iter()
+                        .find(|k| u64::try_from(k.version).ok() == Some(state.version()));
+                    let Some(k) = current else {
+                        continue;
+                    };
+                    if let Err(e) = self.store.install_collection_key(
+                        c.id,
+                        state.version(),
+                        &k.granted_by.to_string(),
+                        &k.envelope,
+                    ) {
+                        tracing::warn!(collection = %c.id, "collection key rejected: {e}");
+                        report.errors.push((c.id, COLLECTION_KEY_REJECTED.into()));
+                        continue;
+                    }
+                }
+                open.push((*vault_id, c.id));
+            }
+        }
+        for (_, id) in &open {
+            self.push_collection_into(*id, report).await?;
+        }
+        self.pull_collections_into(&open, report).await
+    }
+
+    async fn push_collection_into(&self, id: Uuid, report: &mut SyncReport) -> Result<()> {
+        let rows = self.store.dirty_collection_rows(id)?;
+        for chunk in rows.chunks(self.opts.batch) {
+            let by_id: HashMap<Uuid, &EntityRow> = chunk.iter().map(|r| (r.id, r)).collect();
+            let mut req = labterm_proto::collection::CollectionPushRequest {
+                protocol: labterm_proto::sync::SYNC_PROTOCOL,
+                changes: Vec::new(),
+                deletes: Vec::new(),
+            };
+            for r in chunk {
+                if r.deleted {
+                    if r.version > 0 {
+                        req.deletes.push(r.to_delete());
+                    } else {
+                        self.store.mark_pushed(r.id, 0, 0)?;
+                    }
+                } else {
+                    req.changes.push(r.to_change());
+                }
+            }
+            if req.changes.is_empty() && req.deletes.is_empty() {
+                continue;
+            }
+            let resp = self.api.collection_push(id, &req).await?;
+            for res in resp.results {
+                match res {
+                    PushResult::Ok {
+                        id: row,
+                        version,
+                        seq,
+                    } => {
+                        self.store.mark_pushed(row, version, seq)?;
+                        report.pushed += 1;
+                    }
+                    PushResult::Conflict { id: row, server } => {
+                        report.conflicts += 1;
+                        // The server copy wins here; local-wins resolution
+                        // comes with the rest of collection editing.
+                        if by_id.contains_key(&row) {
+                            self.store.apply_remote_in(&server, Some(id))?;
+                        }
+                    }
+                    PushResult::Error { id: row, code } => report.errors.push((row, code)),
+                }
+            }
+        }
+        Ok(())
+    }
+
+    async fn pull_collections_into(
+        &self,
+        open: &[(Uuid, Uuid)],
+        report: &mut SyncReport,
+    ) -> Result<()> {
+        if open.is_empty() {
+            return Ok(());
+        }
+        let vault_of: HashMap<Uuid, Uuid> = open.iter().map(|(v, c)| (*c, *v)).collect();
+        let mut cursors = HashMap::new();
+        for (_, id) in open {
+            cursors.insert(*id, self.store.collection_cursor(*id)?);
+        }
+        let mut touched: HashSet<Uuid> = HashSet::new();
+        loop {
+            let resp = self
+                .api
+                .collection_pull(&labterm_proto::collection::CollectionPullRequest {
+                    protocol: labterm_proto::sync::SYNC_PROTOCOL,
+                    cursors: cursors.clone(),
+                    limit: Some(self.opts.batch as u32),
+                })
+                .await?;
+            for ce in &resp.entities {
+                // Only rows of collections we asked for, in their vault.
+                if vault_of.get(&ce.collection_id) != Some(&ce.entity.vault_id) {
+                    continue;
+                }
+                let e = &ce.entity;
+                let local = self.store.row(e.id)?;
+                let apply = match &local {
+                    None => !e.deleted,
+                    Some(l) if l.dirty => false,
+                    Some(l) => l.version < e.version || e.deleted,
+                };
+                if apply {
+                    self.store.apply_remote_in(e, Some(ce.collection_id))?;
+                    report.pulled += 1;
+                    touched.insert(e.vault_id);
+                }
+            }
+            for (id, cursor) in &resp.cursors {
+                if let Some(local) = cursors.get_mut(id)
+                    && *cursor > *local
+                {
+                    *local = *cursor;
+                    self.store.set_collection_cursor(*id, *cursor)?;
+                }
+            }
+            if !resp.has_more {
+                break;
+            }
+        }
+        for vault_id in touched {
+            self.emit(SyncEvent::EntitiesChanged { vault_id });
+        }
+        Ok(())
+    }
+
     // ───────────────────────────── history ─────────────────────────────
 
     /// Push and pull command / connection history.
@@ -977,11 +1189,40 @@ impl SyncEngine {
                 &UpdateVaultRequest {
                     name: None,
                     session_logging: Some(on),
+                    color: None,
+                    icon: None,
                 },
             )
             .await?;
         self.store
             .set_vault_session_logging(vault_id, v.session_logging)?;
+        self.emit(SyncEvent::VaultsChanged);
+        Ok(())
+    }
+
+    /// Set a synced vault's tile colour and icon (vault manager only). They
+    /// live next to the name on the server, so every member sees them, even
+    /// before unlocking. `None` clears.
+    pub async fn set_vault_style(
+        &self,
+        vault_id: Uuid,
+        color: Option<String>,
+        icon: Option<String>,
+    ) -> Result<()> {
+        let v = self
+            .api
+            .update_vault(
+                vault_id,
+                &UpdateVaultRequest {
+                    name: None,
+                    session_logging: None,
+                    color: Some(color.unwrap_or_default()),
+                    icon: Some(icon.unwrap_or_default()),
+                },
+            )
+            .await?;
+        self.store
+            .set_vault_style(vault_id, v.color.as_deref(), v.icon.as_deref())?;
         self.emit(SyncEvent::VaultsChanged);
         Ok(())
     }

@@ -179,6 +179,9 @@ pub struct MakeCredentialRequest<'a> {
     pub user_verification: bool,
     /// SHA-256 of the serialized client data.
     pub client_data_hash: [u8; 32],
+    /// Ask for the `hmac-secret` extension (a per-credential secret the
+    /// token later mixes with a salt; used to unlock the vault).
+    pub hmac_secret: bool,
 }
 
 /// `authenticatorGetAssertion` parameters as a relying party states them.
@@ -195,6 +198,8 @@ pub struct GetAssertionRequest<'a> {
     pub user_presence: bool,
     /// The relying party requires user verification.
     pub user_verification: bool,
+    /// Ask the token for `hmac-secret` over this 32-byte salt.
+    pub hmac_salt: Option<&'a [u8; 32]>,
 }
 
 /// `authenticatorMakeCredential` output, kept as the token produced it.
@@ -233,6 +238,8 @@ pub struct Assertion {
     pub user_id: Option<Vec<u8>>,
     /// Authenticator data and signature.
     pub data: AssertionData,
+    /// Decrypted `hmac-secret` output, when a salt was sent.
+    pub hmac_secret: Option<Zeroizing<Vec<u8>>>,
 }
 
 // ---------------------------------------------------------------------------
@@ -338,6 +345,21 @@ pub(super) fn cose_public_key(v: &Value) -> std::result::Result<CosePublicKey, F
 }
 
 /// `attestedCredentialData` out of `authData` (after `rpIdHash ‖ flags ‖ counter`).
+/// Extension outputs of an assertion's authenticator data (no attested
+/// credential there): the CBOR map after the 37-byte header when ED is set.
+fn assertion_extensions(auth_data: &[u8]) -> std::result::Result<Option<Value>, Fido2Error> {
+    let flags = *auth_data
+        .get(32)
+        .ok_or_else(|| Fido2Error::Other("short authenticator data".into()))?;
+    if flags & 0x80 == 0 {
+        return Ok(None);
+    }
+    let rest = auth_data
+        .get(37..)
+        .ok_or_else(|| Fido2Error::Other("short authenticator data".into()))?;
+    Ok(Some(decode(rest)?))
+}
+
 pub(super) fn attested_credential(auth_data: &[u8]) -> std::result::Result<Credential, Fido2Error> {
     let short = || Fido2Error::Other("short authenticator data".into());
     let flags = *auth_data.get(32).ok_or_else(short)?;
@@ -397,7 +419,6 @@ impl SharedSecret {
         }
     }
 
-    #[cfg(test)]
     fn hmac_key(&self) -> &[u8] {
         &self.key[..32]
     }
@@ -449,8 +470,7 @@ impl SharedSecret {
         Ok(buf)
     }
 
-    #[cfg(test)]
-    fn authenticate(&self, msg: &[u8]) -> Vec<u8> {
+    pub(super) fn authenticate(&self, msg: &[u8]) -> Vec<u8> {
         authenticate(self.protocol, self.hmac_key(), msg)
     }
 }
@@ -741,6 +761,7 @@ impl<T: CtapTransport> Authenticator<T> {
                 resident,
                 user_verification: false,
                 client_data_hash,
+                hmac_secret: false,
             },
             pin,
         )?;
@@ -836,6 +857,12 @@ impl<T: CtapTransport> Authenticator<T> {
         if !options.is_empty() {
             params.push((int(7), map(options)));
         }
+        if req.hmac_secret {
+            if !self.info.extensions.iter().any(|e| e == "hmac-secret") {
+                return Err(Fido2Error::Unsupported("the hmac-secret extension".into()));
+            }
+            params.push((int(6), map(vec![(text("hmac-secret"), Value::Bool(true))])));
+        }
         if let Some(t) = &token {
             params.push((int(8), bytes(&t.authenticate(&req.client_data_hash))));
             params.push((int(9), int(t.protocol() as i64)));
@@ -871,6 +898,7 @@ impl<T: CtapTransport> Authenticator<T> {
                 allow: std::slice::from_ref(&credential_id),
                 user_presence,
                 user_verification: false,
+                hmac_salt: None,
             },
             pin,
         )
@@ -928,6 +956,30 @@ impl<T: CtapTransport> Authenticator<T> {
         if !options.is_empty() {
             params.push((int(5), map(options)));
         }
+        // hmac-secret: the salt goes encrypted under a fresh key agreement,
+        // and the output comes back encrypted under the same shared secret.
+        let hmac = match req.hmac_salt {
+            Some(salt) => {
+                if !self.info.extensions.iter().any(|e| e == "hmac-secret") {
+                    return Err(Fido2Error::Unsupported("the hmac-secret extension".into()));
+                }
+                let protocol = self.pin_protocol();
+                let (secret, our_key) = self.key_agreement(protocol)?;
+                let salt_enc = secret.encrypt(salt);
+                let salt_auth = secret.authenticate(&salt_enc);
+                let mut ext = vec![
+                    (int(1), our_key),
+                    (int(2), bytes(&salt_enc)),
+                    (int(3), bytes(&salt_auth)),
+                ];
+                if protocol != 1 {
+                    ext.push((int(4), int(protocol as i64)));
+                }
+                params.push((int(4), map(vec![(text("hmac-secret"), map(ext))])));
+                Some(secret)
+            }
+            None => None,
+        };
         if let Some(t) = &token {
             params.push((int(6), bytes(&t.authenticate(&req.client_data_hash))));
             params.push((int(7), int(t.protocol() as i64)));
@@ -952,6 +1004,22 @@ impl<T: CtapTransport> Authenticator<T> {
                 }
             },
         };
+        let auth_data = as_bytes(v.field(2), "authData")?;
+        let hmac_secret = match &hmac {
+            Some(secret) => {
+                let enc = assertion_extensions(&auth_data)?
+                    .and_then(|ext| ext.field_text("hmac-secret").cloned())
+                    .ok_or_else(|| Fido2Error::Other("token returned no hmac-secret".into()))?;
+                let out = secret.decrypt(&as_bytes(Some(&enc), "hmac-secret")?)?;
+                if out.len() != 32 {
+                    return Err(Fido2Error::Other(
+                        "hmac-secret output has the wrong length".into(),
+                    ));
+                }
+                Some(out)
+            }
+            None => None,
+        };
         Ok(Assertion {
             credential_id,
             user_id: v
@@ -960,10 +1028,71 @@ impl<T: CtapTransport> Authenticator<T> {
                 .and_then(Value::as_bytes)
                 .cloned(),
             data: AssertionData {
-                auth_data: as_bytes(v.field(2), "authData")?,
+                auth_data,
                 signature: as_bytes(v.field(3), "signature")?,
             },
+            hmac_secret,
         })
+    }
+
+    /// Make a non-resident credential with `hmac-secret` under `rp_id`
+    /// (nothing is stored on the token) and return its id. Tokens with a
+    /// PIN set want `pin` here; the secrets themselves are read without it.
+    pub fn hmac_secret_credential(
+        &mut self,
+        rp_id: &str,
+        user_name: &str,
+        pin: Option<&str>,
+    ) -> std::result::Result<Vec<u8>, Fido2Error> {
+        let mut user_id = [0u8; 16];
+        rand_core::RngCore::fill_bytes(&mut rand_core::OsRng, &mut user_id);
+        let mut client_data_hash = [0u8; 32];
+        rand_core::RngCore::fill_bytes(&mut rand_core::OsRng, &mut client_data_hash);
+        let att = self.make_credential_raw(
+            &MakeCredentialRequest {
+                rp_id,
+                rp_name: Some("Labterm"),
+                user_id: &user_id,
+                user_name,
+                user_display_name: user_name,
+                algorithms: &[SkAlgorithm::EcdsaP256.cose_alg()],
+                exclude: &[],
+                resident: false,
+                user_verification: false,
+                client_data_hash,
+                hmac_secret: true,
+            },
+            pin,
+        )?;
+        Ok(attested_credential(&att.auth_data)?.id)
+    }
+
+    /// The `hmac-secret` output over `salt` from whichever of `credentials`
+    /// this token holds (one touch). Always asked without user
+    /// verification, so the output is the same with or without a PIN set.
+    pub fn hmac_secret(
+        &mut self,
+        rp_id: &str,
+        credentials: &[&[u8]],
+        salt: &[u8; 32],
+    ) -> std::result::Result<(Vec<u8>, Zeroizing<Vec<u8>>), Fido2Error> {
+        let mut client_data_hash = [0u8; 32];
+        rand_core::RngCore::fill_bytes(&mut rand_core::OsRng, &mut client_data_hash);
+        let a = self.get_assertion_raw(
+            &GetAssertionRequest {
+                rp_id,
+                client_data_hash,
+                allow: credentials,
+                user_presence: true,
+                user_verification: false,
+                hmac_salt: Some(salt),
+            },
+            None,
+        )?;
+        let secret = a
+            .hmac_secret
+            .ok_or_else(|| Fido2Error::Other("token returned no hmac-secret".into()))?;
+        Ok((a.credential_id, secret))
     }
 
     /// Resident credentials under relying parties starting with `ssh:`.

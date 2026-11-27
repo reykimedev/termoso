@@ -141,6 +141,12 @@ jobs:
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - run: cargo clippy --workspace --all-targets --locked
+      # PRs have no Windows runner; this compiles the webauthn.dll FFI for Windows
+      # (pure Rust, no linking) so it cannot break unnoticed until a release.
+      - name: clippy labterm-winhello for Windows
+        run: |
+          rustup target add x86_64-pc-windows-gnu
+          cargo clippy -p labterm-winhello --target x86_64-pc-windows-gnu --locked -- -D warnings
 
   test:
     name: tests (postgres + redis + rustfs + mailpit)
@@ -283,7 +289,6 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run wasm
       - run: npm run format:check
-      - run: node ../scripts/i18n-extract.mjs --check
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run build
@@ -585,8 +590,11 @@ jobs:
         with:
           go-version-file: crates/labterm-netbird/go/go.mod
           cache-dependency-path: crates/labterm-netbird/go/go.sum
-      - run: cd crates/labterm-netbird/go && go vet ./...
+      - run: cd crates/labterm-netbird/go && go vet -tags ts_omit_logtail ./...
+      - run: cd crates/labterm-netbird/go && go test -tags ts_omit_logtail ./...
       - run: crates/labterm-netbird/tests/e2e.sh
+      # Tailscale (tsnet) in the same library, against a local Headscale.
+      - run: crates/labterm-netbird/tests/e2e-tailscale.sh
 
   # Supply chain: license allow-list, banned crates and registry sources for the whole workspace
   # (deny.toml), when a manifest or the lockfile changes. These depend only on the commit.

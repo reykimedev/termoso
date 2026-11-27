@@ -44,10 +44,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import dev.labdex.labterm.AppLanguage
 import dev.labdex.labterm.BuildConfig
 import dev.labdex.labterm.data.AppPin
 import dev.labdex.labterm.ui.security.PinSetupDialog
+import dev.labdex.labterm.ui.security.SecurityKeysDialog
 import dev.labdex.labterm.R
 import dev.labdex.labterm.data.AccountManager
 import dev.labdex.labterm.data.AppContainer
@@ -87,12 +87,6 @@ private val lockDelays = listOf(
     3600u to R.string.after_1_hour,
 )
 
-private val languages = listOf(
-    AppLanguage.SYSTEM to R.string.system_default,
-    "en" to R.string.language_english,
-    "ru" to R.string.language_russian,
-)
-
 private const val SOURCE_URL = "https://github.com/termoso/termoso"
 
 /** Settings tab: account/sync, appearance, terminal, security (app lock), about. */
@@ -118,8 +112,6 @@ fun SettingsScreen(
         scope.launch { shell.repo.updateSettings(transform) }
     }
     var themePicker by remember { mutableStateOf(false) }
-    var languagePicker by remember { mutableStateOf(false) }
-    val language = remember { AppLanguage.current(context) }
     var delayPicker by remember { mutableStateOf(false) }
     var termTypePicker by remember { mutableStateOf(false) }
     var scrollbackPicker by remember { mutableStateOf(false) }
@@ -148,6 +140,9 @@ fun SettingsScreen(
         )
     }
     var lockBusy by remember { mutableStateOf(false) }
+    val securityKeys by container.securityKeys.collectAsStateWithLifecycle()
+    var securityKeysDialog by remember { mutableStateOf(false) }
+    if (securityKeysDialog) SecurityKeysDialog(container, notify = shell::notify, onDismiss = { securityKeysDialog = false })
     val filesEnabled by container.files.enabled.collectAsStateWithLifecycle()
 
     /**
@@ -192,7 +187,7 @@ fun SettingsScreen(
                 val card = accountStatus.account
                 if (card == null) {
                     ChevronRow(
-                        title = "Termoso Cloud",
+                        title = "labdex cloud",
                         subtitle = stringResource(R.string.free_forever_e2e_encrypted_sync_or_your_own),
                         leading = { IconTile(Icons.Filled.Cloud) },
                         modifier = Modifier.clickable(onClick = onSignIn),
@@ -239,12 +234,6 @@ fun SettingsScreen(
                     title = stringResource(R.string.app_theme),
                     badge = themes.firstOrNull { it.first == settings.appTheme }?.let { stringResource(it.second) } ?: settings.appTheme,
                     modifier = Modifier.clickable { themePicker = true },
-                )
-                RowDivider()
-                ChevronRow(
-                    title = stringResource(R.string.language),
-                    badge = stringResource((languages.firstOrNull { it.first == language } ?: languages.first()).second),
-                    modifier = Modifier.clickable { languagePicker = true },
                 )
                 if (supportsDynamicColor) {
                     RowDivider()
@@ -375,7 +364,7 @@ fun SettingsScreen(
                     title = stringResource(R.string.lock_when_in_background),
                     subtitle = stringResource(R.string.ask_again_after_leaving_the_app_sessions_keep),
                     checked = settings.lockOnBackground,
-                    enabled = appLock || pinSet,
+                    enabled = appLock || pinSet || securityKeys,
                     onCheckedChange = { v -> set { it.copy(lockOnBackground = v) } },
                 )
                 RowDivider()
@@ -390,7 +379,7 @@ fun SettingsScreen(
                 ChevronRow(
                     title = stringResource(R.string.lock_after),
                     badge = lockDelays.firstOrNull { it.first == settings.lockAfterSeconds }?.let { stringResource(it.second) } ?: stringResource(R.string.n_seconds_short, settings.lockAfterSeconds.toLong()),
-                    modifier = Modifier.clickable(enabled = (appLock || pinSet) && settings.lockOnBackground) { delayPicker = true },
+                    modifier = Modifier.clickable(enabled = (appLock || pinSet || securityKeys) && settings.lockOnBackground) { delayPicker = true },
                 )
                 RowDivider()
                 ChevronRow(
@@ -403,6 +392,13 @@ fun SettingsScreen(
                     modifier = Modifier.clickable { pinMenu = true },
                 )
                 RowDivider()
+                ChevronRow(
+                    title = stringResource(R.string.security_keys),
+                    subtitle = stringResource(R.string.use_your_security_key_to_open_labterm),
+                    badge = if (securityKeys) stringResource(R.string.on) else stringResource(R.string.off),
+                    modifier = Modifier.clickable { securityKeysDialog = true },
+                )
+                RowDivider()
                 SwitchRow(
                     title = stringResource(R.string.remember_key_passphrases_in_memory),
                     subtitle = stringResource(R.string.key_passphrases_kept_in_ram_until_vault_locked),
@@ -410,7 +406,7 @@ fun SettingsScreen(
                     onCheckedChange = { v -> set { it.copy(cachePassphrases = v) } },
                 )
                 RowDivider()
-                if (appLock) {
+                if (appLock || securityKeys) {
                     ChevronRow(
                         title = stringResource(R.string.lock_now),
                         subtitle = stringResource(R.string.cover_the_app_until_you_authenticate_sessions_stay),
@@ -489,16 +485,6 @@ fun SettingsScreen(
 
     if (themePicker) {
         ChoiceSheet(stringResource(R.string.app_theme), themes.map { it.first to stringResource(it.second) }, settings.appTheme, onPick = { set { s -> s.copy(appTheme = it) } }) { themePicker = false }
-    }
-    if (languagePicker) {
-        ChoiceSheet(
-            stringResource(R.string.language),
-            languages.map { it.first to stringResource(it.second) },
-            language,
-            onPick = { tag ->
-                if (tag != language && AppLanguage.set(context, tag)) context.findFragmentActivity()?.recreate()
-            },
-        ) { languagePicker = false }
     }
     if (delayPicker) {
         ChoiceSheet(stringResource(R.string.lock_after), lockDelays.map { it.first to stringResource(it.second) }, settings.lockAfterSeconds, onPick = { set { s -> s.copy(lockAfterSeconds = it) } }) { delayPicker = false }

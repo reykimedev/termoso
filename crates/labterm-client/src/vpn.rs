@@ -16,7 +16,7 @@ use labterm_core::store::Store;
 use labterm_core::transport::TransportDial;
 use labterm_netbird::{Netbird, NetworkConfig, NodeState, PeerKeys, SIGN_IN_NEEDED, SignIn};
 
-pub use labterm_netbird::{Details, PeerDetails};
+pub use labterm_netbird::{Details, DnsGroup, HostTest, PeerDetails};
 use uuid::Uuid;
 use zeroize::Zeroizing;
 
@@ -51,6 +51,11 @@ pub fn set_library_path(path: impl Into<String>) {
     *LIBRARY_PATH.lock().unwrap_or_else(|p| p.into_inner()) = Some(path.into());
 }
 
+/// A writable app directory for Tailscale's working files (no keys).
+pub fn set_data_dir(dir: &str) {
+    labterm_netbird::set_data_dir(dir);
+}
+
 /// This device's peer name in the networks (the phone model, the
 /// computer's host name).
 static DEVICE_NAME: LazyLock<Mutex<String>> = LazyLock::new(|| Mutex::new("Labterm".to_owned()));
@@ -66,11 +71,27 @@ pub fn set_device_name(name: &str) {
     }
 }
 
-fn device_name() -> String {
-    DEVICE_NAME
+/// The peer name in the network: "Labterm", the network's vault and the
+/// device, so Labterm peers stand out in the NetBird dashboard. NetBird takes
+/// it on registration only.
+fn device_name(store: &Store, vault_id: Uuid) -> String {
+    let device = DEVICE_NAME
         .lock()
         .unwrap_or_else(|p| p.into_inner())
-        .clone()
+        .clone();
+    let vault = store.vault(vault_id).map(|v| v.name).unwrap_or_default();
+    peer_name(&vault, &device)
+}
+
+fn peer_name(vault: &str, device: &str) -> String {
+    let device = device
+        .strip_prefix("Labterm")
+        .map_or(device, str::trim_start);
+    ["Labterm", vault.trim(), device]
+        .into_iter()
+        .filter(|p| !p.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 struct StoreKeys(Arc<Store>);
@@ -106,7 +127,7 @@ fn config(store: &Store, entity: &Entity<Transport>) -> Option<NetworkConfig> {
 
 fn network(store: &Store, id: Uuid) -> Result<NetworkConfig> {
     let entity = store.require::<Transport>(id)?;
-    config(store, &entity).ok_or_else(|| ClientError::invalid("not a NetBird network"))
+    config(store, &entity).ok_or_else(|| ClientError::invalid("not a VPN network"))
 }
 
 /// This device's state of a network, for lists.
@@ -213,6 +234,55 @@ pub fn state(store: &Arc<Store>, network_id: Uuid) -> VpnState {
     }
 }
 
+/// A network this device is using right now, for the status strip.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ActiveNetwork {
+    pub id: Uuid,
+    pub label: String,
+    pub provider: String,
+    /// Connecting, connected, needs sign-in or error; never off.
+    pub state: VpnState,
+    /// Seconds until it stops by itself; `None` while a connection uses it
+    /// or when it stays up until disconnected.
+    pub stops_in_secs: Option<u64>,
+}
+
+/// The networks with a client starting, running or failed on this device,
+/// sorted by label. Cheap and synchronous, for a strip that refreshes often.
+pub fn active(store: &Arc<Store>) -> Vec<ActiveNetwork> {
+    let mut out: Vec<ActiveNetwork> = NETBIRD
+        .active()
+        .into_iter()
+        .filter_map(|(id, _, left)| {
+            // A network deleted (or locked away) meanwhile has no row.
+            let e = store.get::<Transport>(id).ok().flatten()?;
+            let state = state(store, id);
+            (state != VpnState::Off).then(|| ActiveNetwork {
+                id,
+                label: e.data.label.clone(),
+                provider: e.data.provider.clone(),
+                state,
+                stops_in_secs: left,
+            })
+        })
+        .collect();
+    out.sort_by_key(|a| a.label.to_lowercase());
+    out
+}
+
+pub use labterm_netbird::IdleStop;
+
+/// Networks that stopped by themselves after `seq`; see
+/// [`Netbird::idle_stops_since`](labterm_netbird::Netbird::idle_stops_since).
+pub fn idle_stops_since(seq: u64) -> Vec<IdleStop> {
+    NETBIRD.idle_stops_since(seq)
+}
+
+/// The newest idle stop's sequence number, where a shell starts counting.
+pub fn idle_stop_seq() -> u64 {
+    NETBIRD.idle_stop_seq()
+}
+
 /// Everything the details page shows about one network.
 #[derive(Debug, Clone)]
 pub struct NetworkDetails {
@@ -286,6 +356,28 @@ fn forget_peer_keys(store: &Store, network: Uuid) {
     }
 }
 
+/// Forget peer keys of networks that no longer exist here: one deleted on
+/// another device goes away by sync, which does not pass through
+/// [`delete`]. Called when the networks are listed.
+pub fn forget_orphans(store: &Store) {
+    let Ok(keys) = store.meta_keys(PEER_META) else {
+        return;
+    };
+    for key in keys {
+        let id = key[PEER_META.len()..]
+            .split('@')
+            .next()
+            .and_then(|id| Uuid::parse_str(id).ok());
+        // Keys we cannot attribute are left alone.
+        let Some(id) = id else { continue };
+        if matches!(store.get::<Transport>(id), Ok(None))
+            && let Err(e) = store.delete_meta(&key)
+        {
+            tracing::warn!("netbird: could not forget a peer key: {e}");
+        }
+    }
+}
+
 /// The network a host connects through when connecting needs a sign-in
 /// first: no setup key and this device has not joined yet.
 pub fn needs_sign_in(store: &Arc<Store>, resolved: &ResolvedHost) -> Option<Entity<Transport>> {
@@ -308,6 +400,7 @@ pub async fn sign_in_begin(
     return_url: Option<&str>,
 ) -> Result<String> {
     let c = network(store, network_id)?;
+    let name = device_name(store, store.require::<Transport>(network_id)?.vault_id);
     let account = account
         .map(|a| a.trim().to_owned())
         .filter(|a| !a.is_empty());
@@ -315,7 +408,7 @@ pub async fn sign_in_begin(
     let pending = NETBIRD
         .sign_in(
             &c,
-            &device_name(),
+            &name,
             account.as_deref(),
             return_url,
             &StoreKeys(store.clone()),
@@ -366,11 +459,38 @@ pub fn sign_in_cancel(network_id: Uuid) {
 /// no connection uses it for a while.
 pub async fn connect(store: &Arc<Store>, network_id: Uuid) -> Result<()> {
     let c = network(store, network_id)?;
+    let name = device_name(store, store.require::<Transport>(network_id)?.vault_id);
     NETBIRD
-        .connect(&c, &device_name(), &StoreKeys(store.clone()))
+        .connect(&c, &name, &StoreKeys(store.clone()))
         .await
         .inspect_err(|e| tracing::warn!(network = %network_id, "netbird: connect failed: {e}"))?;
     Ok(())
+}
+
+/// The connection test for a host set to use a network: joins the
+/// network, dials the host's address and port through it like an SSH
+/// connection would, reads the SSH banner and hangs up (no login, nothing
+/// sent). The host's own settings decide the network; a host that uses
+/// none is refused.
+pub async fn test_host(store: &Arc<Store>, host_id: Uuid) -> Result<labterm_netbird::HostTest> {
+    let resolved = store.resolve_host(host_id)?;
+    let Some(entity) = resolved.transport.clone() else {
+        return Err(crate::error::ClientError::invalid(
+            "this host doesn't connect through a VPN network",
+        ));
+    };
+    let c = network(store, entity.id)?;
+    let name = device_name(store, entity.vault_id);
+    let address = resolved.host.data.address.trim().to_owned();
+    Ok(NETBIRD
+        .test_host(
+            &c,
+            &name,
+            &StoreKeys(store.clone()),
+            &address,
+            resolved.port(),
+        )
+        .await)
 }
 
 /// Whether this app has joined the network right now.
@@ -383,8 +503,10 @@ pub fn dialer(
     store: &Arc<Store>,
     resolved: Option<&ResolvedHost>,
 ) -> Option<Arc<dyn TransportDial>> {
-    let config = config(store, resolved?.transport.as_ref()?)?;
-    Some(NETBIRD.dialer(config, device_name(), Arc::new(StoreKeys(store.clone()))))
+    let entity = resolved?.transport.as_ref()?;
+    let config = config(store, entity)?;
+    let name = device_name(store, entity.vault_id);
+    Some(NETBIRD.dialer(config, name, Arc::new(StoreKeys(store.clone()))))
 }
 
 /// Sign-out: stop every peer and forget this device's peer keys.
@@ -408,6 +530,16 @@ mod tests {
     use super::*;
     use labterm_core::labterm_crypto::keys::SymmetricKey;
 
+    #[test]
+    fn peer_names_start_with_labterm() {
+        assert_eq!(
+            peer_name("Ops", "Google Pixel 9"),
+            "Labterm Ops Google Pixel 9"
+        );
+        assert_eq!(peer_name("", "mikes-mac"), "Labterm mikes-mac");
+        assert_eq!(peer_name("Personal", "Labterm"), "Labterm Personal");
+    }
+
     #[tokio::test]
     async fn deleting_a_network_forgets_its_peer_keys() {
         let store = Arc::new(Store::open_in_memory(SymmetricKey::generate()).unwrap());
@@ -417,6 +549,8 @@ mod tests {
             provider: String::new(),
             management_url: Some("https://netbird.example.com".into()),
             setup_key: None,
+            direct_first: false,
+            idle_secs: None,
         };
         let gone = transports::save(&store, vault, None, net("gone")).unwrap();
         let kept = transports::save(&store, vault, None, net("kept")).unwrap();
@@ -438,5 +572,40 @@ mod tests {
         );
         assert!(account(&store, gone.id).is_none());
         assert!(store.get::<Transport>(gone.id).ok().flatten().is_none());
+    }
+
+    #[test]
+    fn peer_keys_of_networks_deleted_elsewhere_are_forgotten() {
+        let store = Arc::new(Store::open_in_memory(SymmetricKey::generate()).unwrap());
+        let vault = store.local_vault().unwrap().id;
+        let kept = transports::save(
+            &store,
+            vault,
+            None,
+            Transport {
+                label: "kept".into(),
+                provider: String::new(),
+                management_url: Some("https://netbird.example.com".into()),
+                setup_key: None,
+                direct_first: false,
+                idle_secs: None,
+            },
+        )
+        .unwrap();
+        let keys = StoreKeys(store.clone());
+        let kept_slot = format!("{}@https://netbird.example.com", kept.id);
+        keys.save(&kept_slot, "k1");
+        // As sync leaves it: the network is gone, its key is not.
+        keys.save(
+            &format!("{}@https://netbird.example.com", Uuid::new_v4()),
+            "k2",
+        );
+
+        forget_orphans(&store);
+
+        assert_eq!(
+            store.meta_keys(PEER_META).unwrap(),
+            vec![format!("{PEER_META}{kept_slot}")]
+        );
     }
 }

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { NewItemVaultField } from "@/hosts/NewItemVaultField";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Box, Button, Chip } from "@mui/material";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
@@ -38,6 +39,8 @@ function ProvidersBody({ vault }: { vault: ReturnType<typeof useActiveVault> }) 
   const list = providers.data ?? [];
   const [editing, setEditing] = useState<{ id: Uuid | null; data: OidcProvider } | null>(null);
   const [busy, setBusy] = useState(false);
+  /** New providers may go into another vault; the active one is preselected. */
+  const [newVault, setNewVault] = useState<Uuid | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
 
   const act = async (job: () => Promise<unknown>) => {
@@ -56,6 +59,7 @@ function ProvidersBody({ vault }: { vault: ReturnType<typeof useActiveVault> }) 
   };
   const add = () => {
     setFailure(null);
+    setNewVault(vaultId);
     setEditing({ id: null, data: { ...NEW_PROVIDER, default: list.length === 0 } });
   };
   const editingId = editing?.id ?? null;
@@ -127,6 +131,9 @@ function ProvidersBody({ vault }: { vault: ReturnType<typeof useActiveVault> }) 
           subtitle={vaultName}
           onClose={() => setEditing(null)}
         >
+          {editing.id === null && newVault && (
+            <NewItemVaultField value={newVault} onChange={setNewVault} />
+          )}
           <ProviderForm
             key={editing.id ?? "new"}
             initial={editing.data}
@@ -135,7 +142,15 @@ function ProvidersBody({ vault }: { vault: ReturnType<typeof useActiveVault> }) 
             readOnly={readOnly}
             error={failure}
             onCancel={() => setEditing(null)}
-            onSave={(data) => void act(() => ipc.oidcProviderSave(vaultId, editing.id, data))}
+            onSave={(data) =>
+              void act(() =>
+                ipc.oidcProviderSave(
+                  editing.id === null ? (newVault ?? vaultId) : vaultId,
+                  editing.id,
+                  data,
+                ),
+              )
+            }
             onDelete={
               editingId === null
                 ? undefined

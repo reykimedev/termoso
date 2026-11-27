@@ -45,21 +45,27 @@ import dev.labdex.labterm.ui.components.IconTile
 import dev.labdex.labterm.ui.components.ItemActionsSheet
 import dev.labdex.labterm.ui.components.SheetAction
 import dev.labdex.labterm.ui.components.SheetSection
+import dev.labdex.labterm.ui.components.TileColors
 import dev.labdex.labterm.ui.components.distroVector
 import dev.labdex.labterm.ui.components.rememberCustomIcon
 
-/** A group's tile: its picked icon, a custom one, or the folder. */
+/** A group's tile: its picked icon, a custom one, or the folder, on its colour. */
 @Composable
-fun GroupTile(g: GroupItem) = GroupIconTile(g.icon)
+fun GroupTile(g: GroupItem) = GroupIconTile(g.icon, g.color)
 
-/** The tile for a group icon id; `null` (or an unknown id) is the folder. */
+/**
+ * The tile for a group icon id; `null` (or an unknown id) is the folder.
+ * [color] (`#rrggbb`) replaces the background.
+ */
 @Composable
-fun GroupIconTile(icon: String?) {
+fun GroupIconTile(icon: String?, color: String? = null) {
     val picked = remember(icon) { IconCatalog.picked(icon) }
     val custom = rememberCustomIcon(icon)
+    val tile = remember(color) { TileColors.parse(color) }
     when {
-        picked != null -> IconTile(distroVector(picked), tint = Color.White, container = picked.color)
-        custom != null -> CustomIconTile(custom)
+        picked != null -> IconTile(distroVector(picked), tint = Color.White, container = tile ?: picked.color)
+        custom != null -> CustomIconTile(custom, container = tile)
+        tile != null -> IconTile(Icons.Filled.Folder, tint = Color.White, container = tile)
         else -> IconTile(Icons.Filled.Folder)
     }
 }
@@ -81,6 +87,9 @@ fun GroupActionsSheet(
     onRename: () -> Unit,
     onDuplicate: () -> Unit,
     onMove: () -> Unit,
+    /** Null hides the entries (no other vault to write to). */
+    onMoveVault: (() -> Unit)? = null,
+    onCopyVault: (() -> Unit)? = null,
     onDelete: () -> Unit,
     onClose: () -> Unit,
     onOpenVpn: (String) -> Unit = {},
@@ -115,7 +124,7 @@ fun GroupActionsSheet(
         sections = listOf(
             SheetSection(
                 stringResource(R.string.group),
-                listOf(
+                listOfNotNull(
                     SheetAction(
                         Icons.Filled.PlayArrow,
                         if (connectIds.isEmpty()) stringResource(R.string.connect_all)
@@ -129,6 +138,12 @@ fun GroupActionsSheet(
                     SheetAction(Icons.Filled.DriveFileRenameOutline, stringResource(R.string.rename), onClick = onRename),
                     SheetAction(Icons.Filled.ContentCopy, stringResource(R.string.duplicate), onClick = onDuplicate),
                     SheetAction(Icons.AutoMirrored.Filled.DriveFileMove, stringResource(R.string.move_to_group), onClick = onMove),
+                    onMoveVault?.let {
+                        SheetAction(Icons.AutoMirrored.Filled.DriveFileMove, stringResource(R.string.move_to_vault), onClick = it)
+                    },
+                    onCopyVault?.let {
+                        SheetAction(Icons.Filled.ContentCopy, stringResource(R.string.copy_to_vault), onClick = it)
+                    },
                 ),
             ),
             SheetSection(

@@ -42,6 +42,8 @@ mod sshid;
 mod team;
 mod terminal;
 mod themes;
+mod transfer;
+mod unlock;
 mod webdav;
 
 pub use account::*;
@@ -66,7 +68,10 @@ pub use forward::{
 };
 pub use keys::{KeyMods, SpecialKey, control_code, encode_key, encode_text};
 pub use live::{LiveEndReason, LiveListener, LiveParticipantCard, LiveShare, is_live_link};
-pub use netbird::{TransportDetails, TransportHost, TransportItem, TransportPeer, TransportState};
+pub use netbird::{
+    TransportActive, TransportDetails, TransportDnsGroup, TransportHost, TransportHostTest,
+    TransportIdleStop, TransportItem, TransportPeer, TransportState,
+};
 pub use oidc::{OidcKeyChoice, OidcProviderItem, OidcSessionItem, UrlOpener, set_url_opener};
 pub use presence::{PresenceEntryCard, PresenceSessionCard, TeamPresenceCard};
 pub use session::*;

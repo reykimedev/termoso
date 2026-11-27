@@ -89,7 +89,8 @@ import {
   isDesktopError,
 } from "@/ipc/types";
 import { goToSettings, goToSettingsWith, useSettingsIntent } from "@/app/navigation";
-import { vaultIcon } from "@/app/vault";
+import { IconPicker } from "@/hosts/IconPicker";
+import { TeamTile, VaultTile } from "./VaultTile";
 import { ActivityCard, ActivityLog } from "./ActivityLog";
 import { InviteDialog, InviteResultRow } from "./InviteDialog";
 import { PersonAvatar, initialsOf } from "./PersonAvatar";
@@ -137,7 +138,7 @@ export function TeamPage() {
           icon={<GroupsRoundedIcon />}
           title={tr("Teams live in your account")}
           description={tr(
-            "Sign in to Termoso Cloud or your own server to create a team, invite people and share vaults with them.",
+            "Sign in to the labdex cloud or your own server to create a team, invite people and share vaults with them.",
           )}
           action={
             <Button variant="contained" onClick={() => goToSettings("account")}>
@@ -618,9 +619,26 @@ function TeamView({
       </Button>
       <SectionCard>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-          <IconTile tone="accent" size={44}>
-            <GroupsRoundedIcon />
-          </IconTile>
+          {admin ? (
+            <IconPicker
+              value={team.icon ?? null}
+              onChange={(icon) =>
+                op.mutate(() =>
+                  ipc.teamStyleSet(team.id, team.color ?? null, icon).then(() => null),
+                )
+              }
+              color={team.color ?? null}
+              onColorChange={(color) =>
+                op.mutate(() =>
+                  ipc.teamStyleSet(team.id, color, team.icon ?? null).then(() => null),
+                )
+              }
+              autoLabel={tr("Default")}
+              fallback={<GroupsRoundedIcon />}
+            />
+          ) : (
+            <TeamTile team={team} size={44} />
+          )}
           <Box sx={{ flex: 1, minWidth: 0 }}>
             {renaming ? (
               <InlineName
@@ -841,11 +859,7 @@ function TeamView({
                   <EntityCard
                     key={v.id}
                     dense
-                    tile={
-                      <IconTile tone={v.unlocked ? "accent" : "neutral"} size={32}>
-                        {vaultIcon(v)}
-                      </IconTile>
-                    }
+                    tile={<VaultTile vault={v} size={32} />}
                     title={v.name}
                     subtitle={
                       v.unlocked

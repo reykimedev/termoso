@@ -11,6 +11,7 @@ struct VaultsView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
+                    VaultBar(model: model)
                     vaultCard
                     CardSection("Address book") {
                         NavigationLink {
@@ -87,9 +88,36 @@ struct VaultsView: View {
 
     private var vaultCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            vaultPicker
-                .pickerStyle(.menu)
-                .tint(.primary)
+            HStack(spacing: 12) {
+                if let vault = model.selectedVault {
+                    if model.canStyle(vault) {
+                        NavigationLink {
+                            IconColorPicker(
+                                icon: Binding(
+                                    get: { model.selectedVault?.icon },
+                                    set: { model.setVaultStyle(vault, color: model.selectedVault?.color, icon: $0) }
+                                ),
+                                color: Binding(
+                                    get: { model.selectedVault?.color },
+                                    set: { model.setVaultStyle(vault, color: $0, icon: model.selectedVault?.icon) }
+                                ),
+                                automaticLabel: "Default",
+                                preview: { _, _ in
+                                    AnyView(model.selectedVault.map { VaultAvatar(vault: $0, size: 64) })
+                                }
+                            )
+                        } label: {
+                            VaultAvatar(vault: vault, size: 40)
+                        }
+                        .accessibilityIdentifier("vaults.style")
+                    } else {
+                        VaultAvatar(vault: vault, size: 40)
+                    }
+                }
+                vaultPicker
+                    .pickerStyle(.menu)
+                    .tint(.primary)
+            }
             if let vault = model.selectedVault {
                 Text(vaultDescription(vault))
                     .font(.footnote)
@@ -109,15 +137,39 @@ struct VaultsView: View {
     }
 
     private var vaultPicker: some View {
-        Picker(selection: $model.selectedVaultId) {
-            ForEach(model.vaults, id: \.id) { vault in
-                Label(vault.name, systemImage: vaultIcon(vault))
-                    .tag(Optional(vault.id))
+        HStack {
+            Picker(selection: $model.selectedVaultId) {
+                if !model.pinnedVaults.isEmpty {
+                    Section("Pinned") {
+                        ForEach(model.pinnedVaults, id: \.id) { vault in
+                            Label(vaultDisplayName(vault), systemImage: vaultIcon(vault))
+                                .tag(Optional(vault.id))
+                        }
+                    }
+                }
+                Section(model.pinnedVaults.isEmpty ? "" : "All vaults") {
+                    ForEach(model.unpinnedVaults, id: \.id) { vault in
+                        Label(vaultDisplayName(vault), systemImage: vaultIcon(vault))
+                            .tag(Optional(vault.id))
+                    }
+                }
+            } label: {
+                Label("Vault", systemImage: "lock.rectangle.stack")
             }
-        } label: {
-            Label("Vault", systemImage: "lock.rectangle.stack")
+            .accessibilityIdentifier("vaults.picker")
+            Spacer(minLength: 0)
+            if let id = model.selectedVaultId {
+                let pinned = model.isPinned(id)
+                Button {
+                    model.togglePin(id)
+                } label: {
+                    Image(systemName: pinned ? "pin.fill" : "pin")
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel(pinned ? "Unpin vault" : "Pin vault")
+                .accessibilityIdentifier("vaults.pin")
+            }
         }
-        .accessibilityIdentifier("vaults.picker")
     }
 
     private func plannedRow(_ title: String, systemImage: String) -> some View {

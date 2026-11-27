@@ -57,7 +57,9 @@ import {
   type VaultRole,
 } from "@/ipc/types";
 import { goToSettings, goToSettingsWith, useSettingsIntent } from "@/app/navigation";
-import { vaultHint, vaultIcon } from "@/app/vault";
+import { vaultHint, vaultIcon, vaultName } from "@/app/vault";
+import { IconPicker } from "@/hosts/IconPicker";
+import { VaultTile, vaultGlyph } from "./VaultTile";
 import { PersonAvatar, initialsOf } from "./PersonAvatar";
 import { AclSection } from "./AclSection";
 import { PolicyViewer } from "@/policy/PolicyViewer";
@@ -285,7 +287,7 @@ function VaultRow({
   return (
     <ListRow
       icon={vaultIcon(v)}
-      title={v.name}
+      title={vaultName(v)}
       selected={selected}
       onClick={onClick}
       hint={
@@ -335,6 +337,8 @@ function VaultDetails({
   const teamsForAcl = useTeams(isTeam);
   const aclTeam = isTeam ? (teamsForAcl.data?.find((t) => t.id === v.team_id) ?? null) : null;
   const manager = isTeam && v.unlocked && v.role === "manager";
+  // Any vault's look: the local one is this device's, synced ones need a manager.
+  const canStyle = v.kind === "local" || (v.unlocked && v.role === "manager");
   const members = useVaultMembers(isTeam ? v.id : null);
   const teamMembers = useTeamMembers(isTeam ? v.team_id : null);
   const [name, setName] = useState(v.name);
@@ -401,9 +405,22 @@ function VaultDetails({
       }
     >
       <SectionCard sx={{ flexDirection: "row", alignItems: "center", gap: 1.5 }}>
-        <IconTile tone={!v.unlocked ? "neutral" : isTeam ? "accent" : "info"} size={32}>
-          {vaultIcon(v)}
-        </IconTile>
+        {canStyle ? (
+          <IconPicker
+            value={v.icon ?? null}
+            onChange={(icon) =>
+              op.mutate(() => ipc.vaultStyleSet(v.id, v.color ?? null, icon).then(() => null))
+            }
+            color={v.color ?? null}
+            onColorChange={(color) =>
+              op.mutate(() => ipc.vaultStyleSet(v.id, color, v.icon ?? null).then(() => null))
+            }
+            autoLabel={tr("Default")}
+            fallback={vaultGlyph({ ...v, icon: null, color: null })}
+          />
+        ) : (
+          <VaultTile vault={v} size={32} />
+        )}
         {manager ? (
           <TextField
             fullWidth
@@ -418,7 +435,7 @@ function VaultDetails({
           />
         ) : (
           <Typography variant="subtitle2" noWrap sx={{ flex: 1 }}>
-            {v.name}
+            {vaultName(v)}
           </Typography>
         )}
       </SectionCard>

@@ -50,6 +50,8 @@ fn network(id: Uuid, setup_key: Option<String>) -> NetworkConfig {
             provider: "netbird".into(),
             management_url: Some(env("NB_E2E_MANAGEMENT")),
             setup_key,
+            direct_first: false,
+            idle_secs: None,
         },
     })
     .unwrap()
@@ -223,4 +225,212 @@ async fn sign_in_checks_the_account() {
     assert_eq!(email.as_deref(), Some(user.as_str()));
     assert!(nb.has_peer(&net, keys.as_ref()));
     nb.stop_all().await;
+}
+
+/// The management API, with the setup's token.
+fn api(method: &str, path: &str, body: Option<serde_json::Value>) -> serde_json::Value {
+    let mut cmd = std::process::Command::new("curl");
+    cmd.args(["-sf", "-X", method])
+        .arg("-H")
+        .arg(format!("Authorization: Token {}", env("NB_E2E_PAT")))
+        .args(["-H", "content-type: application/json"]);
+    if let Some(b) = body {
+        cmd.arg("-d").arg(b.to_string());
+    }
+    let out = cmd
+        .arg(format!("{}{path}", env("NB_E2E_MANAGEMENT")))
+        .output()
+        .expect("curl");
+    assert!(out.status.success(), "{method} {path} failed");
+    serde_json::from_slice(&out.stdout).unwrap_or(serde_json::Value::Null)
+}
+
+/// A route through the `routers` group to everyone (the "All" group).
+/// `auto_apply` false is an exit node the user has to pick in NetBird's own app.
+fn add_route(network: &str, auto_apply: bool) -> String {
+    let all = api("GET", "/api/groups", None)
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|g| g["name"] == "All")
+        .expect("All group")["id"]
+        .clone();
+    let route = api(
+        "POST",
+        "/api/routes",
+        Some(serde_json::json!({
+            "description": "e2e", "network_id": "e2e", "enabled": true,
+            "peer_groups": [env("NB_E2E_ROUTERS")], "network": network,
+            "metric": 9999, "masquerade": true, "groups": [all],
+            "keep_route": false, "skip_auto_apply": !auto_apply,
+        })),
+    );
+    route["id"].as_str().unwrap().to_owned()
+}
+
+async fn dial_at(
+    nb: &Arc<Netbird>,
+    keys: &Arc<MemKeys>,
+    net: NetworkConfig,
+    addr: &str,
+) -> Result<labterm_core::transport::BoxStream, String> {
+    let (host, port) = addr.rsplit_once(':').unwrap();
+    nb.dialer(net, "labterm-e2e-routes", keys.clone())
+        .dial(host, port.parse().unwrap())
+        .await
+        .map_err(|e| e.to_string())
+}
+
+async fn echo_at(nb: &Arc<Netbird>, keys: &Arc<MemKeys>, net: NetworkConfig, addr: &str) {
+    let mut s = dial_at(nb, keys, net, addr)
+        .await
+        .expect("dial through the routing peer");
+    s.write_all(b"lan bytes").await.unwrap();
+    let mut buf = [0u8; 9];
+    tokio::time::timeout(Duration::from_secs(20), s.read_exact(&mut buf))
+        .await
+        .expect("echo timed out")
+        .unwrap();
+    assert_eq!(&buf, b"lan bytes");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a NetBird server; run tests/e2e.sh"]
+async fn lan_addresses_through_routes() {
+    let lib = Some(env("NB_E2E_LIB"));
+    let lan = env("NB_E2E_LAN");
+    let (lan_ip, _) = lan.rsplit_once(':').unwrap();
+    let keys = Arc::new(MemKeys::default());
+    let nb = Netbird::with_options(lib, Duration::from_secs(2));
+    let id = Uuid::new_v4();
+    let net = network(id, Some(env("NB_E2E_SETUP_KEY")));
+
+    // No route: the LAN address isn't reachable.
+    assert!(dial_at(&nb, &keys, net.clone(), &lan).await.is_err());
+    nb.stop_all().await;
+
+    // A network route to one LAN address; the details page shows it.
+    let lan_route = format!("{lan_ip}/32");
+    let route = add_route(&lan_route, true);
+    echo_at(&nb, &keys, net.clone(), &lan).await;
+    let details = nb.details(id).await.expect("running").expect("status");
+    assert!(
+        details.peers.iter().any(|p| p.routes.contains(&lan_route)),
+        "route missing: {details:?}"
+    );
+    nb.stop_all().await;
+    api("DELETE", &format!("/api/routes/{route}"), None);
+
+    // An exit node (default route), auto-applied.
+    let route = add_route("0.0.0.0/0", true);
+    echo_at(&nb, &keys, net.clone(), &lan).await;
+    nb.stop_all().await;
+    api("DELETE", &format!("/api/routes/{route}"), None);
+
+    // Not auto-applied: the app can't pick exit nodes, so it stays unused.
+    let route = add_route("0.0.0.0/0", false);
+    assert!(dial_at(&nb, &keys, net.clone(), &lan).await.is_err());
+    nb.stop_all().await;
+    api("DELETE", &format!("/api/routes/{route}"), None);
+}
+
+/// A nameserver group for home.example.com on the echo peer (port 5353 of
+/// its NetBird IP), which the host network can't reach: names resolve
+/// through the tunnel, and the answer is dialed through the tunnel too.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a NetBird server; run tests/e2e.sh"]
+async fn names_resolve_through_nameserver_groups() {
+    let lib = Some(env("NB_E2E_LIB"));
+    let lan = env("NB_E2E_LAN");
+    let (lan_ip, lan_port) = lan.rsplit_once(':').unwrap();
+    let keys = Arc::new(MemKeys::default());
+    let nb = Netbird::with_options(lib, Duration::from_secs(2));
+    let net = network(Uuid::new_v4(), Some(env("NB_E2E_SETUP_KEY")));
+    let all = api("GET", "/api/groups", None)
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|g| g["name"] == "All")
+        .expect("All group")["id"]
+        .clone();
+    let ns = api(
+        "POST",
+        "/api/dns/nameservers",
+        Some(serde_json::json!({
+            "name": "home", "description": "e2e", "enabled": true,
+            "nameservers": [{"ip": env("NB_E2E_TARGET"), "ns_type": "udp", "port": 5353}],
+            "groups": [all], "primary": false, "domains": ["home.example.com"],
+            "search_domains_enabled": true,
+        })),
+    )["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let route = add_route(&format!("{lan_ip}/32"), true);
+
+    // A peer by a name only the group's server knows.
+    echo_at(&nb, &keys, net.clone(), "peer.home.example.com:2222").await;
+    // A LAN host behind a route, by name.
+    echo_at(
+        &nb,
+        &keys,
+        net.clone(),
+        &format!("lan.home.example.com:{lan_port}"),
+    )
+    .await;
+    // Short names: the group's domain is a search domain, and so is the
+    // peer domain.
+    echo_at(&nb, &keys, net.clone(), "peer:2222").await;
+    let short = env("NB_E2E_TARGET_NAME");
+    let short = short.split('.').next().unwrap();
+    echo_at(&nb, &keys, net.clone(), &format!("{short}:2222")).await;
+    // The connection test sees the same path: the group's server, the route
+    // and its routing peer. The echo server sends no SSH banner.
+    let t = nb
+        .test_host(
+            &net,
+            "labterm-e2e",
+            keys.as_ref(),
+            "lan.home.example.com",
+            lan_port.parse().unwrap(),
+        )
+        .await;
+    assert_eq!(t.network_error, None, "{t:?}");
+    assert_eq!(t.via, "nameserver", "{t:?}");
+    assert_eq!(t.server, format!("{}:5353", env("NB_E2E_TARGET")), "{t:?}");
+    assert_eq!(t.remote, lan, "{t:?}");
+    let peers = nb
+        .details(net.id)
+        .await
+        .expect("running")
+        .expect("status")
+        .peers;
+    assert_eq!(
+        t.route.as_deref(),
+        Some(format!("{lan_ip}/32").as_str()),
+        "{t:?} {peers:?}"
+    );
+    assert!(
+        t.error
+            .as_deref()
+            .is_some_and(|e| e.contains("no SSH banner")),
+        "{t:?}"
+    );
+    let details = nb.details(net.id).await.expect("running").expect("status");
+    assert!(
+        details
+            .dns
+            .iter()
+            .any(|g| g.domains == ["home.example.com"] && g.tunnel),
+        "dns: {details:?}"
+    );
+    // The group's server says no: the dial fails instead of going elsewhere.
+    assert!(
+        dial_at(&nb, &keys, net.clone(), "nope.home.example.com:2222")
+            .await
+            .is_err()
+    );
+    nb.stop_all().await;
+    api("DELETE", &format!("/api/routes/{route}"), None);
+    api("DELETE", &format!("/api/dns/nameservers/{ns}"), None);
 }

@@ -46,4 +46,29 @@ class CustomIconTest : ResourceTest() {
         assertNull(CustomIcon.bitmap("custom:data:data:image/png;base64," + "A".repeat(40 * 1024)))
         assertNull(CustomIcon.bitmap("custom:data:data:image/png;base64,"))
     }
+
+    @Test
+    fun encodesLargeRasterAsSmallPng() {
+        val bitmap = Bitmap.createBitmap(1200, 600, Bitmap.Config.ARGB_8888)
+        bitmap.eraseColor(0xFF336699.toInt())
+        val out = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+        val value = CustomIcon.encode(out.toByteArray(), "image/png")
+        assertNotNull(value)
+        assertTrue(value!!.startsWith("custom:data:data:image/png;base64,"))
+        assertEquals(CustomIcon.RASTER_SIDE, CustomIcon.bitmap(value)!!.width)
+    }
+
+    @Test
+    fun keepsSmallSvgAndRefusesBigOrBrokenFiles() {
+        val svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10" fill="red"/></svg>"""
+        val value = CustomIcon.encode(svg.toByteArray(), "image/svg+xml")
+        assertTrue(value!!.startsWith("custom:data:data:image/svg+xml;base64,"))
+        // Some file pickers report SVGs as octet-stream.
+        assertNotNull(CustomIcon.encode(svg.toByteArray(), "application/octet-stream"))
+        val big = svg.replace("<rect", "<!--" + "x".repeat(CustomIcon.MAX_SVG_BYTES) + "--><rect")
+        assertNull(CustomIcon.encode(big.toByteArray(), "image/svg+xml"))
+        assertNull(CustomIcon.encode("not an image".toByteArray(), "image/png"))
+        assertNull(CustomIcon.encode(ByteArray(0), "image/png"))
+    }
 }

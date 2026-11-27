@@ -5,6 +5,8 @@ import type { Uuid } from "@/ipc/types";
 import { Field } from "@/components/ui";
 import { goToSection } from "@/app/navigation";
 import { tr } from "@/i18n";
+import { inheritItems } from "@/hosts/inheritItems";
+import { networkTitle } from "./providers";
 
 /** The VPN network a host (or a group's hosts) is reached through. Only the
  *  vault's own networks: a host never dials through another vault's. */
@@ -16,7 +18,7 @@ export function VpnNetworkField({
 }: {
   vaultId: Uuid;
   value: Uuid | null;
-  /** From the group, shown on the "none" entry. */
+  /** From the group or tags, shown on the "inherit" entry. */
   inheritedId?: Uuid | null;
   onChange: (id: Uuid | null) => void;
 }) {
@@ -26,7 +28,7 @@ export function VpnNetworkField({
   });
   const list = networks.data ?? [];
   const name = (id: Uuid | null | undefined) => list.find((n) => n.id === id)?.label;
-  const inherited = name(inheritedId);
+  const inherited = inheritedId ? (name(inheritedId) ?? "…") : null;
   return (
     <Field
       label={tr("VPN network")}
@@ -41,12 +43,10 @@ export function VpnNetworkField({
           else onChange(v === "" ? null : v);
         }}
       >
-        <MenuItem value="">
-          <em>{inherited ? tr("Inherited — {name}", { name: inherited }) : tr("None (direct)")}</em>
-        </MenuItem>
+        {inheritItems({ inherited, value, noneLabel: tr("None (direct)") })}
         {list.map((n) => (
           <MenuItem key={n.id} value={n.id}>
-            {n.label || "NetBird"}
+            {networkTitle(n)}
           </MenuItem>
         ))}
         <MenuItem value="__manage" sx={{ color: "primary.main" }}>

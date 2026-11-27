@@ -64,7 +64,7 @@ import {
   type TermType,
   type ThemeMode,
 } from "@/ipc/types";
-import { tr, trn, msg, LOCALE_NAMES, type Language } from "@/i18n";
+import { tr, trn, msg } from "@/i18n";
 import { fmtBytes } from "@/hosts/LocalCopiesSection";
 
 const ALL_PAGES: { id: PageId; label: string; icon: ReactNode }[] = [
@@ -243,6 +243,7 @@ function General({ s, update }: SectionProps) {
       <SectionCard title={tr("Appearance")}>
         <SettingRow
           label={tr("Theme")}
+          last
           control={
             <TextField
               select
@@ -253,22 +254,6 @@ function General({ s, update }: SectionProps) {
               <MenuItem value="dark">{tr("Dark")}</MenuItem>
               <MenuItem value="light">{tr("Light")}</MenuItem>
               <MenuItem value="system">{tr("Follow system")}</MenuItem>
-            </TextField>
-          }
-        />
-        <SettingRow
-          label={tr("Language")}
-          last
-          control={
-            <TextField
-              select
-              value={s.language}
-              onChange={(e) => update({ language: e.target.value as Language })}
-              sx={{ width: 200 }}
-            >
-              <MenuItem value="system">{tr("Follow system")}</MenuItem>
-              <MenuItem value="en">{LOCALE_NAMES.en}</MenuItem>
-              <MenuItem value="ru">{LOCALE_NAMES.ru}</MenuItem>
             </TextField>
           }
         />

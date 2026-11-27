@@ -46,6 +46,8 @@ pub mod soft;
 pub mod usb;
 #[cfg(feature = "fido2-ctap")]
 pub mod webauthn;
+#[cfg(feature = "fido2")]
+pub mod winhello;
 
 #[cfg(feature = "fido2")]
 pub use usb::{UsbBackend, generate, list_devices, load_resident, sign};
