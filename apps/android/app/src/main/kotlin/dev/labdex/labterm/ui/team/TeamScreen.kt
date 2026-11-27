@@ -53,6 +53,14 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.labdex.labterm.R
+import dev.labdex.labterm.ui.components.ItemActionsSheet
+import dev.labdex.labterm.ui.components.ItemMoreButton
+import dev.labdex.labterm.ui.components.SheetAction
+import dev.labdex.labterm.ui.components.SheetSection
+import dev.labdex.labterm.ui.components.itemClicks
+import androidx.compose.material.icons.filled.AdminPanelSettings
+import androidx.compose.material.icons.filled.PersonRemove
+import androidx.compose.material.icons.filled.WorkspacePremium
 import dev.labdex.labterm.data.PermissionDenied
 import dev.labdex.labterm.data.can
 import dev.labdex.labterm.data.AccountManager
@@ -395,13 +403,14 @@ fun TeamScreen(
         )
     }
     memberMenu?.let { m ->
-        MemberMenuDialog(
+        MemberMenuSheet(
+            repo = shell.repo,
             member = m,
             isOwner = state.isOwner,
-            onRole = { role -> memberMenu = null; vm.setRole(m.userId, role) },
-            onTransfer = { memberMenu = null; transferring = m },
-            onRemove = { memberMenu = null; removing = m },
-            onDismiss = { memberMenu = null },
+            onRole = { role -> vm.setRole(m.userId, role) },
+            onTransfer = { transferring = m },
+            onRemove = { removing = m },
+            onDismiss = { if (memberMenu == m) memberMenu = null },
         )
     }
     removing?.let { m ->
@@ -474,12 +483,11 @@ private fun MemberRow(repo: VaultRepository, m: TeamMemberCard, mfaRequired: Boo
         title = (m.displayName ?: m.email) + if (m.me) stringResource(R.string.you_3) else "",
         subtitle = if (m.displayName != null) "${m.email} · ${m.role.label()}" else m.role.label(),
         leading = { UserAvatar(repo, m.userId, m.avatar, m.displayName ?: m.email) },
+        modifier = if (canManage) Modifier.itemClicks(onClick = onMenu, onMenu = onMenu) else Modifier,
         trailing = if (canManage || m.mfaEnabled != null) {
             {
                 MfaBadge(m.mfaEnabled, mfaRequired)
-                if (canManage) {
-                    IconButton(onClick = onMenu) { Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.manage)) }
-                }
+                if (canManage) ItemMoreButton(onMenu, stringResource(R.string.manage))
             }
         } else {
             null
@@ -541,8 +549,10 @@ fun VaultRow(v: VaultInfo, modifier: Modifier = Modifier) {
     )
 }
 
+/** A member's quick menu, the same sheet every list item uses: change role, hand over ownership, remove. */
 @Composable
-private fun MemberMenuDialog(
+private fun MemberMenuSheet(
+    repo: VaultRepository,
     member: TeamMemberCard,
     isOwner: Boolean,
     onRole: (TeamRole) -> Unit,
@@ -550,36 +560,25 @@ private fun MemberMenuDialog(
     onRemove: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(member.displayName ?: member.email) },
-        text = {
-            Column {
-                if (member.displayName != null) {
-                    Text(member.email, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(Modifier.height(8.dp))
-                }
-                listOf(TeamRole.MEMBER, TeamRole.ADMIN).forEach { role ->
-                    val current = member.role == role
-                    ListRow(
-                        title = role.label() + if (current) stringResource(R.string.sep_current) else "",
-                        subtitle = role.hint(),
-                        titleColor = if (current) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.clickable(enabled = !current) { onRole(role) },
-                    )
-                }
-                if (isOwner) {
-                    ListRow(title = stringResource(R.string.make_owner), subtitle = TeamRole.OWNER.hint(), modifier = Modifier.clickable(onClick = onTransfer))
-                }
-                ListRow(
-                    title = stringResource(R.string.remove_from_team),
-                    titleColor = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.clickable(onClick = onRemove),
-                )
-            }
-        },
-        confirmButton = {},
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    val name = member.displayName ?: member.email
+    ItemActionsSheet(
+        title = name,
+        subtitle = if (member.displayName != null) "${member.email} · ${member.role.label()}" else member.role.label(),
+        leading = { UserAvatar(repo, member.userId, member.avatar, name) },
+        sections = listOf(
+            SheetSection(
+                stringResource(R.string.role),
+                buildList {
+                    listOf(TeamRole.MEMBER to Icons.Filled.Person, TeamRole.ADMIN to Icons.Filled.AdminPanelSettings).forEach { (role, icon) ->
+                        val current = member.role == role
+                        add(SheetAction(icon, role.label() + if (current) stringResource(R.string.sep_current) else "", enabled = !current) { onRole(role) })
+                    }
+                    if (isOwner) add(SheetAction(Icons.Filled.WorkspacePremium, stringResource(R.string.make_owner), onClick = onTransfer))
+                },
+            ),
+            SheetSection(null, listOf(SheetAction(Icons.Filled.PersonRemove, stringResource(R.string.remove_from_team), danger = true, onClick = onRemove))),
+        ),
+        onClose = onDismiss,
     )
 }
 

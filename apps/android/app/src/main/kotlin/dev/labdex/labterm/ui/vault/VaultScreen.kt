@@ -14,6 +14,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Hub
+import androidx.compose.material.icons.filled.Lan
+import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.CloudQueue
@@ -88,6 +90,8 @@ fun VaultScreen(
     onOpenForwarding: () -> Unit,
     onOpenSnippets: () -> Unit,
     onOpenKnownHosts: () -> Unit,
+    onOpenProxies: () -> Unit = {},
+    onOpenJumpChains: () -> Unit = {},
     onOpenOidcProviders: () -> Unit,
     onOpenNetbird: () -> Unit,
     onOpenHistory: () -> Unit,
@@ -185,6 +189,20 @@ fun VaultScreen(
                     badge = known.toString(),
                     leading = { IconTile(Icons.Filled.Fingerprint) },
                     modifier = Modifier.clickable(onClick = onOpenKnownHosts),
+                )
+                RowDivider()
+                ChevronRow(
+                    title = stringResource(R.string.proxies),
+                    subtitle = stringResource(R.string.proxies_subtitle),
+                    leading = { IconTile(Icons.Filled.Lan) },
+                    modifier = Modifier.clickable(onClick = onOpenProxies),
+                )
+                RowDivider()
+                ChevronRow(
+                    title = stringResource(R.string.jump_chains),
+                    subtitle = stringResource(R.string.jump_chains_subtitle),
+                    leading = { IconTile(Icons.Filled.AccountTree) },
+                    modifier = Modifier.clickable(onClick = onOpenJumpChains),
                 )
                 RowDivider()
                 ChevronRow(

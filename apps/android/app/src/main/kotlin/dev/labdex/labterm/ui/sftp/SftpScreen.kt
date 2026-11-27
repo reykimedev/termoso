@@ -94,6 +94,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.labdex.labterm.R
+import dev.labdex.labterm.ui.components.ItemActionsSheet
+import dev.labdex.labterm.ui.components.ItemMoreButton
+import dev.labdex.labterm.ui.components.SheetAction
+import dev.labdex.labterm.ui.components.SheetSection
 import dev.labdex.labterm.data.SftpConnection
 import dev.labdex.labterm.str
 import dev.labdex.labterm.ui.components.EmptyState
@@ -155,6 +159,7 @@ fun SftpScreen(
     var searching by remember { mutableStateOf(false) }
     var showTransfers by remember { mutableStateOf(false) }
     var dialog by remember { mutableStateOf<SftpDialog?>(null) }
+    var entryMenu by remember { mutableStateOf<SftpEntry?>(null) }
     var pendingDownload by remember { mutableStateOf<List<SftpEntry>>(emptyList()) }
 
     val pickFiles = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
@@ -328,6 +333,7 @@ fun SftpScreen(
                         state = state,
                         onTap = { e -> if (state.selecting) vm.toggle(e) else vm.open(e) },
                         onLongPress = vm::toggle,
+                        onMenu = { entryMenu = it },
                     )
                 }
             }
@@ -376,6 +382,37 @@ fun SftpScreen(
                 }
             },
             dismissButton = { TextButton(onClick = { vm.resolveConflict(ConflictChoice.Skip) }) { Text(stringResource(R.string.skip)) } },
+        )
+    }
+
+    entryMenu?.let { e ->
+        val canRelay = connections.any { it.id != conn.id && it.state.value is SessionState.Connected }
+        ItemActionsSheet(
+            title = e.name,
+            subtitle = listOfNotNull(if (e.isDir) null else formatSize(e.size), e.permissions, e.owner).joinToString(" · "),
+            leading = { IconTile(iconFor(e), tint = tintFor(e)) },
+            sections = listOf(
+                SheetSection(
+                    null,
+                    buildList {
+                        add(SheetAction(Icons.AutoMirrored.Filled.OpenInNew, stringResource(R.string.open_)) { vm.open(e) })
+                        if (!e.isDir) add(SheetAction(Icons.Filled.Download, stringResource(R.string.download)) { vm.download(listOf(e)) })
+                        if (!e.isDir && conn.protocol == FileProtocol.SFTP) {
+                            add(SheetAction(Icons.Filled.Edit, stringResource(R.string.edit_in_terminal)) { onEdit(conn, e.path) })
+                        }
+                        if (!e.isDir) add(SheetAction(Icons.AutoMirrored.Filled.OpenInNew, stringResource(R.string.open_with_2)) { vm.openWith(e) })
+                        add(SheetAction(Icons.Filled.DriveFileRenameOutline, stringResource(R.string.rename)) { dialog = SftpDialog.Rename(e) })
+                        add(SheetAction(Icons.Filled.ContentCopy, stringResource(R.string.copy_to)) { dialog = SftpDialog.CopyTo(e) })
+                        if (canRelay && !e.isDir) add(SheetAction(Icons.Filled.SwapHoriz, stringResource(R.string.copy_to_another_server)) { dialog = SftpDialog.RelayTo(listOf(e)) })
+                        if (conn.capabilities.serverCopy) add(SheetAction(Icons.Filled.ContentCopy, stringResource(R.string.duplicate)) { vm.duplicate(e) })
+                        if (conn.capabilities.permissions) add(SheetAction(Icons.Filled.Lock, stringResource(R.string.change_permissions)) { dialog = SftpDialog.Permissions(e) })
+                        add(SheetAction(Icons.Filled.ContentCopy, stringResource(R.string.copy_path)) { copyPath(listOf(e.path)) })
+                        add(SheetAction(Icons.Filled.Check, stringResource(R.string.select)) { vm.toggle(e) })
+                    },
+                ),
+                SheetSection(null, listOf(SheetAction(Icons.Filled.Delete, stringResource(R.string.remove_2), danger = true) { dialog = SftpDialog.Remove(listOf(e)) })),
+            ),
+            onClose = { if (entryMenu == e) entryMenu = null },
         )
     }
 
@@ -547,7 +584,7 @@ private fun UploadButton(enabled: Boolean, onFiles: () -> Unit, onFolder: () -> 
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun EntryList(state: SftpUiState, onTap: (SftpEntry) -> Unit, onLongPress: (SftpEntry) -> Unit) {
+private fun EntryList(state: SftpUiState, onTap: (SftpEntry) -> Unit, onLongPress: (SftpEntry) -> Unit, onMenu: (SftpEntry) -> Unit) {
     val entries = state.visible
     val listState = rememberLazyListState()
     LaunchedEffect(state.path) { listState.scrollToItem(0) }
@@ -580,6 +617,8 @@ private fun EntryList(state: SftpUiState, onTap: (SftpEntry) -> Unit, onLongPres
                                 textAlign = TextAlign.End,
                             )
                         }
+                        // Long-press stays multi-select, as in file managers; ⋯ opens the quick menu.
+                        if (!state.selecting) ItemMoreButton({ onMenu(e) })
                     },
                     modifier = Modifier.combinedClickable(onClick = { onTap(e) }, onLongClick = { onLongPress(e) }),
                 )
