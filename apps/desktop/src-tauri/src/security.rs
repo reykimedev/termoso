@@ -5,8 +5,8 @@
 //! vault is locked the `Store` — and with it the key — is gone from memory, so
 //! every vault command fails with `locked` until the password is entered.
 //!
-//! Unlock factors (Windows Hello for now, see `labterm_core::secrets::factors`)
-//! are more wrappers of the same key; the password is then an optional
+//! Unlock factors (Windows Hello and FIDO2 security keys, see
+//! `labterm_core::secrets::factors`) are more wrappers of the same key; the password is then an optional
 //! fallback.
 
 use labterm_core::secrets::{MIN_PASSWORD_CHARS, MasterKeySource, factors::FactorInfo};
@@ -35,6 +35,8 @@ pub struct VaultStatus {
     pub factors: Vec<FactorInfo>,
     /// Windows Hello can be enrolled on this machine.
     pub hello_available: bool,
+    /// Security keys can be enrolled and used on this build.
+    pub security_keys_supported: bool,
     pub master_source: MasterKeySource,
     pub min_password_chars: usize,
 }
@@ -53,6 +55,7 @@ pub fn status(state: &AppState) -> VaultStatus {
         password_protected: state.password_protected(),
         factors: state.factors(),
         hello_available: hello_available(),
+        security_keys_supported: crate::security_key::supported(),
         master_source: state.master_source(),
         min_password_chars: MIN_PASSWORD_CHARS,
     }
@@ -71,7 +74,7 @@ pub async fn lock<R: Runtime>(app: &AppHandle<R>) -> Result<VaultStatus> {
     let state = app.state::<AppState>();
     if !state.protected() {
         return Err(DesktopError::invalid(
-            "set a master password or Windows Hello before locking the vault",
+            "set a master password or an unlock method before locking the vault",
         ));
     }
     if state.is_locked() {
@@ -166,6 +169,38 @@ pub async fn unlock_hello(app: &AppHandle) -> Result<VaultStatus> {
         }
     }
     Err(last.unwrap_or_else(|| DesktopError::invalid("Windows Hello failed")))
+}
+
+/// Open the store with a security key: one touch of whichever enrolled key
+/// is plugged in, asked for each enrolled key in turn until one answers.
+pub async fn unlock_security_key(app: &AppHandle) -> Result<VaultStatus> {
+    let state = app.state::<AppState>();
+    if state.lock.locking.load(Ordering::SeqCst) {
+        return Err(DesktopError::invalid("the vault is still locking"));
+    }
+    if !state.is_locked() {
+        return Ok(status(&state));
+    }
+    let challenges = state.security_key_challenges()?;
+    if challenges.is_empty() {
+        return Err(DesktopError::invalid(
+            "no security key is set up for Labterm",
+        ));
+    }
+    for c in challenges {
+        let id = c.id.clone();
+        let secret = tauri::async_runtime::spawn_blocking(move || crate::security_key::secret(&c))
+            .await
+            .map_err(|e| DesktopError::invalid(e.to_string()))??;
+        if let Some(secret) = secret {
+            state.unlock_with_factor(&id, &secret)?;
+            return unlocked(app);
+        }
+    }
+    Err(DesktopError::new(
+        "fido2_wrong_device",
+        "this security key is not enrolled for Labterm",
+    ))
 }
 
 /// Relock after `lockAfterMinutes` without user input. One instance per
@@ -264,6 +299,37 @@ pub async fn unlock_hello_add(
     .await
     .map_err(|e| DesktopError::invalid(e.to_string()))??;
     tracing::info!("Windows Hello unlock enrolled");
+    Ok(status(&app.state::<AppState>()))
+}
+
+#[tauri::command]
+pub async fn vault_unlock_security_key(app: AppHandle) -> Result<VaultStatus> {
+    unlock_security_key(&app).await
+}
+
+/// Enroll a security key (two touches). `password` proves the owner when a
+/// master password is set; otherwise an enrolled factor is asked first.
+/// `pin` only when the key asked for one (`fido2_pin_required`).
+#[tauri::command]
+pub async fn unlock_security_key_add(
+    app: AppHandle,
+    password: Option<String>,
+    name: String,
+    pin: Option<String>,
+) -> Result<VaultStatus> {
+    let password = password.map(Zeroizing::new);
+    let pin = pin.map(Zeroizing::new);
+    let handle = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        handle.state::<AppState>().add_security_key_factor(
+            password.as_deref().map(String::as_str),
+            &name,
+            pin.as_deref().map(String::as_str),
+        )
+    })
+    .await
+    .map_err(|e| DesktopError::invalid(e.to_string()))??;
+    tracing::info!("security key unlock enrolled");
     Ok(status(&app.state::<AppState>()))
 }
 

@@ -51,6 +51,8 @@ export interface VaultStatus {
   passwordProtected: boolean;
   factors: UnlockFactor[];
   helloAvailable: boolean;
+  /** Security keys can unlock on this build (not on Windows yet). */
+  securityKeysSupported: boolean;
   masterSource: MasterKeySource;
   minPasswordChars: number;
 }
