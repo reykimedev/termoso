@@ -13,7 +13,7 @@ What Labterm Web protects, from whom, and where it stops. Update it when a new w
 | Vault contents: SSH keys, passwords, host list | Encrypted on the Labterm server; decrypted only inside the browser tab |
 | SSH sessions | End to end between the browser and the host; the relay carries ciphertext |
 | Known host keys | The user's Labterm vault, synced from their devices |
-| This browser's copy of the vault | IndexedDB, sealed with AES-GCM under a key from the lock password (Argon2id) |
+| This browser's copy of the vault | IndexedDB, sealed with AES-GCM under a random data key, wrapped by the lock password (Argon2id) and by each enrolled passkey's PRF value ([0014](decisions/0014-passkey-unlock-with-prf.md), proposed) |
 | Access to the home network | The relay, limited by the allowlist |
 | The integrity of the app's code | Signed release manifest, checked by the loader and service worker |
 
@@ -29,7 +29,9 @@ What Labterm Web protects, from whom, and where it stops. Update it when a new w
 | A malicious page in another tab | Use the relay or read the session | Origin check on ticket and WebSocket; strict CSP; `frame-ancestors 'none'` |
 | A compromised build or a tampered server | Ship code that leaks keys | Reproducible builds, a release manifest signed with a key held by the release environment, SRI, a loader and service worker that check every file |
 | Someone with the unlocked laptop | Use open sessions | Idle lock after the user's Labterm setting; a lock button that closes sessions and forgets the vault key |
-| Someone with a copy of the browser profile | Read the vault from IndexedDB | Sealed with AES-GCM under the lock password (Argon2id, 64 MiB); the opkssh key is never stored |
+| Someone with a copy of the browser profile | Read the vault from IndexedDB | Sealed with AES-GCM under the lock password (Argon2id, 64 MiB); the opkssh key is never stored. A passkey wrapper needs the authenticator itself; the PRF output can't be guessed |
+| Someone with the browser profile and the user's YubiKey | Unlock with a touch | Nothing: security keys unlock without a PIN, like on the desktop. Keep the key apart from the laptop, or set a lock password and enrol only platform passkeys |
+| Someone with the user's Apple or Google account | Use a synced passkey | Not enough on its own: the wrapper exists only in this browser's profile |
 | Another member of a team vault, or the Labterm server | Pin a key for a host they don't own, or hand a new device a personal vault of their own making | Pins count only from the host's own vault, this browser's vault and a personal vault sealed with the account key; a personal key the server could have sealed is never opened ([0010](decisions/0010-who-vouches-for-a-host-key.md)) |
 | A team vault's policy | Is ignored by a client | Labterm Web enforces `auth = keys_only`, `jump_host_required` and `export = deny` like the Labterm apps; hosts behind a jump host or proxy don't open until Labterm Web can follow the chain |
 | Whoever can change `config.json` on the server | Point the app at another relay, identity provider or Labterm server | Not signed (it is deployment data). Another relay still only sees ciphertext and fails the host-key check; another identity provider shows its own address in the sign-in pop-up |
