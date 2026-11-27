@@ -8,7 +8,7 @@
 //! NetBird. In a team vault each person signs in to NetBird themselves and
 //! joins as their own peer, so NetBird decides who gets in.
 
-use labterm_core::model::{Entity, SshConfig, Transport};
+use labterm_core::model::{Entity, Host, SshConfig, Transport};
 use labterm_core::store::{LocalVaultKind, Store};
 use labterm_proto::entities::TRANSPORT_NETBIRD;
 use uuid::Uuid;
@@ -126,6 +126,37 @@ pub(crate) fn check(store: &Store, vault_id: Uuid, id: Option<Uuid>) -> Result<(
             "the network must be one of the same vault",
         )),
     }
+}
+
+/// A host that connects through a network.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HostUse {
+    pub id: Uuid,
+    pub label: String,
+    pub address: String,
+}
+
+/// The hosts of `entity`'s vault that connect through it (their own
+/// choice or their group's).
+pub fn hosts_using(store: &Store, entity: &Entity<Transport>) -> Result<Vec<HostUse>> {
+    let mut out: Vec<HostUse> = store
+        .list::<Host>(Some(entity.vault_id))?
+        .into_iter()
+        .filter(|h| {
+            store
+                .resolve_host(h.id)
+                .ok()
+                .and_then(|r| r.transport)
+                .is_some_and(|t| t.id == entity.id)
+        })
+        .map(|h| HostUse {
+            id: h.id,
+            label: h.data.label,
+            address: h.data.address,
+        })
+        .collect();
+    out.sort_by_key(|h| h.label.to_lowercase());
+    Ok(out)
 }
 
 #[cfg(test)]

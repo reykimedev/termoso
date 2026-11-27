@@ -131,6 +131,7 @@ object Routes {
     const val KNOWN_HOSTS = "knownHosts"
     const val OIDC_PROVIDERS = "oidcProviders"
     const val NETBIRD = "netbird"
+    const val VPN_NETWORK = "vpn/{id}"
     const val HISTORY = "history"
     const val LOGS = "logs"
     const val LOG = "log/{id}"
@@ -167,6 +168,7 @@ object Routes {
     /** New-host form prefilled from a quick-connect target (`user@host:port`, `telnet://host`). */
     fun hostNewFrom(target: String) = "hostNew?target=${Uri.encode(target)}"
     fun hostEdit(id: String) = "hostEdit/$id"
+    fun vpnNetwork(id: String) = "vpn/$id"
     fun key(id: String) = "key/$id"
     fun identity(id: String) = "identity/$id"
     fun log(id: String) = "log/$id"
@@ -719,7 +721,21 @@ fun MainShell(
             }
             composable(Routes.KNOWN_HOSTS) { KnownHostsScreen(shell = shell, onBack = { nav.popBackStack() }) }
             composable(Routes.OIDC_PROVIDERS) { dev.labdex.labterm.ui.keychain.OidcProvidersScreen(shell = shell, onBack = { nav.popBackStack() }) }
-            composable(Routes.NETBIRD) { dev.labdex.labterm.ui.netbird.NetbirdNetworksScreen(shell = shell, onBack = { nav.popBackStack() }) }
+            composable(Routes.NETBIRD) {
+                dev.labdex.labterm.ui.netbird.NetbirdNetworksScreen(
+                    shell = shell,
+                    onBack = { nav.popBackStack() },
+                    onOpenNetwork = { nav.navigate(Routes.vpnNetwork(it)) },
+                )
+            }
+            composable(Routes.VPN_NETWORK, arguments = listOf(idArg)) { entry ->
+                dev.labdex.labterm.ui.netbird.VpnNetworkScreen(
+                    shell = shell,
+                    networkId = entry.arguments?.getString("id") ?: "",
+                    onBack = { nav.popBackStack() },
+                    onOpenHost = { nav.navigate(Routes.hostEdit(it)) },
+                )
+            }
             composable(Routes.HISTORY) {
                 HistoryScreen(shell = shell, onBack = { nav.popBackStack() }, onOpenHost = { nav.navigate(Routes.hostEdit(it)) })
             }

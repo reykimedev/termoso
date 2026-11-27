@@ -40,9 +40,31 @@ never grants network access by itself:
 3. The first connection to such a host asks you to **sign in**: the app opens
    the sign-in page of the identity provider your NetBird server uses (for
    example Authentik) in the browser. Afterwards the device is a peer of your
-   NetBird user. Tapping (or clicking) a network in the list signs in when
-   needed and joins it; its gear opens the settings, where you can also sign
-   in again.
+   NetBird user.
+
+## Status and details
+
+The networks list shows each network's state on this device, and tapping (or
+clicking) one opens its details:
+
+- **State:** *Off* (not joined right now; connecting to a host joins),
+  *Connecting*, *Connected*, *Sign-in needed* (never joined, or the server
+  refused the saved peer), *Error* (with the reason) or *Not available here*
+  (Windows and Labterm Web for now). Host badges use the same states and
+  colours.
+- **This device:** its address and DNS name in the network, the account it
+  signs in as, and whether the management and signal servers are reachable.
+- **Hosts using this network:** the hosts of the vault that connect through
+  it, by their own choice or their group's.
+- **Peers:** the peers this device may reach, with direct or relayed and the
+  latency. Only shown while connected.
+- **Actions:** connect, disconnect, sign in (again) and sign out. Signing out
+  leaves the network and forgets this device's peer key, so the next
+  connection asks to sign in again (as another account, say). The peer stays
+  in the NetBird dashboard until its login expires or someone removes it.
+
+The state is computed in one place (`labterm_client::vpn::state`) for every
+client: desktop `vpn_states`, mobile `transportState`.
 
 ## Signing in
 
