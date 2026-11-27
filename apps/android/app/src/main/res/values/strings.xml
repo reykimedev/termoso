@@ -1992,4 +1992,15 @@
     <string name="vpn_peer_idle">idle</string>
     <string name="vpn_peer_relayed">relayed</string>
     <string name="vpn_peer_direct">direct</string>
+    <string name="connect_all">Connect all</string>
+    <string name="connect_all_n">Connect all (%1$d)</string>
+    <string name="connect_all_explain">Opens a session for every host in “%1$s” and its sub-groups.</string>
+    <plurals name="connect_n_hosts">
+        <item quantity="one">Connect %d host</item>
+        <item quantity="other">Connect %d hosts</item>
+    </plurals>
+    <plurals name="connect_n_hosts_question">
+        <item quantity="one">Connect %d host?</item>
+        <item quantity="other">Connect %d hosts?</item>
+    </plurals>
 </resources>

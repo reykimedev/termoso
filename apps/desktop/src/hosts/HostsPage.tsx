@@ -64,6 +64,7 @@ import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
 import LanOutlinedIcon from "@mui/icons-material/LanOutlined";
 import { EmptyState } from "@/components/EmptyState";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { CONNECT_ALL_CONFIRM_ABOVE, groupSubtree, hostsInGroup } from "@/hosts/groupHosts";
 import * as ipc from "@/ipc/commands";
 import { useSnackbar } from "@/components/Snackbar";
 import {
@@ -132,7 +133,6 @@ import { TagsPopover } from "./TagsPopover";
 import { TeamSteps } from "@/team/TeamSteps";
 import { TagChip, tagColorMap } from "./TagChip";
 import { connectActions } from "./ConnectSplit";
-import { CONNECT_ALL_CONFIRM_ABOVE, groupSubtree, hostsInGroup } from "./groupHosts";
 import { useHostDnd } from "./dnd";
 import { IS_MAC } from "@/lib/platform";
 import {
@@ -1328,6 +1328,21 @@ export function HostsPage() {
                     sx={{ ml: -0.5 }}
                   >
                     <EditOutlinedIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </Tooltip>
+              )}
+              {!filtering && crumbs.length > 0 && (
+                <Tooltip title={tr("Connect all")}>
+                  <IconButton
+                    size="small"
+                    aria-label={tr("Connect all")}
+                    onClick={() => {
+                      const g = crumbs[crumbs.length - 1];
+                      if (g) connectGroup(g);
+                    }}
+                    sx={{ ml: -0.5 }}
+                  >
+                    <PlayArrowRoundedIcon sx={{ fontSize: 18 }} />
                   </IconButton>
                 </Tooltip>
               )}

@@ -42,6 +42,7 @@ import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SortByAlpha
 import androidx.compose.material.icons.filled.SwapHoriz
@@ -76,6 +77,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -122,6 +124,8 @@ fun HostsScreen(
     onConnect: (String) -> Unit,
     /** Connect over an explicit transport (Mosh, the Telnet section). */
     onConnectWith: (String, Transport) -> Unit,
+    /** Open a session to each of these hosts (multi-select, a group's "Connect all"). */
+    onConnectMany: (List<String>) -> Unit = {},
     onSftp: (String) -> Unit,
     onWebdav: (String) -> Unit,
     onS3: (String) -> Unit = {},
@@ -191,6 +195,11 @@ fun HostsScreen(
                         val id = state.selected.first()
                         vm.clearSelection()
                         onConnectWith(id, transport)
+                    },
+                    onConnectAll = {
+                        val ids = state.visibleHosts.filter { it.id in state.selected }.map { it.id }
+                        vm.clearSelection()
+                        onConnectMany(ids)
                     },
                     onForward = {
                         val id = state.selected.first()
@@ -426,6 +435,10 @@ fun HostsScreen(
             repo = shell.repo,
             group = d.group,
             onOpen = { onOpenGroup(d.group.id) },
+            onConnectAll = { ids ->
+                if (ids.size > CONNECT_ALL_CONFIRM_ABOVE) dialog = HostsDialog.ConfirmConnectAll(d.group, ids)
+                else onConnectMany(ids)
+            },
             onEdit = { dialog = HostsDialog.Settings(DefaultsTarget.Group(d.group.id)) },
             onVpn = { dialog = HostsDialog.GroupTunnel(d.group) },
             onOpenVpn = onOpenVpn,
@@ -435,6 +448,12 @@ fun HostsScreen(
             onDelete = { dialog = HostsDialog.DeleteGroup(d.group) },
             // Actions set the next dialog before this runs; keep it.
             onClose = { if (dialog == d) dialog = null },
+        )
+        is HostsDialog.ConfirmConnectAll -> ConfirmConnectAllDialog(
+            group = d.group,
+            count = d.hostIds.size,
+            onConfirm = { onConnectMany(d.hostIds); dialog = null },
+            onDismiss = { dialog = null },
         )
         is HostsDialog.DeleteGroup -> DeleteGroupDialog(
             group = d.group,
@@ -480,6 +499,7 @@ fun HostsScreen(
 
 private sealed interface HostsDialog {
     data class HostMenu(val host: HostItem) : HostsDialog
+    data class ConfirmConnectAll(val group: GroupItem, val hostIds: List<String>) : HostsDialog
     data class AddKey(val host: HostItem) : HostsDialog
     data class OpksshSetup(val host: HostItem) : HostsDialog
     data class OidcKey(val host: HostItem) : HostsDialog
@@ -644,6 +664,7 @@ private fun SelectionBar(
     onWebdav: () -> Unit,
     onS3: () -> Unit = {},
     onConnectWith: (Transport) -> Unit,
+    onConnectAll: () -> Unit,
     onForward: () -> Unit,
     onDuplicate: () -> Unit,
     onMove: () -> Unit,
@@ -662,6 +683,9 @@ private fun SelectionBar(
             IconButton(onClick = onClose) { Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.cancel_selection)) }
         },
         actions = {
+            IconButton(onClick = onConnectAll) {
+                Icon(Icons.Filled.PlayArrow, contentDescription = pluralStringResource(R.plurals.connect_n_hosts, state.selected.size, state.selected.size))
+            }
             if (state.selected.size == 1) {
                 IconButton(onClick = onEdit) { Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.edit)) }
                 if (singleSsh) {

@@ -2032,4 +2032,19 @@
     <string name="vpn_peer_idle">неактивен</string>
     <string name="vpn_peer_relayed">через ретранслятор</string>
     <string name="vpn_peer_direct">напрямую</string>
+    <string name="connect_all">Подключить все</string>
+    <string name="connect_all_n">Подключить все (%1$d)</string>
+    <string name="connect_all_explain">Открывает сеанс для каждого хоста в «%1$s» и его подгруппах.</string>
+    <plurals name="connect_n_hosts">
+        <item quantity="one">Подключить %d хост</item>
+        <item quantity="few">Подключить %d хоста</item>
+        <item quantity="many">Подключить %d хостов</item>
+        <item quantity="other">Подключить %d хоста</item>
+    </plurals>
+    <plurals name="connect_n_hosts_question">
+        <item quantity="one">Подключить %d хост?</item>
+        <item quantity="few">Подключить %d хоста?</item>
+        <item quantity="many">Подключить %d хостов?</item>
+        <item quantity="other">Подключить %d хоста?</item>
+    </plurals>
 </resources>

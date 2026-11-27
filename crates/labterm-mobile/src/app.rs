@@ -298,6 +298,16 @@ impl LabtermApp {
             .ok_or_else(|| MobileError::not_found("host"))
     }
 
+    /// The hosts "Connect all" opens for a group: sub-groups included, in
+    /// tree order, terminal hosts only.
+    pub fn group_connect_all(&self, group_id: String) -> Result<Vec<HostItem>> {
+        let id = parse_id(&group_id)?;
+        Ok(hosts::connect_all(&self.store, id)?
+            .into_iter()
+            .map(HostItem::from)
+            .collect())
+    }
+
     pub fn groups(&self, vault_id: Option<String>) -> Result<Vec<GroupItem>> {
         let vault = parse_opt_id(&vault_id)?;
         Ok(hosts::groups(&self.store, vault)?
