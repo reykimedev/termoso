@@ -2,6 +2,7 @@
 // key and known-host cards, the host and group editors, and what a connection needs. Follows
 // labterm-client (hosts.rs, keychain.rs) and labterm-core's `resolve_host` so a host looks and
 // connects the same here as on the desktop.
+import * as acl from "./acl";
 import { fail } from "./errors";
 import { type Ent, type Uuid, get, list, put, remove, require, s, vault } from "./state";
 import { w } from "./wasm";
@@ -308,6 +309,7 @@ export function hostCard(id: Uuid) {
 
 export function hostCards(vaultId: Uuid | null) {
   return list<Host>("host", vaultId)
+    .filter(acl.hostVisible)
     .map((h) => hostCard(h.id))
     .sort(byOrder);
 }
@@ -553,8 +555,11 @@ export function hostsMove(ids: Uuid[], groupId: Uuid | null) {
 // ── groups ────────────────────────────────────────────────────────────────
 
 export function groupNodes(vaultId: Uuid | null) {
-  const groups = list<Group>("group", vaultId);
-  const hosts = list<Host>("host", vaultId);
+  const all = list<Group>("group", vaultId);
+  // Hidden hosts and groups leave the tree; a hidden group stays when it holds a visible host.
+  const hosts = list<Host>("host", vaultId).filter(acl.hostVisible);
+  const shown = acl.visibleGroups(all, hosts);
+  const groups = all.filter((g) => shown.has(g.id));
   return groups
     .map((g) => ({
       id: g.id,

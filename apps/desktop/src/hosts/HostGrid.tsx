@@ -5,7 +5,13 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import KeyRoundedIcon from "@mui/icons-material/KeyRounded";
 import CloudSyncOutlinedIcon from "@mui/icons-material/CloudSyncOutlined";
 import type { MouseEvent, ReactNode } from "react";
-import { hasWebDav, hostProtocols, type GroupNode, type HostCard } from "@/ipc/types";
+import {
+  hasWebDav,
+  hostProtocols,
+  type GroupNode,
+  type HostCard,
+  type VpnState,
+} from "@/ipc/types";
 import { CardGrid, CheckTile, EntityCard, IconTile, SectionTitle } from "@/components/ui";
 import { DistroGlyph, CustomIconGlyph, HostAvatar } from "./HostAvatar";
 import { customIconSource } from "./customIcon";
@@ -14,6 +20,7 @@ import type { HostDnd } from "./dnd";
 import type { HostViewer } from "./presence";
 import { HOST_ITEM_ATTR, hostItemKeyDown } from "./keyboardNav";
 import { PresenceStack } from "./PresenceViews";
+import { HostBadges, hostFacts } from "./HostBadges";
 import { tr, trn } from "@/i18n";
 
 export interface HostCollectionProps {
@@ -38,6 +45,8 @@ export interface HostCollectionProps {
   presence?: ReadonlyMap<string, HostViewer[]>;
   /** Groups mirrored from a cloud account, by group id. */
   cloudSynced?: ReadonlySet<string>;
+  /** Tunnel state of each VPN network the hosts use, by network id. */
+  vpnStates?: Readonly<Record<string, VpnState>>;
 }
 
 const CLOUD_SHORT: Record<string, string> = {
@@ -211,6 +220,11 @@ export function HostGrid(p: HostCollectionProps) {
                     p.showPath && h.groupPath.length > 0
                       ? `${hostSubtitle(h)} · ${h.groupPath.join(" / ")}`
                       : hostSubtitle(h)
+                  }
+                  meta={
+                    (h.vpn != null || hostFacts(h).length > 0) && (
+                      <HostBadges host={h} vpnState={h.vpn ? p.vpnStates?.[h.vpn.id] : undefined} />
+                    )
                   }
                   selected={isChecked || h.id === p.selectedId}
                   onClick={(e) => p.onOpenHost(h, e)}

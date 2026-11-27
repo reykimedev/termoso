@@ -31,6 +31,7 @@
 #![warn(missing_docs, clippy::all)]
 
 pub mod account;
+pub mod acl;
 pub mod agent;
 pub mod agent_server;
 pub mod api;
