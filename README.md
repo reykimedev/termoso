@@ -46,9 +46,6 @@ the server's only metrics are opt-in Prometheus counters on a private listener.
 * Downloads: [GitHub Releases](https://github.com/termoso/termoso/releases)
   (`.deb` / `.rpm` / AppImage, NSIS / MSI, `.dmg`, APK, unsigned `.ipa`)
 * License: [AGPL-3.0](LICENSE)
-* Translations: [Hosted Weblate](https://hosted.weblate.org/projects/termoso/)
-  [![Translation status](https://hosted.weblate.org/widget/termoso/svg-badge.svg)](https://hosted.weblate.org/projects/termoso/)
-  — translate in the browser, no git needed
 
 ## Contents
 
@@ -529,11 +526,8 @@ covers the toolchains, `scripts/check.sh`, branch and commit conventions and
 what reviewers look for; [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) applies to
 every project space. Security reports go through [SECURITY.md](SECURITY.md).
 
-Translations are done on [Hosted Weblate](https://hosted.weblate.org/projects/termoso/):
-the desktop app, the web cabinet and the Android app are separate components,
-English is the source language and new strings appear there after every push
-to `main`. Translate in the browser, Weblate sends the result back as a pull
-request; no git needed.
+Labterm ships in English only, on every client. Please don't add
+translations or locale files.
 
 Labterm is licensed under the [GNU AGPL v3](LICENSE): run it, change it, host
 it — and keep it free for whoever you host it for.

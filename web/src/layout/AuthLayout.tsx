@@ -2,7 +2,6 @@ import { Box, Link, Typography } from "@mui/material";
 import { tr, trx } from "@/i18n";
 import { Link as RouterLink, Outlet } from "react-router";
 import { Logo } from "@/components/Logo";
-import { LanguageToggle } from "./LanguageToggle";
 import { ThemeToggle } from "./ThemeToggle";
 import { useServerInfo } from "@/api/hooks";
 
@@ -34,7 +33,6 @@ export function AuthLayout() {
         >
           <Logo size={26} />
         </Box>
-        <LanguageToggle />
         <ThemeToggle />
       </Box>
       <Box
