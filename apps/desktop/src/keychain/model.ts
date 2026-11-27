@@ -118,3 +118,11 @@ export function identitySubtitle(i: IdentityCard): string {
   const via = auth.length > 0 ? auth.join(" + ") : tr("No auth method");
   return i.username ? `${i.username} · ${via}` : via;
 }
+
+/** Pseudo-device for the Windows Security dialog (webauthn.dll): Windows
+ *  picks the key and asks for the PIN itself, and cannot list resident keys. */
+export const WINDOWS_DIALOG_DEVICE = "windows://hello";
+
+export function isWindowsDialog(d: { path: string } | null | undefined): boolean {
+  return d?.path === WINDOWS_DIALOG_DEVICE;
+}

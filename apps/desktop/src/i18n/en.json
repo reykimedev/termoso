@@ -3026,6 +3026,7 @@
   "Whole vault": "Whole vault",
   "Whole word": "Whole word",
   "Window": "Window",
+  "Windows asks for the PIN and the touch in its own dialog. Loading resident keys needs Labterm started as administrator.": "Windows asks for the PIN and the touch in its own dialog. Loading resident keys needs Labterm started as administrator.",
   "WinSCP configuration": "WinSCP configuration",
   "WinSCP.ini or an exported configuration: SCP/SFTP sites with folders, key files, tunnels and proxies. Saved passwords stay in WinSCP.": "WinSCP.ini or an exported configuration: SCP/SFTP sites with folders, key files, tunnels and proxies. Saved passwords stay in WinSCP.",
   "WinSCP.ini…": "WinSCP.ini…",

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { isWindowsDialog } from "@/keychain/model";
 import {
   Alert,
   Box,
@@ -785,7 +786,10 @@ function AddFido2Dialog({
 
   const supported = device === null || device.algorithms.includes(algorithm);
   const canResident = device?.residentKeys ?? false;
-  const pinNeeded = device?.pinSet === true || userVerification || (resident && canResident);
+  // Windows asks for the PIN in its own dialog.
+  const pinNeeded =
+    !isWindowsDialog(device) &&
+    (device?.pinSet === true || userVerification || (resident && canResident));
   const valid =
     device !== null && supported && label.trim().length > 0 && (!pinNeeded || pin.length >= 4);
 

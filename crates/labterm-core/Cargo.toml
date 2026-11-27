@@ -32,6 +32,8 @@ encoding_rs = { version = "0.8" }
 rand = "0.10"
 # FIDO2 security keys: desktop USB HID backend…
 ctap-hid-fido2 = { version = "3.5", optional = true }
+# …the Windows WebAuthn API, the only way in without admin rights on Windows…
+labterm-winhello = { workspace = true, optional = true }
 # …and our own CTAP2 client (CBOR, PIN protocols 1/2) for transports the
 # platform hands us (Android USB host / NFC).
 ciborium = { version = "0.2", optional = true }
@@ -86,7 +88,8 @@ local-pty = ["dep:portable-pty"]
 # Serial console over a COM / tty device.
 serial = ["dep:serialport"]
 # FIDO2 security keys (`sk-ssh-ed25519@openssh.com`, `sk-ecdsa-sha2-nistp256@openssh.com`).
-fido2 = ["dep:ctap-hid-fido2"]
+# Includes the CTAP2 parsers, which the Windows WebAuthn path reuses.
+fido2 = ["dep:ctap-hid-fido2", "dep:labterm-winhello", "fido2-ctap"]
 # Transport-agnostic CTAP2 client (`fido2::ctap`, `fido2::hid`, `fido2::nfc`).
 fido2-ctap = ["dep:ciborium", "dep:p256", "dep:cbc", "dep:hkdf", "dep:rand_core"]
 # In-memory CTAP2 authenticator (`fido2::soft`) – test double, not for production.

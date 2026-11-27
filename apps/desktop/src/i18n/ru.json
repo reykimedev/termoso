@@ -2376,6 +2376,7 @@
   "WinSCP.ini or an exported configuration: SCP/SFTP sites with folders, key files, tunnels and proxies. Saved passwords stay in WinSCP.": "WinSCP.ini или экспорт конфигурации: SCP/SFTP-сайты с папками, файлами ключей, туннелями и прокси. Сохранённые пароли остаются в WinSCP.",
   "WinSCP.ini…": "WinSCP.ini…",
   "Window": "Окно",
+  "Windows asks for the PIN and the touch in its own dialog. Loading resident keys needs Labterm started as administrator.": "Windows сам запрашивает PIN-код и касание в своём окне. Для загрузки резидентных ключей запустите Labterm от имени администратора.",
   "Withdraw": "Отозвать заявку",
   "Without a key here “{inheritedKey}” from {from} is used.": "Если ключ здесь не задан, используется «{inheritedKey}» из {from}.",
   "Work together in a team": "Работайте вместе в команде",

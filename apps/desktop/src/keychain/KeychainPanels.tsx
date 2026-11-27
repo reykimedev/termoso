@@ -82,6 +82,7 @@ import {
   certificateSummary,
   droppedKind,
   isHardwareKey,
+  isWindowsDialog,
   keyTypeLabel,
   labelFromPath,
 } from "./model";
@@ -2037,7 +2038,9 @@ export function Fido2Panel({
       ? algorithmPref
       : (supported[0] ?? algorithmPref);
   const canResident = device?.residentKeys ?? false;
-  const pinNeeded = device?.pinSet === true || resident || userVerification || mode === "load";
+  const windowsDialog = isWindowsDialog(device);
+  const pinNeeded =
+    !windowsDialog && (device?.pinSet === true || resident || userVerification || mode === "load");
   const mismatch = passphrase.length > 0 && passphrase !== confirm;
   const valid =
     device !== null &&
@@ -2240,7 +2243,14 @@ export function Fido2Panel({
                 <Chip size="small" variant="outlined" label={tr("Resident keys")} />
               )}
             </Stack>
-            {mode === "generate" && canResident && (
+            {windowsDialog && (
+              <Typography variant="body2" color="text.secondary">
+                {tr(
+                  "Windows asks for the PIN and the touch in its own dialog. Loading resident keys needs Labterm started as administrator.",
+                )}
+              </Typography>
+            )}
+            {mode === "generate" && canResident && !windowsDialog && (
               <Button
                 variant="text"
                 size="small"
