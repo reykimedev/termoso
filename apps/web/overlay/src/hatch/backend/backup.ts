@@ -39,6 +39,7 @@ export const KINDS = [
   "oidc_provider",
   "transport",
   "host_overlay",
+  "vault_pin",
 ];
 const KNOWN = new Set(KINDS);
 const NIL = "00000000-0000-0000-0000-000000000000";

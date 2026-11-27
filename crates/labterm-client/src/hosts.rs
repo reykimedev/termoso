@@ -3022,6 +3022,7 @@ mod tests {
                 management_url: None,
                 setup_key: Some("example-setup-key".into()),
                 direct_first: false,
+                idle_secs: None,
             },
         )
         .unwrap();

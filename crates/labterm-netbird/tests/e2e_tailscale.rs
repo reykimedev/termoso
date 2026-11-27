@@ -50,6 +50,7 @@ fn network(id: Uuid, auth_key: Option<String>) -> NetworkConfig {
             management_url: Some(env("TS_E2E_CONTROL")),
             setup_key: auth_key,
             direct_first: false,
+            idle_secs: None,
         },
     })
     .unwrap()

@@ -68,8 +68,8 @@ pub use forward::{
 pub use keys::{KeyMods, SpecialKey, control_code, encode_key, encode_text};
 pub use live::{LiveEndReason, LiveListener, LiveParticipantCard, LiveShare, is_live_link};
 pub use netbird::{
-    TransportDetails, TransportDnsGroup, TransportHost, TransportHostTest, TransportItem,
-    TransportPeer, TransportState,
+    TransportActive, TransportDetails, TransportDnsGroup, TransportHost, TransportHostTest,
+    TransportIdleStop, TransportItem, TransportPeer, TransportState,
 };
 pub use oidc::{OidcKeyChoice, OidcProviderItem, OidcSessionItem, UrlOpener, set_url_opener};
 pub use presence::{PresenceEntryCard, PresenceSessionCard, TeamPresenceCard};

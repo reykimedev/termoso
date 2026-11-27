@@ -98,6 +98,7 @@ fun VaultScreen(
     onOpenLogs: () -> Unit,
 ) {
     val vaults by shell.vaults.collectAsStateWithLifecycle()
+    val vaultPins by shell.vaultPins.collectAsStateWithLifecycle()
     val selectedVaultId by shell.selectedVaultId.collectAsStateWithLifecycle()
     val vault = vaults.firstOrNull { it.id == selectedVaultId }
     val revision by shell.repo.revision.collectAsStateWithLifecycle()
@@ -131,7 +132,7 @@ fun VaultScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { VaultPickerTitle(vaults, selectedVaultId, shell::selectVault) },
+                title = { VaultPickerTitle(vaults, selectedVaultId, shell::selectVault, vaultPins, shell::toggleVaultPin) },
                 actions = {
                     val signedIn = accountStatus.account != null
                     val sync = accountStatus.sync

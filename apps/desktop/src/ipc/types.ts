@@ -3127,6 +3127,9 @@ export interface VpnNetwork {
   account: string | null;
   /** Try a host's LAN address directly first ("direct at home"). */
   directFirst: boolean;
+  /** Seconds it stays up without a connection; null = the default
+   *  (2 minutes), 0 = until disconnected. */
+  idleSecs: number | null;
 }
 
 /** What the network editor saves; `setupKey: null` keeps the stored key. */
@@ -3206,6 +3209,33 @@ export interface VpnNetworkForm {
   managementUrl: string | null;
   setupKey: string | null;
   directFirst?: boolean;
+  idleSecs?: number | null;
+}
+
+/** A network in use on this device, for the status strip. */
+export interface VpnActiveNetwork extends VpnState {
+  id: Uuid;
+  label: string;
+  provider: string;
+  /** Seconds until it stops by itself; null while a connection uses it or
+   *  when it stays up until disconnected. */
+  stopsInSecs: number | null;
+}
+
+/** A network that stopped by itself after its idle time. */
+export interface VpnIdleStop {
+  id: Uuid;
+  label: string;
+  provider: string;
+}
+
+/** What the status strip polls (`vpn_activity`). */
+export interface VpnActivity {
+  networks: VpnActiveNetwork[];
+  /** Stops after `since`, oldest first; empty on the first call. */
+  stops: VpnIdleStop[];
+  /** Pass back as `since` next time. */
+  seq: number;
 }
 
 // ── vault transfer (labterm_client::vaultmove) ──

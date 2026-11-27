@@ -19,6 +19,7 @@ import * as m from "./backend/model";
 import * as oidc from "./backend/oidc";
 import * as opkssh from "./backend/opkssh";
 import * as overlays from "./backend/overlays";
+import * as pins from "./backend/pins";
 import * as policyview from "./backend/policyview";
 import * as vpn from "./backend/vpn";
 import * as webauthn from "./backend/webauthn";
@@ -267,6 +268,12 @@ const commands: Record<string, Handler> = {
     st.remove(a.id);
     return null;
   },
+  vault_pins: () => pins.pinned(),
+  vault_pin_toggle: (a) => pins.toggle(a.vaultId),
+  vault_pins_reorder: (a) => {
+    pins.reorder(a.vaultIds ?? []);
+    return null;
+  },
   overlays_list: () => overlays.overlayCards(),
   overlay_for_target: (a) => overlays.overlayFor(a.targetVaultId, a.scope, a.targetId ?? null),
   overlay_save: (a) => overlays.overlaySave(a.form),
@@ -299,6 +306,8 @@ const commands: Record<string, Handler> = {
   vpn_connect: notInBrowser("Joining VPN networks"),
   vpn_test_host: notInBrowser("Joining VPN networks"),
   vpn_running: () => [],
+  // The browser joins no network: nothing in use, nothing stops.
+  vpn_activity: () => ({ networks: [], stops: [], seq: 0 }),
   vpn_states: (a) => vpn.states(a.ids ?? []),
   vpn_details: (a) => vpn.details(a.id),
   vpn_disconnect: () => null,

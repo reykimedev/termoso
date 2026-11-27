@@ -29,6 +29,7 @@ import { sizes } from "@/theme/theme";
 import { useTerminal } from "@/terminal/store";
 import { goToSection, goToSettings, goToSftp, isSftpTab, useNav, type Section } from "./navigation";
 import { tr, msg } from "@/i18n";
+import { VpnStatusStrip } from "@/vpn/VpnStatusStrip";
 
 interface Item {
   id: Section | "sftp" | "settings";
@@ -101,6 +102,7 @@ export function Sidebar() {
         ))}
       </List>
       <Box sx={{ px: 1, pb: 1 }}>
+        <VpnStatusStrip />
         <NavItem
           item={{
             id: "settings",

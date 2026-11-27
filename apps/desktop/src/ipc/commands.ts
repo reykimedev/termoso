@@ -81,6 +81,7 @@ import type {
   KeyCard,
   OidcKeyOptions,
   OidcProvider,
+  VpnActivity,
   VpnDetails,
   VpnHostTest,
   VpnNetwork,
@@ -518,6 +519,7 @@ export const vpnRunning = (ids: Uuid[]) => invoke<Uuid[]>("vpn_running", { ids }
 export const vpnStates = (ids: Uuid[]) => invoke<Record<Uuid, VpnState>>("vpn_states", { ids });
 export const vpnDetails = (id: Uuid) => invoke<VpnDetails>("vpn_details", { id });
 /** Connection test for a host that uses a VPN network: join, look up, dial, read the SSH banner. */
+export const vpnActivity = (since: number | null) => invoke<VpnActivity>("vpn_activity", { since });
 export const vpnTestHost = (hostId: Uuid) => invoke<VpnHostTest>("vpn_test_host", { hostId });
 /** Leave a network now; the next connection joins again. */
 export const vpnDisconnect = (id: Uuid) => invoke<null>("vpn_disconnect", { id });
@@ -578,6 +580,10 @@ export const identitiesList = (vaultId?: Uuid | null) =>
   invoke<IdentityCard[]>("identities_list", { vaultId: vaultId ?? null });
 export const identitySave = (form: IdentityForm) => invoke<IdentityCard>("identity_save", { form });
 export const identityDelete = (id: Uuid) => invoke<null>("identity_delete", { id });
+export const vaultPins = () => invoke<Uuid[]>("vault_pins");
+export const vaultPinToggle = (vaultId: Uuid) => invoke<boolean>("vault_pin_toggle", { vaultId });
+export const vaultPinsReorder = (vaultIds: Uuid[]) =>
+  invoke<null>("vault_pins_reorder", { vaultIds });
 export const overlaysList = () => invoke<OverlayCard[]>("overlays_list");
 export const overlayForTarget = (targetVaultId: Uuid, scope: OverlayScope, targetId: Uuid | null) =>
   invoke<OverlayCard | null>("overlay_for_target", { targetVaultId, scope, targetId });

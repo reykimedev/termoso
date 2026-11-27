@@ -182,6 +182,19 @@ clicking) one opens its details:
 The state is computed in one place (`labterm_client::vpn::state`) for every
 client: desktop `vpn_states`, mobile `transportState`.
 
+### Status strip and idle notices
+
+While a network is in use on this device, a small chip for it sits above the
+navigation bar (Android) or at the bottom of the sidebar (desktop): the
+network's name, a dot in its state's colour and, once no connection uses it,
+the countdown to its idle stop. Tapping it opens the network. When a network
+stops by itself after its idle time, a notice says so, with *Reconnect*.
+
+Both come from `labterm_client::vpn::active` and `idle_stops_since` (desktop
+`vpn_activity`, mobile `transportActive` and `transportIdleStopsSince`). Each
+idle stop has a sequence number, so a client shows each notice once and none
+from before it started. Labterm Web joins no network, so it shows neither.
+
 ## Signing in
 
 The app uses the same sign-in as NetBird's own apps: the authorization code
@@ -218,9 +231,10 @@ Authentik guide; nothing app specific is needed.
   on the phone's network. Inbound connections are blocked and the peer never
   routes for other peers. Routes of other peers only add WireGuard allowed
   addresses inside the app; no system route changes.
-- The peer starts when the first host of that network connects and stops two
-  minutes after its last connection closed. Connections of the same network
-  share one peer.
+- The peer starts when the first host of that network connects and stops after
+  its last connection closed: two minutes by default, or what the network's
+  *Stay connected when unused* says (30 seconds, 10 minutes, 1 hour, or until
+  you disconnect it). Connections of the same network share one peer.
 - Each device joins as its own peer. Its WireGuard key is kept in the app's
   encrypted device store, never synced, so a phone registers once (by sign-in
   or setup key) and then logs in with that key; it is forgotten on sign-out.
