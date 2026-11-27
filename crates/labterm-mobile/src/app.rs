@@ -2079,12 +2079,13 @@ impl LabtermApp {
         RUNTIME.block_on(self.account.pending_keys(team_id))
     }
 
+    /// Returns the new vault's id.
     pub fn create_team_vault(
         &self,
         team_id: String,
         name: String,
         access: Vec<VaultAccessDraft>,
-    ) -> Result<()> {
+    ) -> Result<String> {
         RUNTIME.block_on(self.account.create_team_vault(team_id, name, access))
     }
 

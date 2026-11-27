@@ -1085,7 +1085,7 @@ impl AccountRuntime {
         team_id: String,
         name: String,
         access: Vec<VaultAccessDraft>,
-    ) -> Result<()> {
+    ) -> Result<String> {
         let team_id = parse_id(&team_id)?;
         let name = clean_name(&name)?;
         let api = self.api().await?;
@@ -1114,9 +1114,11 @@ impl AccountRuntime {
                 sealed_key: seal_for(pk, &key)?,
             });
         }
-        api.create_team_vault(team_id, &CreateVaultRequest { name, members })
+        let vault = api
+            .create_team_vault(team_id, &CreateVaultRequest { name, members })
             .await?;
-        self.refresh_vaults().await
+        self.refresh_vaults().await?;
+        Ok(vault.id.to_string())
     }
 
     pub async fn rename_team_vault(self: &Arc<Self>, vault_id: String, name: String) -> Result<()> {

@@ -2143,7 +2143,7 @@ pub async fn team_vault_create<R: Runtime>(
     team_id: Uuid,
     name: String,
     access: Vec<VaultAccess>,
-) -> Result<()> {
+) -> Result<Uuid> {
     team::create_vault(&app, team_id, &name, access).await
 }
 
