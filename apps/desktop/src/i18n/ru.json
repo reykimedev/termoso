@@ -904,6 +904,7 @@
   "Include passwords": "Включить пароли",
   "Incoming": "Входящие",
   "Info": "Информация",
+  "Inherited (nothing set)": "Наследуется (ничего не задано)",
   "Inherited — {name}": "Наследуется — {name}",
   "Inherits credentials and connection defaults from {group}.": "Наследует учётные данные и параметры подключения от {group}.",
   "Initiating reconnection…": "Начинаем переподключение…",

@@ -11,6 +11,7 @@ import {
   type SshConfig,
   type SshKey,
   type Tag,
+  NONE_ID,
   hostDelete,
   hostForm,
   hostSave,
@@ -124,6 +125,8 @@ export function identityCopyToVault(id: Uuid, vaultId: Uuid, mv: boolean) {
 }
 
 function keepIfInVault(id: Uuid | null | undefined, vaultId: Uuid): Uuid | null {
+  // "None" on purpose is valid in every vault.
+  if (id === NONE_ID) return id;
   const e = id ? get(id) : null;
   return e?.vaultId === vaultId ? e.id : null;
 }

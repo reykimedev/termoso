@@ -375,7 +375,11 @@ fn host_policy(
     let transport_src = winner(&layers, |c| c.transport_id.is_some());
     let chain_src = winner(&layers, |c| c.host_chain_id.is_some());
     let proxy_src = winner(&layers, |c| c.proxy_id.is_some());
-    let chain_id = layers.iter().rev().find_map(|l| l.ssh.host_chain_id);
+    let chain_id = layers
+        .iter()
+        .rev()
+        .find_map(|l| l.ssh.host_chain_id)
+        .filter(|c| !c.is_nil());
     let jump_hosts = chain_id.map(|c| ctx.jump_hosts(c)).unwrap_or_default();
 
     let mut risks = Vec::new();

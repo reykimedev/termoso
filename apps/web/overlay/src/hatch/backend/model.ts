@@ -112,6 +112,22 @@ const some = (v: string | null | undefined) => typeof v === "string" && v.length
 
 // ── resolution (labterm-core `resolve_host`) ──────────────────────────────
 
+/**
+ * Stored in a reference field to say "none" on purpose, so the host or group does not inherit
+ * what its groups or tags set (labterm-proto `EXPLICIT_NONE`). Empty still inherits.
+ */
+export const NONE_ID: Uuid = "00000000-0000-0000-0000-000000000000";
+
+const REF_FIELDS = [
+  "identity_id",
+  "host_chain_id",
+  "proxy_id",
+  "gateway_id",
+  "transport_id",
+  "port_knocking_id",
+  "oidc_key_id",
+] as const;
+
 function mergeSsh(into: SshConfig, from: SshConfig) {
   for (const f of [
     "port",
@@ -120,6 +136,7 @@ function mergeSsh(into: SshConfig, from: SshConfig) {
     "proxy_id",
     "transport_id",
     "port_knocking_id",
+    "oidc_key_id",
     "charset",
     "color_scheme",
     "font_size",
@@ -215,6 +232,8 @@ function mergeLayers(vaultId: Uuid, ids: Uuid[]) {
     if (c.data.identity_id) identities.push(c.data.identity_id);
     mergeSsh(ssh, c.data);
   }
+  // A layer that says "none" on purpose stopped the lower ones; drop the marker.
+  for (const f of REF_FIELDS) if (ssh[f] === NONE_ID) ssh[f] = null;
   let username: string | null = null;
   for (const iid of [...identities].reverse()) {
     const i = get<Identity>(iid, "identity");
@@ -664,7 +683,7 @@ function saveDefaults(
 ) {
   const prevSsh = get<SshConfig>(prevId, "ssh_config");
   const oidcKeyId = f.oidcKeyId;
-  if (oidcKeyId) {
+  if (oidcKeyId && oidcKeyId !== NONE_ID) {
     const k = get<SshKey>(oidcKeyId, "ssh_key");
     if (k?.vaultId !== vaultId || k.data.key_type !== "opkssh")
       fail("invalid", "Pick an OpenID key from the same vault");
@@ -775,6 +794,7 @@ export function inherited(groupId: Uuid | null, vaultId: Uuid | null = null, tag
     hostChainId: null as Uuid | null,
     proxyId: null as Uuid | null,
     transportId: null as Uuid | null,
+    oidcKeyId: null as Uuid | null,
     keepAliveInterval: null as number | null,
     timeout: null as number | null,
     envVariables: [] as [string, string][],
@@ -806,6 +826,7 @@ export function inherited(groupId: Uuid | null, vaultId: Uuid | null = null, tag
     hostChainId: ssh.host_chain_id ?? null,
     proxyId: ssh.proxy_id ?? null,
     transportId: ssh.transport_id ?? null,
+    oidcKeyId: (ssh.oidc_key_id as Uuid | null | undefined) ?? null,
     keepAliveInterval: ssh.keep_alive_interval ?? null,
     timeout: ssh.timeout ?? null,
     envVariables: ssh.env_variables ?? [],

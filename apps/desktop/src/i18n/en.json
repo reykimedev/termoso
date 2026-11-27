@@ -1279,6 +1279,7 @@
   "Include passwords": "Include passwords",
   "Incoming": "Incoming",
   "Info": "Info",
+  "Inherited (nothing set)": "Inherited (nothing set)",
   "Inherited — {name}": "Inherited — {name}",
   "Inherits credentials and connection defaults from {group}.": "Inherits credentials and connection defaults from {group}.",
   "Initiating reconnection…": "Initiating reconnection…",

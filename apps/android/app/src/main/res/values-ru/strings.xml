@@ -1870,6 +1870,7 @@
     <string name="tag_settings_hint">Хосты с этим тегом используют эти значения, если их не задают ни сам хост, ни его группы. Если одно и то же задают несколько тегов, побеждает более высокий приоритет, затем имя по алфавиту.</string>
     <string name="defaults_use_shared_identity">Учётные данные берутся из общего профиля. Изменить его можно в настольном приложении.</string>
     <string name="inherited_value">Унаследовано: %1$s</string>
+    <string name="inherited_nothing">Унаследовано (ничего не задано)</string>
     <string name="settings_saved">Настройки сохранены</string>
     <string name="settings_for">Настройки %1$s</string>
     <string name="tag_has_settings">есть настройки</string>
@@ -2010,6 +2011,7 @@
     <string name="openid_key_for_host">Ключ OpenID</string>
     <string name="openid_key_for_host_hint">Используется раньше учётных данных хоста, которые остаются запасным вариантом. Хосты без ключа используют ключ своей группы.</string>
     <string name="openid_none_inherit">Нет (как у группы)</string>
+    <string name="openid_none_explicit">Нет, даже ключа группы</string>
     <string name="openid_key_for_host_saved">Ключ OpenID сохранён</string>
 
     <!-- NetBird networks and the host/group tunnel choice -->
