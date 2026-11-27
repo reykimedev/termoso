@@ -234,6 +234,55 @@ pub fn state(store: &Arc<Store>, network_id: Uuid) -> VpnState {
     }
 }
 
+/// A network this device is using right now, for the status strip.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ActiveNetwork {
+    pub id: Uuid,
+    pub label: String,
+    pub provider: String,
+    /// Connecting, connected, needs sign-in or error; never off.
+    pub state: VpnState,
+    /// Seconds until it stops by itself; `None` while a connection uses it
+    /// or when it stays up until disconnected.
+    pub stops_in_secs: Option<u64>,
+}
+
+/// The networks with a client starting, running or failed on this device,
+/// sorted by label. Cheap and synchronous, for a strip that refreshes often.
+pub fn active(store: &Arc<Store>) -> Vec<ActiveNetwork> {
+    let mut out: Vec<ActiveNetwork> = NETBIRD
+        .active()
+        .into_iter()
+        .filter_map(|(id, _, left)| {
+            // A network deleted (or locked away) meanwhile has no row.
+            let e = store.get::<Transport>(id).ok().flatten()?;
+            let state = state(store, id);
+            (state != VpnState::Off).then(|| ActiveNetwork {
+                id,
+                label: e.data.label.clone(),
+                provider: e.data.provider.clone(),
+                state,
+                stops_in_secs: left,
+            })
+        })
+        .collect();
+    out.sort_by_key(|a| a.label.to_lowercase());
+    out
+}
+
+pub use labterm_netbird::IdleStop;
+
+/// Networks that stopped by themselves after `seq`; see
+/// [`Netbird::idle_stops_since`](labterm_netbird::Netbird::idle_stops_since).
+pub fn idle_stops_since(seq: u64) -> Vec<IdleStop> {
+    NETBIRD.idle_stops_since(seq)
+}
+
+/// The newest idle stop's sequence number, where a shell starts counting.
+pub fn idle_stop_seq() -> u64 {
+    NETBIRD.idle_stop_seq()
+}
+
 /// Everything the details page shows about one network.
 #[derive(Debug, Clone)]
 pub struct NetworkDetails {
@@ -501,6 +550,7 @@ mod tests {
             management_url: Some("https://netbird.example.com".into()),
             setup_key: None,
             direct_first: false,
+            idle_secs: None,
         };
         let gone = transports::save(&store, vault, None, net("gone")).unwrap();
         let kept = transports::save(&store, vault, None, net("kept")).unwrap();
@@ -538,6 +588,7 @@ mod tests {
                 management_url: Some("https://netbird.example.com".into()),
                 setup_key: None,
                 direct_first: false,
+                idle_secs: None,
             },
         )
         .unwrap();

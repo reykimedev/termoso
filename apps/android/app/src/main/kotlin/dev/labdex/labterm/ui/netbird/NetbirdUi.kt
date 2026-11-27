@@ -66,6 +66,7 @@ import dev.labdex.labterm.ui.components.IconTile
 import dev.labdex.labterm.ui.components.ItemActionsSheet
 import dev.labdex.labterm.ui.components.ItemMoreButton
 import dev.labdex.labterm.ui.components.ListRow
+import dev.labdex.labterm.ui.components.PickerRow
 import dev.labdex.labterm.ui.components.RowDivider
 import dev.labdex.labterm.ui.components.SecretField
 import dev.labdex.labterm.ui.components.SectionCard
@@ -139,6 +140,7 @@ fun NetbirdNetworksScreen(shell: ShellViewModel, onBack: () -> Unit, onOpenNetwo
             signedIn = false,
             account = null,
             directFirst = false,
+            idleSecs = null,
         )
     }
 
@@ -298,6 +300,7 @@ internal fun NetworkEditorPage(
     var url by remember { mutableStateOf(current.managementUrl.orEmpty()) }
     var setupKey by remember { mutableStateOf("") }
     var directFirst by remember { mutableStateOf(current.directFirst) }
+    var idleSecs by remember { mutableStateOf(current.idleSecs) }
     // A stored key is never shown again: leaving the field empty keeps it. Without
     // a key, each user joins by signing in.
     val valid = label.isNotBlank()
@@ -312,6 +315,7 @@ internal fun NetworkEditorPage(
                     managementUrl = url.trim().ifEmpty { null },
                     setupKey = if (current.team) null else setupKey.trim().ifEmpty { null },
                     directFirst = directFirst,
+                    idleSecs = idleSecs,
                 ),
             )
         },
@@ -374,7 +378,41 @@ internal fun NetworkEditorPage(
                 checked = directFirst,
                 onCheckedChange = { directFirst = it },
             )
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                val choices = IDLE_CHOICES.let { if (idleSecs in it) it else it + idleSecs }
+                PickerRow(
+                    label = stringResource(R.string.vpn_idle),
+                    value = idleChoiceLabel(idleSecs),
+                    options = choices.map { it?.toString() to idleChoiceLabel(it) },
+                    selected = idleSecs?.toString(),
+                    onPick = { idleSecs = it?.toUIntOrNull() },
+                    empty = null,
+                )
+                Text(
+                    stringResource(R.string.vpn_idle_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
+    }
+}
+
+/** How long a network may stay up without a connection, in seconds; null = the default
+ *  (2 minutes), 0 = until disconnected. The desktop editor offers the same. */
+internal val IDLE_CHOICES: List<UInt?> = listOf(30u, null, 600u, 3600u, 0u)
+
+@Composable
+internal fun idleChoiceLabel(secs: UInt?): String = when (secs) {
+    null -> stringResource(R.string.vpn_idle_default)
+    0u -> stringResource(R.string.vpn_idle_forever)
+    30u -> stringResource(R.string.vpn_idle_30s)
+    600u -> stringResource(R.string.vpn_idle_10min)
+    3600u -> stringResource(R.string.vpn_idle_1h)
+    else -> if (secs < 120u) {
+        stringResource(R.string.vpn_idle_seconds, secs.toInt())
+    } else {
+        stringResource(R.string.vpn_idle_minutes, (secs / 60u).toInt())
     }
 }
 

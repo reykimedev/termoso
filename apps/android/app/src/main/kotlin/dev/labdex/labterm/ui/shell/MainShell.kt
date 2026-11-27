@@ -2,6 +2,7 @@ package dev.labdex.labterm.ui.shell
 
 import android.net.Uri
 import androidx.annotation.StringRes
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -102,6 +103,8 @@ import dev.labdex.labterm.ui.team.TeamsScreen
 import dev.labdex.labterm.ui.terminal.TerminalScreen
 import dev.labdex.labterm.ui.vault.HistoryScreen
 import dev.labdex.labterm.ui.hosts.TagsScreen
+import dev.labdex.labterm.ui.netbird.VpnIdleStopNotices
+import dev.labdex.labterm.ui.netbird.VpnStatusStrip
 import dev.labdex.labterm.ui.vault.KnownHostsScreen
 import dev.labdex.labterm.ui.vault.SessionLogScreen
 import dev.labdex.labterm.ui.vault.SessionLogsScreen
@@ -252,6 +255,7 @@ fun MainShell(
         account.notices.collect { snackbar.showSnackbar(it) }
     }
     LaunchedEffect(forwards) { forwards.autoStartOnce() }
+    VpnIdleStopNotices(shell.repo, snackbar)
     TunnelPromptHost(forwards)
     ReauthHost(account)
     // A host behind a NetBird network this user has not signed in to yet: sign in, then connect.
@@ -479,31 +483,34 @@ fun MainShell(
         snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = {
             if (showBar) {
-                NavigationBar {
-                    tabs.forEach { tab ->
-                        val selected = if (tab.route == Routes.VAULT) vaultsTabRoute else currentRoute == tab.route
-                        NavigationBarItem(
-                            selected = selected,
-                            onClick = {
-                                if (tab.route == Routes.VAULT && currentRoute == Routes.HOSTS) {
-                                    nav.popBackStack(Routes.VAULT, inclusive = false)
-                                } else {
-                                    nav.navigate(tab.route) {
-                                        popUpTo(nav.graph.findStartDestination().id) { saveState = true }
-                                        launchSingleTop = true
-                                        restoreState = true
+                Column {
+                    VpnStatusStrip(shell.repo, onOpen = { nav.navigate(Routes.vpnNetwork(it)) })
+                    NavigationBar {
+                        tabs.forEach { tab ->
+                            val selected = if (tab.route == Routes.VAULT) vaultsTabRoute else currentRoute == tab.route
+                            NavigationBarItem(
+                                selected = selected,
+                                onClick = {
+                                    if (tab.route == Routes.VAULT && currentRoute == Routes.HOSTS) {
+                                        nav.popBackStack(Routes.VAULT, inclusive = false)
+                                    } else {
+                                        nav.navigate(tab.route) {
+                                            popUpTo(nav.graph.findStartDestination().id) { saveState = true }
+                                            launchSingleTop = true
+                                            restoreState = true
+                                        }
                                     }
-                                }
-                            },
-                            icon = {
-                                if (tab.route == Routes.CONNECTIONS) {
-                                    ConnectionsTabIcon(openSessions, openSftp, selected)
-                                } else {
-                                    Icon(if (selected) tab.selectedIcon else tab.icon, contentDescription = stringResource(tab.label))
-                                }
-                            },
-                            label = { Text(stringResource(tab.label)) },
-                        )
+                                },
+                                icon = {
+                                    if (tab.route == Routes.CONNECTIONS) {
+                                        ConnectionsTabIcon(openSessions, openSftp, selected)
+                                    } else {
+                                        Icon(if (selected) tab.selectedIcon else tab.icon, contentDescription = stringResource(tab.label))
+                                    }
+                                },
+                                label = { Text(stringResource(tab.label)) },
+                            )
+                        }
                     }
                 }
             }

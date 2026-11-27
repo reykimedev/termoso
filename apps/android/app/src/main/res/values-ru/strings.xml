@@ -2101,6 +2101,17 @@
     <string name="vpn_route_through">через %1$s</string>
     <string name="vpn_direct_first">Подключаться напрямую в локальной сети хоста</string>
     <string name="vpn_direct_first_hint">Дома: если локальный адрес хоста отвечает уже доверенным ключом хоста, подключаться без сети.</string>
+    <string name="vpn_idle">Оставаться подключённым без использования</string>
+    <string name="vpn_idle_hint">После закрытия последнего подключения. Дольше: повторное подключение сразу; короче: экономия батареи.</string>
+    <string name="vpn_idle_default">2 минуты (по умолчанию)</string>
+    <string name="vpn_idle_forever">Пока я не отключусь</string>
+    <string name="vpn_idle_30s">30 секунд</string>
+    <string name="vpn_idle_10min">10 минут</string>
+    <string name="vpn_idle_1h">1 час</string>
+    <string name="vpn_idle_seconds">%1$d с</string>
+    <string name="vpn_idle_minutes">%1$d мин</string>
+    <string name="vpn_idle_stopped">%1$s отключена, так как не использовалась</string>
+    <string name="vpn_strip_stops_in">отключится через %1$s, если её не использует подключение</string>
     <string name="vpn_test">Проверить</string>
     <string name="vpn_test_title">Проверка %1$s</string>
     <string name="vpn_test_again">Проверить снова</string>
