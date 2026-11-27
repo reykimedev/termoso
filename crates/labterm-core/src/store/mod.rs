@@ -37,7 +37,7 @@ use crate::error::{CoreError, Result};
 
 pub use entities::EntityFilter;
 pub use entities::EntityRow;
-pub use entities::{DefaultsLayers, ResolvedDefaults};
+pub use entities::{DefaultsLayers, LayerSource, ResolvedDefaults};
 pub use file_cache::{CacheKind, CachedEntry, FileCacheConfig, FileCacheUsage, SafOfflineMode};
 pub use history::{CommandHistory, ConnectionHistory, HistoryItem, VaultConnection};
 pub use logs::{LogItem, LogMeta, LogRow, MAX_CAPTURE_BYTES, Recorder};
