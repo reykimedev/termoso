@@ -1,8 +1,10 @@
-import { activeLocale, tr, trn } from "@/i18n";
+import { tr, trn } from "@/i18n";
 
-const dateFmt = () =>
-  new Intl.DateTimeFormat(activeLocale(), { dateStyle: "medium", timeStyle: "short" });
-const dayFmt = () => new Intl.DateTimeFormat(activeLocale(), { dateStyle: "medium" });
+// The UI is English only, so dates and numbers are too.
+const LOCALE = "en";
+
+const dateFmt = () => new Intl.DateTimeFormat(LOCALE, { dateStyle: "medium", timeStyle: "short" });
+const dayFmt = () => new Intl.DateTimeFormat(LOCALE, { dateStyle: "medium" });
 
 export function formatDateTime(iso: string | undefined | null): string {
   if (!iso) return "—";
@@ -17,7 +19,7 @@ export function formatDate(iso: string | undefined | null): string {
 }
 
 export function formatNumber(n: number): string {
-  return new Intl.NumberFormat(activeLocale()).format(n);
+  return new Intl.NumberFormat(LOCALE).format(n);
 }
 
 const CLOCK_SKEW_MS = 2 * 60_000;
