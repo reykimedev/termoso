@@ -12,12 +12,15 @@ use labterm_crypto::keys::SymmetricKey;
 use labterm_crypto::memberlog::{LogBody, LogEntry, LogState, Mode};
 use labterm_crypto::sealed;
 use labterm_crypto::signing::AccountSigner;
+use labterm_proto::account::PublishSigningKeyRequest;
 use labterm_proto::collection::*;
 use labterm_proto::sync::{
     EntityChange, EntityDelete, PullRequest, PullResponse, PushRequest, PushResponse, PushResult,
     SYNC_PROTOCOL,
 };
-use labterm_proto::vault::{CreateVaultRequest, Vault, VaultMemberUpsert, VaultRole};
+use labterm_proto::vault::{
+    CreateVaultRequest, Vault, VaultMemberList, VaultMemberUpsert, VaultRole,
+};
 use reqwest::{Method, StatusCode};
 use time::OffsetDateTime;
 use uuid::Uuid;
@@ -65,8 +68,36 @@ struct Setup {
     vault_key: SymmetricKey,
 }
 
-/// A team vault with owner (manager), bob and carol (editors).
+fn publish_request(u: &User) -> PublishSigningKeyRequest {
+    let signer = signer(u);
+    PublishSigningKeyRequest {
+        sign_public: b64(&signer.identity().sign_public),
+        proof: b64(&signer.binding_proof(&u.id().to_string())),
+    }
+}
+
+async fn publish(s: &TestServer, u: &User) {
+    s.expect_status(
+        Method::PUT,
+        "/account/signing-key",
+        Some(u.token()),
+        Some(&publish_request(u)),
+        StatusCode::NO_CONTENT,
+    )
+    .await;
+}
+
+/// A team vault with owner (manager), bob and carol (editors), all with
+/// published signing keys.
 async fn setup(s: &TestServer) -> Setup {
+    let x = setup_unpublished(s).await;
+    for u in [&x.owner, &x.bob, &x.carol, &x.outsider] {
+        publish(s, u).await;
+    }
+    x
+}
+
+async fn setup_unpublished(s: &TestServer) -> Setup {
     let owner = register(s, &unique_email("owner"), "pw-owner-1234567").await;
     let bob = register(s, &unique_email("bob"), "pw-bob-123456789").await;
     let carol = register(s, &unique_email("carol"), "pw-carol-12345678").await;
@@ -637,4 +668,102 @@ async fn a_collection_must_be_created_by_its_signer() {
         StatusCode::BAD_REQUEST,
     )
     .await;
+}
+
+#[tokio::test]
+async fn signing_keys_need_a_proof_and_reach_vault_members() {
+    let Some(s) = server().await else { return };
+    let x = setup_unpublished(s).await;
+
+    // Logs can't name an account before its signing key is published.
+    let id = Uuid::new_v4();
+    let scope = KeyScope::collection(x.vault.id.to_string(), id.to_string());
+    let (entry, _) =
+        LogState::create(scope.clone(), &x.owner.id().to_string(), &signer(&x.owner)).unwrap();
+    let envelope = seal_scoped_key(
+        &x.owner.keypair,
+        x.owner.keypair.public(),
+        &scope,
+        1,
+        &SymmetricKey::generate(),
+    )
+    .unwrap();
+    let req = CreateCollectionRequest {
+        id,
+        name: b64(b"n"),
+        entry: json(&entry),
+        envelope,
+    };
+    let path = format!("/vaults/{}/collections", x.vault.id);
+    s.expect_status(
+        Method::POST,
+        &path,
+        Some(x.owner.token()),
+        Some(&req),
+        StatusCode::BAD_REQUEST,
+    )
+    .await;
+
+    // Bob's key and proof don't work for the owner's account, and a proof for
+    // another account id doesn't either.
+    for bad in [
+        publish_request(&x.bob),
+        PublishSigningKeyRequest {
+            proof: b64(&signer(&x.owner).binding_proof(&x.bob.id().to_string())),
+            ..publish_request(&x.owner)
+        },
+        PublishSigningKeyRequest {
+            proof: b64(&[0u8; 64]),
+            ..publish_request(&x.owner)
+        },
+    ] {
+        s.expect_status(
+            Method::PUT,
+            "/account/signing-key",
+            Some(x.owner.token()),
+            Some(&bad),
+            StatusCode::BAD_REQUEST,
+        )
+        .await;
+    }
+
+    // Publishing is idempotent.
+    publish(s, &x.owner).await;
+    publish(s, &x.owner).await;
+
+    // Vault members see it, and the proof checks out on their side too.
+    let members: VaultMemberList = s
+        .json(
+            Method::GET,
+            &format!("/vaults/{}/members", x.vault.id),
+            Some(x.bob.token()),
+            NOBODY,
+        )
+        .await;
+    let owner = members
+        .members
+        .iter()
+        .find(|m| m.user_id == x.owner.id())
+        .unwrap();
+    let identity = signer(&x.owner).identity().to_owned();
+    assert_eq!(
+        owner.sign_public_key.as_deref(),
+        Some(b64(&identity.sign_public).as_str())
+    );
+    let proof: [u8; 64] =
+        labterm_crypto::encoding::unb64_array(owner.sign_key_proof.as_ref().unwrap()).unwrap();
+    identity
+        .verify_binding(&x.owner.id().to_string(), &proof)
+        .unwrap();
+    let bob = members
+        .members
+        .iter()
+        .find(|m| m.user_id == x.bob.id())
+        .unwrap();
+    assert!(bob.sign_public_key.is_none());
+
+    // Now the owner can create the collection.
+    let _: CollectionInfo = s
+        .json(Method::POST, &path, Some(x.owner.token()), Some(&req))
+        .await;
 }

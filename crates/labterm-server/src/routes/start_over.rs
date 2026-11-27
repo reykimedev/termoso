@@ -397,7 +397,8 @@ pub async fn finish(
 
     let mut tx = state.db.begin().await?;
     let res = sqlx::query(
-        "UPDATE users SET opaque_record = $2, public_key = $3, wrapped_private_key = $4,
+        "UPDATE users SET opaque_record = $2, public_key = $3, sign_public_key = NULL, sign_key_proof = NULL,
+             wrapped_private_key = $4,
              recovery_wrapped_private_key = $5, recovery_verifier_hash = $6,
              key_version = key_version + 1,
              reset_scheduled_for = NULL, reset_finish_hash = NULL, reset_cancel_hash = NULL,

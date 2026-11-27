@@ -112,6 +112,7 @@ pub fn router(state: AppState) -> Router {
         )
         .route("/account/profile", patch(account::update_profile))
         .route("/account/presence", put(account::put_presence))
+        .route("/account/signing-key", put(account::put_signing_key))
         .route("/account/ai", get(ai::status).put(ai::put_settings))
         .route("/ai/command", post(ai::command))
         .route(

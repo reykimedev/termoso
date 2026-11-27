@@ -140,6 +140,14 @@ schema! {
         pub pending: bool,
         /// Their public key (so a manager can seal the vault key).
         pub public_key: String,
+        /// Their Ed25519 signing key (base64), once their client published it.
+        /// Pin it together with `public_key` and compare fingerprints.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub sign_public_key: Option<String>,
+        /// Proof that the holder of `sign_public_key` bound it to this account
+        /// and `public_key`; clients verify it themselves.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub sign_key_proof: Option<String>,
         /// Added.
         #[serde(with = "crate::timestamp::serde")]
         pub added_at: OffsetDateTime,

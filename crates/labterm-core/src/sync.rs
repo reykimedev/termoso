@@ -40,6 +40,9 @@ use crate::store::{EntityFilter, EntityRow, LocalVaultKind, Store};
 const STALE_KEY_VERSION: &str = "stale_key_version";
 /// A collection's membership log failed verification on this device.
 pub const COLLECTION_LOG_REJECTED: &str = "collection_log_rejected";
+/// [`SyncReport::errors`] code: the server refused our signing key (another
+/// key is published for the account), so we can't be named in group logs.
+pub const SIGNING_KEY_REJECTED: &str = "signing_key_rejected";
 /// A key envelope for a collection didn't open or wasn't from a manager.
 pub const COLLECTION_KEY_REJECTED: &str = "collection_key_rejected";
 const UNKNOWN_KIND: &str = "unknown_kind";
@@ -196,6 +199,9 @@ pub struct SyncEngine {
     running: tokio::sync::Mutex<()>,
     presence: std::sync::Mutex<Vec<PresenceSession>>,
     presence_kick: Notify,
+    /// The account's signing key is on the server (or the server is too old
+    /// to take it), so later passes skip publishing it.
+    signing_key_published: std::sync::atomic::AtomicBool,
 }
 
 /// How often the device re-sends its (unchanged) presence so the server
@@ -228,6 +234,7 @@ impl SyncEngine {
             running: tokio::sync::Mutex::new(()),
             presence: std::sync::Mutex::new(Vec::new()),
             presence_kick: Notify::new(),
+            signing_key_published: std::sync::atomic::AtomicBool::new(false),
         })
     }
 
@@ -726,6 +733,8 @@ impl SyncEngine {
     /// Create a restricted group in a team vault: sign the first log entry,
     /// make its key and register it with the server.
     pub async fn create_collection(&self, vault_id: Uuid, name: &str) -> Result<Uuid> {
+        // The server checks the creator's identity against the published key.
+        self.publish_signing_key().await?;
         let new = self.store.create_collection(vault_id)?;
         let req = labterm_proto::collection::CreateCollectionRequest {
             id: new.id,
@@ -742,6 +751,29 @@ impl SyncEngine {
     /// keys sealed to us, push local changes and pull rows. A log that fails
     /// verification (a swapped creator, a rollback, a bad signature) is
     /// reported as `collection_log_rejected` and that collection is left as
+    /// Publish the account's signing key with its proof of possession, once
+    /// per engine. Idempotent on the server; an older server without the
+    /// route (404) counts as done.
+    pub async fn publish_signing_key(&self) -> Result<()> {
+        use std::sync::atomic::Ordering;
+        if self.signing_key_published.load(Ordering::Relaxed) {
+            return Ok(());
+        }
+        let me = self.store.account()?.ok_or(CoreError::NotSignedIn)?;
+        let signer = self.store.account_signer()?;
+        let req = labterm_proto::account::PublishSigningKeyRequest {
+            sign_public: labterm_crypto::encoding::b64(&signer.identity().sign_public),
+            proof: labterm_crypto::encoding::b64(&signer.binding_proof(&me.user_id.to_string())),
+        };
+        match self.api.put_signing_key(&req).await {
+            Ok(()) | Err(CoreError::Api { status: 404, .. }) => {
+                self.signing_key_published.store(true, Ordering::Relaxed);
+                Ok(())
+            }
+            Err(e) => Err(e),
+        }
+    }
+
     /// it was.
     async fn sync_collections_into(
         &self,
@@ -749,9 +781,27 @@ impl SyncEngine {
         report: &mut SyncReport,
     ) -> Result<()> {
         let mut open: Vec<(Uuid, Uuid)> = Vec::new();
+        let mut published = false;
         for vault_id in vault_ids {
             if self.store.vault(*vault_id)?.kind != LocalVaultKind::Team {
                 continue;
+            }
+            // Managers need our signing key to name us in a log.
+            if !published {
+                published = true;
+                match self.publish_signing_key().await {
+                    Ok(()) => {}
+                    Err(CoreError::Api { status: 409, .. }) => {
+                        tracing::warn!("the server holds another signing key for this account");
+                        report
+                            .errors
+                            .push((Uuid::nil(), SIGNING_KEY_REJECTED.into()));
+                    }
+                    Err(e) => {
+                        tracing::warn!("publishing the signing key failed: {e}");
+                        report.errors.push((Uuid::nil(), api_code(&e)));
+                    }
+                }
             }
             let list = match self.api.collections(*vault_id).await {
                 Ok(l) => l,
