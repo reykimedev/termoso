@@ -433,7 +433,9 @@ def pin():
 def shade():
     tap("Cancel")
     # Emulator notices (keyboard, serial console) are not Labterm's: snooze them.
-    for line in sh("cmd notification list").splitlines():
+    listed = sh("cmd notification list")
+    print("notifications:", listed.strip().replace("\n", " ; "), flush=True)
+    for line in listed.splitlines():
         if line.startswith("0|android|") or "|com.android.systemui|" in line:
             print("snooze", line.strip(), sh(f"cmd notification snooze --for 3600000 '{line.strip()}'").strip(), flush=True)
     sh("cmd statusbar expand-notifications")
