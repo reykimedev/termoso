@@ -381,7 +381,8 @@ function RestoreStep({ state, status }: { state: MoveState; status: AccountStatu
     for (const [i, v] of backup.vaults.entries()) {
       if (out[i] !== NEW_TEAM_VAULT) continue;
       const k = free.findIndex((f) => f.name === v.name);
-      out[i] = k >= 0 ? free.splice(k, 1)[0].id : await ipc.teamVaultCreate(teamId, v.name, []);
+      const [reuse] = k >= 0 ? free.splice(k, 1) : [];
+      out[i] = reuse ? reuse.id : await ipc.teamVaultCreate(teamId, v.name, []);
     }
     setTargets(out);
     return out;
