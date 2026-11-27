@@ -637,3 +637,15 @@ export const useServerInfo = () => {
     staleTime: 60_000,
   });
 };
+
+/** Each network's state on this device (for host badges and the networks
+ *  page), polled every 3 s while mounted. Empty `ids` asks nothing. */
+export function useVpnStates(ids: Uuid[]) {
+  const sorted = [...new Set(ids)].sort();
+  return useQuery({
+    queryKey: ["vpnStates", sorted.join(",")],
+    queryFn: () => ipc.vpnStates(sorted),
+    enabled: sorted.length > 0,
+    refetchInterval: 3_000,
+  });
+}

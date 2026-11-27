@@ -7,6 +7,7 @@
 //! Windows has no build of it yet: there the networks can be edited, and
 //! hosts set to use one say so when connecting.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use labterm_client::transports;
@@ -39,6 +40,56 @@ pub struct VpnNetwork {
     pub signed_in: bool,
     /// The account this device signs in as (kept on this device only).
     pub account: Option<String>,
+}
+
+/// A network's state on this device, for the details page and host badges:
+/// `off`, `connecting`, `connected`, `needs_sign_in`, `error` (with
+/// `error`) or `unavailable` (no client in this build).
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VpnStateDto {
+    pub state: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
+/// One peer this device sees in a joined network.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VpnPeer {
+    pub fqdn: String,
+    pub ip: String,
+    pub connected: bool,
+    pub relayed: bool,
+    pub latency_ms: u64,
+    /// Unix seconds of the last handshake; 0 = none yet.
+    pub handshake: i64,
+}
+
+/// A host that connects through a network.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VpnHost {
+    pub id: Uuid,
+    pub label: String,
+    pub address: String,
+}
+
+/// What the network details page shows.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VpnDetails {
+    pub network: VpnNetwork,
+    pub state: VpnStateDto,
+    /// This device's address and DNS name in the network; empty while not
+    /// joined.
+    pub ip: String,
+    pub fqdn: String,
+    pub management_connected: bool,
+    pub signal_connected: bool,
+    pub live_error: Option<String>,
+    pub peers: Vec<VpnPeer>,
+    pub hosts: Vec<VpnHost>,
 }
 
 /// What the editor sends. `setupKey: null` keeps the stored key.
@@ -122,6 +173,10 @@ mod client {
     }
     pub async fn forget(_: &Store) {}
     pub async fn stop_all() {}
+    pub async fn disconnect(_: Uuid) {}
+    pub async fn sign_out(_: &Arc<Store>, _: Uuid) -> Result<()> {
+        Err(unavailable())
+    }
 }
 
 /// Whether this build can join networks.
@@ -207,6 +262,74 @@ async fn sign_in(store: &Arc<Store>, id: Uuid, account: Option<String>) -> Resul
         )));
     }
     client::sign_in_finish(store, id).await
+}
+
+fn state_dto(store: &Arc<Store>, id: Uuid) -> VpnStateDto {
+    #[cfg(unix)]
+    {
+        let s = client::state(store, id);
+        VpnStateDto {
+            state: s.name(),
+            error: s.error().map(str::to_owned),
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (store, id);
+        VpnStateDto {
+            state: "unavailable",
+            error: None,
+        }
+    }
+}
+
+async fn details(store: &Arc<Store>, id: Uuid) -> Result<VpnDetails> {
+    let entity = store.require::<Transport>(id)?;
+    let hosts = transports::hosts_using(store, &entity)?
+        .into_iter()
+        .map(|h| VpnHost {
+            id: h.id,
+            label: h.label,
+            address: h.address,
+        })
+        .collect();
+    // Only the client fills in the live part.
+    #[cfg_attr(not(unix), allow(unused_mut))]
+    let mut out = VpnDetails {
+        network: to_network(store, entity),
+        state: state_dto(store, id),
+        ip: String::new(),
+        fqdn: String::new(),
+        management_connected: false,
+        signal_connected: false,
+        live_error: None,
+        peers: Vec::new(),
+        hosts,
+    };
+    #[cfg(unix)]
+    {
+        let d = client::details(store, id).await?;
+        out.live_error = d.live_error;
+        if let Some(live) = d.live {
+            out.ip = live.ip;
+            out.fqdn = live.fqdn;
+            out.management_connected = live.management;
+            out.signal_connected = live.signal;
+            out.peers = live
+                .peers
+                .into_iter()
+                .map(|p| VpnPeer {
+                    fqdn: p.fqdn,
+                    ip: p.ip,
+                    connected: p.connected,
+                    relayed: p.relayed,
+                    latency_ms: p.latency_ms,
+                    handshake: p.handshake,
+                })
+                .collect();
+        }
+    }
+    Ok(out)
 }
 
 /// Vault locked or app sent away: stop every network; the next connection
@@ -314,4 +437,38 @@ pub async fn vpn_running(ids: Vec<Uuid>) -> Vec<Uuid> {
         }
     }
     on
+}
+
+/// Each network's state on this device, for badges and the networks page.
+#[tauri::command]
+pub async fn vpn_states(
+    state: State<'_, AppState>,
+    ids: Vec<Uuid>,
+) -> Result<HashMap<Uuid, VpnStateDto>> {
+    let store = state.store()?;
+    Ok(ids
+        .into_iter()
+        .map(|id| (id, state_dto(&store, id)))
+        .collect())
+}
+
+/// The details page's data: state, this device's address, the peers it sees
+/// and the hosts that use the network.
+#[tauri::command]
+pub async fn vpn_details(state: State<'_, AppState>, id: Uuid) -> Result<VpnDetails> {
+    details(&state.store()?, id).await
+}
+
+/// Leave a network now; the next connection through it joins again.
+#[tauri::command]
+pub async fn vpn_disconnect(id: Uuid) {
+    client::disconnect(id).await;
+}
+
+/// Leave a network and forget this device's peer key: the next connection
+/// asks to sign in again.
+#[tauri::command]
+pub async fn vpn_sign_out(state: State<'_, AppState>, id: Uuid) -> Result<()> {
+    let store = state.store()?;
+    client::sign_out(&store, id).await
 }
