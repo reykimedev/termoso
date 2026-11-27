@@ -121,7 +121,10 @@ mod tests {
     #[test]
     fn dialog_errors_are_typed() {
         assert_eq!(Fido2Error::from(wh::Error::Cancelled), Fido2Error::Denied);
-        assert_eq!(Fido2Error::from(wh::Error::Unavailable), Fido2Error::NoDevice);
+        assert_eq!(
+            Fido2Error::from(wh::Error::Unavailable),
+            Fido2Error::NoDevice
+        );
     }
 
     #[cfg(not(windows))]
