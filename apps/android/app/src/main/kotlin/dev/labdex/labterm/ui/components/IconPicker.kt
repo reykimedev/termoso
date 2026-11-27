@@ -257,3 +257,33 @@ private fun Choice(label: String, selected: Boolean, onClick: () -> Unit, tile: 
         )
     }
 }
+
+/**
+ * [IconPickerSheet] for a look saved in one call (vaults, teams): colour
+ * picks stay a draft while the sheet is open; picking an icon or closing the
+ * sheet saves both through [onSave] (only when something changed).
+ */
+@Composable
+fun StylePickerSheet(
+    icon: String?,
+    color: String?,
+    automaticLabel: String,
+    onSave: (color: String?, icon: String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var draftColor by remember(color) { mutableStateOf(color) }
+    IconPickerSheet(
+        selected = icon,
+        automaticLabel = automaticLabel,
+        onPick = { id ->
+            if (id != icon || draftColor != color) onSave(draftColor, id)
+            onDismiss()
+        },
+        onDismiss = {
+            if (draftColor != color) onSave(draftColor, icon)
+            onDismiss()
+        },
+        color = draftColor,
+        onColor = { draftColor = it },
+    )
+}

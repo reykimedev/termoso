@@ -240,6 +240,10 @@ export interface LocalVault {
   logs_cursor: number;
   /** Team vault: the team's first vault. It can be renamed but not deleted. */
   is_default: boolean;
+  /** Tile colour (`#rrggbb`) set by a manager; null keeps the kind's colour. */
+  color?: string | null;
+  /** Built-in icon id or `custom:data:` image; null shows the kind's glyph. */
+  icon?: string | null;
 }
 
 /** Member of a team vault as the server sees it. */
@@ -270,6 +274,10 @@ export interface Team {
   /** Permission keys the caller holds; `*` for the owner. Absent on 0.8 servers. */
   my_permissions?: string[];
   policies?: TeamPolicies | null;
+  /** Tile colour (`#rrggbb`) set by an admin. */
+  color?: string | null;
+  /** Built-in icon id or `custom:data:` image. */
+  icon?: string | null;
 }
 
 export interface TeamPolicies {

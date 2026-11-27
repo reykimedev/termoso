@@ -56,6 +56,12 @@ pub struct VaultInfo {
     /// The team's first vault: can be renamed but not deleted.
     #[uniffi(default = false)]
     pub is_default: bool,
+    /// Tile colour (`#rrggbb`) set by a manager (or on this device for the local vault).
+    #[uniffi(default = None)]
+    pub color: Option<String>,
+    /// Built-in icon id or `custom:data:` image.
+    #[uniffi(default = None)]
+    pub icon: Option<String>,
 }
 
 impl From<LocalVault> for VaultInfo {
@@ -76,6 +82,8 @@ impl From<LocalVault> for VaultInfo {
             },
             locked: !v.unlocked,
             is_default: v.is_default,
+            color: v.color,
+            icon: v.icon,
         }
     }
 }
@@ -920,6 +928,12 @@ pub struct InheritedInfo {
     pub ssh_id: bool,
     /// VPN network inherited from the group chain or tags.
     pub transport_id: Option<String>,
+    /// Jump host chain inherited from the group chain or tags.
+    pub host_chain_id: Option<String>,
+    /// Proxy inherited from the group chain or tags.
+    pub proxy_id: Option<String>,
+    /// OpenID (opkssh) key inherited from the group chain or tags.
+    pub oidc_key_id: Option<String>,
 }
 
 impl From<hosts::Inherited> for InheritedInfo {
@@ -937,6 +951,9 @@ impl From<hosts::Inherited> for InheritedInfo {
             identity_label: i.identity_label,
             ssh_id: i.ssh_id,
             transport_id: i.transport_id.map(|t| t.to_string()),
+            host_chain_id: i.host_chain_id.map(|t| t.to_string()),
+            proxy_id: i.proxy_id.map(|t| t.to_string()),
+            oidc_key_id: i.oidc_key_id.map(|t| t.to_string()),
         }
     }
 }

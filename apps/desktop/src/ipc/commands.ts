@@ -765,6 +765,9 @@ export const logAnnotate = (id: Uuid, patch: { pinned?: boolean; note?: string }
   invoke<LogCard>("log_annotate", { id, pinned: patch.pinned ?? null, note: patch.note ?? null });
 export const vaultSessionLoggingSet = (vaultId: Uuid, on: boolean) =>
   invoke<null>("vault_session_logging_set", { vaultId, on });
+/** Tile colour and icon of a vault (manager; any user for the local vault). null clears. */
+export const vaultStyleSet = (vaultId: Uuid, color: string | null, icon: string | null) =>
+  invoke<null>("vault_style_set", { vaultId, color, icon });
 export const logBookmarks = (logId: Uuid) => invoke<BookmarkCard[]>("log_bookmarks", { logId });
 export const logBookmarkAdd = (logId: Uuid, offset: number, note: string) =>
   invoke<BookmarkCard>("log_bookmark_add", { logId, offset, note });
@@ -847,6 +850,9 @@ export const teamsList = () => invoke<Team[]>("teams_list");
 export const teamCreate = (name: string) => invoke<Team>("team_create", { name });
 export const teamRename = (teamId: Uuid, name: string) =>
   invoke<Team>("team_rename", { teamId, name });
+/** Tile colour and icon of a team (admins). null clears. */
+export const teamStyleSet = (teamId: Uuid, color: string | null, icon: string | null) =>
+  invoke<Team>("team_style_set", { teamId, color, icon });
 export const teamSetSecurity = (
   teamId: Uuid,
   patch: { multiplayerEnabled?: boolean; requireMfa?: boolean; presenceEnabled?: boolean },

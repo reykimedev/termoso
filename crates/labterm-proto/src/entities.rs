@@ -114,6 +114,39 @@ pub const TRANSPORT_NETBIRD: &str = "netbird";
 /// [`payload::Transport::provider`] of a Tailscale (or Headscale) network.
 pub const TRANSPORT_TAILSCALE: &str = "tailscale";
 
+/// Stored in a reference field of [`payload::SshConfig`] (`proxy_id`,
+/// `host_chain_id`, `transport_id`, `oidc_key_id`, `port_knocking_id`,
+/// `identity_id`) to say "none" on purpose: the host or group does not
+/// inherit what a group or tag below it sets. Any set value wins the merge,
+/// so this needs no schema change, and clients that predate it find no
+/// record with this id and treat it as none too.
+pub const EXPLICIT_NONE: Uuid = Uuid::nil();
+
+/// Whether a reference field says "none" on purpose ([`EXPLICIT_NONE`]).
+pub fn is_explicit_none(id: Option<Uuid>) -> bool {
+    id == Some(EXPLICIT_NONE)
+}
+
+impl payload::SshConfig {
+    /// Turn [`EXPLICIT_NONE`] into `None` once the layers are merged, so
+    /// code that connects never sees the marker.
+    pub fn clear_explicit_none(&mut self) {
+        for f in [
+            &mut self.identity_id,
+            &mut self.host_chain_id,
+            &mut self.proxy_id,
+            &mut self.gateway_id,
+            &mut self.transport_id,
+            &mut self.port_knocking_id,
+            &mut self.oidc_key_id,
+        ] {
+            if is_explicit_none(*f) {
+                *f = None;
+            }
+        }
+    }
+}
+
 impl payload::SshKey {
     /// The private half is not in the vault; an SSH agent signs.
     pub fn is_agent_backed(&self) -> bool {

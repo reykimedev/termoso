@@ -124,7 +124,10 @@ pub fn delete(store: &Store, id: Uuid) -> Result<()> {
 
 /// The network of host or group settings: one of that vault.
 pub(crate) fn check(store: &Store, vault_id: Uuid, id: Option<Uuid>) -> Result<()> {
-    let Some(id) = id else { return Ok(()) };
+    // "None" on purpose (`EXPLICIT_NONE`) needs no network.
+    let Some(id) = id.filter(|i| !i.is_nil()) else {
+        return Ok(());
+    };
     match store.get_in::<Transport>(id, vault_id) {
         Ok(Some(_)) => Ok(()),
         _ => Err(ClientError::invalid(

@@ -364,6 +364,8 @@ async fn team_flag_disables_multiplayer() {
                 multiplayer_enabled: Some(false),
                 require_mfa: None,
                 presence_enabled: None,
+                color: None,
+                icon: None,
             }),
         )
         .await;
@@ -391,6 +393,8 @@ async fn team_flag_disables_multiplayer() {
                 multiplayer_enabled: Some(true),
                 require_mfa: None,
                 presence_enabled: None,
+                color: None,
+                icon: None,
             }),
         )
         .await;

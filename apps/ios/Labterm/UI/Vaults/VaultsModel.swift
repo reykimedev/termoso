@@ -62,6 +62,21 @@ final class VaultsModel {
         }
     }
 
+    /// Whether this user may change a vault's colour and icon.
+    func canStyle(_ vault: VaultInfo) -> Bool {
+        vault.kind == .local || (vault.access == .manage && !vault.locked)
+    }
+
+    func setVaultStyle(_ vault: VaultInfo, color: String?, icon: String?) {
+        do {
+            try repository.setVaultStyle(vaultId: vault.id, color: color, icon: icon)
+            vaults = try repository.vaults()
+            error = nil
+        } catch {
+            self.error = userMessage(for: error)
+        }
+    }
+
     func reloadAddressBook() {
         guard let vaultId = selectedVaultId else {
             hosts = []

@@ -9,6 +9,7 @@ import { monoFontFamily } from "@/theme/theme";
 import { AgentForwardingRow, CredentialsFields, X11ForwardingRow } from "./CredentialsFields";
 import { ChainDialog, ProxyDialog } from "./HostAdvancedDialogs";
 import { OidcKeyField } from "./OidcKeyField";
+import { inheritItems } from "./inheritItems";
 import { VpnNetworkField } from "@/vpn/VpnNetworkField";
 import { tr, trn } from "@/i18n";
 
@@ -41,6 +42,11 @@ export function SshDefaultsSections({
   const proxies = useProxies(vaultId);
   const chains = useHostChains(vaultId);
   const [dialog, setDialog] = useState<"proxy" | "chain" | null>(null);
+  const chainName = (id: Uuid) => chains.data?.find((c) => c.id === id)?.data.label;
+  const proxyName = (id: Uuid) => {
+    const p = proxies.data?.find((x) => x.id === id);
+    return p ? `${p.data.kind.toUpperCase()} ${p.data.host}:${p.data.port}` : undefined;
+  };
   const set = <K extends keyof SshDefaultsForm>(k: K, v: SshDefaultsForm[K]) =>
     onChange({ [k]: v });
 
@@ -89,9 +95,11 @@ export function SshDefaultsSections({
               else set("hostChainId", v === "" ? null : v);
             }}
           >
-            <MenuItem value="">
-              <em>{tr("Direct connection")}</em>
-            </MenuItem>
+            {inheritItems({
+              inherited: inh?.hostChainId ? (chainName(inh.hostChainId) ?? "…") : null,
+              value: value.hostChainId,
+              noneLabel: tr("Direct connection"),
+            })}
             {(chains.data ?? []).map((c) => (
               <MenuItem key={c.id} value={c.id}>
                 {c.data.label}
@@ -121,9 +129,11 @@ export function SshDefaultsSections({
               else set("proxyId", v === "" ? null : v);
             }}
           >
-            <MenuItem value="">
-              <em>{tr("None")}</em>
-            </MenuItem>
+            {inheritItems({
+              inherited: inh?.proxyId ? (proxyName(inh.proxyId) ?? "…") : null,
+              value: value.proxyId,
+              noneLabel: tr("None"),
+            })}
             {(proxies.data ?? []).map((p) => (
               <MenuItem key={p.id} value={p.id}>
                 {p.data.kind.toUpperCase()}

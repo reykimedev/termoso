@@ -22,9 +22,11 @@ import dev.labdex.labterm.ui.components.PickerRow
 import dev.labdex.labterm.ui.components.RowDivider
 import dev.labdex.labterm.ui.components.SwitchRow
 import dev.labdex.labterm.core.HostChainDraft
+import dev.labdex.labterm.core.HostChainItem
 import dev.labdex.labterm.core.HostDraft
 import dev.labdex.labterm.core.GatewayCard
 import dev.labdex.labterm.core.ProxyDraft
+import dev.labdex.labterm.core.ProxyItem
 import dev.labdex.labterm.core.TransportItem
 import dev.labdex.labterm.core.terminalThemes
 import androidx.compose.runtime.produceState
@@ -54,12 +56,16 @@ fun ConnectionSection(state: HostEditorState, draft: HostDraft, vm: HostEditorVi
         Text(stringResource(R.string.connection), style = MaterialTheme.typography.labelLarge)
 
         val chain = state.chains.firstOrNull { it.id == draft.hostChainId }
+        fun chainName(c: HostChainItem) = c.label.ifBlank { c.hostLabels.joinToString(" → ") }
+        val chainOptions = inheritOptions(
+            state.inherited?.hostChainId?.let { id -> state.chains.firstOrNull { it.id == id }?.let(::chainName) ?: "\u2026" },
+            draft.hostChainId,
+            stringResource(R.string.none),
+        ) + state.chains.map { it.id to chainName(it) } + (NEW to stringResource(R.string.new_chain))
         if (draft.ssh) PickerRow(
             label = stringResource(R.string.host_chaining),
-            value = chain?.let { it.label.ifBlank { it.hostLabels.joinToString(" → ") } } ?: stringResource(R.string.none),
-            options = listOf<Pair<String?, String>>(null to stringResource(R.string.none)) +
-                state.chains.map { it.id to it.label.ifBlank { it.hostLabels.joinToString(" → ") } } +
-                (NEW to stringResource(R.string.new_chain)),
+            value = chainOptions.labelOf(draft.hostChainId),
+            options = chainOptions,
             selected = draft.hostChainId,
             onPick = { id ->
                 if (id == NEW) chainEditor = HostChainDraft(null, draft.vaultId, "", emptyList())
@@ -81,12 +87,16 @@ fun ConnectionSection(state: HostEditorState, draft: HostDraft, vm: HostEditorVi
         }
 
         val proxy = state.proxies.firstOrNull { it.id == draft.proxyId }
+        fun proxyName(p: ProxyItem) = "${p.kind.uppercase()} ${p.host}:${p.port}"
+        val proxyOptions = inheritOptions(
+            state.inherited?.proxyId?.let { id -> state.proxies.firstOrNull { it.id == id }?.let(::proxyName) ?: "\u2026" },
+            draft.proxyId,
+            stringResource(R.string.none),
+        ) + state.proxies.map { it.id to proxyName(it) } + (NEW to stringResource(R.string.new_proxy))
         PickerRow(
             label = stringResource(R.string.proxy),
-            value = proxy?.let { "${it.kind.uppercase()} ${it.host}:${it.port}" } ?: stringResource(R.string.none),
-            options = listOf<Pair<String?, String>>(null to stringResource(R.string.none)) +
-                state.proxies.map { it.id to "${it.kind.uppercase()} ${it.host}:${it.port}" } +
-                (NEW to stringResource(R.string.new_proxy)),
+            value = proxyOptions.labelOf(draft.proxyId),
+            options = proxyOptions,
             selected = draft.proxyId,
             onPick = { id ->
                 if (id == NEW) proxyEditor = ProxyDraft(null, draft.vaultId, "socks5", "", 1080u, null, null, null)

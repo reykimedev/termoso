@@ -88,9 +88,36 @@ struct VaultsView: View {
 
     private var vaultCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            vaultPicker
-                .pickerStyle(.menu)
-                .tint(.primary)
+            HStack(spacing: 12) {
+                if let vault = model.selectedVault {
+                    if model.canStyle(vault) {
+                        NavigationLink {
+                            IconColorPicker(
+                                icon: Binding(
+                                    get: { model.selectedVault?.icon },
+                                    set: { model.setVaultStyle(vault, color: model.selectedVault?.color, icon: $0) }
+                                ),
+                                color: Binding(
+                                    get: { model.selectedVault?.color },
+                                    set: { model.setVaultStyle(vault, color: $0, icon: model.selectedVault?.icon) }
+                                ),
+                                automaticLabel: "Default",
+                                preview: { _, _ in
+                                    AnyView(model.selectedVault.map { VaultAvatar(vault: $0, size: 64) })
+                                }
+                            )
+                        } label: {
+                            VaultAvatar(vault: vault, size: 40)
+                        }
+                        .accessibilityIdentifier("vaults.style")
+                    } else {
+                        VaultAvatar(vault: vault, size: 40)
+                    }
+                }
+                vaultPicker
+                    .pickerStyle(.menu)
+                    .tint(.primary)
+            }
             if let vault = model.selectedVault {
                 Text(vaultDescription(vault))
                     .font(.footnote)
