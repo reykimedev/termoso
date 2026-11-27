@@ -374,7 +374,6 @@ def pf_rule():
         if has("web-02"):
             tap("web-01", index=-1)
             break
-    wait("web-01")
     fill("Label", "Admin panel via web-01")
     fill("Local port", "8080")
     fill("Destination host", "localhost")
