@@ -2048,6 +2048,8 @@
     <string name="vpn_no_routes">No routes: only the peers\' own addresses are reachable.</string>
     <string name="vpn_exit_node">Exit node (%1$s)</string>
     <string name="vpn_route_through">through %1$s</string>
+    <string name="vpn_direct_first">Connect directly on the host\'s LAN</string>
+    <string name="vpn_direct_first_hint">At home: when the host\'s LAN address answers with the host key you already trust, connect without the network.</string>
     <string name="vpn_no_peers">This device may not reach any peer in this network.</string>
     <string name="vpn_peer_idle">idle</string>
     <string name="vpn_peer_relayed">relayed</string>

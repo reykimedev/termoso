@@ -82,6 +82,24 @@ Only the SSH connections of hosts set to the network go through it, even
 with an exit node; nothing else on the device does. The details page lists
 the routes the device uses and the peer each one goes through.
 
+## At home: connect directly
+
+Turn on **Connect directly on the host's LAN** in a network's settings and
+Labterm tries a host's LAN address first, without starting the network. It
+uses that path only when all of these hold:
+
+- the host's name (or address) resolves, through the device's own DNS, only to
+  private, link-local or loopback addresses;
+- one of them answers within a moment;
+- the machine there presents the host key Labterm already trusts for this
+  host. A quick key exchange checks it before anything else: no prompt, no
+  login.
+
+Anything else (away from home, a different machine at the same address on a
+hotel network, a host whose key isn't trusted yet) goes through the network
+as usual, so the first connection to a host always goes through the network.
+The setting is synced with the vault, like the network itself.
+
 ## Names: the network's DNS
 
 Host names resolve the way the network's own client resolves them, without
@@ -96,7 +114,10 @@ touching the device's DNS settings:
   forwards to your home DNS servers), Labterm asks it through the tunnel.
   Servers outside the network, and anything that fails, are left to
   NetBird's own resolver. Open a host right after the network starts and
-  the lookup waits a few seconds for the first sync.
+  the lookup waits a few seconds for the first sync. A short name (`nas`)
+  is tried under the network's search domains: the peer domain, custom
+  zones, and the match domains of nameserver groups with "search domains"
+  on.
 - **Tailscale:** MagicDNS names, split DNS and global nameservers from the
   admin console (or Headscale's `dns` settings) work as they are; the
   embedded client resolves through the tailnet.

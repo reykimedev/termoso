@@ -91,6 +91,9 @@ pub struct NetworkConfig {
     pub management_url: String,
     /// Setup key; `None` = only an already registered peer can start.
     pub setup_key: Option<Zeroizing<String>>,
+    /// Try a host's LAN address directly first (see
+    /// `labterm_core::transport::TransportDial::direct_first`).
+    pub direct_first: bool,
 }
 
 impl std::fmt::Debug for NetworkConfig {
@@ -101,6 +104,7 @@ impl std::fmt::Debug for NetworkConfig {
             .field("provider", &self.provider)
             .field("management_url", &self.management_url)
             .field("setup_key", &self.setup_key.as_ref().map(|_| "…"))
+            .field("direct_first", &self.direct_first)
             .finish()
     }
 }
@@ -134,6 +138,7 @@ impl NetworkConfig {
                 .map(str::trim)
                 .filter(|k| !k.is_empty())
                 .map(|k| Zeroizing::new(k.to_string())),
+            direct_first: t.data.direct_first,
         })
     }
 
@@ -865,6 +870,10 @@ impl TransportDial for Dialer {
         format!("{} \"{}\"", self.config.provider_name(), self.config.label)
     }
 
+    fn direct_first(&self) -> bool {
+        self.config.direct_first
+    }
+
     fn dial<'a>(
         &'a self,
         host: &'a str,
@@ -972,6 +981,7 @@ mod tests {
                 provider: provider.into(),
                 management_url: url.map(Into::into),
                 setup_key: key.map(Into::into),
+                direct_first: false,
             },
         }
     }

@@ -35,6 +35,9 @@ pub struct TransportItem {
     /// The account this device signs in as (remembered on this device
     /// only); `None` = whoever signs in.
     pub account: Option<String>,
+    /// Try a host's LAN address directly first, the network only when
+    /// that doesn't answer.
+    pub direct_first: bool,
 }
 
 fn to_item(store: &Arc<Store>, e: Entity<Transport>) -> TransportItem {
@@ -62,6 +65,7 @@ impl From<Entity<Transport>> for TransportItem {
             team: false,
             signed_in: false,
             account: None,
+            direct_first: e.data.direct_first,
         }
     }
 }
@@ -92,6 +96,7 @@ pub(crate) fn save(store: &Arc<Store>, item: TransportItem) -> Result<TransportI
             provider: item.provider,
             management_url: item.management_url,
             setup_key: item.setup_key,
+            direct_first: item.direct_first,
         },
     )?;
     Ok(to_item(store, saved))

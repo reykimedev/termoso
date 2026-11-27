@@ -3113,6 +3113,8 @@ export interface VpnNetwork {
   signedIn: boolean;
   /** The account this device signs in as (kept on this device only). */
   account: string | null;
+  /** Try a host's LAN address directly first ("direct at home"). */
+  directFirst: boolean;
 }
 
 /** What the network editor saves; `setupKey: null` keeps the stored key. */
@@ -3162,4 +3164,5 @@ export interface VpnNetworkForm {
   provider?: string;
   managementUrl: string | null;
   setupKey: string | null;
+  directFirst?: boolean;
 }
