@@ -66,6 +66,7 @@ function vaultStatus() {
     // Unlock methods (Windows Hello, security keys) are desktop-only for now.
     factors: [],
     helloAvailable: false,
+    securityKeysSupported: false,
     masterSource: "password",
     minPasswordChars: MIN_PASSWORD,
   };
