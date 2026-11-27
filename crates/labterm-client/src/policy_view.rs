@@ -579,5 +579,7 @@ fn flag_vault_wide(hosts: &mut [HostPolicy], team: bool, keys_only: bool) {
     }
 }
 
+pub mod who;
+
 #[cfg(test)]
 mod tests;
