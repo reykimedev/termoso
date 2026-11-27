@@ -47,6 +47,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.labdex.labterm.BuildConfig
 import dev.labdex.labterm.data.AppPin
 import dev.labdex.labterm.ui.security.PinSetupDialog
+import dev.labdex.labterm.ui.security.SecurityKeysDialog
 import dev.labdex.labterm.R
 import dev.labdex.labterm.data.AccountManager
 import dev.labdex.labterm.data.AppContainer
@@ -139,6 +140,9 @@ fun SettingsScreen(
         )
     }
     var lockBusy by remember { mutableStateOf(false) }
+    val securityKeys by container.securityKeys.collectAsStateWithLifecycle()
+    var securityKeysDialog by remember { mutableStateOf(false) }
+    if (securityKeysDialog) SecurityKeysDialog(container, notify = shell::notify, onDismiss = { securityKeysDialog = false })
     val filesEnabled by container.files.enabled.collectAsStateWithLifecycle()
 
     /**
@@ -360,7 +364,7 @@ fun SettingsScreen(
                     title = stringResource(R.string.lock_when_in_background),
                     subtitle = stringResource(R.string.ask_again_after_leaving_the_app_sessions_keep),
                     checked = settings.lockOnBackground,
-                    enabled = appLock || pinSet,
+                    enabled = appLock || pinSet || securityKeys,
                     onCheckedChange = { v -> set { it.copy(lockOnBackground = v) } },
                 )
                 RowDivider()
@@ -375,7 +379,7 @@ fun SettingsScreen(
                 ChevronRow(
                     title = stringResource(R.string.lock_after),
                     badge = lockDelays.firstOrNull { it.first == settings.lockAfterSeconds }?.let { stringResource(it.second) } ?: stringResource(R.string.n_seconds_short, settings.lockAfterSeconds.toLong()),
-                    modifier = Modifier.clickable(enabled = (appLock || pinSet) && settings.lockOnBackground) { delayPicker = true },
+                    modifier = Modifier.clickable(enabled = (appLock || pinSet || securityKeys) && settings.lockOnBackground) { delayPicker = true },
                 )
                 RowDivider()
                 ChevronRow(
@@ -388,6 +392,13 @@ fun SettingsScreen(
                     modifier = Modifier.clickable { pinMenu = true },
                 )
                 RowDivider()
+                ChevronRow(
+                    title = stringResource(R.string.security_keys),
+                    subtitle = stringResource(R.string.use_your_security_key_to_open_labterm),
+                    badge = if (securityKeys) stringResource(R.string.on) else stringResource(R.string.off),
+                    modifier = Modifier.clickable { securityKeysDialog = true },
+                )
+                RowDivider()
                 SwitchRow(
                     title = stringResource(R.string.remember_key_passphrases_in_memory),
                     subtitle = stringResource(R.string.key_passphrases_kept_in_ram_until_vault_locked),
@@ -395,7 +406,7 @@ fun SettingsScreen(
                     onCheckedChange = { v -> set { it.copy(cachePassphrases = v) } },
                 )
                 RowDivider()
-                if (appLock) {
+                if (appLock || securityKeys) {
                     ChevronRow(
                         title = stringResource(R.string.lock_now),
                         subtitle = stringResource(R.string.cover_the_app_until_you_authenticate_sessions_stay),

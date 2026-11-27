@@ -1,6 +1,7 @@
 package dev.labdex.labterm.ui.vault
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -53,10 +54,14 @@ import androidx.compose.ui.unit.sp
 import dev.labdex.labterm.R
 import dev.labdex.labterm.core.VaultInfo
 import dev.labdex.labterm.core.VaultKind
+import dev.labdex.labterm.ui.components.IconCatalog
 import dev.labdex.labterm.ui.components.TileColors
+import dev.labdex.labterm.ui.components.distroVector
+import dev.labdex.labterm.ui.components.rememberCustomIcon
 
-/** A stable colour per vault until the vault carries its own. */
+/** The vault's own colour (set in its settings), else a stable pick. */
 private fun tileColor(v: VaultInfo): Color {
+    TileColors.parse(v.color)?.let { return it }
     val i = Math.floorMod(v.id.hashCode(), TileColors.palette.size)
     return TileColors.parse(TileColors.palette[i]) ?: Color.Gray
 }
@@ -86,8 +91,14 @@ fun VaultTile(v: VaultInfo, pinned: Boolean, active: Boolean, size: Dp = 40.dp) 
                 .then(if (pinned) Modifier else Modifier.border(BorderStroke(1.5.dp, color), shape)),
             contentAlignment = Alignment.Center,
         ) {
+            val custom = rememberCustomIcon(v.icon)
+            val picked = remember(v.icon) { IconCatalog.picked(v.icon) }
             if (v.locked) {
                 Icon(Icons.Filled.Lock, contentDescription = null, tint = if (pinned) Color.White else color, modifier = Modifier.size(size * 0.45f))
+            } else if (custom != null) {
+                Image(bitmap = custom, contentDescription = null, modifier = Modifier.size(size * 0.65f))
+            } else if (picked != null) {
+                Icon(distroVector(picked), contentDescription = null, tint = if (pinned) Color.White else color, modifier = Modifier.size(size * 0.55f))
             } else {
                 Text(
                     initials(vaultLabel(v)),

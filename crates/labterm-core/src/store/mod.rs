@@ -46,7 +46,7 @@ pub use logs::{LogItem, LogMeta, LogRow, MAX_CAPTURE_BYTES, Recorder};
 
 const SCHEMA: &str = include_str!("schema.sql");
 const ACCOUNT_AVATAR: &str = "account_avatar";
-const SCHEMA_VERSION: i64 = 6;
+const SCHEMA_VERSION: i64 = 7;
 
 /// Schema 1 → 2: team session logs (per-vault logging flag and cursor,
 /// author / pin / note on log rows).
@@ -83,6 +83,14 @@ BEGIN;
 ALTER TABLE collections ADD COLUMN cursor INTEGER NOT NULL DEFAULT 0;
 COMMIT;";
 
+/// Schema 6 → 7: vault tile colour and icon (mirrored from the server; the
+/// local vault keeps its own).
+const MIGRATE_V7: &str = "
+BEGIN;
+ALTER TABLE vaults ADD COLUMN color TEXT;
+ALTER TABLE vaults ADD COLUMN icon TEXT;
+COMMIT;";
+
 /// A vault as seen by this device.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LocalVault {
@@ -108,6 +116,12 @@ pub struct LocalVault {
     pub logs_cursor: i64,
     /// The team's first vault: can be renamed but not deleted.
     pub is_default: bool,
+    /// Tile colour (`#rrggbb`), see [`labterm_proto::style`].
+    #[serde(default)]
+    pub color: Option<String>,
+    /// Icon: a built-in id or a `custom:data:` image.
+    #[serde(default)]
+    pub icon: Option<String>,
 }
 
 /// Vault kind including the device-only local vault.
@@ -286,6 +300,9 @@ impl Store {
                     // from the schema run at open.
                     store.conn().execute_batch(MIGRATE_V6)?;
                 }
+                if from < 7 {
+                    store.conn().execute_batch(MIGRATE_V7)?;
+                }
                 store.set_meta("schema_version", &SCHEMA_VERSION.to_string())?;
             }
             Some(_) => {
@@ -444,7 +461,7 @@ impl Store {
         let conn = self.conn();
         let mut st = conn.prepare(
             "SELECT id, kind, name, team_id, role, wrapped_key IS NOT NULL, key_version, cursor,
-                    session_logging, logs_cursor, is_default
+                    session_logging, logs_cursor, is_default, color, icon
              FROM vaults ORDER BY kind = 'local' DESC, kind, name",
         )?;
         let rows = st.query_map([], |r| {
@@ -460,6 +477,8 @@ impl Store {
                 r.get::<_, bool>(8)?,
                 r.get::<_, i64>(9)?,
                 r.get::<_, bool>(10)?,
+                r.get::<_, Option<String>>(11)?,
+                r.get::<_, Option<String>>(12)?,
             ))
         })?;
         let mut out = Vec::new();
@@ -476,6 +495,8 @@ impl Store {
                 session_logging,
                 logs_cursor,
                 is_default,
+                color,
+                icon,
             ) = row?;
             out.push(LocalVault {
                 id: parse_uuid(&id)?,
@@ -489,6 +510,8 @@ impl Store {
                 session_logging,
                 logs_cursor,
                 is_default,
+                color,
+                icon,
             });
         }
         Ok(out)
@@ -588,6 +611,19 @@ impl Store {
         self.conn().execute(
             "UPDATE vaults SET session_logging = ?2 WHERE id = ?1",
             params![id.to_string(), on],
+        )?;
+        Ok(())
+    }
+
+    /// Set a vault's tile colour and icon: mirrored from the server for synced
+    /// vaults, set by the user for the local one. Values are validated by
+    /// [`labterm_proto::style`]; anything else is stored as `NULL`.
+    pub fn set_vault_style(&self, id: Uuid, color: Option<&str>, icon: Option<&str>) -> Result<()> {
+        let color = labterm_proto::style::normalize_color(color).ok().flatten();
+        let icon = labterm_proto::style::normalize_icon(icon).ok().flatten();
+        self.conn().execute(
+            "UPDATE vaults SET color = ?2, icon = ?3 WHERE id = ?1",
+            params![id.to_string(), color, icon],
         )?;
         Ok(())
     }
@@ -970,7 +1006,9 @@ mod tests {
             store
                 .conn()
                 .execute_batch(
-                    "ALTER TABLE entities DROP COLUMN collection_id;
+                    "ALTER TABLE vaults DROP COLUMN color;
+                     ALTER TABLE vaults DROP COLUMN icon;
+                     ALTER TABLE entities DROP COLUMN collection_id;
                      ALTER TABLE vaults DROP COLUMN is_default;
                      ALTER TABLE vaults DROP COLUMN session_logging;
                      ALTER TABLE vaults DROP COLUMN logs_cursor;

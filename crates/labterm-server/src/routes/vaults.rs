@@ -150,8 +150,9 @@ fn validate_sealed(sealed: &str) -> ApiResult<()> {
 
 #[utoipa::path(get, path = "/api/v1/vaults", tag = "vaults", responses((status = 200, body = VaultList)))]
 pub async fn list(State(state): State<AppState>, auth: Auth) -> ApiResult<Json<VaultList>> {
-    let rows: Vec<(Uuid, String, Option<Uuid>, String, OffsetDateTime, String, Option<String>, i32, bool, bool)> = sqlx::query_as(
-        "SELECT v.id, v.kind, v.team_id, v.name, v.created_at, vm.role, vm.sealed_key, v.key_version, v.session_logging, v.is_default
+    #[allow(clippy::type_complexity)]
+    let rows: Vec<(Uuid, String, Option<Uuid>, String, OffsetDateTime, String, Option<String>, i32, bool, bool, Option<String>, Option<String>)> = sqlx::query_as(
+        "SELECT v.id, v.kind, v.team_id, v.name, v.created_at, vm.role, vm.sealed_key, v.key_version, v.session_logging, v.is_default, v.color, v.icon
          FROM vaults v JOIN vault_members vm ON vm.vault_id = v.id
          WHERE vm.user_id = $1 AND v.deleted_at IS NULL
          ORDER BY v.kind, v.created_at",
@@ -174,6 +175,8 @@ pub async fn list(State(state): State<AppState>, auth: Auth) -> ApiResult<Json<V
                     key_version,
                     session_logging,
                     is_default,
+                    color,
+                    icon,
                 )| Vault {
                     id,
                     kind: if kind == "team" {
@@ -189,6 +192,8 @@ pub async fn list(State(state): State<AppState>, auth: Auth) -> ApiResult<Json<V
                     key_version,
                     session_logging,
                     is_default,
+                    color,
+                    icon,
                 },
             )
             .collect(),
@@ -202,14 +207,17 @@ pub async fn get(
     Path(id): Path<Uuid>,
 ) -> ApiResult<Json<Vault>> {
     let a = access(&state.db, id, auth.user_id()).await?;
-    let (name, created_at, sealed_key, session_logging, is_default): (
+    #[allow(clippy::type_complexity)]
+    let (name, created_at, sealed_key, session_logging, is_default, color, icon): (
         String,
         OffsetDateTime,
         Option<String>,
         bool,
         bool,
+        Option<String>,
+        Option<String>,
     ) = sqlx::query_as(
-        "SELECT v.name, v.created_at, vm.sealed_key, v.session_logging, v.is_default FROM vaults v
+        "SELECT v.name, v.created_at, vm.sealed_key, v.session_logging, v.is_default, v.color, v.icon FROM vaults v
          LEFT JOIN vault_members vm ON vm.vault_id = v.id AND vm.user_id = $2 WHERE v.id = $1",
     )
     .bind(id)
@@ -227,6 +235,8 @@ pub async fn get(
         key_version: a.key_version,
         session_logging,
         is_default,
+        color,
+        icon,
     }))
 }
 
@@ -317,6 +327,8 @@ pub async fn create_team_vault(
         key_version: 1,
         session_logging: false,
         is_default,
+        color: None,
+        icon: None,
     }))
 }
 
@@ -374,6 +386,33 @@ pub async fn update(
             .await;
             changed = true;
         }
+    }
+    if req.color.is_some() || req.icon.is_some() {
+        let (color, icon) = crate::style::validate(req.color.as_deref(), req.icon.as_deref())?;
+        if let Some(color) = &color {
+            sqlx::query("UPDATE vaults SET color = $2, updated_at = now() WHERE id = $1")
+                .bind(id)
+                .bind(color)
+                .execute(&state.db)
+                .await?;
+        }
+        if let Some(icon) = &icon {
+            sqlx::query("UPDATE vaults SET icon = $2, updated_at = now() WHERE id = $1")
+                .bind(id)
+                .bind(icon)
+                .execute(&state.db)
+                .await?;
+        }
+        if let Some(team_id) = a.team_id {
+            audit::record(
+                &state.db,
+                audit::Entry::new(team_id, &auth, "vault.style")
+                    .vault(id)
+                    .details(crate::style::audit_details(&color, &icon)),
+            )
+            .await;
+        }
+        changed = true;
     }
     if changed {
         events::publish(

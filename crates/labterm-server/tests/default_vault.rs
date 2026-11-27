@@ -87,6 +87,8 @@ async fn first_team_vault_is_default_and_undeletable() {
             Some(&UpdateVaultRequest {
                 name: Some("Main".into()),
                 session_logging: None,
+                color: None,
+                icon: None,
             }),
         )
         .await;

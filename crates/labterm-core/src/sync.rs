@@ -1239,11 +1239,40 @@ impl SyncEngine {
                 &UpdateVaultRequest {
                     name: None,
                     session_logging: Some(on),
+                    color: None,
+                    icon: None,
                 },
             )
             .await?;
         self.store
             .set_vault_session_logging(vault_id, v.session_logging)?;
+        self.emit(SyncEvent::VaultsChanged);
+        Ok(())
+    }
+
+    /// Set a synced vault's tile colour and icon (vault manager only). They
+    /// live next to the name on the server, so every member sees them, even
+    /// before unlocking. `None` clears.
+    pub async fn set_vault_style(
+        &self,
+        vault_id: Uuid,
+        color: Option<String>,
+        icon: Option<String>,
+    ) -> Result<()> {
+        let v = self
+            .api
+            .update_vault(
+                vault_id,
+                &UpdateVaultRequest {
+                    name: None,
+                    session_logging: None,
+                    color: Some(color.unwrap_or_default()),
+                    icon: Some(icon.unwrap_or_default()),
+                },
+            )
+            .await?;
+        self.store
+            .set_vault_style(vault_id, v.color.as_deref(), v.icon.as_deref())?;
         self.emit(SyncEvent::VaultsChanged);
         Ok(())
     }

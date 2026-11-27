@@ -20,6 +20,7 @@ struct VaultTile: View {
     var size: CGFloat = 40
 
     private var color: Color {
+        if let own = TileColors.color(vault.color) { return own }
         var h: UInt32 = 0
         for u in vault.id.unicodeScalars { h = h &* 31 &+ u.value }
         return TileColors.color(TileColors.palette[Int(h % UInt32(TileColors.palette.count))]) ?? .gray
@@ -40,6 +41,18 @@ struct VaultTile: View {
             .frame(width: size, height: size)
             if vault.locked {
                 Image(systemName: "lock.fill").foregroundStyle(pinned ? .white : color)
+            } else if let custom = CustomIcon.image(vault.icon) {
+                Image(uiImage: custom)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: size * 0.65, height: size * 0.65)
+            } else if let glyph = DistroIcons.picked(vault.icon) {
+                glyph.image
+                    .resizable()
+                    .renderingMode(.template)
+                    .aspectRatio(contentMode: .fit)
+                    .foregroundStyle(pinned ? .white : color)
+                    .frame(width: size * 0.55, height: size * 0.55)
             } else {
                 Text(initials)
                     .font(.system(size: size * 0.34, weight: .bold))

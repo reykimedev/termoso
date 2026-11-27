@@ -43,6 +43,10 @@ export interface VaultRec {
   cursor: number;
   is_default: boolean;
   session_logging: boolean;
+  /** Tile colour (`#rrggbb`): the server's for synced vaults, this browser's for the local one. */
+  color?: string | null;
+  /** Icon: a built-in id or a `custom:data:` image. */
+  icon?: string | null;
 }
 
 export interface Ent<T = Record<string, unknown>> {

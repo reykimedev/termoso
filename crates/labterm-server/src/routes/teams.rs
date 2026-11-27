@@ -104,11 +104,13 @@ pub async fn list(State(state): State<AppState>, auth: Auth) -> ApiResult<Json<T
         String,
         String,
         Vec<String>,
+        Option<String>,
+        Option<String>,
     )> = sqlx::query_as(
         "SELECT t.id, t.name, t.created_at, m.role,
                 (SELECT count(*) FROM team_members x WHERE x.team_id = t.id),
                 t.multiplayer_enabled, t.require_mfa, t.presence_enabled,
-                r.id, r.slug, r.name, r.permissions
+                r.id, r.slug, r.name, r.permissions, t.color, t.icon
          FROM teams t JOIN team_members m ON m.team_id = t.id
          JOIN team_roles r ON r.id = m.role_id
          WHERE m.user_id = $1 ORDER BY t.created_at",
@@ -133,6 +135,8 @@ pub async fn list(State(state): State<AppState>, auth: Auth) -> ApiResult<Json<T
                     role_slug,
                     role_name,
                     role_perms,
+                    color,
+                    icon,
                 )| {
                     let level = parse_team_role(&role);
                     let (my_role_ref, my_permissions) =
@@ -149,6 +153,8 @@ pub async fn list(State(state): State<AppState>, auth: Auth) -> ApiResult<Json<T
                         require_mfa,
                         presence_enabled,
                         policies: None,
+                        color,
+                        icon,
                     }
                 },
             )
@@ -215,6 +221,8 @@ pub async fn create(
         require_mfa: false,
         presence_enabled: false,
         policies: None,
+        color: None,
+        icon: None,
     }))
 }
 
@@ -226,16 +234,28 @@ pub async fn get(
 ) -> ApiResult<Json<Team>> {
     let membership = crate::authz::membership(&state.db, id, auth.user_id()).await?;
     let role = membership.level;
-    let (name, created_at, member_count, multiplayer_enabled, require_mfa, presence_enabled): (
+    #[allow(clippy::type_complexity)]
+    let (
+        name,
+        created_at,
+        member_count,
+        multiplayer_enabled,
+        require_mfa,
+        presence_enabled,
+        color,
+        icon,
+    ): (
         String,
         OffsetDateTime,
         i64,
         bool,
         bool,
         bool,
+        Option<String>,
+        Option<String>,
     ) = sqlx::query_as(
         "SELECT name, created_at, (SELECT count(*) FROM team_members WHERE team_id = $1),
-                multiplayer_enabled, require_mfa, presence_enabled
+                multiplayer_enabled, require_mfa, presence_enabled, color, icon
          FROM teams WHERE id = $1",
     )
     .bind(id)
@@ -253,6 +273,8 @@ pub async fn get(
         require_mfa,
         presence_enabled,
         policies: Some(crate::policy::load(&state.db, id).await?),
+        color,
+        icon,
     }))
 }
 
@@ -338,6 +360,29 @@ pub async fn update(
             presence::clear_team(&state, id).await?;
         }
         events::publish(&state, Event::PresenceChanged { team_id: id }).await?;
+    }
+    if req.color.is_some() || req.icon.is_some() {
+        let (color, icon) = crate::style::validate(req.color.as_deref(), req.icon.as_deref())?;
+        if let Some(color) = &color {
+            sqlx::query("UPDATE teams SET color = $2, updated_at = now() WHERE id = $1")
+                .bind(id)
+                .bind(color)
+                .execute(&state.db)
+                .await?;
+        }
+        if let Some(icon) = &icon {
+            sqlx::query("UPDATE teams SET icon = $2, updated_at = now() WHERE id = $1")
+                .bind(id)
+                .bind(icon)
+                .execute(&state.db)
+                .await?;
+        }
+        audit::record(
+            &state.db,
+            audit::Entry::new(id, &auth, "team.style")
+                .details(crate::style::audit_details(&color, &icon)),
+        )
+        .await;
     }
     events::publish(
         &state,
