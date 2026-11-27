@@ -13,7 +13,7 @@ What Labterm Web protects, from whom, and where it stops. Update it when a new w
 | Vault contents: SSH keys, passwords, host list | Encrypted on the Labterm server; decrypted only inside the browser tab |
 | SSH sessions | End to end between the browser and the host; the relay carries ciphertext |
 | Known host keys | The user's Labterm vault, synced from their devices |
-| This browser's copy of the vault | IndexedDB, sealed with AES-GCM under a random data key, wrapped by the lock password (Argon2id) and by each enrolled passkey's PRF value ([0014](decisions/0014-passkey-unlock-with-prf.md), proposed) |
+| This browser's copy of the vault | IndexedDB, sealed with AES-GCM under a random data key, wrapped by the lock password (Argon2id) and by each enrolled passkey's PRF value ([0014](decisions/0014-passkey-unlock-with-prf.md)) |
 | Access to the home network | The relay, limited by the allowlist |
 | The integrity of the app's code | Signed release manifest, checked by the loader and service worker |
 

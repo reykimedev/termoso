@@ -126,19 +126,24 @@ export async function setUp(password: string): Promise<void> {
   key = await db.create(password, JSON.stringify(state));
 }
 
-export async function changePassword(password: string): Promise<void> {
-  key = await db.create(password, JSON.stringify(s()));
-}
-
 export async function unlock(password: string): Promise<boolean> {
   const r = await db.unlock(password);
   if (!r) return false;
+  opened(r);
+  return true;
+}
+
+/** Opens with a passkey's answer (decision 0014); throws when it doesn't open. */
+export async function unlockPasskey(a: db.PrfAnswer): Promise<void> {
+  opened(await db.unlockPasskey(a));
+}
+
+function opened(r: db.Opened) {
   key = r.key;
   const loadedState = { ...fresh(), ...(JSON.parse(r.state) as Partial<State>) };
   loadedState.settings = { ...defaultSettings(), ...loadedState.settings };
   if (!loadedState.vaults.some((v) => v.kind === "local")) loadedState.vaults.unshift(localVault());
   state = loadedState;
-  return true;
 }
 
 export async function lock(): Promise<void> {
