@@ -1120,17 +1120,25 @@ pub async fn wake_host(mac: String, broadcast: Option<String>) -> Result<usize> 
     Ok(labterm_core::wol::wake(&mac, target).await?)
 }
 
-/// Encrypt the given vaults (all unlocked when empty) into a `.labterm` file.
+/// Encrypt the given vaults (all unlocked when empty) into a `.labterm` file;
+/// `keep_open` also keeps it open for `backup_restore` (server move).
 #[tauri::command]
 pub async fn backup_export(
     state: State<'_, AppState>,
     vault_ids: Vec<Uuid>,
     password: String,
     path: String,
+    keep_open: Option<bool>,
 ) -> Result<BackupSummary> {
     let store = state.store()?.clone();
     tauri::async_runtime::spawn_blocking(move || {
-        backup::export_file(&store, &vault_ids, &password, &path)
+        backup::export_file(
+            &store,
+            &vault_ids,
+            &password,
+            &path,
+            keep_open.unwrap_or(false),
+        )
     })
     .await
     .map_err(|e| crate::error::DesktopError::new("backup", e.to_string()))?

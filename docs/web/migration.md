@@ -6,6 +6,9 @@ example from Termoso Cloud to your own Labterm server.
 
 ## From one account or server to another
 
+**Move…** under Settings → Account & sync → Backup walks through these steps; see
+[Moving to another server](../MOVING_SERVERS.md). By hand:
+
 1. Sign in to the old account (in Labterm Web or a Labterm app), open **Settings → Account & sync →
    Export…**, pick the vaults and set a backup password (at least 8 characters). Labterm Web downloads
    the file.

@@ -106,8 +106,12 @@ function summary(previewId: Uuid, p: Payload, path: string | null) {
   };
 }
 
-/** Seals `vaultIds` (every unlocked vault the team policies allow, when empty) and downloads it. */
-export function exportTo(vaultIds: Uuid[], password: string, path: string) {
+/**
+ * Seals `vaultIds` (every unlocked vault the team policies allow, when empty) and downloads it.
+ * `keepOpen` also keeps it open for `restore` (the move to another server restores it after
+ * signing in there; the download cannot be read back).
+ */
+export function exportTo(vaultIds: Uuid[], password: string, path: string, keepOpen = false) {
   let ids = vaultIds;
   if (ids.length === 0)
     ids = s()
@@ -126,11 +130,18 @@ export function exportTo(vaultIds: Uuid[], password: string, path: string) {
   } finally {
     plain.fill(0);
   }
-  return summary(NIL, payload, path);
+  return summary(keepOpen ? remember(payload) : NIL, payload, path);
 }
 
 // Opened backups wait here for `restore`, as on the desktop (at most four).
 const previews = new Map<Uuid, Payload>();
+
+function remember(payload: Payload): Uuid {
+  const id = crypto.randomUUID();
+  if (previews.size >= 4) previews.clear();
+  previews.set(id, payload);
+  return id;
+}
 
 export async function inspect(path: string, password: string) {
   const bytes = await files.read(path);
@@ -145,10 +156,7 @@ export async function inspect(path: string, password: string) {
   }
   if (!Array.isArray(payload.vaults)) fail("invalid", "not a Labterm backup file");
   files.forget(path);
-  const id = crypto.randomUUID();
-  if (previews.size >= 4) previews.clear();
-  previews.set(id, payload);
-  return summary(id, payload, path);
+  return summary(remember(payload), payload, path);
 }
 
 export function discard(previewId: Uuid) {

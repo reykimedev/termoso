@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Security
@@ -89,6 +90,7 @@ fun AccountScreen(
     onTeams: () -> Unit,
     onSshId: () -> Unit,
     onSecurityKeys: () -> Unit,
+    onMoveServer: () -> Unit,
 ) {
     val status by account.status.collectAsStateWithLifecycle()
     val hidden by shell.presence.hidden.collectAsStateWithLifecycle()
@@ -367,6 +369,13 @@ fun AccountScreen(
 
             Spacer(Modifier.height(16.dp))
             SectionCard {
+                ChevronRow(
+                    title = stringResource(R.string.move_server),
+                    subtitle = stringResource(R.string.move_server_hint),
+                    leading = { IconTile(Icons.AutoMirrored.Filled.ArrowForward) },
+                    modifier = Modifier.clickable(onClick = onMoveServer),
+                )
+                RowDivider()
                 ListRow(
                     title = stringResource(R.string.sign_out),
                     subtitle = stringResource(R.string.synced_vaults_are_removed_from_this_device_local),

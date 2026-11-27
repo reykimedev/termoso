@@ -11,6 +11,7 @@ import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import LockOpenRoundedIcon from "@mui/icons-material/LockOpenRounded";
 import BackupRoundedIcon from "@mui/icons-material/BackupRounded";
 import SettingsBackupRestoreRoundedIcon from "@mui/icons-material/SettingsBackupRestoreRounded";
+import DriveFileMoveRoundedIcon from "@mui/icons-material/DriveFileMoveRounded";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { PageBody } from "@/components/PageHeader";
@@ -40,11 +41,12 @@ import {
 } from "@/ipc/types";
 import { PendingForm, SignInForm, invalidateAll, pendingTitle, usePendingLogin } from "./SignIn";
 import { BackupDialog, pickBackupFile, type BackupMode } from "./BackupDialog";
+import { MoveServerCard, startMove } from "./MoveServer";
 import { tr, trn, trx } from "@/i18n";
 
 // ───────────────────────────── backup ─────────────────────────────
 
-function BackupCard() {
+function BackupCard({ signedIn }: { signedIn: boolean }) {
   const [mode, setMode] = useState<BackupMode | null>(null);
   return (
     <SectionCard title={tr("Backup")}>
@@ -66,7 +68,7 @@ function BackupCard() {
       <SettingRow
         label={tr("Restore from backup")}
         hint={tr("Merges a .labterm file into a vault of this device; nothing is deleted.")}
-        last
+        last={!signedIn}
         control={
           <Button
             variant="tonal"
@@ -81,6 +83,20 @@ function BackupCard() {
           </Button>
         }
       />
+      {signedIn && (
+        <SettingRow
+          label={tr("Move to another server")}
+          hint={tr(
+            "Back up everything, sign in to another server (your own, for example) and restore there.",
+          )}
+          last
+          control={
+            <Button variant="tonal" startIcon={<DriveFileMoveRoundedIcon />} onClick={startMove}>
+              {tr("Move…")}
+            </Button>
+          }
+        />
+      )}
       <BackupDialog
         key={mode === null ? "closed" : typeof mode === "string" ? mode : mode.path}
         mode={mode}
@@ -572,6 +588,7 @@ export function AccountPage() {
           <Loading />
         ) : (
           <>
+            {!status.error && <MoveServerCard status={status.data} />}
             {status.error ? (
               <Alert severity="error">{errorMessage(status.error)}</Alert>
             ) : status.data.account ? (
@@ -581,7 +598,7 @@ export function AccountPage() {
             ) : (
               <SignInCard onOutcome={onOutcome} />
             )}
-            <BackupCard />
+            <BackupCard signedIn={!status.error && status.data.account !== null} />
           </>
         )}
       </Stack>

@@ -35,8 +35,8 @@ import { tr, trn, trx, msg } from "@/i18n";
 
 export type BackupMode = "export" | { kind: "restore"; path: string };
 
-const MIN_PASSWORD = 8;
-const EXT = "labterm";
+export const MIN_PASSWORD = 8;
+export const EXT = "labterm";
 
 const KIND_LABEL: Record<string, [string, string]> = {
   host: [msg("{count} host"), msg("{count} hosts")],
@@ -56,7 +56,7 @@ const KIND_LABEL: Record<string, [string, string]> = {
   webdav_config: [msg("{count} WebDAV config"), msg("{count} WebDAV configs")],
 };
 
-function countsLine(v: BackupVaultSummary) {
+export function countsLine(v: BackupVaultSummary) {
   const parts = Object.entries(v.counts)
     .filter(([k]) => k in KIND_LABEL)
     .sort((a, b) => b[1] - a[1])
@@ -68,7 +68,7 @@ function countsLine(v: BackupVaultSummary) {
   return parts.length ? parts.join(" · ") : trn(v.entities, "{count} item", "{count} items");
 }
 
-function fileStamp() {
+export function fileStamp() {
   const d = new Date();
   const p = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
@@ -97,7 +97,7 @@ export function BackupDialog({ mode, onClose }: { mode: BackupMode | null; onClo
 
 // ───────────────────────────── export ─────────────────────────────
 
-function PasswordFields({
+export function PasswordFields({
   password,
   confirm,
   onPassword,
@@ -310,7 +310,7 @@ function Summary({ summary }: { summary: BackupSummary }) {
   );
 }
 
-const fakeVault = (v: BackupVaultSummary): LocalVault => ({
+export const fakeVault = (v: BackupVaultSummary): LocalVault => ({
   id: v.id,
   kind: v.kind,
   name: v.name,
