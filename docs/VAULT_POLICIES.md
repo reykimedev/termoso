@@ -112,7 +112,11 @@ including the server. Collection keys use authenticated, bound envelopes instead
 - **Signing key:** accounts only have an X25519 key today, so log entries are signed with an
   Ed25519 key derived from the account private key (HKDF, its own label). Every device of the
   account derives the same key and nothing new is stored. An account's identity is both public
-  keys; members pin the pair and compare a fingerprint over both.
+  keys; members pin the pair and compare a fingerprint over both. Clients publish the public half
+  with `PUT /account/signing-key` and a proof of possession (a signature over the account id and
+  both public keys), and vault member lists carry it so managers can name members in a log. The
+  proof stops an account from claiming someone else's key; only the fingerprint check stops the
+  server from swapping a whole identity.
 - **Trust anchor for the manager roster:** the log's first entry is signed by the creator, and a
   manager can only be added by an entry signed by an existing manager, so the server can't name
   its own manager. A member who opens the collection for the first time pins the creator's key and
@@ -170,8 +174,10 @@ their old copy (tidiness, not protection).
 - Routes: `GET|POST /vaults/{id}/collections`, `GET|POST /collections/{id}/log` (append signed
   entries and key envelopes), `GET /collections/{id}/keys`, `POST /collections/{id}/sync/push`
   and `POST /collections/sync/pull`. The server replays the log on every append and refuses
-  entries that aren't the sender's own, members outside the vault, and keys that aren't the
-  account's registered key, so its member list matches what clients verify.
+  entries that aren't the sender's own, members outside the vault, and identities that don't match
+  the account's registered box key and published signing key, so its member list matches what
+  clients verify. A published signing key can't be replaced; it's cleared only when the account
+  key itself changes (start over).
 - Collection rows never appear in `/sync/pull` or `/sync/push`, and the vault routes can't update
   or delete them. `/collections/sync/pull` returns them only to members, with a cursor per
   collection so a member added later gets the rows below their vault cursor (R9).

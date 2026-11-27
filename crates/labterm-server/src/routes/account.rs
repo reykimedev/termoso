@@ -97,6 +97,67 @@ pub async fn put_presence(
     Ok(Json(users::profile(&u, mfa, is_owner)))
 }
 
+// ───────────────────────────── signing key ─────────────────────────────
+
+/// Publish the account's Ed25519 signing key. The proof shows the caller holds
+/// the key and bound it to this account and its current box key. Once set it
+/// can't be replaced: it's derived from the account key, so a different one
+/// means someone else is trying to claim the account in collection logs.
+#[utoipa::path(put, path = "/api/v1/account/signing-key", tag = "account",
+    request_body = PublishSigningKeyRequest, responses((status = 204), (status = 409)))]
+pub async fn put_signing_key(
+    State(state): State<AppState>,
+    auth: Auth,
+    Body(req): Body<PublishSigningKeyRequest>,
+) -> ApiResult<NoContent> {
+    use labterm_crypto::encoding::b64;
+    use labterm_crypto::signing::{AccountIdentity, SIGNATURE_LEN};
+
+    let sign_public = unb64_array::<32>(&req.sign_public)
+        .map_err(|_| Error::bad_request("sign_public must be 32 bytes"))?;
+    let proof = unb64_array::<SIGNATURE_LEN>(&req.proof)
+        .map_err(|_| Error::bad_request("proof must be 64 bytes"))?;
+    let (public_key, current): (String, Option<String>) =
+        sqlx::query_as("SELECT public_key, sign_public_key FROM users WHERE id = $1")
+            .bind(auth.user_id())
+            .fetch_one(&state.db)
+            .await?;
+    let box_public = unb64_array::<32>(&public_key)
+        .map_err(|_| Error::conflict("The account has no usable public key"))?;
+    let identity = AccountIdentity {
+        box_public,
+        sign_public,
+    };
+    identity
+        .verify_binding(&auth.user_id().to_string(), &proof)
+        .map_err(|_| Error::bad_request("The proof doesn't verify"))?;
+    let sign_public = b64(&sign_public);
+    match current {
+        Some(c) if c == sign_public => return Ok(NoContent),
+        Some(_) => {
+            return Err(Error::conflict(
+                "A different signing key is already published",
+            ));
+        }
+        None => {}
+    }
+    // Same conditions again in the update, against a concurrent key change.
+    let res = sqlx::query(
+        "UPDATE users SET sign_public_key = $2, sign_key_proof = $3, updated_at = now()
+         WHERE id = $1 AND public_key = $4 AND sign_public_key IS NULL",
+    )
+    .bind(auth.user_id())
+    .bind(&sign_public)
+    .bind(b64(&proof))
+    .bind(&public_key)
+    .execute(&state.db)
+    .await?;
+    if res.rows_affected() == 0 {
+        return Err(Error::conflict("The account keys changed, try again"));
+    }
+    Ok(NoContent)
+}
+
 // ───────────────────────────── avatar ─────────────────────────────
 
 #[utoipa::path(put, path = "/api/v1/account/avatar", tag = "account",

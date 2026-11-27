@@ -16,12 +16,14 @@ use sha2::{Digest, Sha256};
 use zeroize::Zeroizing;
 
 use crate::CryptoError;
+use crate::canon::Canon;
 use crate::encoding::serde_b64_array;
 use crate::keys::KeyPair;
 
 const SIGNING_SALT: &[u8] = b"termoso/v1/account-signing";
 const SIGNING_INFO: &[u8] = b"ed25519 seed";
 const FINGERPRINT_LABEL: &[u8] = b"termoso/v1/account-fingerprint";
+const BINDING_LABEL: &str = "termoso/v1/sign-key-binding";
 
 /// Length of an Ed25519 signature.
 pub const SIGNATURE_LEN: usize = 64;
@@ -79,6 +81,25 @@ impl AccountIdentity {
         key.verify_strict(message, &Signature::from_bytes(signature))
             .map_err(|_| CryptoError::Signature)
     }
+
+    /// Check a proof from [`AccountSigner::binding_proof`]: the holder of the
+    /// signing key bound it to this box key and account id.
+    pub fn verify_binding(
+        &self,
+        user_id: &str,
+        proof: &[u8; SIGNATURE_LEN],
+    ) -> Result<(), CryptoError> {
+        self.verify(&binding_message(user_id, self), proof)
+    }
+}
+
+/// What a binding proof signs: the account id and both public keys.
+fn binding_message(user_id: &str, identity: &AccountIdentity) -> Vec<u8> {
+    let mut c = Canon::new(BINDING_LABEL);
+    c.str(user_id)
+        .fixed(&identity.box_public)
+        .fixed(&identity.sign_public);
+    c.finish()
 }
 
 impl std::fmt::Debug for AccountIdentity {
@@ -117,6 +138,14 @@ impl AccountSigner {
     /// Sign `message`.
     pub fn sign(&self, message: &[u8]) -> [u8; SIGNATURE_LEN] {
         self.key.sign(message).to_bytes()
+    }
+
+    /// Proof of possession for publishing the signing key: a signature over
+    /// the account id and both public keys. It stops an account from claiming
+    /// someone else's signing key. It does not stop a server from swapping
+    /// the whole identity, which is what fingerprints are for.
+    pub fn binding_proof(&self, user_id: &str) -> [u8; SIGNATURE_LEN] {
+        self.sign(&binding_message(user_id, &self.identity))
     }
 }
 
@@ -172,6 +201,30 @@ mod tests {
         assert_ne!(s.identity().fingerprint(), swapped.fingerprint());
         let short = s.identity().short_fingerprint();
         assert_eq!(short.len(), 8 * 4 + 7);
+    }
+
+    #[test]
+    fn binding_proof_ties_the_key_to_account_and_box_key() {
+        let s = AccountSigner::derive(&KeyPair::generate()).unwrap();
+        let proof = s.binding_proof("user-a");
+        s.identity().verify_binding("user-a", &proof).unwrap();
+        assert!(s.identity().verify_binding("user-b", &proof).is_err());
+
+        // Someone else's signing key next to my box key doesn't verify.
+        let other = AccountSigner::derive(&KeyPair::generate()).unwrap();
+        let mut claimed = *other.identity();
+        claimed.box_public = s.identity().box_public;
+        assert!(
+            claimed
+                .verify_binding("user-a", &other.binding_proof("user-a"))
+                .is_err()
+        );
+        // A plain signature over the same bytes without the label doesn't either.
+        assert!(
+            s.identity()
+                .verify_binding("user-a", &s.sign(b"user-a"))
+                .is_err()
+        );
     }
 
     #[test]

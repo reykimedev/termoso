@@ -975,20 +975,8 @@ async fn restricted_group_rows_sync_only_through_collections() {
     let s = server_or_skip!();
     let email = unique_email("coll");
     let (a, _) = register(s, &email, PASSWORD).await;
-    // With mail configured the server only lets verified accounts create teams.
-    if s.mailpit.is_some() {
-        let token = a.store.account_secrets().unwrap().token;
-        let code = s.emailed_code(&email, "email verification").await;
-        let verified = s
-            .raw(
-                reqwest::Method::POST,
-                "/account/email/verify/confirm",
-                &token,
-                Some(json!({ "code": code })),
-            )
-            .await;
-        assert!(verified.status().is_success(), "{}", verified.status());
-    }
+    s.verify_email_if_mail(&email, &a.store.account_secrets().unwrap().token)
+        .await;
     let me = a.store.account().unwrap().unwrap();
     let pair = a.store.account_secrets().unwrap().private_key;
     let team = a
@@ -1016,6 +1004,20 @@ async fn restricted_group_rows_sync_only_through_collections() {
     let ea = engine(&a, SyncOptions::default());
 
     let coll = ea.create_collection(vault, "Prod").await.unwrap();
+    // Creating it published the account's signing key, with a proof that
+    // vault members can check.
+    let members = a.api.vault_members(vault).await.unwrap();
+    let mine = members
+        .members
+        .iter()
+        .find(|m| m.user_id == me.user_id)
+        .unwrap();
+    let identity = *a.store.account_signer().unwrap().identity();
+    let proof: [u8; 64] =
+        labterm_crypto::encoding::unb64_array(mine.sign_key_proof.as_ref().unwrap()).unwrap();
+    identity
+        .verify_binding(&me.user_id.to_string(), &proof)
+        .unwrap();
     let id = Uuid::new_v4();
     a.store
         .put_in_collection(vault, coll, id, &host("db1"))

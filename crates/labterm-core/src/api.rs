@@ -1160,6 +1160,14 @@ impl ApiClient {
 
     // ───────────────────────────── collections ─────────────────────────────
 
+    /// `PUT /account/signing-key`.
+    pub async fn put_signing_key(
+        &self,
+        req: &labterm_proto::account::PublishSigningKeyRequest,
+    ) -> Result<()> {
+        self.put_empty("account/signing-key", req).await
+    }
+
     /// `GET /vaults/{id}/collections`.
     pub async fn collections(
         &self,

@@ -106,18 +106,27 @@ fn user_uuid(s: &str) -> ApiResult<Uuid> {
     Uuid::parse_str(s).map_err(|_| Error::bad_request("Log names an unknown account"))
 }
 
-/// An identity in the log must carry the account's registered public key.
+/// An identity in the log must carry both of the account's registered
+/// public keys: the box key and the published signing key.
 async fn check_identity(
     tx: &mut Transaction<'_, Postgres>,
     user_id: &str,
     identity: &AccountIdentity,
 ) -> ApiResult<()> {
-    let row: Option<(String,)> = sqlx::query_as("SELECT public_key FROM users WHERE id = $1")
-        .bind(user_uuid(user_id)?)
-        .fetch_optional(&mut **tx)
-        .await?;
+    let row: Option<(String, Option<String>)> =
+        sqlx::query_as("SELECT public_key, sign_public_key FROM users WHERE id = $1")
+            .bind(user_uuid(user_id)?)
+            .fetch_optional(&mut **tx)
+            .await?;
     match row {
-        Some((pk,)) if pk == b64(&identity.box_public) => Ok(()),
+        Some((pk, Some(sk)))
+            if pk == b64(&identity.box_public) && sk == b64(&identity.sign_public) =>
+        {
+            Ok(())
+        }
+        Some((_, None)) => Err(Error::bad_request(
+            "An account in the log hasn't published its signing key yet",
+        )),
         _ => Err(Error::bad_request(
             "A key in the log isn't the account's registered key",
         )),

@@ -1567,7 +1567,7 @@ const USERS_INSERT_SQL: &str =
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
          ON CONFLICT DO NOTHING";
 const USERS_TAKEOVER_SQL: &str = "UPDATE users SET email = $2, email_verified = $3, display_name = COALESCE($4, display_name),
-        opaque_record = $5, public_key = $6, wrapped_private_key = $7, recovery_wrapped_private_key = $8,
+        opaque_record = $5, public_key = $6, sign_public_key = NULL, sign_key_proof = NULL, wrapped_private_key = $7, recovery_wrapped_private_key = $8,
         recovery_verifier_hash = $9, is_admin = $10, managed_by_team_id = COALESCE($11, managed_by_team_id)
      WHERE id = $1 AND opaque_record IS NULL";
 

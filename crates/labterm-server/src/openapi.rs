@@ -68,6 +68,7 @@ impl Modify for BearerAuth {
         crate::routes::account::get,
         crate::routes::account::update_profile,
         crate::routes::account::put_presence,
+        crate::routes::account::put_signing_key,
         crate::routes::account::put_avatar,
         crate::routes::account::delete_avatar,
         crate::routes::account::user_avatar,

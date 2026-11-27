@@ -508,9 +508,12 @@ pub async fn members(
         bool,
         String,
         OffsetDateTime,
+        Option<String>,
+        Option<String>,
     );
     let rows: Vec<Row> = sqlx::query_as(
-        "SELECT u.id, u.email, u.display_name, u.avatar_tag, vm.role, vm.key_version, vm.sealed_key IS NULL, u.public_key, vm.added_at
+        "SELECT u.id, u.email, u.display_name, u.avatar_tag, vm.role, vm.key_version, vm.sealed_key IS NULL, u.public_key, vm.added_at,
+                u.sign_public_key, u.sign_key_proof
          FROM vault_members vm JOIN users u ON u.id = vm.user_id WHERE vm.vault_id = $1
          ORDER BY vm.added_at LIMIT $2 OFFSET $3",
     )
@@ -542,6 +545,8 @@ pub async fn members(
                     pending,
                     public_key,
                     added_at,
+                    sign_public_key,
+                    sign_key_proof,
                 )| VaultMember {
                     user_id,
                     email,
@@ -551,6 +556,8 @@ pub async fn members(
                     key_version,
                     pending,
                     public_key,
+                    sign_public_key,
+                    sign_key_proof,
                     added_at,
                 },
             )

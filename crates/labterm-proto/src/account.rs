@@ -51,6 +51,17 @@ schema! {
 }
 
 schema! {
+    /// `PUT /account/signing-key`: publish the account's Ed25519 signing key.
+    pub struct PublishSigningKeyRequest {
+        /// Ed25519 public key (base64), derived from the account key.
+        pub sign_public: String,
+        /// Signature (base64) by that key over the account id and both public
+        /// keys (`labterm_crypto::signing::AccountSigner::binding_proof`).
+        pub proof: String,
+    }
+}
+
+schema! {
     /// Key material the client needs after login.
     pub struct AccountKeys {
         /// X25519 public key (base64).

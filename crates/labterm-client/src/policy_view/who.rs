@@ -196,6 +196,8 @@ mod tests {
             key_version: 1,
             pending: false,
             public_key: String::new(),
+            sign_public_key: None,
+            sign_key_proof: None,
             added_at: OffsetDateTime::UNIX_EPOCH,
         }
     }
