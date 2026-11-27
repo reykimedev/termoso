@@ -1928,6 +1928,12 @@
     <string name="icon_automatic">Автоматически</string>
     <string name="icon_folder">Папка</string>
     <string name="icon_custom">Свой</string>
+    <string name="icon_and_colour">Значок и цвет</string>
+    <string name="icon_colour">Цвет</string>
+    <string name="icon_colour_none">Без цвета</string>
+    <string name="icon_colour_hex">Цвет в hex (#rrggbb)</string>
+    <string name="icon_custom_image">Своё изображение…</string>
+    <string name="icon_custom_image_error">Это изображение не подходит. Выберите PNG, JPEG или WebP либо SVG до 16 КиБ.</string>
     <string name="icon_section_generic">Общие</string>
     <string name="icon_section_apps">Приложения и продукты</string>
     <string name="icon_section_systems">Операционные системы</string>

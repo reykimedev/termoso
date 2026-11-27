@@ -114,7 +114,7 @@ export function GroupTile({ g, size, cloud }: { g: GroupNode; size?: number; clo
   const picked = pickedIcon(g.icon);
   const custom = !picked && customIconSource(g.icon) ? g.icon : null;
   return (
-    <IconTile size={size} color={picked?.color} sx={{ position: "relative" }}>
+    <IconTile size={size} color={g.color ?? picked?.color} sx={{ position: "relative" }}>
       {picked ? (
         <DistroGlyph icon={picked} />
       ) : custom ? (

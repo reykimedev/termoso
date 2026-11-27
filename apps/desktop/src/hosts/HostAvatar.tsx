@@ -75,11 +75,14 @@ export function ProtocolGlyph({ protocol, ...props }: { protocol: GlyphProtocol 
   return <DnsRoundedIcon {...props} />;
 }
 
-/** Host tile: brand-coloured with the distro logo once the OS is known, neutral before. */
+/**
+ * Host tile: the user's colour if set, else brand-coloured with the distro
+ * logo once the OS is known, neutral before.
+ */
 export function HostAvatar({ host, size = sizes.tile }: { host: HostCard; size?: number }) {
   const icon = hostIcon(host);
   return (
-    <IconTile size={size} color={icon?.color}>
+    <IconTile size={size} color={host.color ?? icon?.color}>
       <HostGlyph osName={host.osName} icon={host.icon} protocol={host.protocol} />
     </IconTile>
   );

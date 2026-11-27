@@ -798,6 +798,7 @@ impl LabtermApp {
                 label: String::new(),
                 parent_id: None,
                 icon: None,
+                color: None,
                 defaults: hosts::SshDefaultsForm::default(),
             },
         };
@@ -807,6 +808,7 @@ impl LabtermApp {
             .icon
             .map(|i| i.trim().to_string())
             .filter(|i| !i.is_empty());
+        form.color = draft.color;
         draft.defaults.apply(&mut form.defaults)?;
         Ok(hosts::save_group_form(&self.store, &form)?.into())
     }

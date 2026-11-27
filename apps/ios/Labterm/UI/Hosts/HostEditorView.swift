@@ -118,6 +118,22 @@ struct HostEditorView: View {
                     Text("IPv6").tag("6")
                 }
                 groupPicker(binding)
+                NavigationLink {
+                    IconColorPicker(
+                        icon: binding.icon,
+                        color: binding.color,
+                        automaticLabel: "Automatic (detected OS)",
+                        preview: { icon, color in
+                            AnyView(HostAvatar(icon: icon, osName: current.osName, color: color, size: 64))
+                        }
+                    )
+                } label: {
+                    HStack {
+                        HostAvatar(icon: current.icon, osName: current.osName, color: current.color, size: 32)
+                        Text("Icon and colour")
+                    }
+                }
+                .accessibilityIdentifier("hostEditor.icon")
             }
 
             Section {
