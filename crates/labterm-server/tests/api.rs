@@ -417,6 +417,77 @@ async fn unauthenticated_requests_are_rejected() {
 }
 
 #[tokio::test]
+async fn sync_accepts_new_kinds_and_refuses_old_clients() {
+    let s = server!();
+    let u = register(s, &unique_email("kinds"), "pw-kinds-1234567").await;
+    let vaults: VaultList = s
+        .json(Method::GET, "/vaults", Some(u.token()), NOBODY)
+        .await;
+    let vault_id = vaults.vaults[0].id;
+    let key = &u.personal_vault_key;
+
+    // A kind this server has never heard of syncs: payloads are opaque.
+    let new_id = Uuid::new_v4();
+    let r: PushResponse = s
+        .json(
+            Method::POST,
+            "/sync/push",
+            Some(u.token()),
+            Some(&PushRequest {
+                protocol: labterm_proto::sync::SYNC_PROTOCOL,
+                changes: vec![EntityChange {
+                    id: new_id,
+                    kind: "spaceship".into(),
+                    vault_id,
+                    base_version: None,
+                    key_version: 1,
+                    data: u.encrypt_entity(key, "spaceship", new_id, r#"{"label":"x"}"#),
+                    updated_at: OffsetDateTime::now_utc(),
+                    secret_rotated_at: None,
+                }],
+                deletes: vec![],
+            }),
+        )
+        .await;
+    assert!(
+        matches!(&r.results[0], PushResult::Ok { .. }),
+        "{:?}",
+        r.results
+    );
+    let p: PullResponse = s
+        .json(
+            Method::POST,
+            "/sync/pull",
+            Some(u.token()),
+            Some(&PullRequest {
+                protocol: labterm_proto::sync::SYNC_PROTOCOL,
+                cursors: cursors(&[(vault_id, 0)]),
+                limit: None,
+            }),
+        )
+        .await;
+    assert!(
+        p.entities
+            .iter()
+            .any(|e| e.id == new_id && e.kind == "spaceship")
+    );
+
+    // Clients that send no protocol (too old) are told to update.
+    for path in ["/sync/push", "/sync/pull"] {
+        let body = s
+            .expect_status(
+                Method::POST,
+                path,
+                Some(u.token()),
+                Some(&serde_json::json!({ "changes": [], "deletes": [], "cursors": {} })),
+                StatusCode::UPGRADE_REQUIRED,
+            )
+            .await;
+        assert_eq!(body["code"], "client_update_required", "{path}: {body}");
+    }
+}
+
+#[tokio::test]
 async fn sync_push_pull_conflicts_and_tombstones() {
     let s = server!();
     let u = register(s, &unique_email("sync"), "pw-sync-1234567").await;
@@ -556,46 +627,6 @@ async fn sync_push_pull_conflicts_and_tombstones() {
         .await;
     assert!(matches!(&r.results[0], PushResult::Error { code, .. } if code == "invalid_kind"));
     assert!(matches!(&r.results[1], PushResult::Error { code, .. } if code == "forbidden"));
-
-    // A kind this server has never heard of syncs: payloads are opaque.
-    let new_id = Uuid::new_v4();
-    let r: PushResponse = s
-        .json(
-            Method::POST,
-            "/sync/push",
-            Some(u.token()),
-            Some(&PushRequest {
-                protocol: labterm_proto::sync::SYNC_PROTOCOL,
-                changes: vec![EntityChange {
-                    id: new_id,
-                    kind: "spaceship".into(),
-                    base_version: None,
-                    data: u.encrypt_entity(key, "spaceship", new_id, r#"{"label":"x"}"#),
-                    ..change(None, "x")
-                }],
-                deletes: vec![],
-            }),
-        )
-        .await;
-    assert!(
-        matches!(&r.results[0], PushResult::Ok { .. }),
-        "{:?}",
-        r.results
-    );
-
-    // Clients that send no protocol (too old) are told to update.
-    for path in ["/sync/push", "/sync/pull"] {
-        let body = s
-            .expect_status(
-                Method::POST,
-                path,
-                Some(u.token()),
-                Some(&serde_json::json!({ "changes": [], "deletes": [], "cursors": {} })),
-                StatusCode::UPGRADE_REQUIRED,
-            )
-            .await;
-        assert_eq!(body["code"], "client_update_required", "{path}: {body}");
-    }
 
     // Pull from 0 returns the live entity; pull from the last seq is empty.
     let p: PullResponse = s
