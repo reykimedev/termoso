@@ -89,6 +89,10 @@ fn key_aad(id: Uuid, version: i32) -> Aad {
     ])
 }
 
+fn name_aad(id: Uuid, version: i32) -> Aad {
+    Aad::label(&["collection-name", &id.to_string(), &version.to_string()])
+}
+
 fn scope(vault_id: Uuid, id: Uuid) -> KeyScope {
     KeyScope::collection(vault_id.to_string(), id.to_string())
 }
@@ -432,6 +436,40 @@ impl Store {
         self.write_row(vault_id, Some(collection_id), T::KIND, id, data)
     }
 
+    /// Pull cursor of a collection (0 when unknown).
+    pub fn collection_cursor(&self, id: Uuid) -> Result<i64> {
+        Ok(self
+            .conn()
+            .query_row(
+                "SELECT cursor FROM collections WHERE id = ?1",
+                params![id.to_string()],
+                |r| r.get(0),
+            )
+            .optional()?
+            .unwrap_or(0))
+    }
+
+    /// Store a collection's pull cursor.
+    pub fn set_collection_cursor(&self, id: Uuid, cursor: i64) -> Result<()> {
+        self.conn().execute(
+            "UPDATE collections SET cursor = ?2 WHERE id = ?1",
+            params![id.to_string(), cursor],
+        )?;
+        Ok(())
+    }
+
+    /// Encrypt a collection's name with its current key.
+    pub fn seal_collection_name(&self, vault_id: Uuid, id: Uuid, name: &str) -> Result<String> {
+        let (key, version) = self.current_collection_key(vault_id, id)?;
+        Ok(aead::encrypt_str(&key, &name_aad(id, version), name)?)
+    }
+
+    /// Decrypt a collection's name as the server lists it.
+    pub fn open_collection_name(&self, vault_id: Uuid, id: Uuid, sealed: &str) -> Result<String> {
+        let (key, version) = self.current_collection_key(vault_id, id)?;
+        Ok(aead::decrypt_str(&key, &name_aad(id, version), sealed)?)
+    }
+
     /// Re-wrap collection keys and pins after the master key changed.
     pub(super) fn rewrap_collections(
         &self,
@@ -589,9 +627,10 @@ mod tests {
         assert_eq!(s.row(h).unwrap().unwrap().collection_id, Some(id));
         assert_eq!(s.require::<Host>(h).unwrap().data.label, "db2");
 
-        // Not pushed until the server knows collections, and not counted.
+        // Pushed through the collection routes, never with the vault's rows.
         assert!(s.dirty_rows(vault).unwrap().is_empty());
-        assert_eq!(s.pending_changes().unwrap(), 0);
+        assert_eq!(s.dirty_collection_rows(id).unwrap().len(), 1);
+        assert_eq!(s.pending_changes().unwrap(), 1);
 
         // Stripping or changing the collection column breaks decryption.
         for value in [None, Some(Uuid::new_v4().to_string())] {

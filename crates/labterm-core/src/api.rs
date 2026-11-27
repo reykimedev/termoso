@@ -1158,6 +1158,68 @@ impl ApiClient {
         self.post("sync/pull", req).await
     }
 
+    // ───────────────────────────── collections ─────────────────────────────
+
+    /// `GET /vaults/{id}/collections`.
+    pub async fn collections(
+        &self,
+        vault_id: Uuid,
+    ) -> Result<labterm_proto::collection::CollectionList> {
+        self.get(&format!("vaults/{vault_id}/collections")).await
+    }
+
+    /// `POST /vaults/{id}/collections`.
+    pub async fn create_collection(
+        &self,
+        vault_id: Uuid,
+        req: &labterm_proto::collection::CreateCollectionRequest,
+    ) -> Result<labterm_proto::collection::CollectionInfo> {
+        self.post(&format!("vaults/{vault_id}/collections"), req)
+            .await
+    }
+
+    /// `GET /collections/{id}/log`.
+    pub async fn collection_log(
+        &self,
+        id: Uuid,
+    ) -> Result<labterm_proto::collection::CollectionLog> {
+        self.get(&format!("collections/{id}/log")).await
+    }
+
+    /// `POST /collections/{id}/log`.
+    pub async fn append_collection_log(
+        &self,
+        id: Uuid,
+        req: &labterm_proto::collection::AppendLogRequest,
+    ) -> Result<labterm_proto::collection::CollectionLog> {
+        self.post(&format!("collections/{id}/log"), req).await
+    }
+
+    /// `GET /collections/{id}/keys`.
+    pub async fn collection_keys(
+        &self,
+        id: Uuid,
+    ) -> Result<labterm_proto::collection::MyCollectionKeys> {
+        self.get(&format!("collections/{id}/keys")).await
+    }
+
+    /// `POST /collections/{id}/sync/push`.
+    pub async fn collection_push(
+        &self,
+        id: Uuid,
+        req: &labterm_proto::collection::CollectionPushRequest,
+    ) -> Result<PushResponse> {
+        self.post(&format!("collections/{id}/sync/push"), req).await
+    }
+
+    /// `POST /collections/sync/pull`.
+    pub async fn collection_pull(
+        &self,
+        req: &labterm_proto::collection::CollectionPullRequest,
+    ) -> Result<labterm_proto::collection::CollectionPullResponse> {
+        self.post("collections/sync/pull", req).await
+    }
+
     /// `POST /history/push`.
     pub async fn history_push(&self, req: &HistoryPushRequest) -> Result<HistoryPullResponse> {
         self.post("history/push", req).await
