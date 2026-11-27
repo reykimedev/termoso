@@ -46,7 +46,7 @@ pub use logs::{LogItem, LogMeta, LogRow, MAX_CAPTURE_BYTES, Recorder};
 
 const SCHEMA: &str = include_str!("schema.sql");
 const ACCOUNT_AVATAR: &str = "account_avatar";
-const SCHEMA_VERSION: i64 = 5;
+const SCHEMA_VERSION: i64 = 6;
 
 /// Schema 1 → 2: team session logs (per-vault logging flag and cursor,
 /// author / pin / note on log rows).
@@ -75,6 +75,12 @@ const MIGRATE_V4: &str = SCHEMA;
 const MIGRATE_V5: &str = "
 BEGIN;
 ALTER TABLE entities ADD COLUMN collection_id TEXT;
+COMMIT;";
+
+/// Schema 5 → 6: a pull cursor per collection.
+const MIGRATE_V6: &str = "
+BEGIN;
+ALTER TABLE collections ADD COLUMN cursor INTEGER NOT NULL DEFAULT 0;
 COMMIT;";
 
 /// A vault as seen by this device.
@@ -274,6 +280,11 @@ impl Store {
                 }
                 if from < 5 {
                     store.conn().execute_batch(MIGRATE_V5)?;
+                }
+                if from == 5 {
+                    // Older files got the collections table, column included,
+                    // from the schema run at open.
+                    store.conn().execute_batch(MIGRATE_V6)?;
                 }
                 store.set_meta("schema_version", &SCHEMA_VERSION.to_string())?;
             }
