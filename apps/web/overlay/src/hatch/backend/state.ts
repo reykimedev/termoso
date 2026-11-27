@@ -201,6 +201,12 @@ export function put<T>(kind: string, vaultId: Uuid, id: Uuid | null, data: T): E
   // labterm-proto's PERSONAL_ONLY_KINDS: a member's own credential links never go in a team vault.
   if (kind === "host_overlay" && v.kind === "team")
     fail("invalid", "a host_overlay belongs in your personal or local vault, not a team vault");
+  // A team vault never holds a NetBird setup key (labterm-core's `put_raw`): every member could
+  // read it. This also covers a restored backup and a copy into a team vault.
+  if (kind === "transport" && v.kind === "team" && data && typeof data === "object") {
+    const { setup_key: _dropped, ...rest } = data as Record<string, unknown>;
+    data = rest as T;
+  }
   const now = new Date().toISOString();
   const prev = id ? s().entities[id] : undefined;
   const e: Ent = {

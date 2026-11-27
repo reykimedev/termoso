@@ -263,6 +263,8 @@ export async function preConnect(k: Ent<SshKey>): Promise<Record<string, unknown
 /** opkssh release that host setup installs (the same as the desktop's). */
 export const OPKSSH_VERSION = "v0.20.0";
 
+// Every value reaches the script only as a single-quoted word: the issuer and client ID come from
+// a vault a team shares, and the script runs as root on the host.
 function word(what: string, v: string): string {
   const t = v.trim();
   if (!t || /[\s'\p{Cc}]/u.test(t)) fail("invalid", `${what} must be one word`);
@@ -292,11 +294,13 @@ if ! command -v opkssh >/dev/null 2>&1; then
   $SUDO bash "$tmp" --install-version=${OPKSSH_VERSION}
   rm -f "$tmp"
 fi
-line="${issuer} ${clientId} ${policy}"
-if ! $SUDO grep -qsF "${s.issuer.trim()} ${s.clientId.trim()} " /etc/opk/providers; then
-  echo "$line" | $SUDO tee -a /etc/opk/providers >/dev/null
+issuer=${issuer}
+client_id=${clientId}
+policy=${policy}
+if ! $SUDO grep -qsF -- "$issuer $client_id " /etc/opk/providers; then
+  printf '%s %s %s\\n' "$issuer" "$client_id" "$policy" | $SUDO tee -a /etc/opk/providers >/dev/null
 fi
-$SUDO opkssh add ${user} ${email} ${issuer}
+$SUDO opkssh add ${user} ${email} "$issuer"
 echo "labterm: opkssh ready"
 `;
 }

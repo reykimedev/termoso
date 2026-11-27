@@ -513,6 +513,9 @@ pub fn host_setup_script(
     principal: &str,
     identity: &str,
 ) -> Result<String> {
+    // Every value reaches the script only as a single-quoted word: the
+    // issuer and client ID come from a vault a team shares, and the script
+    // runs as root on the host.
     fn word(what: &str, v: &str) -> Result<String> {
         let v = v.trim();
         if v.is_empty()
@@ -540,16 +543,16 @@ if ! command -v opkssh >/dev/null 2>&1; then
   $SUDO bash "$tmp" --install-version={version}
   rm -f "$tmp"
 fi
-line="{issuer} {client_id} {policy}"
-if ! $SUDO grep -qsF "{issuer_raw} {client_id_raw} " /etc/opk/providers; then
-  echo "$line" | $SUDO tee -a /etc/opk/providers >/dev/null
+issuer={issuer}
+client_id={client_id}
+policy={policy}
+if ! $SUDO grep -qsF -- "$issuer $client_id " /etc/opk/providers; then
+  printf '%s %s %s\n' "$issuer" "$client_id" "$policy" | $SUDO tee -a /etc/opk/providers >/dev/null
 fi
-$SUDO opkssh add {principal} {identity} {issuer}
+$SUDO opkssh add {principal} {identity} "$issuer"
 echo "labterm: opkssh ready"
 "#,
         version = OPKSSH_VERSION,
-        issuer_raw = settings.issuer.trim(),
-        client_id_raw = settings.client_id.trim(),
     ))
 }
 
@@ -813,10 +816,27 @@ mod tests {
             ..Default::default()
         };
         let script = host_setup_script(&s, None, "alice", "alice@example.com").unwrap();
-        assert!(
-            script.contains("opkssh add 'alice' 'alice@example.com' 'https://auth.example.com/'")
-        );
-        assert!(script.contains("line=\"'https://auth.example.com/' 'opkssh' '24h'\""));
+        assert!(script.contains("issuer='https://auth.example.com/'\n"));
+        assert!(script.contains("client_id='opkssh'\npolicy='24h'\n"));
+        assert!(script.contains("opkssh add 'alice' 'alice@example.com' \"$issuer\""));
+        // A shared vault's issuer or client ID never reaches the shell
+        // outside single quotes, where `$(…)` would run as root.
+        let evil = OidcKeySettings {
+            issuer: "https://auth.example.com/$(id>/tmp/x)".into(),
+            client_id: "opkssh`id`".into(),
+            ..Default::default()
+        };
+        let script = host_setup_script(&evil, None, "alice", "alice@example.com").unwrap();
+        for line in script
+            .lines()
+            .filter(|l| l.contains("$(id>") || l.contains("`id`"))
+        {
+            assert!(
+                line == "issuer='https://auth.example.com/$(id>/tmp/x)'"
+                    || line == "client_id='opkssh`id`'",
+                "{line}"
+            );
+        }
         assert!(host_setup_script(&s, None, "alice; rm -rf /", "a@example.com").is_err());
         assert!(host_setup_script(&s, None, "alice", "a'b@example.com").is_err());
     }

@@ -13,8 +13,10 @@
 //! - group, tag and vault-wide overlays carry keys only: passwords, TOTP
 //!   secrets and bearer tokens are dropped, so a host a team editor adds to
 //!   the group only ever sees a signature bound to its own session;
-//! - a host overlay remembers the address and port it was made for and
-//!   pauses when the team changes them;
+//! - a host overlay remembers the address, the port and the route (proxy,
+//!   gateway, overlay network, jump hosts) it was made for and pauses when
+//!   the team changes any of them: the same address behind another proxy is
+//!   another machine;
 //! - agent and X11 forwarding come from the overlay, never from the team.
 
 use labterm_proto::entities::{
@@ -25,7 +27,8 @@ use uuid::Uuid;
 use super::{LocalVaultKind, Store};
 use crate::error::Result;
 use crate::model::{
-    Entity, Group, Host, HostOverlay, Identity, ResolvedHost, SshCertificate, SshKey, Tag,
+    Entity, Group, Host, HostChain, HostOverlay, Identity, Proxy, ResolvedHost, SshCertificate,
+    SshKey, Tag, Transport,
 };
 
 /// Rank of an overlay for a host: lower wins.
@@ -198,7 +201,57 @@ impl Store {
             .as_deref()
             .is_some_and(|a| a.trim().eq_ignore_ascii_case(r.host.data.address.trim()));
         let port_ok = o.pinned_port.is_none_or(|p| p == r.port());
-        address_ok && port_ok
+        let route_ok = o.pinned_route.as_deref().unwrap_or_default() == self.overlay_route(r);
+        address_ok && port_ok && route_ok
+    }
+
+    /// How a connection reaches `r` besides its address and port, as one
+    /// line: proxy, gateway, overlay network and jump hosts, each with its
+    /// id and where it points. Empty when the host is dialled directly.
+    /// The team sets all of these, and each can lead the same address to
+    /// another machine, so a host overlay is only used on the route it was
+    /// made for. The web app builds the same line (`overlayRoute`).
+    pub fn overlay_route(&self, r: &ResolvedHost) -> String {
+        let vault = r.host.vault_id;
+        let tidy = |s: &str| s.trim().to_ascii_lowercase();
+        let mut parts = Vec::new();
+        if let Some(id) = r.ssh.proxy_id {
+            parts.push(match self.get_in::<Proxy>(id, vault).ok().flatten() {
+                Some(p) => format!(
+                    "proxy:{id}:{}:{}:{}",
+                    tidy(&p.data.kind),
+                    tidy(&p.data.host),
+                    p.data.port
+                ),
+                None => format!("proxy:{id}"),
+            });
+        }
+        if let Some(id) = r.ssh.gateway_id {
+            parts.push(format!("gateway:{id}"));
+        }
+        if let Some(id) = r.ssh.transport_id {
+            parts.push(match self.get_in::<Transport>(id, vault).ok().flatten() {
+                Some(t) => format!(
+                    "transport:{id}:{}",
+                    tidy(t.data.management_url.as_deref().unwrap_or_default())
+                ),
+                None => format!("transport:{id}"),
+            });
+        }
+        if let Some(id) = r.ssh.host_chain_id {
+            match self.get_in::<HostChain>(id, vault).ok().flatten() {
+                Some(c) => {
+                    for h in &c.data.host_ids {
+                        parts.push(match self.get_in::<Host>(*h, vault).ok().flatten() {
+                            Some(j) => format!("jump:{h}:{}", tidy(&j.data.address)),
+                            None => format!("jump:{h}"),
+                        });
+                    }
+                }
+                None => parts.push(format!("chain:{id}")),
+            }
+        }
+        parts.join(";")
     }
 
     /// Returns `false` when the overlay's credentials are gone (deleted or
@@ -540,6 +593,119 @@ mod tests {
         f.s.update(f.team_cfg, &cfg).unwrap();
         let r = f.s.resolve_host_to_connect(f.host, Some(f.team)).unwrap();
         assert_eq!(r.paused_overlay_id, Some(o));
+    }
+
+    /// The address stays, but the team sends the connection through a proxy
+    /// or a jump host it runs: the password must not follow.
+    #[test]
+    fn host_overlay_pauses_when_the_team_reroutes_the_host() {
+        let f = fx();
+        let (me, _) = my_key_identity(&f, "mike", Some("my-secret"));
+        let o = overlay(&f, OVERLAY_SCOPE_HOST, Some(f.host), me);
+        let used = |f: &Fx| {
+            let r = f.s.resolve_host_to_connect(f.host, Some(f.team)).unwrap();
+            (r.overlay_id, r.paused_overlay_id)
+        };
+        assert_eq!(used(&f), (Some(o), None));
+
+        // A proxy.
+        let proxy =
+            f.s.insert(
+                f.team,
+                &Proxy {
+                    kind: "socks5".into(),
+                    host: "proxy.example.net".into(),
+                    port: 1080,
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        let mut cfg = f.s.require::<SshConfig>(f.team_cfg).unwrap().data;
+        cfg.proxy_id = Some(proxy);
+        f.s.update(f.team_cfg, &cfg).unwrap();
+        assert_eq!(used(&f), (None, Some(o)));
+        let r = f.s.resolve_host_to_connect(f.host, Some(f.team)).unwrap();
+        assert_eq!(r.identity.unwrap().id, f.team_identity);
+
+        // Confirmed for this route (what saving the link again does) ...
+        let route =
+            f.s.overlay_route(&f.s.resolve_host_in(f.host, Some(f.team)).unwrap());
+        assert!(route.starts_with(&format!("proxy:{proxy}:socks5:proxy.example.net:1080")));
+        let mut ov = f.s.require::<HostOverlay>(o).unwrap().data;
+        ov.pinned_route = Some(route);
+        f.s.update(o, &ov).unwrap();
+        assert_eq!(used(&f), (Some(o), None));
+
+        // ... and paused again when the same proxy entry points elsewhere,
+        let mut p = f.s.require::<Proxy>(proxy).unwrap().data;
+        p.host = "attacker.example.net".into();
+        f.s.update(proxy, &p).unwrap();
+        assert_eq!(used(&f), (None, Some(o)));
+
+        // or when a jump host comes on top.
+        let jump =
+            f.s.insert(
+                f.team,
+                &Host {
+                    label: "jump".into(),
+                    address: "jump.example.net".into(),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        let chain =
+            f.s.insert(
+                f.team,
+                &HostChain {
+                    label: "via jump".into(),
+                    host_ids: vec![jump],
+                },
+            )
+            .unwrap();
+        cfg.proxy_id = None;
+        cfg.host_chain_id = Some(chain);
+        f.s.update(f.team_cfg, &cfg).unwrap();
+        let route =
+            f.s.overlay_route(&f.s.resolve_host_in(f.host, Some(f.team)).unwrap());
+        assert_eq!(route, format!("jump:{jump}:jump.example.net"));
+        assert_eq!(used(&f), (None, Some(o)));
+
+        // Back to a direct connection: the overlay made for that applies again.
+        cfg.host_chain_id = None;
+        f.s.update(f.team_cfg, &cfg).unwrap();
+        ov.pinned_route = None;
+        f.s.update(o, &ov).unwrap();
+        assert_eq!(used(&f), (Some(o), None));
+    }
+
+    #[test]
+    fn a_team_vault_never_stores_a_setup_key() {
+        let f = fx();
+        let t = Transport {
+            label: "net".into(),
+            provider: "netbird".into(),
+            management_url: None,
+            setup_key: Some("example-setup-key".into()),
+        };
+        // However it gets there (editor, restored backup, copy): dropped.
+        let in_team = f.s.insert(f.team, &t).unwrap();
+        assert_eq!(
+            f.s.require::<Transport>(in_team).unwrap().data.setup_key,
+            None
+        );
+        let raw = serde_json::to_value(&t).unwrap();
+        let id = Uuid::new_v4();
+        f.s.put_raw(f.team, "transport", id, &raw).unwrap();
+        assert_eq!(f.s.require::<Transport>(id).unwrap().data.setup_key, None);
+        // A personal vault keeps it.
+        let mine = f.s.insert(f.personal, &t).unwrap();
+        assert!(
+            f.s.require::<Transport>(mine)
+                .unwrap()
+                .data
+                .setup_key
+                .is_some()
+        );
     }
 
     #[test]

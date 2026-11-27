@@ -35,8 +35,9 @@ pub struct OverlayCard {
     pub forward_x11: bool,
     /// The target exists and its team vault is unlocked.
     pub linked: bool,
-    /// Host scope only: the host's address or port changed since the
-    /// overlay was made, so it is not used until confirmed again.
+    /// Host scope only: the host's address, port or route (proxy, jump
+    /// hosts, gateway, VPN network) changed since the overlay was made, so
+    /// it is not used until confirmed again.
     pub paused: bool,
     pub pinned_address: Option<String>,
 }
@@ -160,7 +161,7 @@ fn key_based(i: &Identity) -> bool {
 }
 
 /// Create or update an overlay. A host overlay remembers the host's current
-/// address and port (saving again confirms a changed address).
+/// address, port and route (saving again confirms a changed one).
 pub fn save(store: &Store, f: &OverlayForm) -> Result<OverlayCard> {
     if !matches!(
         vault_kind(store, f.vault_id),
@@ -221,12 +222,17 @@ pub fn save(store: &Store, f: &OverlayForm) -> Result<OverlayCard> {
             "links to a group, tag or whole vault use keys only; link a single host to use a password",
         ));
     }
-    let (pinned_address, pinned_port) = if host_scope {
+    let (pinned_address, pinned_port, pinned_route) = if host_scope {
         let host = f.target_id.expect("checked above");
         let r = store.resolve_host_in(host, Some(tv))?;
-        (Some(r.host.data.address.clone()), Some(r.port()))
+        let route = store.overlay_route(&r);
+        (
+            Some(r.host.data.address.clone()),
+            Some(r.port()),
+            (!route.is_empty()).then_some(route),
+        )
     } else {
-        (None, None)
+        (None, None, None)
     };
     let data = HostOverlay {
         label: String::new(),
@@ -237,6 +243,7 @@ pub fn save(store: &Store, f: &OverlayForm) -> Result<OverlayCard> {
         oidc_key_id: f.oidc_key_id,
         pinned_address,
         pinned_port,
+        pinned_route,
         agent_forwarding: f.agent_forwarding,
         forward_x11: f.forward_x11,
     };
@@ -443,5 +450,47 @@ mod tests {
         let c = confirm(&s, c.id).unwrap();
         assert!(!c.paused);
         assert_eq!(c.pinned_address.as_deref(), Some("other.example.com"));
+    }
+
+    #[test]
+    fn a_rerouted_host_shows_paused_until_confirmed() {
+        let (s, team, personal, _, host) = setup();
+        let i = s
+            .insert(
+                personal,
+                &Identity {
+                    label: "pw".into(),
+                    username: "mike".into(),
+                    password: Some("secret".into()),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        let c = save(&s, &form(personal, team, OVERLAY_SCOPE_HOST, Some(host), i)).unwrap();
+        assert_eq!(
+            s.require::<HostOverlay>(c.id).unwrap().data.pinned_route,
+            None
+        );
+        // The team puts a proxy in front of the host; the address stays.
+        let proxy = s
+            .insert(
+                team,
+                &labterm_core::model::Proxy {
+                    kind: "socks5".into(),
+                    host: "proxy.example.net".into(),
+                    port: 1080,
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        let cfg_id = s.require::<Host>(host).unwrap().data.ssh_config_id.unwrap();
+        let mut cfg = s.require::<SshConfig>(cfg_id).unwrap().data;
+        cfg.proxy_id = Some(proxy);
+        s.update(cfg_id, &cfg).unwrap();
+        assert!(list(&s).unwrap()[0].paused);
+        let c = confirm(&s, c.id).unwrap();
+        assert!(!c.paused);
+        let route = s.require::<HostOverlay>(c.id).unwrap().data.pinned_route;
+        assert!(route.unwrap().contains("proxy.example.net:1080"));
     }
 }

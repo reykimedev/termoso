@@ -876,6 +876,12 @@ pub mod payload {
             /// `host` scope: the SSH port the overlay was made for.
             #[serde(default, skip_serializing_if = "Option::is_none")]
             pub pinned_port: Option<u16>,
+            /// `host` scope: how the connection reached the host when the
+            /// overlay was made (proxy, gateway, overlay network, jump
+            /// hosts); `None` = dialled directly. When the team changes it
+            /// the overlay pauses, like for a changed address.
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            pub pinned_route: Option<String>,
             /// Forward the SSH agent. Never taken from the team's settings.
             #[serde(default, skip_serializing_if = "std::ops::Not::not")]
             pub agent_forwarding: bool,
