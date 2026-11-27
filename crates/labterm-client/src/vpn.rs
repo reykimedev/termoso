@@ -537,6 +537,7 @@ mod tests {
                 provider: String::new(),
                 management_url: Some("https://netbird.example.com".into()),
                 setup_key: None,
+                direct_first: false,
             },
         )
         .unwrap();
