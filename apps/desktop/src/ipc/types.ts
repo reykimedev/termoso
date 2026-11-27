@@ -1,4 +1,4 @@
-import { msg, type Language } from "@/i18n";
+import { msg } from "@/i18n";
 // Mirrors of the Rust IPC types (apps/desktop/src-tauri/src/*.rs). These are
 // shapes only; all validation and domain logic lives in Rust.
 
@@ -98,8 +98,6 @@ export interface Trigger {
 
 export interface Settings {
   theme: ThemeMode;
-  /** UI language; `system` follows the OS locale. */
-  language: Language;
   hostsView: HostsView;
   forwardingView: HostsView;
   keychainView: HostsView;

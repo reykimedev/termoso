@@ -124,7 +124,8 @@ CREATE TABLE IF NOT EXISTS collections (
     id           TEXT PRIMARY KEY,
     vault_id     TEXT NOT NULL REFERENCES vaults(id) ON DELETE CASCADE,
     pin          TEXT NOT NULL,               -- envelope, AAD termoso/v1/local/collection-pin/<id>
-    log          TEXT NOT NULL                -- JSON array of signed log entries
+    log          TEXT NOT NULL,               -- JSON array of signed log entries
+    cursor       INTEGER NOT NULL DEFAULT 0   -- /collections/sync/pull cursor
 );
 
 CREATE TABLE IF NOT EXISTS collection_keys (

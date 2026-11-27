@@ -1219,10 +1219,6 @@
     <string name="after_5_minutes">After 5 minutes</string>
     <string name="after_15_minutes">After 15 minutes</string>
     <string name="after_1_hour">After 1 hour</string>
-    <string name="language">Language</string>
-    <string name="system_default">System default</string>
-    <string name="language_english" translatable="false">English</string>
-    <string name="language_russian" translatable="false">Русский</string>
     <string name="last_connected">Last connected</string>
     <string name="recently_updated">Recently updated</string>
     <string name="date">Date</string>
