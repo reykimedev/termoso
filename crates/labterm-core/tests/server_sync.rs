@@ -975,6 +975,20 @@ async fn restricted_group_rows_sync_only_through_collections() {
     let s = server_or_skip!();
     let email = unique_email("coll");
     let (a, _) = register(s, &email, PASSWORD).await;
+    // With mail configured the server only lets verified accounts create teams.
+    if s.mailpit.is_some() {
+        let token = a.store.account_secrets().unwrap().token;
+        let code = s.emailed_code(&email, "email verification").await;
+        let verified = s
+            .raw(
+                reqwest::Method::POST,
+                "/account/email/verify/confirm",
+                &token,
+                Some(json!({ "code": code })),
+            )
+            .await;
+        assert!(verified.status().is_success(), "{}", verified.status());
+    }
     let me = a.store.account().unwrap().unwrap();
     let pair = a.store.account_secrets().unwrap().private_key;
     let team = a

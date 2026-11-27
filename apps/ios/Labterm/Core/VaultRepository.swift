@@ -45,6 +45,11 @@ struct VaultRepository: Sendable {
         try app.localVault()
     }
 
+    /// Tile colour and icon (manager; anyone for the local vault). nil clears.
+    func setVaultStyle(vaultId: String, color: String?, icon: String?) throws {
+        try app.setVaultStyle(vaultId: vaultId, color: color, icon: icon)
+    }
+
     // MARK: Hosts, groups, tags
 
     func hosts(vaultId: String?) throws -> [HostItem] {

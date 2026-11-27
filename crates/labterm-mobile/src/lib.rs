@@ -43,6 +43,7 @@ mod team;
 mod terminal;
 mod themes;
 mod transfer;
+mod unlock;
 mod webdav;
 
 pub use account::*;

@@ -139,6 +139,8 @@ async fn set_presence_enabled(s: &TestServer, team_id: Uuid, token: &str, on: bo
             multiplayer_enabled: None,
             require_mfa: None,
             presence_enabled: Some(on),
+            color: None,
+            icon: None,
         }),
     )
     .await
@@ -253,6 +255,8 @@ async fn presence_end_to_end() {
             multiplayer_enabled: None,
             require_mfa: None,
             presence_enabled: Some(true),
+            color: None,
+            icon: None,
         }),
         StatusCode::FORBIDDEN,
     )

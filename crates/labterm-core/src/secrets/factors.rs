@@ -249,6 +249,19 @@ pub fn add(
 /// returned. A wrong secret is [`CoreError::WrongPassword`] and leaves the
 /// file untouched apart from the last-used time on success.
 pub fn unlock(profile_dir: &Path, profile: &str, id: &str, secret: &[u8]) -> Result<MasterKey> {
+    let key = open(profile_dir, id, secret)?;
+    remove_plain_copies(profile_dir, profile);
+    Ok(MasterKey {
+        key,
+        source: MasterKeySource::Factor,
+    })
+}
+
+/// The master key wrapped by factor `id`, unwrapped with `secret`, and the
+/// use recorded. Unlike [`unlock`] it leaves any other copy of the key
+/// alone: for clients whose other wrappers live elsewhere (Android
+/// Keystore).
+pub fn open(profile_dir: &Path, id: &str, secret: &[u8]) -> Result<SymmetricKey> {
     let mut file = read(profile_dir)?;
     let key = unwrap(find(&file, id)?, secret)?;
     if let Some(record) = file.factors.iter_mut().find(|f| f.id == id) {
@@ -258,11 +271,7 @@ pub fn unlock(profile_dir: &Path, profile: &str, id: &str, secret: &[u8]) -> Res
     if let Err(e) = write(profile_dir, &file, |_| Ok(())) {
         tracing::warn!(error = %e, "cannot record factor use");
     }
-    remove_plain_copies(profile_dir, profile);
-    Ok(MasterKey {
-        key,
-        source: MasterKeySource::Factor,
-    })
+    Ok(key)
 }
 
 /// Rename factor `id`.
@@ -291,6 +300,20 @@ pub fn remove(profile_dir: &Path, id: &str) -> Result<()> {
                 .into(),
         ));
     }
+    file.factors.retain(|f| f.id != id);
+    if file.factors.is_empty() {
+        std::fs::remove_file(profile_dir.join(FACTORS_FILE_NAME))?;
+        return Ok(());
+    }
+    write(profile_dir, &file, |_| Ok(()))
+}
+
+/// Remove factor `id` without the last-way-in check: for clients that keep
+/// their other ways in outside this profile (Android Keystore) and enforce
+/// the rule themselves.
+pub fn forget(profile_dir: &Path, id: &str) -> Result<()> {
+    let mut file = read(profile_dir)?;
+    find(&file, id)?;
     file.factors.retain(|f| f.id != id);
     if file.factors.is_empty() {
         std::fs::remove_file(profile_dir.join(FACTORS_FILE_NAME))?;
@@ -509,6 +532,27 @@ mod tests {
         remove(dir.path(), &only.id).unwrap();
         assert!(!any(dir.path()));
         assert!(unlock_with_password(dir.path(), &profile, "correct horse battery").is_ok());
+    }
+
+    #[test]
+    fn open_and_forget_leave_other_copies_to_the_caller() {
+        let dir = tempfile::tempdir().unwrap();
+        let profile = profile();
+        let key = SymmetricKey::generate();
+        let only = enroll(dir.path(), &profile, &key, &[1u8; 32]);
+        // A plain copy the caller manages (Android keeps its own elsewhere).
+        std::fs::write(dir.path().join("master.key"), b"caller's").unwrap();
+        let opened = open(dir.path(), &only.id, &[1u8; 32]).unwrap();
+        assert_eq!(opened.as_bytes(), key.as_bytes());
+        assert!(dir.path().join("master.key").exists());
+        assert!(list(dir.path()).unwrap()[0].last_used_at.is_some());
+        assert!(matches!(
+            open(dir.path(), &only.id, &[2u8; 32]),
+            Err(CoreError::WrongPassword)
+        ));
+        // No last-way-in check: the caller enforces it.
+        forget(dir.path(), &only.id).unwrap();
+        assert!(!any(dir.path()));
     }
 
     #[test]

@@ -21,7 +21,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.GppMaybe
-import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
@@ -69,6 +68,9 @@ import dev.labdex.labterm.data.userMessage
 import dev.labdex.labterm.str
 import dev.labdex.labterm.ui.components.ChevronRow
 import dev.labdex.labterm.ui.components.IconTile
+import dev.labdex.labterm.ui.components.StylePickerSheet
+import dev.labdex.labterm.ui.components.TeamTile
+import dev.labdex.labterm.ui.components.VaultTile
 import dev.labdex.labterm.ui.components.ListRow
 import dev.labdex.labterm.ui.components.RowDivider
 import dev.labdex.labterm.ui.components.SectionCard
@@ -114,6 +116,7 @@ fun TeamScreen(
     val scope = rememberCoroutineScope()
     var menu by remember { mutableStateOf(false) }
     var renaming by remember { mutableStateOf(false) }
+    var stylePicker by remember { mutableStateOf(false) }
     var inviting by remember { mutableStateOf(false) }
     var newVault by remember { mutableStateOf(false) }
     var memberMenu by remember { mutableStateOf<TeamMemberCard?>(null) }
@@ -188,7 +191,12 @@ fun TeamScreen(
                 ListRow(
                     title = team.name,
                     subtitle = stringResource(R.string.you_are, team.myRoleName ?: team.myRole.label().lowercase(), members(team.memberCount)),
-                    leading = { IconTile(Icons.Filled.Group) },
+                    leading = {
+                        TeamTile(
+                            team,
+                            modifier = if (state.isAdmin) Modifier.clickable { stylePicker = true } else Modifier,
+                        )
+                    },
                     trailing = if (state.isAdmin) {
                         { IconButton(onClick = { renaming = true }) { Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.rename)) } }
                     } else {
@@ -373,6 +381,15 @@ fun TeamScreen(
         }
     }
 
+    if (stylePicker && team != null) {
+        StylePickerSheet(
+            icon = team.icon,
+            color = team.color,
+            automaticLabel = stringResource(R.string.icon_default),
+            onSave = { c, i -> vm.setStyle(c, i) },
+            onDismiss = { stylePicker = false },
+        )
+    }
     if (renaming && team != null) {
         NameDialog(
             title = stringResource(R.string.rename_team),
@@ -544,7 +561,7 @@ fun VaultRow(v: VaultInfo, modifier: Modifier = Modifier) {
     ChevronRow(
         title = v.name,
         subtitle = if (v.locked) stringResource(R.string.key_not_received_yet) else stringResource(R.string.you_4, v.access.label()),
-        leading = { IconTile(if (v.locked) Icons.Filled.Lock else Icons.Filled.LockOpen) },
+        leading = { VaultTile(v) },
         modifier = modifier,
     )
 }
