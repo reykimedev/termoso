@@ -21,6 +21,10 @@ fun versionCodeOf(v: String): Int {
     return major * 10_000 + minor * 100 + patch
 }
 
+// Devel builds for Google Play set both (devel.yml); every other build derives them from Cargo.toml.
+val versionCodeOverride: Int? = (findProperty("labterm.versionCode") as String?)?.toInt()
+val versionNameOverride: String? = findProperty("labterm.versionName") as String?
+
 // Release signing comes from the environment only (CI secrets or a developer shell);
 // nothing is read from the tree, so a checkout never contains key material.
 val releaseKeystore: File? = System.getenv("LABTERM_ANDROID_KEYSTORE")?.let(::File)?.takeIf { it.isFile }
@@ -50,8 +54,8 @@ android {
         applicationId = "dev.labdex.labterm"
         minSdk = 26
         targetSdk = 36
-        versionCode = versionCodeOf(workspaceVersion)
-        versionName = workspaceVersion
+        versionCode = versionCodeOverride ?: versionCodeOf(workspaceVersion)
+        versionName = versionNameOverride ?: workspaceVersion
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
         // Only ship the ABIs we build Rust for (JNA's AAR carries mips/armeabi too).
@@ -98,16 +102,6 @@ android {
             buildConfigField("int", "DEBUG_BUILD", "$debugBuildNumber")
             buildConfigField("String", "DEBUG_UPDATE_URL", "\"$debugUpdateUrl\"")
         }
-        // Devel on Google Play: the debug build (same app id, key, name and Rust profile) made
-        // fit for Play, which refuses debuggable apps and apps that update themselves. So no
-        // `debuggable`, no in-app updater and no REQUEST_INSTALL_PACKAGES (src/debug's manifest
-        // does not apply here). `:app:bundleDevel` makes the AAB.
-        create("devel") {
-            initWith(getByName("debug"))
-            isDebuggable = false
-            matchingFallbacks += "debug"
-            buildConfigField("String", "DEBUG_UPDATE_URL", "\"\"")
-        }
     }
 
     if (abiSplits) {
@@ -152,17 +146,6 @@ android {
     dependenciesInfo {
         includeInApk = false
         includeInBundle = false
-    }
-}
-
-// Devel builds (the sideloaded APK and the Play bundle share app id and key) are ordered by
-// their build number. 1_000_000 keeps them above the MMmmpp codes earlier debug builds had,
-// so an installed one updates instead of refusing a downgrade.
-if (debugBuildNumber > 0) {
-    androidComponents.onVariants { variant ->
-        if (variant.buildType == "debug" || variant.buildType == "devel") {
-            variant.outputs.forEach { it.versionCode.set(1_000_000 + debugBuildNumber) }
-        }
     }
 }
 

@@ -19,12 +19,9 @@
 # workflows published (Android up to ~45). A feed only moves forward: an older run that finishes
 # late never replaces a newer build.
 #
-# Secrets (every environment is limited to main):
+# Secrets (both environments are limited to main):
 #   android-debug   ANDROID_DEBUG_KEYSTORE_BASE64, ANDROID_DEBUG_KEYSTORE_PASSWORD (alias termoso-debug)
 #   desktop-dev     TAURI_SIGNING_PRIVATE_KEY, TAURI_SIGNING_PRIVATE_KEY_PASSWORD (the dev updater key)
-#   google-play     PLAY_SERVICE_ACCOUNT_JSON (Play Developer API, release manager on the Devel app)
-# Google Play: the repository variable PLAY_TRACK (e.g. `internal`) turns on the Play bundle and its
-# upload to that track; unset, both are skipped. docs/RELEASING.md has the one-time setup.
 # Tags (`v*`) are not handled here: release.yml builds and signs stable releases.
 name: Devel
 
@@ -127,61 +124,17 @@ jobs:
           LABTERM_ANDROID_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_DEBUG_KEYSTORE_PASSWORD }}
           LABTERM_DEBUG_BUILD: ${{ needs.plan.outputs.build }}
           REPO: ${{ github.repository }}
-          PLAY_TRACK: ${{ vars.PLAY_TRACK }}
         run: |
           UPDATE_URL="https://github.com/$REPO/releases/download/android-debug-main/latest.json"
-          # The Play bundle is the same build without the in-app updater, signed with the same key.
-          tasks=(:app:assembleDebug)
-          [ -z "$PLAY_TRACK" ] || tasks+=(:app:bundleDevel)
-          ./gradlew --no-daemon -Plabterm.abis=arm64-v8a "-Plabterm.debugUpdateUrl=$UPDATE_URL" "${tasks[@]}"
-          mkdir -p "$RUNNER_TEMP/out" "$RUNNER_TEMP/play"
+          ./gradlew --no-daemon -Plabterm.abis=arm64-v8a "-Plabterm.debugUpdateUrl=$UPDATE_URL" :app:assembleDebug
+          mkdir -p "$RUNNER_TEMP/out"
           cp app/build/outputs/apk/debug/*.apk "$RUNNER_TEMP/out/labterm-debug.apk"
-          [ -z "$PLAY_TRACK" ] || cp app/build/outputs/bundle/devel/*.aab "$RUNNER_TEMP/play/labterm-devel.aab"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: devel-android
           path: ${{ runner.temp }}/out/labterm-debug.apk
           if-no-files-found: error
           retention-days: 7
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: vars.PLAY_TRACK != ''
-        with:
-          name: devel-play-bundle
-          path: ${{ runner.temp }}/play/labterm-devel.aab
-          if-no-files-found: error
-          retention-days: 7
-
-  # Devel on Google Play: Labterm Debug (dev.labdex.labterm.debug) to the track in PLAY_TRACK, so
-  # testers get it through Play's own updates (no Play Protect scan per sideloaded APK). Only this
-  # job holds the Play credentials, and it runs no third-party code. Without the service account
-  # it leaves a notice and passes.
-  play:
-    name: google play (Labterm Debug)
-    needs: [plan, android]
-    if: vars.PLAY_TRACK != ''
-    runs-on: ubuntu-latest
-    environment: google-play
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: devel-play-bundle
-          path: out
-      - name: Upload to Google Play
-        env:
-          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
-          TRACK: ${{ vars.PLAY_TRACK }}
-          # `draft` until the app's first release was rolled out by hand in Play Console.
-          STATUS: ${{ vars.PLAY_RELEASE_STATUS || 'completed' }}
-          BUILD: ${{ needs.plan.outputs.build }}
-          COMMIT: ${{ github.sha }}
-        run: |
-          if [ -z "$PLAY_SERVICE_ACCOUNT_JSON" ]; then
-            echo "::notice::PLAY_SERVICE_ACCOUNT_JSON is not set in the google-play environment; not uploading to Google Play"
-            exit 0
-          fi
-          python3 scripts/play-upload.py dev.labdex.labterm.debug "$TRACK" out/labterm-devel.aab \
-            --status "$STATUS" --notes "Devel build $BUILD from ${COMMIT:0:12}"
 
   desktop:
     name: ${{ matrix.name }}
