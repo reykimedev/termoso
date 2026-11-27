@@ -593,6 +593,19 @@ export function useCopyHostsToVault() {
   });
 }
 
+/** Move or copy hosts and groups into another vault; both vaults refresh. */
+export function useVaultTransfer() {
+  const invalidate = useInvalidateVault();
+  return useMutation({
+    mutationFn: ipc.vaultTransfer,
+    onSuccess: (r, req) =>
+      Promise.all([
+        invalidate(req.vaultId),
+        r.plan.sourceVaultId ? invalidate(r.plan.sourceVaultId) : undefined,
+      ]),
+  });
+}
+
 export function useSaveGroup() {
   const invalidate = useInvalidateVault();
   return useMutation({

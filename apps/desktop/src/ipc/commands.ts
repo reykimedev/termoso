@@ -171,6 +171,9 @@ import type {
   WebhookDelivery,
   WebhookKind,
   WorkspacesState,
+  TransferPlan,
+  TransferRequest,
+  TransferResult,
 } from "./types";
 import type {
   AccessRequest,
@@ -531,6 +534,10 @@ export const keySetupOpksshOnHost = (args: {
   principal: string | null;
   identity: string | null;
 }) => invoke<OpksshHostSetup>("key_setup_opkssh_on_host", args);
+export const vaultTransferPlan = (request: TransferRequest) =>
+  invoke<TransferPlan>("vault_transfer_plan", { request });
+export const vaultTransfer = (request: TransferRequest) =>
+  invoke<TransferResult>("vault_transfer", { request });
 export const keyCopyToVault = (id: Uuid, vaultId: Uuid, moveKey: boolean) =>
   invoke<KeyCard>("key_copy_to_vault", { id, vaultId, moveKey });
 export const keyRename = (id: Uuid, label: string) => invoke<KeyCard>("key_rename", { id, label });

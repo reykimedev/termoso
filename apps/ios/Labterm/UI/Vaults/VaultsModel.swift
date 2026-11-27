@@ -114,6 +114,20 @@ final class VaultsModel {
     }
 
     /// The hosts "Connect all" opens for a group; empty when it has none or on error.
+    /// Vaults hosts and groups can move or be copied into: unlocked, writable, not the current one.
+    var transferTargets: [VaultInfo] {
+        vaults.filter { $0.id != selectedVaultId && !$0.locked && $0.access != .view }
+    }
+
+    func transferPlan(_ r: TransferRequestState, withCredentials: Bool) throws -> TransferPlanCard {
+        try repository.vaultTransferPlan(hostIds: r.hostIds, groupIds: r.groupIds, vaultId: r.targetId, move: r.move, withCredentials: withCredentials)
+    }
+
+    func transfer(_ r: TransferRequestState, withCredentials: Bool) throws {
+        _ = try repository.vaultTransfer(hostIds: r.hostIds, groupIds: r.groupIds, vaultId: r.targetId, move: r.move, withCredentials: withCredentials)
+        reloadAddressBook()
+    }
+
     func connectAllHosts(inGroup id: String) -> [HostItem] {
         (try? repository.groupConnectAll(groupId: id)) ?? []
     }

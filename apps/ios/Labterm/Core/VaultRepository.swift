@@ -76,6 +76,15 @@ struct VaultRepository: Sendable {
     }
 
     /// Terminal hosts of a group and its sub-groups, in tree order ("Connect all").
+    /// Preview moving (`move`) or copying hosts and whole groups into another vault.
+    func vaultTransferPlan(hostIds: [String], groupIds: [String], vaultId: String, move: Bool, withCredentials: Bool) throws -> TransferPlanCard {
+        try app.vaultTransferPlan(hostIds: hostIds, groupIds: groupIds, vaultId: vaultId, groupId: nil, mv: move, withCredentials: withCredentials)
+    }
+
+    func vaultTransfer(hostIds: [String], groupIds: [String], vaultId: String, move: Bool, withCredentials: Bool) throws -> TransferPlanCard {
+        try app.vaultTransfer(hostIds: hostIds, groupIds: groupIds, vaultId: vaultId, groupId: nil, mv: move, withCredentials: withCredentials)
+    }
+
     func groupConnectAll(groupId: String) throws -> [HostItem] {
         try app.groupConnectAll(groupId: groupId)
     }

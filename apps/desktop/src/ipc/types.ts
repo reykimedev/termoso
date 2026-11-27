@@ -3176,3 +3176,54 @@ export interface VpnNetworkForm {
   setupKey: string | null;
   directFirst?: boolean;
 }
+
+// ── vault transfer (labterm_client::vaultmove) ──
+
+export type TransferMode = "copy" | "move";
+
+export interface TransferRequest {
+  hostIds: Uuid[];
+  groupIds: Uuid[];
+  /** Target vault. */
+  vaultId: Uuid;
+  /** Group in the target vault; null = top level. */
+  groupId: Uuid | null;
+  mode: TransferMode;
+  withCredentials: boolean;
+}
+
+export type TransferBlocker =
+  | "nothing"
+  | "same_vault"
+  | "mixed_vaults"
+  | "target_locked"
+  | "target_read_only"
+  | "target_group"
+  | "source_read_only"
+  | "connect_only"
+  | "hidden";
+
+export type TransferAction =
+  "reuse" | "copy" | "leave_out" | "unlink" | "move_along" | "rewrite" | "remove" | "breaks";
+
+export interface TransferDependency {
+  kind: string;
+  id: Uuid;
+  label: string;
+  action: TransferAction;
+}
+
+export interface TransferPlan {
+  sourceVaultId: Uuid | null;
+  targetVaultId: Uuid;
+  hosts: number;
+  groups: number;
+  blocked: { id: Uuid | null; label: string; reason: TransferBlocker }[];
+  dependencies: TransferDependency[];
+}
+
+export interface TransferResult {
+  hosts: { from: Uuid; to: Uuid }[];
+  groups: { from: Uuid; to: Uuid }[];
+  plan: TransferPlan;
+}

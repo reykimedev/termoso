@@ -414,15 +414,37 @@ fun HostsScreen(
             onPick = { vm.move(d.ids, it); dialog = null },
             onDismiss = { dialog = null },
         )
-        is HostsDialog.Copy -> CopyToVaultDialog(
-            vaults = otherVaults,
-            onCopy = { v, creds -> vm.copy(d.ids, v, creds); dialog = null },
+        is HostsDialog.Copy -> VaultTransferDialog(
+            repo = shell.repo,
+            source = vault,
+            vaults = vaults,
+            hostIds = d.ids,
+            groupIds = emptyList(),
+            move = false,
+            onNotify = shell::notify,
+            onDone = { vm.clearSelection(); dialog = null },
             onDismiss = { dialog = null },
         )
-        is HostsDialog.MoveVault -> CopyToVaultDialog(
-            vaults = otherVaults,
+        is HostsDialog.MoveVault -> VaultTransferDialog(
+            repo = shell.repo,
+            source = vault,
+            vaults = vaults,
+            hostIds = d.ids,
+            groupIds = emptyList(),
             move = true,
-            onCopy = { v, creds -> vm.moveToVault(d.ids, v, creds); dialog = null },
+            onNotify = shell::notify,
+            onDone = { vm.clearSelection(); dialog = null },
+            onDismiss = { dialog = null },
+        )
+        is HostsDialog.TransferGroup -> VaultTransferDialog(
+            repo = shell.repo,
+            source = vault,
+            vaults = vaults,
+            hostIds = emptyList(),
+            groupIds = listOf(d.group.id),
+            move = d.move,
+            onNotify = shell::notify,
+            onDone = { dialog = null },
             onDismiss = { dialog = null },
         )
         HostsDialog.NewGroup -> NameDialog(
@@ -445,6 +467,8 @@ fun HostsScreen(
             onRename = { dialog = HostsDialog.RenameGroup(d.group) },
             onDuplicate = { vm.duplicateGroup(d.group) },
             onMove = { dialog = HostsDialog.MoveGroup(d.group) },
+            onMoveVault = if (otherVaults.isEmpty()) null else ({ dialog = HostsDialog.TransferGroup(d.group, move = true) }),
+            onCopyVault = if (otherVaults.isEmpty()) null else ({ dialog = HostsDialog.TransferGroup(d.group, move = false) }),
             onDelete = { dialog = HostsDialog.DeleteGroup(d.group) },
             // Actions set the next dialog before this runs; keep it.
             onClose = { if (dialog == d) dialog = null },
@@ -514,6 +538,7 @@ private sealed interface HostsDialog {
     data class RenameGroup(val group: GroupItem) : HostsDialog
     data class DeleteGroup(val group: GroupItem) : HostsDialog
     data class MoveGroup(val group: GroupItem) : HostsDialog
+    data class TransferGroup(val group: GroupItem, val move: Boolean) : HostsDialog
     data class Settings(val target: DefaultsTarget) : HostsDialog
     data object Online : HostsDialog
     data object Discover : HostsDialog
@@ -868,47 +893,3 @@ private fun PickRow(label: String, selected: Boolean, onClick: () -> Unit) {
     }
 }
 
-@Composable
-private fun CopyToVaultDialog(vaults: List<VaultInfo>, onCopy: (String, Boolean) -> Unit, onDismiss: () -> Unit, move: Boolean = false) {
-    var target by remember { mutableStateOf(vaults.firstOrNull()?.id) }
-    var withCredentials by remember { mutableStateOf(false) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(if (move) stringResource(R.string.move_to_vault) else stringResource(R.string.copy_to_vault_2)) },
-        text = {
-            Column {
-                vaults.forEach { v ->
-                    Row(
-                        Modifier.fillMaxWidth().combinedClickable(onClick = { target = v.id }).padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(selected = target == v.id, onClick = { target = v.id })
-                        Text(vaultLabel(v))
-                    }
-                }
-                Spacer(Modifier.height(12.dp))
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(stringResource(R.string.include_credentials), fontWeight = FontWeight.Medium)
-                        Text(
-                            if (withCredentials) {
-                                stringResource(R.string.passwords_and_keys_are_copied_into_the_target)
-                            } else {
-                                stringResource(R.string.only_host_details_are_copied_members_use_their)
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    LabtermSwitch(checked = withCredentials, onCheckedChange = { withCredentials = it })
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { target?.let { onCopy(it, withCredentials) } }, enabled = target != null) {
-                Text(if (move) stringResource(R.string.move) else stringResource(R.string.copy))
-            }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
-    )
-}
