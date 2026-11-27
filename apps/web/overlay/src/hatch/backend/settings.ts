@@ -4,7 +4,6 @@
 export function defaultSettings(): Record<string, unknown> {
   return {
     theme: "system",
-    language: "system",
     hostsView: "grid",
     forwardingView: "grid",
     keychainView: "grid",
