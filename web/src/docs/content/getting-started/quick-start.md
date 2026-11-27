@@ -41,7 +41,7 @@ A few things worth knowing on day one:
 
 ## 5. Optional: sign in
 
-An account adds sync between devices and sharing with a team. Use the free cloud at `app.termoso.dev` or [your own server](/docs/self-hosting/overview) — the app asks for the server URL when you sign in. Hosts stay in the Local vault until you **Move** them to your personal vault; nothing is uploaded by signing in alone.
+An account adds sync between devices and sharing with a team. Use the labdex cloud at `sync.labdex.dev` (invite only for now) or [your own server](/docs/self-hosting/overview) — the app asks for the server URL when you sign in. Hosts stay in the Local vault until you **Move** them to your personal vault; nothing is uploaded by signing in alone.
 
 On the phone, sign in with the same account and the vault appears within seconds — see [Sync to mobile](/docs/getting-started/mobile).
 

@@ -13,7 +13,7 @@ import { tr, trx } from "@/i18n";
 const REPO_URL = "https://github.com/termoso/termoso";
 
 /**
- * First thing shown while nobody is signed in: sign in to Termoso Cloud, to
+ * First thing shown while nobody is signed in: sign in to the labdex cloud, to
  * your own server, or carry on offline — everything works without an account.
  */
 export function WelcomeScreen({ settings }: { settings: Settings }) {

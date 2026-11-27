@@ -1210,7 +1210,7 @@
     <string name="welcome_to_labterm">Добро пожаловать в Labterm</string>
     <string name="free_open_source_ssh_client_end_to_end">Бесплатный SSH-клиент с открытым исходным кодом. Синхронизация со сквозным шифрованием, команды и трансляция терминала — без телеметрии.</string>
     <string name="create_a_free_account">Создать бесплатный аккаунт</string>
-    <string name="labterm_cloud_is_completely_free_for_everyone_no">Termoso Cloud полностью бесплатен для всех — без ограничений, тарифов и скрытых условий. Или войдите на свой собственный сервер.</string>
+    <string name="labterm_cloud_is_completely_free_for_everyone_no">Облако labdex пока только по приглашениям: приглашение в команду даёт аккаунт. Или войдите на свой собственный сервер.</string>
     <string name="continue_without_sync">Продолжить без синхронизации</string>
     <string name="free_forever_open_source_no_telemetry">Бесплатно навсегда · Открытый код · Без телеметрии</string>
     <string name="system">Системная</string>
@@ -1245,7 +1245,7 @@
     <string name="min_ago">%1$d мин назад</string>
     <string name="h_ago">%1$d ч назад</string>
     <string name="d_ago">%1$d д назад</string>
-    <string name="cloud_server_blurb">%1$s · бесплатно навсегда, без ограничений и тарифов. Всё защищено сквозным шифрованием — сервер никогда не видит ваши хосты, ключи и пароли.</string>
+    <string name="cloud_server_blurb">%1$s · пока только по приглашениям. Всё защищено сквозным шифрованием — сервер никогда не видит ваши хосты, ключи и пароли.</string>
     <string name="sep_no_email">" · без почты"</string>
     <string name="ssh_id_delete_text">@%1$s и все ключи, опубликованные под ним, удаляются с сервера; ключи на этом телефоне стираются.</string>
     <string name="quick_connect_placeholder">user@host, telnet://host или ссылка</string>

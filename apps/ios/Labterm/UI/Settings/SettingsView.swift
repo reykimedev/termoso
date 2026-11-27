@@ -61,7 +61,7 @@ struct SettingsView: View {
 
     private var serverLabel: String {
         switch container.preferences.serverChoice {
-        case .cloud: "Termoso Cloud"
+        case .cloud: "labdex cloud"
         case .selfHosted: container.preferences.selfHostedURL ?? "Self-hosted"
         case .offline, .none: "Offline"
         }

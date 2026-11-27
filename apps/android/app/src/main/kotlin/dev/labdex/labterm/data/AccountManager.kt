@@ -39,8 +39,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** Termoso Cloud — the free hosted server. Same constant as the desktop client. */
-const val CLOUD_URL = "https://app.termoso.dev"
+/** labdex cloud, the hosted Labterm server (invite only for now). Same constant as the desktop client. */
+const val CLOUD_URL = "https://sync.labdex.dev"
 
 /** Which server a sign-in targets. */
 enum class ServerChoice { Cloud, SelfHosted }

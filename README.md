@@ -16,7 +16,8 @@
 Labterm is the SSH client of the [labdex](https://github.com/labdex-app/labdex) family
 (<https://term.labdex.dev>). It is a fork of [Labterm](https://github.com/termoso/termoso)
 by the Termoso contributors, licensed under the same [AGPL-3.0](LICENSE), and keeps
-Labterm's sync protocol: it signs in to Termoso Cloud or any self-hosted Labterm server.
+Labterm's sync protocol: it signs in to the labdex cloud (`sync.labdex.dev`, the default), Termoso Cloud or any
+self-hosted Labterm server.
 
 What the fork adds or changes on top of Labterm:
 
