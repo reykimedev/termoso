@@ -53,6 +53,25 @@ impl Aad {
         Self::label(&["entity", kind, entity_id])
     }
 
+    /// AAD for an entity payload inside a collection, encrypted with version
+    /// `key_version` of the collection key. Uses its own label and
+    /// length-prefixed fields, so it can't collide with [`Aad::entity`] or
+    /// with another collection, kind, id or version. Callers check `kind`
+    /// against the kinds they know before building it.
+    pub fn collection_entity(
+        kind: &str,
+        entity_id: &str,
+        collection_id: &str,
+        key_version: u64,
+    ) -> Self {
+        let mut c = crate::canon::Canon::new("termoso/v1/collection-entity");
+        c.str(kind)
+            .str(entity_id)
+            .str(collection_id)
+            .u64(key_version);
+        Self(c.finish())
+    }
+
     /// AAD for the account private key wrapped by the account KEK.
     pub fn account_private_key() -> Self {
         Self::label(&["account-private-key"])
@@ -163,6 +182,26 @@ mod tests {
         let aad = Aad::entity_field("host", "abc", "address");
         let ct = encrypt_str(&k, &aad, "10.0.0.1").unwrap();
         assert_eq!(decrypt_str(&k, &aad, &ct).unwrap(), "10.0.0.1");
+    }
+
+    #[test]
+    fn collection_aad_binds_every_field() {
+        let k = SymmetricKey::generate();
+        let aad = Aad::collection_entity("host", "h1", "c1", 2);
+        let env = encrypt(&k, &aad, b"x").unwrap();
+        assert_eq!(decrypt(&k, &aad, &env).unwrap(), b"x");
+        for other in [
+            Aad::collection_entity("group", "h1", "c1", 2),
+            Aad::collection_entity("host", "h2", "c1", 2),
+            Aad::collection_entity("host", "h1", "c2", 2),
+            Aad::collection_entity("host", "h1", "c1", 1),
+            // Shifting characters between fields doesn't collide.
+            Aad::collection_entity("hos", "th1", "c1", 2),
+            Aad::entity("host", "h1"),
+        ] {
+            assert_ne!(other, aad);
+            assert!(decrypt(&k, &other, &env).is_err());
+        }
     }
 
     #[test]

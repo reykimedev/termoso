@@ -579,7 +579,7 @@ private fun HostList(
                         ListRow(
                             title = h.label.ifBlank { h.address },
                             subtitle = hostSubtitle(h),
-                            leading = { HostAvatar(h.osName, selected = selected, icon = h.icon) },
+                            leading = { HostAvatar(h.osName, selected = selected, icon = h.icon, color = h.color) },
                             modifier = Modifier.combinedClickable(
                                 onClick = { onHostTap(h) },
                                 onLongClick = { onHostLongPress(h) },

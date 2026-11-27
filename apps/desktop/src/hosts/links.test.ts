@@ -162,6 +162,7 @@ const card = (over: Partial<HostCard>): HostCard => ({
   groupPath: [],
   tags: [],
   icon: null,
+  color: null,
   osName: null,
   ipVersion: "auto",
   notes: "",

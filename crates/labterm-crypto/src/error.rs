@@ -27,4 +27,14 @@ pub enum CryptoError {
     /// Key derivation failed.
     #[error("key derivation failed")]
     Kdf,
+    /// A key envelope opened, but it is bound to another vault, collection or
+    /// key version than the one asked for.
+    #[error("key is bound to another vault, collection or version")]
+    Binding,
+    /// A signature did not verify, or a public key is not a valid point.
+    #[error("invalid signature")]
+    Signature,
+    /// A membership log entry breaks the chain or the log's rules.
+    #[error("membership log rejected: {0}")]
+    Log(&'static str),
 }

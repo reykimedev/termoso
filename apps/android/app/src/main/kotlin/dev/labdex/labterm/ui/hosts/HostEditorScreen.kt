@@ -352,8 +352,8 @@ private fun HostForm(
             }
             RowDivider()
             ChevronRow(
-                title = stringResource(R.string.icon),
-                leading = { HostAvatar(draft.osName, icon = draft.icon) },
+                title = stringResource(R.string.icon_and_colour),
+                leading = { HostAvatar(draft.osName, icon = draft.icon, color = draft.color) },
                 badge = draft.icon?.let { IconCatalog.picked(it)?.title ?: stringResource(R.string.icon_custom) } ?: stringResource(R.string.icon_automatic),
                 modifier = Modifier.clickable { iconPicker = true },
             )
@@ -651,6 +651,8 @@ private fun HostForm(
             automaticLabel = stringResource(R.string.icon_automatic),
             onPick = { id -> vm.update { it.copy(icon = id) }; iconPicker = false },
             onDismiss = { iconPicker = false },
+            color = draft.color,
+            onColor = { c -> vm.update { it.copy(color = c) } },
         )
     }
     if (groupPicker) {

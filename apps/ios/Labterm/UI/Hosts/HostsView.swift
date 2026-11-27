@@ -240,7 +240,7 @@ struct GroupRow: View {
 
     var body: some View {
         CardRow(title: group.label, subtitle: summary, chevron: true) {
-            GroupAvatar()
+            GroupAvatar(icon: group.icon, color: group.color)
         }
     }
 

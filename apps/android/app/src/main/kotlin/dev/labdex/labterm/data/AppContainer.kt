@@ -8,6 +8,7 @@ import android.app.KeyguardManager
 import dev.labdex.labterm.QuickAction
 import android.net.Uri
 import android.os.SystemClock
+import dev.labdex.labterm.ui.security.DeviceAuthPrompt
 import android.view.KeyEvent
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
@@ -217,7 +218,10 @@ class AppContainer(context: Context) {
         ProcessLifecycleOwner.get().lifecycle.addObserver(
             object : DefaultLifecycleObserver {
                 override fun onStop(owner: LifecycleOwner) {
-                    backgroundedAt = SystemClock.elapsedRealtime()
+                    // The screen-lock credential screen is another app's activity, so
+                    // entering a PIN there stops us too. That is the unlock itself,
+                    // not time away: counting it would gate again right after.
+                    if (!DeviceAuthPrompt.showing) backgroundedAt = SystemClock.elapsedRealtime()
                 }
 
                 override fun onStart(owner: LifecycleOwner) {

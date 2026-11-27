@@ -462,6 +462,8 @@ export interface HostCard {
   osName: string | null;
   /** User-chosen icon id or `custom:data:`; overrides `osName`. */
   icon: string | null;
+  /** User-chosen tile colour (`#rrggbb`); null keeps the icon or theme colour. */
+  color: string | null;
   ipVersion: IpVersion;
   notes: string;
   sortOrder: number;
@@ -524,6 +526,8 @@ export interface HostForm {
   osName: string | null;
   /** User-chosen icon id or `custom:data:`; null follows OS detection. */
   icon: string | null;
+  /** User-chosen tile colour (`#rrggbb`); null keeps the icon or theme colour. */
+  color: string | null;
   ipVersion: IpVersion;
   agentForwarding: boolean;
   /** Trusted X11 forwarding to the local display. */
@@ -829,6 +833,7 @@ export function emptyHostForm(vaultId: Uuid, groupId: Uuid | null): HostForm {
     notes: "",
     osName: null,
     icon: null,
+    color: null,
     ipVersion: "auto",
     agentForwarding: false,
     forwardX11: false,
@@ -865,6 +870,8 @@ export interface GroupNode {
   hasConfig: boolean;
   /** User-chosen icon id or `custom:data:`; null shows the default folder. */
   icon: string | null;
+  /** User-chosen tile colour (`#rrggbb`); null keeps the icon or theme colour. */
+  color: string | null;
 }
 
 /** Group editor model: name, parent and the SSH defaults its hosts inherit. */
@@ -903,6 +910,8 @@ export interface GroupForm extends SshDefaultsForm {
   parentId: Uuid | null;
   /** User-chosen icon id or `custom:data:`; null shows the default folder. */
   icon: string | null;
+  /** User-chosen tile colour (`#rrggbb`); null keeps the icon or theme colour. */
+  color: string | null;
 }
 
 /** A tag's settings; tags rank below groups (host > groups > tags). */
@@ -947,6 +956,7 @@ export function emptyGroupForm(vaultId: Uuid, parentId: Uuid | null): GroupForm 
     label: "",
     parentId,
     icon: null,
+    color: null,
     ...emptySshDefaults(),
   };
 }
