@@ -40,7 +40,7 @@ Host k3s-1
 Host bastion
   HostName 192.0.2.5
   User ops
-Host nas
+Host nas-01
   HostName 192.0.2.40
   User admin
   Port 2222"""
@@ -82,11 +82,14 @@ def back():
 
 
 def scroll_to(label, exact=True, tries=8):
+    """Scrolls down, then back up, until `label` shows (slow swipes, so nothing flings past)."""
     w, h = screen_size()
-    for _ in range(tries):
-        if has(label, exact):
-            return
-        swipe(w // 2, int(h * 0.75), w // 2, int(h * 0.4))
+    for down in (True, False):
+        for _ in range(tries):
+            if has(label, exact):
+                return
+            a, b = int(h * 0.7), int(h * 0.45)
+            swipe(w // 2, a if down else b, w // 2, b if down else a, ms=900)
     wait(label, 2, exact)
 
 
@@ -355,8 +358,9 @@ def pf_rule():
         tap("Skip wizard")
     if has("Local forwarding"):
         tap("Local forwarding")
+    wait("Label")
     for _ in range(3):
-        tap("Host")
+        text_field(1)  # the Host picker; its label is not in the dump
         time.sleep(1)
         if has("web-02"):
             tap("web-01", index=-1)
