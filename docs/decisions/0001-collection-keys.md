@@ -11,23 +11,35 @@ Teams want some members to be unable to read some items at all, without splittin
 ## Decision
 
 A **collection** is a part of a team vault with its own symmetric key (`CK`, versioned). In the
-apps it is a "restricted group": the group, everything under it and the records those items own
-move under `CK`. Items outside any collection stay under the vault key.
+apps it is a "restricted group": the group, everything under it and all data tied to its hosts
+(entities, host-key pins, recordings, bookmarks, workspaces) move under `CK`. Items outside any
+collection stay under the vault key. Revised after the security review on #137.
 
-- `CK` is sealed to each member's account key, like the vault key. The server stores sealed copies
-  only and never holds `CK`.
-- Entity AAD gains the collection id (`termoso/v1/entity/<kind>/<id>/c/<collection_id>`), so the
-  server cannot move a record into another collection.
-- Items reference only their own collection or the vault-wide part.
-- Removing a member, role or IdP group from a collection rotates `CK`; rows are re-encrypted
-  lazily, and pushes with an old version are refused.
-- The server returns a collection's rows only to members holding its key (defence in depth).
+- **Bound, authenticated key envelopes:** `CK` is sealed as `{vault_id, collection_id, version,
+  CK}` with `crypto_box` from a manager's account key, accepted only from a key on the
+  collection's manager list. Anonymous sealed boxes are not used for collection keys.
+- **Signed membership log** per collection (grants, removals, manager changes, rotations),
+  hash-chained and rooted in the creator's key. The server stores it but can't write it.
+- **Explicit grants:** a manager approves each new member and sees their key fingerprint; nothing is
+  sealed automatically from server, SCIM or IdP data. IdP groups are bound by stable id. Owners
+  and admins don't get `CK` automatically.
+- **Closed resolution:** a collection host resolves only from its own collection and the member's
+  personal overlays: no references into the vault-wide part, no vault-wide tag or parent-group
+  inheritance, pins only from the same collection.
+- **AAD** uses its own label with length-prefixed fields, and the reference check uses the
+  authenticated collection id.
+- **Rotation:** any end of access marks the collection as owing a rotation; one manager rotates
+  eagerly and logs the re-encrypted rows, so old-version rows outside that list are refused.
+- **Server rules:** creates, updates, deletes and moves of collection rows need edit on the
+  collection; moving out is audited; pull filters by key holder with a cursor per collection.
 - Older clients don't receive collection rows (feature flag on sync), so they fail safe.
 
 ## Alternatives
 
 - **Separate vaults only:** already possible and safe, but splits groups, tags, policies and
   shared credentials across vaults; the reason this epic exists.
+- **Anonymous envelopes and automatic sealing (first draft):** simpler, but the server could plant
+  or swap keys and grant itself access through pending members; rejected after review.
 - **Per-item keys:** finest control, but one sealed key per item and member does not scale and
   makes references and rotation much harder.
 - **Server-side enforcement only:** the server cannot read entities, so it cannot hide what a
@@ -35,8 +47,9 @@ move under `CK`. Items outside any collection stay under the vault key.
 
 ## Consequences
 
-- New protected case: a member outside a collection cannot read its items changed after their
-  removal, even with a modified client.
+- New protected cases: members never in a collection can't read it (except what they synced before
+  Restrict); removed members can't read changes after the rotation; a malicious server can't plant
+  or swap keys or add a reader without breaking the signed log.
 - Not protected: what a member already synced before removal (secrets must be rotated on the
   hosts), and a member's own unlocked device.
 - The server learns which collections exist, who is in them and how many items each holds; names
