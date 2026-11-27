@@ -71,13 +71,7 @@ pub fn run() {
         }
         return;
     }
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_env("LABTERM_LOG")
-                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("warn")),
-        )
-        .with_writer(std::io::stderr)
-        .init();
+    init_logging();
 
     #[cfg(target_os = "linux")]
     linux_graphics::apply_workarounds();
@@ -148,6 +142,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             smoke::smoke_report,
             commands::app_info,
+            commands::debug_log_files,
+            commands::debug_log_read,
             commands::app_quit,
             commands::deep_links_register,
             commands::launch_files,
@@ -587,4 +583,45 @@ pub(crate) async fn startup(app: tauri::AppHandle) {
         tauri::async_runtime::spawn(update::scheduler(app.clone()));
     }
     tauri::async_runtime::spawn(cloud_sync::scheduler(app));
+}
+
+/// stderr as before (`LABTERM_LOG`, default `warn`), plus one redacted file
+/// per launch in the profile's `debug-logs` for Settings → About → Debug
+/// log. The file also gets Labterm's own debug lines (sync, VPN, opkssh,
+/// updater and SSH timings) unless `LABTERM_LOG` says otherwise.
+fn init_logging() {
+    use tracing_subscriber::prelude::*;
+    use tracing_subscriber::{EnvFilter, fmt};
+    let env = || EnvFilter::try_from_env("LABTERM_LOG").ok();
+    let stderr = fmt::layer()
+        .with_writer(std::io::stderr)
+        .with_filter(env().unwrap_or_else(|| EnvFilter::new("warn")));
+    let file = match labterm_core::debuglog::FileWriter::open(state::debug_logs_dir()) {
+        Ok(w) => Some(
+            fmt::layer()
+                .with_ansi(false)
+                .with_writer(std::sync::Mutex::new(w))
+                .with_filter(env().unwrap_or_else(|| {
+                    EnvFilter::new(
+                        "info,labterm_core=debug,labterm_client=debug,labterm_netbird=debug,labterm_desktop_lib=debug",
+                    )
+                })),
+        ),
+        Err(e) => {
+            eprintln!("labterm: debug log files off: {e}");
+            None
+        }
+    };
+    tracing_subscriber::registry()
+        .with(stderr)
+        .with(file)
+        .init();
+    tracing::info!(
+        version = env!("CARGO_PKG_VERSION"),
+        commit = env!("LABTERM_BUILD_COMMIT"),
+        channel = update::CHANNEL.unwrap_or("stable"),
+        os = std::env::consts::OS,
+        arch = std::env::consts::ARCH,
+        "labterm: debug log started"
+    );
 }

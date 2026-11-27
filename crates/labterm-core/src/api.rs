@@ -215,14 +215,40 @@ impl ApiClient {
         rb
     }
 
+    /// Send and log method, path (never the query or body), status and time.
+    async fn exec(rb: RequestBuilder) -> Result<reqwest::Response> {
+        let (client, req) = rb.build_split();
+        let req = req?;
+        let method = req.method().clone();
+        let path = req.url().path().to_string();
+        let started = std::time::Instant::now();
+        match client.execute(req).await {
+            Ok(resp) => {
+                tracing::debug!(
+                    status = resp.status().as_u16(),
+                    ms = started.elapsed().as_millis(),
+                    "api: {method} {path}"
+                );
+                Ok(resp)
+            }
+            Err(e) => {
+                tracing::warn!(
+                    ms = started.elapsed().as_millis(),
+                    "api: {method} {path} failed: {e}"
+                );
+                Err(e.into())
+            }
+        }
+    }
+
     async fn send<T: DeserializeOwned>(rb: RequestBuilder) -> Result<T> {
-        let resp = rb.send().await?;
+        let resp = Self::exec(rb).await?;
         let resp = check(resp).await?;
         Ok(resp.json().await?)
     }
 
     async fn send_empty(rb: RequestBuilder) -> Result<()> {
-        let resp = rb.send().await?;
+        let resp = Self::exec(rb).await?;
         check(resp).await?;
         Ok(())
     }

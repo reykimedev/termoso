@@ -208,11 +208,14 @@ pub(super) async fn authenticate(
             tracing::debug!(?method, "skipped: server does not offer it");
             continue;
         }
+        let label = match method {
+            AuthMethod::Agent | AuthMethod::AgentKey { .. } => "ssh-agent".into(),
+            _ => method_name(&kind),
+        };
+        let tried = std::time::Instant::now();
+        tracing::debug!(method = %label, "ssh: trying auth method");
         opts.report(ConnectPhase::Auth {
-            method: match method {
-                AuthMethod::Agent | AuthMethod::AgentKey { .. } => "ssh-agent".into(),
-                _ => method_name(&kind),
-            },
+            method: label.clone(),
         });
 
         let result = match method {
@@ -341,7 +344,14 @@ pub(super) async fn authenticate(
         };
 
         match result {
-            AuthResult::Success => return Ok(()),
+            AuthResult::Success => {
+                tracing::info!(
+                    method = %label,
+                    ms = tried.elapsed().as_millis(),
+                    "ssh: auth method accepted"
+                );
+                return Ok(());
+            }
             AuthResult::Failure {
                 remaining_methods,
                 partial_success,
@@ -351,7 +361,12 @@ pub(super) async fn authenticate(
                 if !remaining_methods.is_empty() {
                     allowed = Some(remaining_methods.to_vec());
                 }
-                tracing::debug!(?method, partial_success, "auth method failed");
+                tracing::info!(
+                    method = %label,
+                    partial_success,
+                    ms = tried.elapsed().as_millis(),
+                    "ssh: auth method refused"
+                );
             }
         }
     }

@@ -1940,7 +1940,12 @@
     <string name="debug_update_error_download">Загрузка прервалась. Нажмите, чтобы повторить.</string>
     <string name="debug_update_error_checksum">Загруженное обновление не совпадает с контрольной суммой и было удалено.</string>
     <string name="debug_log">Журнал отладки</string>
-    <string name="debug_log_hint">Недавние журналы приложения и ядра без секретов. Скопируйте или отправьте их для отчёта об ошибке.</string>
+    <string name="debug_log_hint">Журналы приложения и ядра за последние запуски, с замерами времени и без секретов. Скопируйте или отправьте их для отчёта об ошибке.</string>
+    <string name="debug_log_source">Журнал</string>
+    <string name="debug_log_logcat">Logcat (в реальном времени, этот процесс)</string>
+    <string name="debug_log_this_launch">Этот запуск · %1$s</string>
+    <string name="debug_log_earlier_launch">%1$s · %2$s</string>
+    <string name="debug_log_empty">Здесь пока ничего не записано.</string>
     <string name="openid_no_keys">В этом хранилище нет ключей OpenID: создайте ключ в связке ключей</string>
     <string name="openid_key_for_host">Ключ OpenID</string>
     <string name="openid_key_for_host_hint">Используется раньше учётных данных хоста, которые остаются запасным вариантом. Хосты без ключа используют ключ своей группы.</string>

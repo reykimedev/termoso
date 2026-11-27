@@ -34,6 +34,18 @@ const DB_FILE: &str = "vault.db";
 const LOGS_DIR: &str = "logs";
 const SETTINGS_META: &str = "desktop.settings";
 
+/// The profile in use: `LABTERM_PROFILE_DIR`, or the platform's default.
+pub fn profile_dir() -> PathBuf {
+    std::env::var_os(PROFILE_ENV)
+        .map(PathBuf::from)
+        .unwrap_or_else(|| secrets::default_profile_dir(PROFILE_NAME))
+}
+
+/// Where the debug log files of [`labterm_core::debuglog`] go.
+pub fn debug_logs_dir() -> PathBuf {
+    profile_dir().join("debug-logs")
+}
+
 pub struct AppState {
     pub profile_dir: PathBuf,
     pub master_source: std::sync::Mutex<MasterKeySource>,
@@ -96,10 +108,7 @@ impl AppState {
     /// opens right away; with one, the store stays closed until
     /// [`AppState::unlock_with_password`].
     pub fn open() -> Result<Self> {
-        let profile_dir = std::env::var_os(PROFILE_ENV)
-            .map(PathBuf::from)
-            .unwrap_or_else(|| secrets::default_profile_dir(PROFILE_NAME));
-        Self::open_at(profile_dir)
+        Self::open_at(profile_dir())
     }
 
     pub fn open_at(profile_dir: PathBuf) -> Result<Self> {
