@@ -56,6 +56,13 @@ type node struct {
 
 func cstr(s string) *C.char { return C.CString(s) }
 
+// live holds the handles of running nodes: a call with a stopped handle
+// (a status poll racing a stop) must fail, not panic in cgo.Handle.Value.
+var (
+	liveMu sync.Mutex
+	live   = map[C.uintptr_t]bool{}
+)
+
 func newClient(o startOptions, privateKey, setupKey string) (*embed.Client, error) {
 	level := o.LogLevel
 	if level == "" {
@@ -140,11 +147,16 @@ func tnb_start(optsJSON *C.char, handle *C.uintptr_t) *C.char {
 	out, _ := json.Marshal(res)
 	n := &node{client: c, conns: map[net.Conn]struct{}{}}
 	*handle = C.uintptr_t(cgo.NewHandle(n))
+	liveMu.Lock()
+	live[*handle] = true
+	liveMu.Unlock()
 	return cstr(string(out))
 }
 
 func lookup(h C.uintptr_t) (*node, bool) {
-	if h == 0 {
+	liveMu.Lock()
+	defer liveMu.Unlock()
+	if h == 0 || !live[h] {
 		return nil, false
 	}
 	n, ok := cgo.Handle(h).Value().(*node)
@@ -226,6 +238,9 @@ func tnb_stop(h C.uintptr_t) {
 	if !ok {
 		return
 	}
+	liveMu.Lock()
+	delete(live, h)
+	liveMu.Unlock()
 	n.mu.Lock()
 	for c := range n.conns {
 		c.Close()

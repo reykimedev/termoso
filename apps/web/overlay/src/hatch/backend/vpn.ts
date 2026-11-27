@@ -3,7 +3,7 @@
 // set to use a network refuse to connect rather than dial their address directly.
 import { fail } from "./errors";
 import { get, list, put, remove, require, vault, type Ent, type Uuid } from "./state";
-import type { SshConfig } from "./model";
+import { resolve, type Host, type SshConfig } from "./model";
 
 export interface Transport {
   label: string;
@@ -111,4 +111,39 @@ export function refuseIfVpn(transportId: Uuid | null | undefined) {
       "This host connects through the VPN network {name}, which the browser cannot join yet. Use the desktop or Android app.",
       { name: t.data.label },
     );
+}
+
+/** Every network is "unavailable" here: the browser cannot join one yet. */
+export function states(ids: Uuid[]) {
+  return Object.fromEntries(ids.map((id) => [id, { state: "unavailable" }]));
+}
+
+/** The hosts of the network's vault that connect through it (own choice or inherited). */
+function hostsUsing(t: Ent<Transport>) {
+  return list<Host>("host", t.vaultId)
+    .filter((h) => {
+      try {
+        return resolve(h.id).ssh.transport_id === t.id;
+      } catch {
+        return false;
+      }
+    })
+    .map((h) => ({ id: h.id, label: h.data.label, address: h.data.address }))
+    .sort((a, b) => a.label.toLowerCase().localeCompare(b.label.toLowerCase()));
+}
+
+/** The details page: settings and hosts; no live part, since the browser never joins. */
+export function details(id: Uuid) {
+  const t = require<Transport>(id, "transport");
+  return {
+    network: card(t),
+    state: { state: "unavailable" },
+    ip: "",
+    fqdn: "",
+    managementConnected: false,
+    signalConnected: false,
+    liveError: null,
+    peers: [],
+    hosts: hostsUsing(t),
+  };
 }

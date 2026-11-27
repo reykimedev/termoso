@@ -12,7 +12,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use labterm_core::model::{Entity, Transport};
-use labterm_netbird::{Netbird, NetworkConfig, PeerKeys, SIGN_IN_NEEDED};
+use labterm_netbird::{Netbird, NetworkConfig, NodeState, PeerKeys, SIGN_IN_NEEDED};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use uuid::Uuid;
 use zeroize::Zeroizing;
@@ -84,6 +84,16 @@ async fn dial_through_embedded_netbird() {
     echo(&nb, &keys, net.clone(), &target).await;
     assert!(keys.load(&net.peer_slot()).is_some(), "peer key not saved");
     assert!(nb.is_running(id).await);
+    assert_eq!(nb.state(id), Some(NodeState::Running));
+
+    // The details page sees this peer's address and the echo peer.
+    let details = nb.details(id).await.expect("running").expect("status");
+    assert!(!details.ip.is_empty(), "no own address: {details:?}");
+    assert!(details.management, "management not connected: {details:?}");
+    assert!(
+        details.peers.iter().any(|p| p.ip == target),
+        "echo peer missing: {details:?}"
+    );
 
     // Two streams share one peer; NetBird DNS names resolve in the network.
     echo(&nb, &keys, net.clone(), &env("NB_E2E_TARGET_NAME")).await;
@@ -94,12 +104,15 @@ async fn dial_through_embedded_netbird() {
         !nb.is_running(id).await,
         "peer still running after idle time"
     );
+    assert_eq!(nb.state(id), None, "idle stop keeps a state");
+    assert!(nb.details(id).await.is_none());
 
     // On demand again, now without the setup key: the saved key logs in.
     let net_no_key = network(id, None);
     echo(&nb, &keys, net_no_key, &target).await;
-    nb.stop_all().await;
+    nb.disconnect(id).await;
     assert!(!nb.is_running(id).await);
+    assert_eq!(nb.state(id), None);
 
     // Not reachable outside the network.
     let err = match nb

@@ -5,6 +5,7 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import androidx.browser.customtabs.CustomTabsIntent
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -39,6 +41,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -58,6 +61,7 @@ import dev.labdex.labterm.ui.components.SectionCard
 import dev.labdex.labterm.ui.components.SubScreen
 import dev.labdex.labterm.ui.shell.ShellViewModel
 import dev.labdex.labterm.core.TransportItem
+import dev.labdex.labterm.core.TransportState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
@@ -73,7 +77,7 @@ private const val NETBIRD = "netbird"
  * the network settings; each member signs in to NetBird as themselves.
  */
 @Composable
-fun NetbirdNetworksScreen(shell: ShellViewModel, onBack: () -> Unit) {
+fun NetbirdNetworksScreen(shell: ShellViewModel, onBack: () -> Unit, onOpenNetwork: (String) -> Unit) {
     val vaultId by shell.selectedVaultId.collectAsStateWithLifecycle()
     val revision by shell.repo.revision.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
@@ -81,32 +85,23 @@ fun NetbirdNetworksScreen(shell: ShellViewModel, onBack: () -> Unit) {
     var editing by remember { mutableStateOf<TransportItem?>(null) }
     var signInOnly by remember { mutableStateOf(false) }
     var signingIn by remember { mutableStateOf<TransportItem?>(null) }
-    // Networks being joined from this list, and those running right now.
-    var connecting by remember { mutableStateOf(setOf<String>()) }
-    var running by remember { mutableStateOf(setOf<String>()) }
+    val ids = networks.orEmpty().mapNotNull { it.id }
+    val states by remember(ids) { VpnStates.observe(shell.repo, ids) }.collectAsStateWithLifecycle(emptyMap())
 
     fun connect(n: TransportItem) {
         val id = n.id ?: return
-        if (id in connecting) return
-        connecting = connecting + id
         scope.launch {
             runCatching { shell.repo.read { transportConnect(id) } }
-                .onSuccess { running = running + id; shell.notify(str(R.string.netbird_connected_to, n.label)) }
+                .onSuccess { shell.notify(str(R.string.netbird_connected_to, n.label)) }
                 .onFailure { shell.notify(it.userMessage()) }
-            connecting = connecting - id
         }
     }
 
-    // Tapping a network joins it: signing in first when this device has no peer yet.
-    fun open(n: TransportItem) {
-        if (!n.hasSetupKey && !n.signedIn) signingIn = n else connect(n)
-    }
     LaunchedEffect(vaultId, revision) {
         val v = vaultId ?: return@LaunchedEffect
         runCatching { shell.repo.read { transports(v) to transportSignInOnly(v) } }
             .onSuccess { (list, team) -> networks = list; signInOnly = team }
             .onFailure { shell.notify(it.userMessage()) }
-        running = networks.orEmpty().mapNotNull { n -> n.id?.takeIf { shell.repo.read { transportRunning(it) } } }.toSet()
     }
 
     fun newNetwork(): TransportItem? = vaultId?.let { v ->
@@ -150,22 +145,27 @@ fun NetbirdNetworksScreen(shell: ShellViewModel, onBack: () -> Unit) {
                 SectionCard {
                     list.forEachIndexed { i, n ->
                         if (i > 0) RowDivider()
-                        val id = n.id
+                        val state = n.id?.let { states[it] }
                         ListRow(
                             title = n.label,
-                            subtitle = (n.managementUrl ?: str(R.string.netbird_cloud)) + " · " + str(
-                                when {
-                                    id in connecting -> R.string.netbird_connecting
-                                    id in running -> R.string.netbird_connected
-                                    n.hasSetupKey -> R.string.netbird_joins_with_key
-                                    n.signedIn -> R.string.netbird_signed_in
-                                    else -> R.string.netbird_not_signed_in
-                                },
+                            subtitle = (n.managementUrl ?: str(R.string.netbird_cloud)) + " · " + (
+                                state?.label() ?: str(if (n.signedIn || n.hasSetupKey) R.string.vpn_status_off else R.string.netbird_not_signed_in)
                             ),
-                            leading = { IconTile(Icons.Filled.Hub) },
-                            modifier = Modifier.clickable { open(n) },
+                            leading = {
+                                Box {
+                                    IconTile(Icons.Filled.Hub)
+                                    if (state != null) {
+                                        Box(
+                                            Modifier.align(Alignment.BottomEnd).size(10.dp).clip(CircleShape)
+                                                .background(state.color()),
+                                        )
+                                    }
+                                }
+                            },
+                            // A tap opens the network's details: state, peers, hosts, join and sign-in.
+                            modifier = Modifier.clickable { n.id?.let(onOpenNetwork) },
                         ) {
-                            if (id in connecting) CircularProgressIndicator(Modifier.size(20.dp))
+                            if (state is TransportState.Connecting) CircularProgressIndicator(Modifier.size(20.dp))
                             IconButton(onClick = { editing = n }) {
                                 Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.netbird_network_settings))
                             }
@@ -213,7 +213,7 @@ fun NetbirdNetworksScreen(shell: ShellViewModel, onBack: () -> Unit) {
 }
 
 @Composable
-private fun NetworkEditDialog(
+internal fun NetworkEditDialog(
     current: TransportItem,
     onDismiss: () -> Unit,
     onSignIn: (() -> Unit)?,
