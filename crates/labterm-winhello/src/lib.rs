@@ -75,6 +75,8 @@ pub struct MakeCredential<'a> {
     pub resident: bool,
     /// PIN / biometric requirement.
     pub user_verification: UserVerification,
+    /// Enable the `hmac-secret` extension on the new credential.
+    pub hmac_secret: bool,
 }
 
 /// A new credential: its id and the authenticator data with the attested
@@ -97,6 +99,17 @@ pub fn get_assertion(req: &GetAssertion<'_>) -> Result<Assertion, Error> {
     imp::get_assertion(req)
 }
 
+/// `hmac-secret` from whichever of `credentials` (id, raw CTAP salt) the
+/// chosen key holds, without user verification: that credential's id and
+/// the 32-byte output. Needs API version 4 (Windows 11). Blocks while the
+/// dialog is up.
+pub fn hmac_secret(
+    rp_id: &str,
+    credentials: &[(&[u8], &[u8; 32])],
+) -> Result<(Vec<u8>, Vec<u8>), Error> {
+    imp::hmac_secret(rp_id, credentials)
+}
+
 /// Create a credential on a security key. Blocks while the dialog is up.
 pub fn make_credential(req: &MakeCredential<'_>) -> Result<MadeCredential, Error> {
     imp::make_credential(req)
@@ -117,6 +130,10 @@ mod imp {
     pub fn make_credential(_: &MakeCredential<'_>) -> Result<MadeCredential, Error> {
         Err(Error::Unavailable)
     }
+
+    pub fn hmac_secret(_: &str, _: &[(&[u8], &[u8; 32])]) -> Result<(Vec<u8>, Vec<u8>), Error> {
+        Err(Error::Unavailable)
+    }
 }
 
 #[cfg(windows)]
@@ -135,6 +152,8 @@ mod imp {
 
     /// `NTE_USER_CANCELLED`: dialog closed by the user.
     const NTE_USER_CANCELLED: HRESULT = HRESULT(0x8009_0036_u32 as i32);
+    /// First API version whose get-assertion options carry hmac-secret salts.
+    const HMAC_SALT_API: u32 = WEBAUTHN_API_VERSION_4;
     /// Two minutes, like a browser.
     const TIMEOUT_MS: u32 = 120_000;
 
@@ -299,6 +318,107 @@ mod imp {
         }
     }
 
+    pub fn hmac_secret(
+        rp_id: &str,
+        credentials: &[(&[u8], &[u8; 32])],
+    ) -> Result<(Vec<u8>, Vec<u8>), Error> {
+        let api = api().ok_or(Error::Unavailable)?;
+        if api.version < HMAC_SALT_API {
+            return Err(Error::Other(
+                "this Windows is too old for security key unlock (needs Windows 11)".into(),
+            ));
+        }
+        let rp = wide(rp_id);
+        // Windows hashes the client data into a clientDataHash we never use.
+        let challenge = [0u8; 32];
+        let cd = client_data(&challenge);
+        // Owned copies: Windows takes mutable pointers, and every buffer must
+        // outlive the call.
+        let mut ids: Vec<Vec<u8>> = credentials.iter().map(|(id, _)| id.to_vec()).collect();
+        let mut salts: Vec<[u8; 32]> = credentials.iter().map(|(_, s)| **s).collect();
+        let mut creds: Vec<WEBAUTHN_CREDENTIAL> = ids
+            .iter_mut()
+            .map(|id| WEBAUTHN_CREDENTIAL {
+                dwVersion: WEBAUTHN_CREDENTIAL_CURRENT_VERSION,
+                cbId: id.len() as u32,
+                pbId: id.as_mut_ptr(),
+                pwszCredentialType: WEBAUTHN_CREDENTIAL_TYPE_PUBLIC_KEY,
+            })
+            .collect();
+        let mut salt_structs: Vec<WEBAUTHN_HMAC_SECRET_SALT> = salts
+            .iter_mut()
+            .map(|s| WEBAUTHN_HMAC_SECRET_SALT {
+                cbFirst: s.len() as u32,
+                pbFirst: s.as_mut_ptr(),
+                ..Default::default()
+            })
+            .collect();
+        let mut per_cred: Vec<WEBAUTHN_CRED_WITH_HMAC_SECRET_SALT> = ids
+            .iter_mut()
+            .zip(salt_structs.iter_mut())
+            .map(|(id, salt)| WEBAUTHN_CRED_WITH_HMAC_SECRET_SALT {
+                cbCredID: id.len() as u32,
+                pbCredID: id.as_mut_ptr(),
+                pHmacSecretSalt: salt,
+            })
+            .collect();
+        let mut values = WEBAUTHN_HMAC_SECRET_SALT_VALUES {
+            pGlobalHmacSalt: std::ptr::null_mut(),
+            cCredWithHmacSecretSaltList: per_cred.len() as u32,
+            pCredWithHmacSecretSaltList: per_cred.as_mut_ptr(),
+        };
+        let opts = WEBAUTHN_AUTHENTICATOR_GET_ASSERTION_OPTIONS {
+            dwVersion: WEBAUTHN_AUTHENTICATOR_GET_ASSERTION_OPTIONS_VERSION_6,
+            dwTimeoutMilliseconds: TIMEOUT_MS,
+            CredentialList: WEBAUTHN_CREDENTIALS {
+                cCredentials: creds.len() as u32,
+                pCredentials: creds.as_mut_ptr(),
+            },
+            dwAuthenticatorAttachment: WEBAUTHN_AUTHENTICATOR_ATTACHMENT_CROSS_PLATFORM,
+            dwUserVerificationRequirement: WEBAUTHN_USER_VERIFICATION_REQUIREMENT_DISCOURAGED,
+            // Raw CTAP salts: Windows must not hash them as WebAuthn PRF inputs.
+            dwFlags: WEBAUTHN_AUTHENTICATOR_HMAC_SECRET_VALUES_FLAG,
+            pHmacSecretSaltValues: &mut values,
+            ..Default::default()
+        };
+        let mut out: *mut WEBAUTHN_ASSERTION = std::ptr::null_mut();
+        // SAFETY: every pointer refers to a local that outlives the call;
+        // `out` is freed with the matching free function below.
+        unsafe {
+            let hwnd = GetForegroundWindow();
+            let hr = (api.get_assertion)(hwnd, PCWSTR(rp.as_ptr()), &cd, &opts, &mut out);
+            if hr.is_err() || out.is_null() {
+                return Err(error(api, hr));
+            }
+            let a = &*out;
+            let secret = if a.dwVersion >= WEBAUTHN_ASSERTION_VERSION_3 && !a.pHmacSecret.is_null()
+            {
+                let h = &*a.pHmacSecret;
+                bytes(h.pbFirst, h.cbFirst)
+            } else {
+                Vec::new()
+            };
+            let id = bytes(a.Credential.pbId, a.Credential.cbId);
+            (api.free_assertion)(out);
+            if secret.len() != 32 {
+                return Err(Error::Other("the key returned no hmac-secret".into()));
+            }
+            let id = if id.is_empty() {
+                match credentials {
+                    [(only, _)] => only.to_vec(),
+                    _ => {
+                        return Err(Error::Other(
+                            "Windows did not say which key answered".into(),
+                        ));
+                    }
+                }
+            } else {
+                id
+            };
+            Ok((id, secret))
+        }
+    }
+
     pub fn make_credential(req: &MakeCredential<'_>) -> Result<MadeCredential, Error> {
         let api = api().ok_or(Error::Unavailable)?;
         let rp_id = wide(req.rp_id);
@@ -327,6 +447,20 @@ mod imp {
             pCredentialParameters: &mut param,
         };
         let cd = client_data(req.client_data);
+        let mut enable = BOOL::from(true);
+        let mut ext = WEBAUTHN_EXTENSION {
+            pwszExtensionIdentifier: WEBAUTHN_EXTENSIONS_IDENTIFIER_HMAC_SECRET,
+            cbExtension: std::mem::size_of::<BOOL>() as u32,
+            pvExtension: (&mut enable as *mut BOOL).cast(),
+        };
+        let extensions = if req.hmac_secret {
+            WEBAUTHN_EXTENSIONS {
+                cExtensions: 1,
+                pExtensions: &mut ext,
+            }
+        } else {
+            WEBAUTHN_EXTENSIONS::default()
+        };
         let opts = WEBAUTHN_AUTHENTICATOR_MAKE_CREDENTIAL_OPTIONS {
             dwVersion: 1,
             dwTimeoutMilliseconds: TIMEOUT_MS,
@@ -334,6 +468,7 @@ mod imp {
             bRequireResidentKey: BOOL::from(req.resident),
             dwUserVerificationRequirement: uv(req.user_verification),
             dwAttestationConveyancePreference: WEBAUTHN_ATTESTATION_CONVEYANCE_PREFERENCE_NONE,
+            Extensions: extensions,
             ..Default::default()
         };
         let mut out: *mut WEBAUTHN_CREDENTIAL_ATTESTATION = std::ptr::null_mut();

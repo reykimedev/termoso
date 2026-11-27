@@ -187,15 +187,14 @@ pub async fn unlock_security_key(app: &AppHandle) -> Result<VaultStatus> {
             "no security key is set up for Labterm",
         ));
     }
-    for c in challenges {
-        let id = c.id.clone();
-        let secret = tauri::async_runtime::spawn_blocking(move || crate::security_key::secret(&c))
-            .await
-            .map_err(|e| DesktopError::invalid(e.to_string()))??;
-        if let Some(secret) = secret {
-            state.unlock_with_factor(&id, &secret)?;
-            return unlocked(app);
-        }
+    let found = tauri::async_runtime::spawn_blocking(move || {
+        crate::security_key::secret_from_any(&challenges)
+    })
+    .await
+    .map_err(|e| DesktopError::invalid(e.to_string()))??;
+    if let Some((id, secret)) = found {
+        state.unlock_with_factor(&id, &secret)?;
+        return unlocked(app);
     }
     Err(DesktopError::new(
         "fido2_wrong_device",

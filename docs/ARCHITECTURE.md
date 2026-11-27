@@ -209,8 +209,11 @@ another one. The secret comes out of hardware only after the user is checked:
   output is the secret. Unlocking asks for it without user verification, so a
   key PIN is needed only at enrolment and the output never depends on it.
   Several keys can be enrolled, so a backup key works like the first one.
-  Linux and macOS talk raw CTAP over HID; Windows needs `webauthn.dll` and
-  follows.
+  Linux and macOS talk raw CTAP over HID. Windows only lets elevated
+  processes do that, so there it goes through `webauthn.dll` (API version 4,
+  Windows 11): its dialog picks the key and asks for the PIN, and the salts are
+  passed raw (`WEBAUTHN_AUTHENTICATOR_HMAC_SECRET_VALUES_FLAG`, one salt per
+  enrolled credential) so the output matches the HID path.
 * macOS Touch ID follows (#159).
 
 Rules: with any method or the password present the profile starts locked and

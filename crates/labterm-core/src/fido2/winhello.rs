@@ -98,6 +98,7 @@ pub fn generate(opts: &GenerateOptions) -> Result<KeyMaterial> {
         cose_alg: opts.algorithm.cose_alg() as i32,
         resident: opts.resident,
         user_verification: uv(opts.user_verification),
+        hmac_secret: false,
     })
     .map_err(Fido2Error::from)?;
     let mut cred = attested_credential(&made.auth_data)?;
@@ -112,6 +113,45 @@ pub fn generate(opts: &GenerateOptions) -> Result<KeyMaterial> {
         &opts.comment,
         opts.passphrase.as_deref().map(|p| p.as_str()),
     )
+}
+
+/// Whether security keys can unlock the vault through `webauthn.dll`
+/// (hmac-secret salts need API version 4, Windows 11).
+pub fn hmac_available() -> bool {
+    wh::api_version().is_some_and(|v| v >= 4)
+}
+
+/// Make a non-resident credential with `hmac-secret` for `rp_id` through
+/// the Windows dialog (Windows asks for the PIN itself when the key has
+/// one). Returns its id.
+pub fn hmac_secret_credential(rp_id: &str, user_name: &str) -> Result<Vec<u8>> {
+    let challenge: [u8; 32] = rand::random();
+    let user_id: [u8; 16] = rand::random();
+    let made = wh::make_credential(&wh::MakeCredential {
+        rp_id,
+        user_id: &user_id,
+        user_name,
+        client_data: &challenge,
+        cose_alg: SkAlgorithm::EcdsaP256.cose_alg() as i32,
+        resident: false,
+        user_verification: wh::UserVerification::Discouraged,
+        hmac_secret: true,
+    })
+    .map_err(Fido2Error::from)?;
+    if !made.credential_id.is_empty() {
+        return Ok(made.credential_id);
+    }
+    Ok(attested_credential(&made.auth_data)?.id)
+}
+
+/// `hmac-secret` from whichever of `credentials` (id, salt) the key picked
+/// in the Windows dialog holds: that credential's id and the output.
+pub fn hmac_secret(
+    rp_id: &str,
+    credentials: &[(&[u8], &[u8; 32])],
+) -> Result<(Vec<u8>, zeroize::Zeroizing<Vec<u8>>)> {
+    let (id, secret) = wh::hmac_secret(rp_id, credentials).map_err(Fido2Error::from)?;
+    Ok((id, zeroize::Zeroizing::new(secret)))
 }
 
 #[cfg(test)]

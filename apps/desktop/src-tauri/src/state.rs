@@ -278,10 +278,8 @@ impl AppState {
         }
         let keys = self.security_key_challenges()?;
         if !keys.is_empty() && crate::security_key::supported() {
-            for key in keys {
-                if let Some(secret) = crate::security_key::secret(&key)? {
-                    return Ok((key.id, secret));
-                }
+            if let Some(found) = crate::security_key::secret_from_any(&keys)? {
+                return Ok(found);
             }
             return Err(DesktopError::new(
                 "fido2_wrong_device",
