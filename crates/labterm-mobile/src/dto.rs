@@ -107,6 +107,9 @@ pub struct HostItem {
     pub tags: Vec<String>,
     pub os_name: Option<String>,
     pub icon: Option<String>,
+    /// User-chosen colour (`#rrggbb`) for the icon tile.
+    #[uniffi(default = None)]
+    pub color: Option<String>,
     pub notes: String,
     /// Exposed to the system file picker (SAF) when the Files integration
     /// is on.
@@ -180,6 +183,7 @@ impl From<hosts::HostCard> for HostItem {
             tags: c.tags,
             os_name: c.os_name,
             icon: c.icon,
+            color: c.color,
             notes: c.notes,
             files_provider: c.files_provider,
             updated_at: millis(c.updated_at),
@@ -234,6 +238,9 @@ pub struct HostDraft {
     pub notes: String,
     pub os_name: Option<String>,
     pub icon: Option<String>,
+    /// User-chosen colour (`#rrggbb`); `None` keeps the icon colour.
+    #[uniffi(default = None)]
+    pub color: Option<String>,
     /// `auto` | `4` | `6`.
     pub ip_version: String,
     pub agent_forwarding: bool,
@@ -449,6 +456,7 @@ impl HostDraft {
             notes: String::new(),
             os_name: None,
             icon: None,
+            color: None,
             ip_version: "auto".into(),
             agent_forwarding: false,
             forward_x11: false,
@@ -499,6 +507,7 @@ impl From<hosts::HostForm> for HostDraft {
             notes: f.notes,
             os_name: f.os_name,
             icon: f.icon,
+            color: f.color,
             ip_version: f.ip_version,
             agent_forwarding: f.agent_forwarding,
             forward_x11: f.forward_x11,
@@ -558,6 +567,7 @@ impl HostDraft {
         base.notes = self.notes;
         base.os_name = self.os_name;
         base.icon = self.icon;
+        base.color = self.color;
         base.ip_version = self.ip_version;
         base.agent_forwarding = self.agent_forwarding;
         base.forward_x11 = self.forward_x11;
@@ -686,6 +696,7 @@ pub(crate) fn blank_form(vault_id: Uuid) -> hosts::HostForm {
         notes: String::new(),
         os_name: None,
         icon: None,
+        color: None,
         ip_version: "auto".into(),
         agent_forwarding: false,
         forward_x11: false,
@@ -724,6 +735,9 @@ pub struct GroupItem {
     pub has_config: bool,
     /// User-chosen icon id (`None` = default folder).
     pub icon: Option<String>,
+    /// User-chosen colour (`#rrggbb`; `None` = theme colour).
+    #[uniffi(default = None)]
+    pub color: Option<String>,
 }
 
 impl From<hosts::GroupNode> for GroupItem {
@@ -737,6 +751,7 @@ impl From<hosts::GroupNode> for GroupItem {
             group_count: g.group_count as u32,
             has_config: g.has_config,
             icon: g.icon,
+            color: g.color,
         }
     }
 }
@@ -839,6 +854,9 @@ pub struct GroupDraft {
     pub parent_id: Option<String>,
     /// Picked icon id (catalog or OS logo); `None` is the folder.
     pub icon: Option<String>,
+    /// Picked colour (`#rrggbb`); `None` is the theme colour.
+    #[uniffi(default = None)]
+    pub color: Option<String>,
     pub defaults: SshDefaultsDraft,
 }
 
@@ -850,6 +868,7 @@ impl From<hosts::GroupForm> for GroupDraft {
             label: g.label,
             parent_id: g.parent_id.map(|p| p.to_string()),
             icon: g.icon,
+            color: g.color,
             defaults: g.defaults.into(),
         }
     }

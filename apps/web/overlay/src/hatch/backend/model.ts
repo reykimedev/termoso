@@ -21,6 +21,7 @@ export interface Host {
   notes?: string;
   os_name?: string | null;
   icon?: string | null;
+  color?: string | null;
   ip_version?: string;
   mac_address?: string | null;
   startup_snippet_id?: Uuid | null;
@@ -36,6 +37,7 @@ export interface Group {
   telnet_config_id?: Uuid | null;
   sort_order?: number;
   icon?: string | null;
+  color?: string | null;
   [k: string]: unknown;
 }
 export interface SshConfig {
@@ -295,6 +297,7 @@ export function hostCard(id: Uuid) {
     tags: r.tags,
     osName: h.data.os_name ?? null,
     icon: h.data.icon ?? null,
+    color: h.data.color ?? null,
     ipVersion: ipVersion(h.data.ip_version),
     notes: h.data.notes ?? "",
     sortOrder: h.data.sort_order ?? 0,
@@ -377,6 +380,7 @@ export function hostForm(id: Uuid) {
     notes: h.data.notes ?? "",
     osName: h.data.os_name ?? null,
     icon: h.data.icon ?? null,
+    color: h.data.color ?? null,
     ipVersion: ipVersion(h.data.ip_version),
     agentForwarding: !!ssh?.agent_forwarding,
     forwardX11: !!ssh?.forward_x11,
@@ -508,6 +512,7 @@ export function hostSave(f: HostFormIn) {
     notes: f.notes ?? "",
     os_name: f.osName,
     icon: f.icon,
+    color: hostColor(f.color),
     ip_version: f.ipVersion === "auto" ? "" : f.ipVersion,
     mac_address: f.macAddress,
     startup_snippet_id: f.startupSnippetId,
@@ -571,6 +576,7 @@ export function groupNodes(vaultId: Uuid | null) {
       groupCount: groups.filter((c) => c.data.parent_id === g.id).length,
       hasConfig: !!g.data.ssh_config_id,
       icon: g.data.icon ?? null,
+      color: g.data.color ?? null,
     }))
     .sort(byOrder);
 }
@@ -715,6 +721,7 @@ export function groupForm(id: Uuid) {
     label: g.data.label,
     parentId: g.data.parent_id ?? null,
     icon: g.data.icon ?? null,
+    color: g.data.color ?? null,
     ...loadDefaults(g.data.ssh_config_id),
   };
 }
@@ -723,7 +730,12 @@ export function groupSaveForm(f: ReturnType<typeof groupForm> & DefaultsIn & { i
   const node = groupSave({ vaultId: f.vaultId, id: f.id, label: f.label, parentId: f.parentId });
   const g = require<Group>(node.id, "group");
   const sshId = saveDefaults(f.vaultId, g.data.ssh_config_id, f, f.label);
-  put<Group>("group", g.vaultId, g.id, { ...g.data, icon: f.icon, ssh_config_id: sshId });
+  put<Group>("group", g.vaultId, g.id, {
+    ...g.data,
+    icon: f.icon,
+    color: hostColor(f.color),
+    ssh_config_id: sshId,
+  });
   return groupNode(g.id);
 }
 
@@ -831,6 +843,13 @@ function normalizeTagColor(color: string | null | undefined) {
   if (![3, 6].includes(hex.length) || !/^[0-9a-f]+$/.test(hex))
     fail("invalid", "Use a colour like #3a7 or #33aa77");
   return `#${hex}`;
+}
+
+/** Host and group colours are stored as `#rrggbb` (same as labterm-client). */
+export function hostColor(color: string | null | undefined) {
+  const c = normalizeTagColor(color);
+  if (c?.length === 4) return `#${c[1]}${c[1]}${c[2]}${c[2]}${c[3]}${c[3]}`;
+  return c;
 }
 
 /** Rename and/or recolour a tag; renaming onto another tag's label merges into it. */

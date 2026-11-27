@@ -1,5 +1,8 @@
 import { useRef, useState, type ReactNode } from "react";
 import AddPhotoAlternateRoundedIcon from "@mui/icons-material/AddPhotoAlternateRounded";
+import BlockRoundedIcon from "@mui/icons-material/BlockRounded";
+import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
+import ColorizeRoundedIcon from "@mui/icons-material/ColorizeRounded";
 import {
   Box,
   Button,
@@ -26,6 +29,7 @@ import {
 } from "./customIcon";
 import { CustomIconGlyph, DistroGlyph } from "./HostAvatar";
 import { iconSections, pickedIcon } from "./icons";
+import { TAG_COLORS } from "./TagChip";
 
 const sectionTitle = (s: string) =>
   s === "General"
@@ -192,9 +196,87 @@ function CustomIconDialog({
   );
 }
 
+const swatchSx = (c: string | null, on: boolean) => ({
+  width: 24,
+  height: 24,
+  borderRadius: "50%",
+  display: "grid",
+  placeItems: "center",
+  bgcolor: c ?? "transparent",
+  color: c ? "#fff" : "text.secondary",
+  border: c ? 0 : 1,
+  borderColor: "divider",
+  outline: on ? "2px solid" : "none",
+  outlineColor: "primary.main",
+  outlineOffset: 1,
+});
+
+/**
+ * Tile colour row: "none", the tag palette and a free pick through the
+ * system colour dialog. Values are `#rrggbb`; the backend normalises them.
+ */
+function ColorRow({
+  value,
+  onChange,
+}: {
+  value: string | null;
+  onChange: (color: string | null) => void;
+}) {
+  const current = value?.toLowerCase() ?? null;
+  const custom = current !== null && !(TAG_COLORS as readonly string[]).includes(current);
+  return (
+    <Box sx={{ mb: 1 }}>
+      <Typography variant="caption" color="text.secondary">
+        {tr("Colour")}
+      </Typography>
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mt: 0.5, alignItems: "center" }}>
+        <Tooltip title={tr("No colour")}>
+          <ButtonBase
+            aria-label={tr("No colour")}
+            aria-pressed={current === null}
+            onClick={() => onChange(null)}
+            sx={swatchSx(null, current === null)}
+          >
+            <BlockRoundedIcon sx={{ fontSize: 16 }} />
+          </ButtonBase>
+        </Tooltip>
+        {TAG_COLORS.map((c) => (
+          <ButtonBase
+            key={c}
+            aria-label={c}
+            aria-pressed={current === c}
+            onClick={() => onChange(c)}
+            sx={swatchSx(c, current === c)}
+          >
+            {current === c && <CheckRoundedIcon sx={{ fontSize: 16 }} />}
+          </ButtonBase>
+        ))}
+        <Tooltip title={tr("Custom colour…")}>
+          <ButtonBase
+            component="label"
+            aria-label={tr("Custom colour…")}
+            aria-pressed={custom}
+            sx={{ ...swatchSx(custom ? current : null, custom), position: "relative" }}
+          >
+            <ColorizeRoundedIcon sx={{ fontSize: 14 }} />
+            <input
+              type="color"
+              value={current ?? "#8d99ae"}
+              onChange={(e) => onChange(e.target.value)}
+              style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer" }}
+            />
+          </ButtonBase>
+        </Tooltip>
+      </Box>
+    </Box>
+  );
+}
+
 /**
  * Tile that opens a gallery of icons. `value` is the stored icon id (`null` =
  * automatic); `fallback` is what the tile shows while nothing is picked.
+ * With `onColorChange` the gallery also offers a tile colour (`color`), which
+ * wins over the icon's brand colour.
  */
 export function IconPicker({
   value,
@@ -202,12 +284,16 @@ export function IconPicker({
   fallback,
   autoLabel,
   disabled,
+  color = null,
+  onColorChange,
 }: {
   value: string | null;
   onChange: (id: string | null) => void;
   fallback: ReactNode;
   autoLabel: string;
   disabled?: boolean;
+  color?: string | null;
+  onColorChange?: (color: string | null) => void;
 }) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const [customOpen, setCustomOpen] = useState(false);
@@ -216,15 +302,15 @@ export function IconPicker({
   const custom = customValue !== null;
   return (
     <>
-      <Tooltip title={tr("Change icon")}>
+      <Tooltip title={onColorChange ? tr("Change icon and colour") : tr("Change icon")}>
         <span>
           <ButtonBase
             disabled={disabled}
-            aria-label={tr("Change icon")}
+            aria-label={onColorChange ? tr("Change icon and colour") : tr("Change icon")}
             onClick={(e) => setAnchor(e.currentTarget)}
             sx={{ borderRadius: 2 }}
           >
-            <IconTile size={sizes.tile} color={picked?.color}>
+            <IconTile size={sizes.tile} color={color ?? picked?.color}>
               {picked ? (
                 <DistroGlyph icon={picked} />
               ) : customValue ? (
@@ -240,8 +326,9 @@ export function IconPicker({
         open={!!anchor}
         anchorEl={anchor}
         onClose={() => setAnchor(null)}
-        slotProps={{ paper: { sx: { p: 1.5, width: 340, maxHeight: 480 } } }}
+        slotProps={{ paper: { sx: { p: 1.5, width: 340, maxHeight: 520 } } }}
       >
+        {onColorChange && <ColorRow value={color} onChange={onColorChange} />}
         <ButtonBase
           onClick={() => {
             onChange(null);
@@ -260,7 +347,9 @@ export function IconPicker({
             borderColor: value === null ? "primary.main" : "divider",
           }}
         >
-          <IconTile size={28}>{fallback}</IconTile>
+          <IconTile size={28} color={color ?? undefined}>
+            {fallback}
+          </IconTile>
           <Typography variant="body2">{autoLabel}</Typography>
         </ButtonBase>
         <ButtonBase
