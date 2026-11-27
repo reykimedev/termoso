@@ -1,5 +1,9 @@
 //! Desktop backend: CTAP2 over USB HID through `hidapi` (the
 //! `ctap-hid-fido2` crate). Blocking – callers run it off the async runtime.
+//!
+//! On Windows the default device is the Windows Security dialog
+//! ([`super::winhello`]): unelevated processes cannot open FIDO HID devices
+//! there. HID tokens found next to it (elevated Labterm) stay selectable.
 
 use ctap_hid_fido2::fidokey::get_assertion::get_assertion_params::Assertion;
 use ctap_hid_fido2::fidokey::make_credential::make_credential_params::{
@@ -16,6 +20,7 @@ use russh::keys::ssh_key::PrivateKey;
 use super::{
     AssertionData, CosePublicKey, Credential, FLAG_RESIDENT, FLAG_USER_PRESENCE, Fido2Device,
     Fido2Error, GenerateOptions, SkAlgorithm, SkBackend, SkHandle, signature_blob, sk_material,
+    winhello,
 };
 use crate::error::Result;
 use crate::keys::KeyMaterial;
@@ -91,6 +96,11 @@ fn device_path(d: &HidInfo) -> String {
 /// Every FIDO authenticator currently plugged in. Reads `getInfo` from each
 /// so the UI can offer only what the token supports. Blocking (USB I/O).
 pub fn list_devices() -> Vec<Fido2Device> {
+    let platform = winhello::available().then(winhello::device);
+    platform.into_iter().chain(hid_devices()).collect()
+}
+
+fn hid_devices() -> Vec<Fido2Device> {
     ctap_hid_fido2::get_fidokey_devices()
         .into_iter()
         .map(|d| {
@@ -174,6 +184,9 @@ fn attested(att: &Attestation) -> Result<Credential> {
 /// Create a new credential on the token and wrap it as an OpenSSH `sk-*`
 /// key. Blocking: waits for the user to touch the token.
 pub fn generate(opts: &GenerateOptions) -> Result<KeyMaterial> {
+    if winhello::selected(opts.device.as_deref()) {
+        return winhello::generate(opts);
+    }
     let application = opts.application()?;
     let device = open(opts.device.as_deref())?;
     let challenge: [u8; 32] = rand::random();
@@ -212,7 +225,14 @@ pub fn load_resident(
     pin: &str,
     passphrase: Option<&str>,
 ) -> Result<Vec<KeyMaterial>> {
-    let dev = open(device)?;
+    // The WebAuthn API cannot enumerate credentials; only HID can.
+    let device = device.filter(|d| *d != winhello::DEVICE_PATH);
+    let dev = open(device).map_err(|e| match e {
+        Fido2Error::NoDevice if winhello::available() => Fido2Error::Unsupported(
+            "loading resident keys on Windows needs Labterm started as administrator".into(),
+        ),
+        e => e,
+    })?;
     let rps = dev
         .credential_management_enumerate_rps(Some(pin))
         .map_err(|e| Fido2Error::from_ctap(&e))?;
@@ -261,6 +281,10 @@ pub fn sign(
     pin: Option<&str>,
     device: Option<&str>,
 ) -> Result<Vec<u8>> {
+    if winhello::selected(device) {
+        // Windows asks for the PIN in its own dialog.
+        return winhello::sign(key, data);
+    }
     let handle = SkHandle::of(key)?;
     let dev = open(device)?;
     // The library hashes the challenge (SHA-256) into clientDataHash, which

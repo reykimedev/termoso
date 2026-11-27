@@ -82,6 +82,7 @@ import type {
   OidcKeyOptions,
   OidcProvider,
   VpnDetails,
+  VpnHostTest,
   VpnNetwork,
   VpnNetworkForm,
   VpnState,
@@ -524,6 +525,8 @@ export const vpnRunning = (ids: Uuid[]) => invoke<Uuid[]>("vpn_running", { ids }
 /** Each network's state on this device, by id. */
 export const vpnStates = (ids: Uuid[]) => invoke<Record<Uuid, VpnState>>("vpn_states", { ids });
 export const vpnDetails = (id: Uuid) => invoke<VpnDetails>("vpn_details", { id });
+/** Connection test for a host that uses a VPN network: join, look up, dial, read the SSH banner. */
+export const vpnTestHost = (hostId: Uuid) => invoke<VpnHostTest>("vpn_test_host", { hostId });
 /** Leave a network now; the next connection joins again. */
 export const vpnDisconnect = (id: Uuid) => invoke<null>("vpn_disconnect", { id });
 /** Leave and forget this device's peer key: the next connection signs in again. */
@@ -918,8 +921,9 @@ export const teamPendingKeys = (teamId: Uuid) =>
   invoke<PendingVaultKey[]>("team_pending_keys", { teamId });
 export const teamAudit = (teamId: Uuid, filter: AuditFilter = {}) =>
   invoke<AuditPage>("team_audit", { teamId, filter });
+/** Returns the new vault's id. */
 export const teamVaultCreate = (teamId: Uuid, name: string, access: VaultAccess[]) =>
-  invoke<null>("team_vault_create", { teamId, name, access });
+  invoke<Uuid>("team_vault_create", { teamId, name, access });
 export const teamVaultRename = (vaultId: Uuid, name: string) =>
   invoke<null>("team_vault_rename", { vaultId, name });
 export const teamVaultDelete = (vaultId: Uuid) => invoke<null>("team_vault_delete", { vaultId });

@@ -16,7 +16,7 @@ use labterm_core::store::Store;
 use labterm_core::transport::TransportDial;
 use labterm_netbird::{Netbird, NetworkConfig, NodeState, PeerKeys, SIGN_IN_NEEDED, SignIn};
 
-pub use labterm_netbird::{Details, PeerDetails};
+pub use labterm_netbird::{Details, DnsGroup, HostTest, PeerDetails};
 use uuid::Uuid;
 use zeroize::Zeroizing;
 
@@ -307,6 +307,28 @@ fn forget_peer_keys(store: &Store, network: Uuid) {
     }
 }
 
+/// Forget peer keys of networks that no longer exist here: one deleted on
+/// another device goes away by sync, which does not pass through
+/// [`delete`]. Called when the networks are listed.
+pub fn forget_orphans(store: &Store) {
+    let Ok(keys) = store.meta_keys(PEER_META) else {
+        return;
+    };
+    for key in keys {
+        let id = key[PEER_META.len()..]
+            .split('@')
+            .next()
+            .and_then(|id| Uuid::parse_str(id).ok());
+        // Keys we cannot attribute are left alone.
+        let Some(id) = id else { continue };
+        if matches!(store.get::<Transport>(id), Ok(None))
+            && let Err(e) = store.delete_meta(&key)
+        {
+            tracing::warn!("netbird: could not forget a peer key: {e}");
+        }
+    }
+}
+
 /// The network a host connects through when connecting needs a sign-in
 /// first: no setup key and this device has not joined yet.
 pub fn needs_sign_in(store: &Arc<Store>, resolved: &ResolvedHost) -> Option<Entity<Transport>> {
@@ -396,6 +418,32 @@ pub async fn connect(store: &Arc<Store>, network_id: Uuid) -> Result<()> {
     Ok(())
 }
 
+/// The connection test for a host set to use a network: joins the
+/// network, dials the host's address and port through it like an SSH
+/// connection would, reads the SSH banner and hangs up (no login, nothing
+/// sent). The host's own settings decide the network; a host that uses
+/// none is refused.
+pub async fn test_host(store: &Arc<Store>, host_id: Uuid) -> Result<labterm_netbird::HostTest> {
+    let resolved = store.resolve_host(host_id)?;
+    let Some(entity) = resolved.transport.clone() else {
+        return Err(crate::error::ClientError::invalid(
+            "this host doesn't connect through a VPN network",
+        ));
+    };
+    let c = network(store, entity.id)?;
+    let name = device_name(store, entity.vault_id);
+    let address = resolved.host.data.address.trim().to_owned();
+    Ok(NETBIRD
+        .test_host(
+            &c,
+            &name,
+            &StoreKeys(store.clone()),
+            &address,
+            resolved.port(),
+        )
+        .await)
+}
+
 /// Whether this app has joined the network right now.
 pub async fn is_running(network_id: Uuid) -> bool {
     NETBIRD.is_running(network_id).await
@@ -474,5 +522,39 @@ mod tests {
         );
         assert!(account(&store, gone.id).is_none());
         assert!(store.get::<Transport>(gone.id).ok().flatten().is_none());
+    }
+
+    #[test]
+    fn peer_keys_of_networks_deleted_elsewhere_are_forgotten() {
+        let store = Arc::new(Store::open_in_memory(SymmetricKey::generate()).unwrap());
+        let vault = store.local_vault().unwrap().id;
+        let kept = transports::save(
+            &store,
+            vault,
+            None,
+            Transport {
+                label: "kept".into(),
+                provider: String::new(),
+                management_url: Some("https://netbird.example.com".into()),
+                setup_key: None,
+                direct_first: false,
+            },
+        )
+        .unwrap();
+        let keys = StoreKeys(store.clone());
+        let kept_slot = format!("{}@https://netbird.example.com", kept.id);
+        keys.save(&kept_slot, "k1");
+        // As sync leaves it: the network is gone, its key is not.
+        keys.save(
+            &format!("{}@https://netbird.example.com", Uuid::new_v4()),
+            "k2",
+        );
+
+        forget_orphans(&store);
+
+        assert_eq!(
+            store.meta_keys(PEER_META).unwrap(),
+            vec![format!("{PEER_META}{kept_slot}")]
+        );
     }
 }

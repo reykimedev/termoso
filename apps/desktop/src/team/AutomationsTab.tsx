@@ -23,6 +23,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { EditDrawer } from "@/components/EditDrawer";
 import { tr } from "@/i18n";
 import * as ipc from "@/ipc/commands";
 import {
@@ -393,204 +394,199 @@ function AutomationDialog({
     setHostIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
 
   return (
-    <Dialog open onClose={onClose} fullWidth maxWidth="md">
-      <DialogTitle>{existing ? tr("Edit automation") : tr("New automation")}</DialogTitle>
-      <DialogContent>
-        {teamVaults.length === 0 && !existing ? (
-          <Alert severity="warning">
-            {tr("Unlock one of this team's vaults first: the snippet and hosts come from it.")}
-          </Alert>
-        ) : (
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            <TextField
-              label={tr("Name")}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              autoFocus
-              fullWidth
-            />
-            {!existing && teamVaults.length > 1 && (
-              <TextField
-                select
-                label={tr("Vault")}
-                value={effectiveVault}
-                onChange={(e) => {
-                  setVaultId(e.target.value);
-                  setSnippetId("");
-                  setHostIds([]);
-                  setGroupId("");
-                }}
-                fullWidth
-              >
-                {teamVaults.map((v) => (
-                  <MenuItem key={v.id} value={v.id}>
-                    {v.name}
-                  </MenuItem>
-                ))}
-              </TextField>
-            )}
+    <EditDrawer
+      open
+      width={720}
+      title={existing ? tr("Edit automation") : tr("New automation")}
+      canSave={valid}
+      saving={save.isPending}
+      onSave={() => save.mutate()}
+      onClose={onClose}
+    >
+      {teamVaults.length === 0 && !existing ? (
+        <Alert severity="warning">
+          {tr("Unlock one of this team's vaults first: the snippet and hosts come from it.")}
+        </Alert>
+      ) : (
+        <Stack spacing={2} sx={{ mt: 1 }}>
+          <TextField
+            label={tr("Name")}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            autoFocus
+            fullWidth
+          />
+          {!existing && teamVaults.length > 1 && (
             <TextField
               select
-              label={tr("Snippet")}
-              value={snippetId}
-              onChange={(e) => setSnippetId(e.target.value)}
+              label={tr("Vault")}
+              value={effectiveVault}
+              onChange={(e) => {
+                setVaultId(e.target.value);
+                setSnippetId("");
+                setHostIds([]);
+                setGroupId("");
+              }}
               fullWidth
-              helperText={
-                snippets.data?.length === 0
-                  ? tr("This vault has no snippets yet.")
-                  : tr("Variables are not prompted for on a schedule; use fixed values.")
-              }
             >
-              {(snippets.data ?? []).map((s) => (
-                <MenuItem key={s.id} value={s.id}>
-                  {s.label}
+              {teamVaults.map((v) => (
+                <MenuItem key={v.id} value={v.id}>
+                  {v.name}
                 </MenuItem>
               ))}
             </TextField>
-            <TextField
-              select
-              label={tr("Host group (all hosts inside, including subgroups)")}
-              value={groupId}
-              onChange={(e) => setGroupId(e.target.value)}
-              fullWidth
-            >
-              <MenuItem value="">{tr("None")}</MenuItem>
-              {(groups.data ?? []).map((g) => (
-                <MenuItem key={g.id} value={g.id}>
-                  {g.label}
-                </MenuItem>
-              ))}
-            </TextField>
-            <div>
-              <Typography variant="subtitle2" gutterBottom>
-                {tr("Hosts")} ({hostIds.length})
-              </Typography>
-              <Stack sx={{ maxHeight: 220, overflow: "auto" }}>
-                {(hosts.data ?? []).map((h) => (
-                  <FormControlLabel
-                    key={h.id}
-                    control={
-                      <Checkbox
-                        size="small"
-                        checked={hostIds.includes(h.id)}
-                        onChange={() => toggleHost(h.id)}
-                      />
-                    }
-                    label={
-                      <span>
-                        {h.label}{" "}
-                        <Typography component="span" variant="caption" color="text.secondary">
-                          {h.groupPath.join(" / ")}
-                        </Typography>
-                      </span>
-                    }
-                  />
-                ))}
-                {hosts.data?.length === 0 && (
-                  <Typography variant="body2" color="text.secondary">
-                    {tr("This vault has no hosts.")}
-                  </Typography>
-                )}
-              </Stack>
-            </div>
-            <Stack direction="row" spacing={2}>
-              <TextField
-                select
-                label={tr("Schedule")}
-                value={preset}
-                onChange={(e) => pickPreset(e.target.value)}
-                sx={{ minWidth: 240 }}
-              >
-                {PRESETS.map((p) => (
-                  <MenuItem key={p.key} value={p.key}>
-                    {p.label()}
-                  </MenuItem>
-                ))}
-                <MenuItem value="custom">{tr("Custom (cron)")}</MenuItem>
-              </TextField>
-              <TextField
-                label={tr("Cron expression")}
-                value={schedule}
-                onChange={(e) => {
-                  setSchedule(e.target.value);
-                  setPreset("custom");
-                }}
-                helperText={tr(
-                  "minute hour day month weekday, or @hourly / @daily / @weekly / @monthly",
-                )}
-                fullWidth
-                slotProps={{ input: { sx: { fontFamily: "monospace" } } }}
-              />
-              <TextField
-                label={tr("Time zone")}
-                value={timezone}
-                onChange={(e) => setTimezone(e.target.value)}
-                helperText={tr("UTC or a fixed offset like +03:00")}
-                sx={{ minWidth: 160 }}
-              />
-            </Stack>
-            <Stack direction="row" spacing={2}>
-              <TextField
-                label={tr("Timeout per host, seconds")}
-                value={timeout}
-                onChange={(e) => setTimeout_(e.target.value)}
-                error={!timeoutOk}
-                helperText={`${AUTOMATION_TIMEOUT_MIN}–${AUTOMATION_TIMEOUT_MAX}`}
-                sx={{ minWidth: 200 }}
-              />
-              <TextField
-                select
-                label={tr("E-mail alert")}
-                value={alertOn}
-                onChange={(e) => setAlertOn(e.target.value as AutomationAlertOn)}
-                sx={{ minWidth: 200 }}
-              >
-                {AUTOMATION_ALERT_ON.map((a) => (
-                  <MenuItem key={a} value={a}>
-                    {alertLabel(a)}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Stack>
-            {alertOn !== "never" && (
-              <>
-                <TextField
-                  label={tr("Extra recipients")}
-                  value={alertEmails}
-                  onChange={(e) => setAlertEmails(e.target.value)}
-                  error={!!badEmail}
-                  helperText={
-                    badEmail
-                      ? tr("Not an e-mail address: {v}", { v: badEmail })
-                      : tr("Comma-separated. Audit events and webhooks fire regardless.")
-                  }
-                  fullWidth
-                />
+          )}
+          <TextField
+            select
+            label={tr("Snippet")}
+            value={snippetId}
+            onChange={(e) => setSnippetId(e.target.value)}
+            fullWidth
+            helperText={
+              snippets.data?.length === 0
+                ? tr("This vault has no snippets yet.")
+                : tr("Variables are not prompted for on a schedule; use fixed values.")
+            }
+          >
+            {(snippets.data ?? []).map((s) => (
+              <MenuItem key={s.id} value={s.id}>
+                {s.label}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            label={tr("Host group (all hosts inside, including subgroups)")}
+            value={groupId}
+            onChange={(e) => setGroupId(e.target.value)}
+            fullWidth
+          >
+            <MenuItem value="">{tr("None")}</MenuItem>
+            {(groups.data ?? []).map((g) => (
+              <MenuItem key={g.id} value={g.id}>
+                {g.label}
+              </MenuItem>
+            ))}
+          </TextField>
+          <div>
+            <Typography variant="subtitle2" gutterBottom>
+              {tr("Hosts")} ({hostIds.length})
+            </Typography>
+            <Stack sx={{ maxHeight: 220, overflow: "auto" }}>
+              {(hosts.data ?? []).map((h) => (
                 <FormControlLabel
+                  key={h.id}
                   control={
                     <Checkbox
-                      checked={alertAdmins}
-                      onChange={(e) => setAlertAdmins(e.target.checked)}
+                      size="small"
+                      checked={hostIds.includes(h.id)}
+                      onChange={() => toggleHost(h.id)}
                     />
                   }
-                  label={tr("Also e-mail team owners and admins")}
+                  label={
+                    <span>
+                      {h.label}{" "}
+                      <Typography component="span" variant="caption" color="text.secondary">
+                        {h.groupPath.join(" / ")}
+                      </Typography>
+                    </span>
+                  }
                 />
-              </>
-            )}
+              ))}
+              {hosts.data?.length === 0 && (
+                <Typography variant="body2" color="text.secondary">
+                  {tr("This vault has no hosts.")}
+                </Typography>
+              )}
+            </Stack>
+          </div>
+          <Stack direction="row" spacing={2} useFlexGap sx={{ flexWrap: "wrap" }}>
+            <TextField
+              select
+              label={tr("Schedule")}
+              value={preset}
+              onChange={(e) => pickPreset(e.target.value)}
+              sx={{ minWidth: 240 }}
+            >
+              {PRESETS.map((p) => (
+                <MenuItem key={p.key} value={p.key}>
+                  {p.label()}
+                </MenuItem>
+              ))}
+              <MenuItem value="custom">{tr("Custom (cron)")}</MenuItem>
+            </TextField>
+            <TextField
+              label={tr("Cron expression")}
+              value={schedule}
+              onChange={(e) => {
+                setSchedule(e.target.value);
+                setPreset("custom");
+              }}
+              helperText={tr(
+                "minute hour day month weekday, or @hourly / @daily / @weekly / @monthly",
+              )}
+              fullWidth
+              slotProps={{ input: { sx: { fontFamily: "monospace" } } }}
+            />
+            <TextField
+              label={tr("Time zone")}
+              value={timezone}
+              onChange={(e) => setTimezone(e.target.value)}
+              helperText={tr("UTC or a fixed offset like +03:00")}
+              sx={{ minWidth: 160 }}
+            />
           </Stack>
-        )}
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>{tr("Cancel")}</Button>
-        <Button
-          variant="contained"
-          disabled={!valid || save.isPending}
-          onClick={() => save.mutate()}
-        >
-          {existing ? tr("Save") : tr("Create")}
-        </Button>
-      </DialogActions>
-    </Dialog>
+          <Stack direction="row" spacing={2} useFlexGap sx={{ flexWrap: "wrap" }}>
+            <TextField
+              label={tr("Timeout per host, seconds")}
+              value={timeout}
+              onChange={(e) => setTimeout_(e.target.value)}
+              error={!timeoutOk}
+              helperText={`${AUTOMATION_TIMEOUT_MIN}–${AUTOMATION_TIMEOUT_MAX}`}
+              sx={{ minWidth: 200 }}
+            />
+            <TextField
+              select
+              label={tr("E-mail alert")}
+              value={alertOn}
+              onChange={(e) => setAlertOn(e.target.value as AutomationAlertOn)}
+              sx={{ minWidth: 200 }}
+            >
+              {AUTOMATION_ALERT_ON.map((a) => (
+                <MenuItem key={a} value={a}>
+                  {alertLabel(a)}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Stack>
+          {alertOn !== "never" && (
+            <>
+              <TextField
+                label={tr("Extra recipients")}
+                value={alertEmails}
+                onChange={(e) => setAlertEmails(e.target.value)}
+                error={!!badEmail}
+                helperText={
+                  badEmail
+                    ? tr("Not an e-mail address: {v}", { v: badEmail })
+                    : tr("Comma-separated. Audit events and webhooks fire regardless.")
+                }
+                fullWidth
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={alertAdmins}
+                    onChange={(e) => setAlertAdmins(e.target.checked)}
+                  />
+                }
+                label={tr("Also e-mail team owners and admins")}
+              />
+            </>
+          )}
+        </Stack>
+      )}
+    </EditDrawer>
   );
 }
 

@@ -66,6 +66,7 @@ import {
 } from "@/ipc/types";
 import { useCreateRequests } from "@/app/navigation";
 import { NameDialog } from "@/sftp/dialogs";
+import { EditDrawer } from "@/components/EditDrawer";
 import { ShellHistoryPanel } from "@/history/ShellHistory";
 import { monoFontFamily, sizes } from "@/theme/theme";
 import { terminalStore, type Pane } from "@/terminal/store";
@@ -107,62 +108,58 @@ function SnippetDialog({
   const set = <K extends keyof SnippetForm>(k: K, v: SnippetForm[K]) => setF({ ...f, [k]: v });
   const valid = f.label.trim().length > 0 && f.script.trim().length > 0;
   return (
-    <Dialog open onClose={busy ? undefined : onCancel} maxWidth="sm" fullWidth>
-      <DialogTitle>{initial ? tr("Edit snippet") : tr("New snippet")}</DialogTitle>
-      <DialogContent>
-        <Stack spacing={2} sx={{ mt: 0.5 }}>
-          <Stack direction="row" spacing={2}>
-            <Field label={tr("Label")} sx={{ flex: 1 }}>
-              <TextField autoFocus value={f.label} onChange={(e) => set("label", e.target.value)} />
-            </Field>
-            <Field label={tr("Package")} sx={{ width: 200 }}>
-              <TextField
-                select
-                value={f.packageId ?? ""}
-                onChange={(e) => set("packageId", e.target.value === "" ? null : e.target.value)}
-              >
-                <MenuItem value="">
-                  <em>{tr("None")}</em>
-                </MenuItem>
-                {packages.map((p) => (
-                  <MenuItem key={p.id} value={p.id}>
-                    {p.label}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Field>
-          </Stack>
-          <Field label={tr("Script")}>
-            <TextField
-              value={f.script}
-              onChange={(e) => set("script", e.target.value)}
-              multiline
-              minRows={6}
-              maxRows={16}
-              helperText={tr(VAR_HINT)}
-              slotProps={{ htmlInput: { spellCheck: false, style: { fontFamily: "monospace" } } }}
-            />
+    <EditDrawer
+      open
+      title={initial ? tr("Edit snippet") : tr("New snippet")}
+      canSave={valid}
+      saving={busy}
+      onSave={() => onConfirm(f)}
+      onClose={onCancel}
+    >
+      <Stack spacing={2}>
+        <Stack direction="row" spacing={2}>
+          <Field label={tr("Label")} sx={{ flex: 1 }}>
+            <TextField autoFocus value={f.label} onChange={(e) => set("label", e.target.value)} />
           </Field>
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={f.closeAfterRun}
-                onChange={(e) => set("closeAfterRun", e.target.checked)}
-              />
-            }
-            label={tr("Close the terminal after running")}
-          />
+          <Field label={tr("Package")} sx={{ width: 200 }}>
+            <TextField
+              select
+              value={f.packageId ?? ""}
+              onChange={(e) => set("packageId", e.target.value === "" ? null : e.target.value)}
+            >
+              <MenuItem value="">
+                <em>{tr("None")}</em>
+              </MenuItem>
+              {packages.map((p) => (
+                <MenuItem key={p.id} value={p.id}>
+                  {p.label}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Field>
         </Stack>
-      </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onCancel} disabled={busy} color="inherit">
-          {tr("Cancel")}
-        </Button>
-        <Button variant="contained" disabled={!valid || busy} onClick={() => onConfirm(f)}>
-          {tr("Save")}
-        </Button>
-      </DialogActions>
-    </Dialog>
+        <Field label={tr("Script")}>
+          <TextField
+            value={f.script}
+            onChange={(e) => set("script", e.target.value)}
+            multiline
+            minRows={6}
+            maxRows={16}
+            helperText={tr(VAR_HINT)}
+            slotProps={{ htmlInput: { spellCheck: false, style: { fontFamily: "monospace" } } }}
+          />
+        </Field>
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={f.closeAfterRun}
+              onChange={(e) => set("closeAfterRun", e.target.checked)}
+            />
+          }
+          label={tr("Close the terminal after running")}
+        />
+      </Stack>
+    </EditDrawer>
   );
 }
 

@@ -480,6 +480,8 @@ export interface HostCard {
   osName: string | null;
   /** User-chosen icon id or `custom:data:`; overrides `osName`. */
   icon: string | null;
+  /** User-chosen tile colour (`#rrggbb`); null keeps the icon or theme colour. */
+  color: string | null;
   ipVersion: IpVersion;
   notes: string;
   sortOrder: number;
@@ -542,6 +544,8 @@ export interface HostForm {
   osName: string | null;
   /** User-chosen icon id or `custom:data:`; null follows OS detection. */
   icon: string | null;
+  /** User-chosen tile colour (`#rrggbb`); null keeps the icon or theme colour. */
+  color: string | null;
   ipVersion: IpVersion;
   agentForwarding: boolean;
   /** Trusted X11 forwarding to the local display. */
@@ -847,6 +851,7 @@ export function emptyHostForm(vaultId: Uuid, groupId: Uuid | null): HostForm {
     notes: "",
     osName: null,
     icon: null,
+    color: null,
     ipVersion: "auto",
     agentForwarding: false,
     forwardX11: false,
@@ -883,6 +888,8 @@ export interface GroupNode {
   hasConfig: boolean;
   /** User-chosen icon id or `custom:data:`; null shows the default folder. */
   icon: string | null;
+  /** User-chosen tile colour (`#rrggbb`); null keeps the icon or theme colour. */
+  color: string | null;
 }
 
 /** Group editor model: name, parent and the SSH defaults its hosts inherit. */
@@ -921,6 +928,8 @@ export interface GroupForm extends SshDefaultsForm {
   parentId: Uuid | null;
   /** User-chosen icon id or `custom:data:`; null shows the default folder. */
   icon: string | null;
+  /** User-chosen tile colour (`#rrggbb`); null keeps the icon or theme colour. */
+  color: string | null;
 }
 
 /** A tag's settings; tags rank below groups (host > groups > tags). */
@@ -965,6 +974,7 @@ export function emptyGroupForm(vaultId: Uuid, parentId: Uuid | null): GroupForm 
     label: "",
     parentId,
     icon: null,
+    color: null,
     ...emptySshDefaults(),
   };
 }
@@ -2389,7 +2399,9 @@ export type PromptRequest =
   | { kind: "passphrase"; key_label: string }
   | { kind: "pin"; key_label: string; retry: boolean; retries: number | null }
   | { kind: "interactive"; name: string; instructions: string; questions: Question[] }
-  | { kind: "agent_sign"; key_label: string; fingerprint: string; process: string | null };
+  | { kind: "agent_sign"; key_label: string; fingerprint: string; process: string | null }
+  /** Labterm Web: the browser needs a click before it asks for the security key. */
+  | { kind: "security_key"; key_label: string };
 
 export type PromptEvent = { id: Uuid; session_id: Uuid; target: string } & PromptRequest;
 
@@ -3175,6 +3187,35 @@ export interface VpnDetails {
   liveError: string | null;
   peers: VpnPeer[];
   hosts: VpnHost[];
+  /** NetBird's nameserver groups as this device applied them. */
+  dns: VpnDnsGroup[];
+}
+
+/** One nameserver group on the details page. */
+export interface VpnDnsGroup {
+  /** Match domains; empty = primary (every other name). */
+  domains: string[];
+  servers: string[];
+  /** Reachable through the network, so Labterm asks it itself. */
+  tunnel: boolean;
+}
+
+/** The connection test's result for one host (`vpn_test_host`). */
+export interface VpnHostTest {
+  network: string;
+  /** Time to get the network up; 0 = it was running. */
+  startMs: number;
+  networkError: string | null;
+  name: string;
+  /** `address`, `nameserver`, `netbird` or `tailscale`. */
+  via: string;
+  server: string;
+  remote: string;
+  connectMs: number;
+  banner: string;
+  error: string | null;
+  peer: VpnPeer | null;
+  route: string | null;
 }
 
 export interface VpnNetworkForm {

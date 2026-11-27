@@ -2,6 +2,7 @@ package dev.labdex.labterm.ui.account
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,10 +21,13 @@ import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -41,9 +45,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.labdex.labterm.R
 import dev.labdex.labterm.core.BackupCard
 import dev.labdex.labterm.core.BackupRestoreResult
+import dev.labdex.labterm.core.TeamCard
+import dev.labdex.labterm.core.TeamRole
 import dev.labdex.labterm.core.VaultInfo
 import dev.labdex.labterm.data.AccountManager
 import dev.labdex.labterm.data.userMessage
+import dev.labdex.labterm.ui.components.FormField
 import dev.labdex.labterm.ui.components.IconTile
 import dev.labdex.labterm.ui.components.ListRow
 import dev.labdex.labterm.ui.components.RowDivider
@@ -111,6 +118,10 @@ fun MoveServerScreen(shell: ShellViewModel, account: AccountManager, onBack: () 
     var confirm by remember { mutableStateOf("") }
     var vaults by remember { mutableStateOf<List<VaultInfo>>(emptyList()) }
     val chosen = remember { mutableStateMapOf<Int, String?>() }
+    // Teams of the new account we may add vaults to, for "into a new team vault".
+    var myTeams by remember { mutableStateOf<List<TeamCard>>(emptyList()) }
+    var teamPick by remember { mutableStateOf<String?>(null) }
+    var teamName by remember { mutableStateOf<String?>(null) }
     // The opened backup is gone when the app was restarted mid-move.
     var backupOpen by remember { mutableStateOf(true) }
 
@@ -119,10 +130,16 @@ fun MoveServerScreen(shell: ShellViewModel, account: AccountManager, onBack: () 
         // Signed in on the new server: go on to the restore.
         if (state.step == MoveStep.SignIn && signedIn) MoveServerFlow.update { it.copy(step = MoveStep.Restore) }
         vaults = runCatching { shell.repo.read { vaults() } }.getOrDefault(emptyList())
+        if (signedIn) {
+            myTeams = runCatching { shell.repo.read { teams() } }.getOrDefault(emptyList())
+                .filter { it.myRole == TeamRole.OWNER || it.myRole == TeamRole.ADMIN }
+        }
         val b = state.backup
         if (state.step == MoveStep.Restore && b != null) {
             backupOpen = shell.repo.read { backupIsOpen(b.previewId) }
-            if (chosen.isEmpty()) chosen.putAll(defaultRestoreTargets(b, restoreTargets(vaults), skipSameVault = true))
+            if (chosen.isEmpty()) {
+                chosen.putAll(defaultRestoreTargets(b, restoreTargets(vaults), skipSameVault = true, newTeamVaults = true))
+            }
         }
     }
 
@@ -155,7 +172,7 @@ fun MoveServerScreen(shell: ShellViewModel, account: AccountManager, onBack: () 
                 .onSuccess { card ->
                     password = ""
                     chosen.clear()
-                    chosen.putAll(defaultRestoreTargets(card, restoreTargets(vaults), skipSameVault = true))
+                    chosen.putAll(defaultRestoreTargets(card, restoreTargets(vaults), skipSameVault = true, newTeamVaults = true))
                     backupOpen = true
                     MoveServerFlow.update { it.copy(backup = card) }
                 }
@@ -283,13 +300,32 @@ fun MoveServerScreen(shell: ShellViewModel, account: AccountManager, onBack: () 
                     } else {
                         Text(stringResource(R.string.move_restore_explain, serverName(now)), style = MaterialTheme.typography.bodyMedium)
                         Spacer(Modifier.height(12.dp))
-                        RestoreMapping(b, restoreTargets(vaults), chosen) { i, id -> chosen[i] = id }
+                        RestoreMapping(b, restoreTargets(vaults), chosen, allowNewTeamVault = true) { i, id -> chosen[i] = id }
+                        val firstNew = b.vaults.indices.firstOrNull { chosen[it] == NEW_TEAM_VAULT }
+                        val team = teamPick ?: myTeams.firstOrNull()?.id ?: NEW_TEAM
+                        val newTeamName = teamName ?: firstNew?.let { b.vaults[it].name }.orEmpty()
+                        val needsTeamName = firstNew != null && team == NEW_TEAM
+                        if (firstNew != null) {
+                            Spacer(Modifier.height(12.dp))
+                            TeamPicker(myTeams, team) { teamPick = it }
+                            if (needsTeamName) {
+                                Spacer(Modifier.height(8.dp))
+                                FormField(newTeamName, { teamName = it }, stringResource(R.string.move_team_name), enabled = !busy)
+                            }
+                        }
                         Spacer(Modifier.height(16.dp))
                         Button(
                             onClick = {
                                 busy = true
                                 scope.launch {
-                                    runCatching { restoreBackup(shell.repo, b, chosen.toMap()) }
+                                    runCatching {
+                                        val (into, teamId) = createRestoreTargets(shell.repo, b, chosen.toMap(), team, newTeamName)
+                                        // A retry must not create the team or the vaults twice.
+                                        chosen.putAll(into)
+                                        if (teamId != team) teamPick = teamId
+                                        vaults = shell.repo.read { vaults() }
+                                        restoreBackup(shell.repo, b, into)
+                                    }
                                         .onSuccess { r ->
                                             shell.repo.read { backupDiscard(b.previewId) }
                                             runCatching { account.syncNow() }
@@ -299,7 +335,7 @@ fun MoveServerScreen(shell: ShellViewModel, account: AccountManager, onBack: () 
                                     busy = false
                                 }
                             },
-                            enabled = !busy && chosen.values.any { it != null },
+                            enabled = !busy && chosen.values.any { it != null } && !(needsTeamName && newTeamName.isBlank()),
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             if (busy) {
@@ -352,3 +388,26 @@ private fun StaysBehind() {
 
 private fun serverName(url: String?): String =
     url?.removePrefix("https://")?.removePrefix("http://")?.trimEnd('/') ?: ""
+
+/** "Team for the new vaults": a team we manage, or a new one. */
+@Composable
+private fun TeamPicker(teams: List<TeamCard>, team: String, onPick: (String) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    val name = teams.firstOrNull { it.id == team }?.name ?: stringResource(R.string.move_new_team)
+    SectionCard {
+        ListRow(title = stringResource(R.string.move_team_for_new_vaults)) {
+            Box {
+                TextButton(onClick = { open = true }) { Text(name) }
+                DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                    teams.forEach { t ->
+                        DropdownMenuItem(text = { Text(t.name) }, onClick = { onPick(t.id); open = false })
+                    }
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.move_new_team)) },
+                        onClick = { onPick(NEW_TEAM); open = false },
+                    )
+                }
+            }
+        }
+    }
+}

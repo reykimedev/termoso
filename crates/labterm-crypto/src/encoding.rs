@@ -36,3 +36,24 @@ pub mod serde_b64 {
         super::unb64(&s).map_err(serde::de::Error::custom)
     }
 }
+
+/// Serde helpers to (de)serialize fixed-size byte arrays as base64 strings.
+pub mod serde_b64_array {
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    /// Serialize a byte array as base64.
+    pub fn serialize<S: Serializer, const N: usize>(
+        bytes: &[u8; N],
+        s: S,
+    ) -> Result<S::Ok, S::Error> {
+        s.serialize_str(&super::b64(bytes))
+    }
+
+    /// Deserialize base64 into a byte array of exactly `N` bytes.
+    pub fn deserialize<'de, D: Deserializer<'de>, const N: usize>(
+        d: D,
+    ) -> Result<[u8; N], D::Error> {
+        let s = String::deserialize(d)?;
+        super::unb64_array::<N>(&s).map_err(serde::de::Error::custom)
+    }
+}

@@ -560,6 +560,8 @@ function HostEditor({
               <IconPicker
                 value={form.icon}
                 onChange={(v) => set("icon", v)}
+                color={form.color}
+                onColorChange={(c) => set("color", c)}
                 disabled={readOnly}
                 autoLabel={tr("Automatic (detected OS)")}
                 fallback={

@@ -141,17 +141,32 @@ fun vaultKindIcon(kind: VaultKind): ImageVector = when (kind) {
 fun restoreTargets(vaults: List<VaultInfo>): List<VaultInfo> =
     vaults.filter { !it.locked && it.access != VaultAccess.VIEW }
 
+/** Restore target: a team vault created for this backup vault, named like it. */
+const val NEW_TEAM_VAULT = "new-team-vault"
+
+/** Team choice for [NEW_TEAM_VAULT]: create a team first. */
+const val NEW_TEAM = "new-team"
+
 /**
  * Where each vault of a backup goes by default: the same vault when it is
  * still here (local vault, same account), else a vault of the same kind, else
- * the personal vault. A team vault of another server lands in the personal
- * vault, because teams do not move with a backup.
+ * the personal vault. Teams do not move with a backup, so a team vault of
+ * another server goes into a team vault of the same name or, with
+ * [newTeamVaults], a new one; otherwise into the personal vault.
  */
-fun defaultRestoreTargets(card: BackupCard, targets: List<VaultInfo>, skipSameVault: Boolean = false): Map<Int, String?> =
+fun defaultRestoreTargets(
+    card: BackupCard,
+    targets: List<VaultInfo>,
+    skipSameVault: Boolean = false,
+    newTeamVaults: Boolean = false,
+): Map<Int, String?> =
     card.vaults.mapIndexed { i, v ->
         val same = targets.firstOrNull { it.id == v.id }
+        val sameName = targets.firstOrNull { it.kind == VaultKind.TEAM && it.name == v.name }
         val target = when {
             same != null -> if (skipSameVault) null else same.id
+            v.kind == VaultKind.TEAM && sameName != null -> sameName.id
+            v.kind == VaultKind.TEAM && newTeamVaults -> NEW_TEAM_VAULT
             else -> (
                 targets.firstOrNull { it.kind == v.kind && v.kind != VaultKind.TEAM }
                     ?: targets.firstOrNull { it.kind == VaultKind.PERSONAL }
@@ -161,6 +176,41 @@ fun defaultRestoreTargets(card: BackupCard, targets: List<VaultInfo>, skipSameVa
         }
         i to target
     }.toMap()
+
+/**
+ * Create what [NEW_TEAM_VAULT] rows ask for: the team when [team] is
+ * [NEW_TEAM] (its first vault, named after it, is reused for the row of the
+ * same name), then one team vault per remaining row. Returns the mapping with
+ * real vault ids, and the team used.
+ */
+suspend fun createRestoreTargets(
+    repo: VaultRepository,
+    card: BackupCard,
+    targets: Map<Int, String?>,
+    team: String,
+    teamName: String,
+): Pair<Map<Int, String?>, String> {
+    if (targets.values.none { it == NEW_TEAM_VAULT }) return targets to team
+    var teamId = team
+    val free = mutableListOf<VaultInfo>()
+    if (teamId == NEW_TEAM) {
+        val created = repo.write { createTeam(teamName.trim()) }
+        teamId = created.id
+        free += repo.read { vaults() }.filter { it.teamId == created.id }
+    }
+    val out = targets.toMutableMap()
+    card.vaults.forEachIndexed { i, v ->
+        if (out[i] != NEW_TEAM_VAULT) return@forEachIndexed
+        val reuse = free.firstOrNull { it.name == v.name }
+        out[i] = if (reuse != null) {
+            free.remove(reuse)
+            reuse.id
+        } else {
+            repo.write { createTeamVault(teamId, v.name, emptyList()) }
+        }
+    }
+    return out to teamId
+}
 
 /** Restore every mapped vault of an opened backup; the sum of the reports. */
 suspend fun restoreBackup(repo: VaultRepository, card: BackupCard, targets: Map<Int, String?>): BackupRestoreResult {
@@ -207,7 +257,13 @@ fun backupPasswordReady(password: String, confirm: String): Boolean =
 
 /** One row per vault of the backup with a "restore into" picker. */
 @Composable
-fun RestoreMapping(card: BackupCard, targets: List<VaultInfo>, chosen: Map<Int, String?>, onChoose: (Int, String?) -> Unit) {
+fun RestoreMapping(
+    card: BackupCard,
+    targets: List<VaultInfo>,
+    chosen: Map<Int, String?>,
+    allowNewTeamVault: Boolean = false,
+    onChoose: (Int, String?) -> Unit,
+) {
     SectionCard {
         card.vaults.forEachIndexed { i, v ->
             if (i > 0) RowDivider()
@@ -219,8 +275,14 @@ fun RestoreMapping(card: BackupCard, targets: List<VaultInfo>, chosen: Map<Int, 
                 leading = { IconTile(vaultKindIcon(v.kind)) },
             ) {
                 Box {
-                    TextButton(onClick = { open = true }, enabled = targets.isNotEmpty()) {
-                        Text(into?.let { stringResource(R.string.backup_into, it.name) } ?: stringResource(R.string.skip))
+                    TextButton(onClick = { open = true }, enabled = targets.isNotEmpty() || allowNewTeamVault) {
+                        Text(
+                            when {
+                                chosen[i] == NEW_TEAM_VAULT -> stringResource(R.string.backup_into_new_team_vault)
+                                into != null -> stringResource(R.string.backup_into, into.name)
+                                else -> stringResource(R.string.skip)
+                            },
+                        )
                     }
                     DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
                         DropdownMenuItem(text = { Text(stringResource(R.string.skip)) }, onClick = { onChoose(i, null); open = false })
@@ -229,6 +291,13 @@ fun RestoreMapping(card: BackupCard, targets: List<VaultInfo>, chosen: Map<Int, 
                                 text = { Text(stringResource(R.string.backup_into, t.name)) },
                                 leadingIcon = { androidx.compose.material3.Icon(vaultKindIcon(t.kind), null) },
                                 onClick = { onChoose(i, t.id); open = false },
+                            )
+                        }
+                        if (allowNewTeamVault) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.backup_into_new_team_vault)) },
+                                leadingIcon = { androidx.compose.material3.Icon(Icons.Filled.Group, null) },
+                                onClick = { onChoose(i, NEW_TEAM_VAULT); open = false },
                             )
                         }
                     }

@@ -29,20 +29,30 @@
 //! derives a second KEK that wraps the same account private key, and a
 //! *verifier* the server stores hashed to authorise password resets.
 //!
+//! Team vaults can hold *collections* (restricted groups) with their own
+//! keys. Those keys, and team vault keys, are handed over in bound envelopes
+//! authenticated by a manager ([`grant`]), and who holds them is recorded in a
+//! signed, hash-chained membership log ([`memberlog`]) signed with a key
+//! derived from the account key ([`signing`]).
+//!
 //! All formats are versioned so they can evolve without breaking old data.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs, clippy::all)]
 
 pub mod aead;
+mod canon;
 pub mod encoding;
 pub mod error;
+pub mod grant;
 pub mod kdf;
 pub mod keys;
 pub mod live;
+pub mod memberlog;
 pub mod opaque;
 pub mod recovery;
 pub mod sealed;
+pub mod signing;
 
 pub use error::CryptoError;
 

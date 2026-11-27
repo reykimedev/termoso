@@ -907,6 +907,7 @@ fn plan_host(v: &VaultState, external_id: &str, req: &HostRequest) -> Result<Pla
             .filter(|s| !s.is_empty())
             .or(old.os_name),
         icon: old.icon,
+        color: old.color,
         ip_version: old.ip_version,
         backspace: old.backspace,
         cloud_instance_id: old.cloud_instance_id,
@@ -977,6 +978,7 @@ fn plan_group(v: &VaultState, external_id: &str, req: &GroupRequest) -> Result<P
         telnet_config_id,
         sort_order: old.sort_order,
         icon: old.icon,
+        color: old.color,
         external_id: Some(external_id.to_string()),
     };
     plan.put("group", group_id, &group)?;

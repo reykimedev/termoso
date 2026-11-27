@@ -151,5 +151,6 @@ export function details(id: Uuid) {
     liveError: null,
     peers: [],
     hosts: hostsUsing(t),
+    dns: [],
   };
 }

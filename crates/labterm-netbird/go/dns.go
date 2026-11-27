@@ -131,7 +131,7 @@ func peerDomain(fqdn string) string {
 
 // tunnelLookup asks servers for name's A and AAAA records over dial (UDP
 // through the tunnel). IPv4 answers come first.
-func tunnelLookup(ctx context.Context, dial func(ctx context.Context, network, addr string) (net.Conn, error), name string, servers []netip.AddrPort) ([]netip.Addr, error) {
+func tunnelLookup(ctx context.Context, dial func(ctx context.Context, network, addr string) (net.Conn, error), name string, servers []netip.AddrPort) ([]netip.Addr, netip.AddrPort, error) {
 	fq := dns.Fqdn(name)
 	var lastErr error
 	for _, s := range servers {
@@ -151,16 +151,16 @@ func tunnelLookup(ctx context.Context, dial func(ctx context.Context, network, a
 			}
 		}
 		if all := append(v4, v6...); len(all) > 0 {
-			return all, nil
+			return all, s, nil
 		}
 		if ok {
-			return nil, fmt.Errorf("%s: no address", name)
+			return nil, s, fmt.Errorf("%s: no address", name)
 		}
 	}
 	if lastErr == nil {
 		lastErr = errors.New("no nameserver")
 	}
-	return nil, lastErr
+	return nil, netip.AddrPort{}, lastErr
 }
 
 func exchange(ctx context.Context, dial func(ctx context.Context, network, addr string) (net.Conn, error), server netip.AddrPort, fq string, qt uint16) ([]netip.Addr, error) {
@@ -235,26 +235,45 @@ func tunnelServers(c *embed.Client, host string) (servers []netip.AddrPort, sett
 	return servers, len(groups) == 0 || (matched && len(servers) == 0)
 }
 
+// dialTrace records how a dial found its address, for the connection test.
+type dialTrace struct {
+	// Name is the name that resolved (a short name under its search domain).
+	Name string `json:"name,omitempty"`
+	// Via: "address" (no lookup), "nameserver" (a nameserver group through
+	// the tunnel), "netbird" (NetBird's resolver: peer names, servers outside
+	// the network) or "tailscale" (MagicDNS, split DNS).
+	Via string `json:"via"`
+	// Server is the nameserver that answered, for "nameserver".
+	Server string `json:"server,omitempty"`
+}
+
+func (t *dialTrace) set(name, via, server string) {
+	if t != nil {
+		*t = dialTrace{Name: name, Via: via, Server: server}
+	}
+}
+
 // nbDial dials addr in the NetBird network, resolving a name through the
 // nameserver group that covers it when NetBird itself cannot reach it. A
 // single-label name ("nas") is tried under each of the network's search
-// domains, as NetBird's own client does.
-func nbDial(ctx context.Context, b nbNode, network, addr string) (net.Conn, error) {
+// domains, as NetBird's own client does. tr, when set, learns how.
+func nbDial(ctx context.Context, b nbNode, network, addr string, tr *dialTrace) (net.Conn, error) {
 	c := b.c
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
 		return c.Dial(ctx, network, addr)
 	}
 	if _, err := netip.ParseAddr(host); err == nil {
+		tr.set(host, "address", "")
 		return c.Dial(ctx, network, addr)
 	}
 	name := strings.TrimSuffix(host, ".")
 	if strings.Contains(name, ".") || strings.HasSuffix(host, ".") {
-		return dialName(ctx, b, network, host, port)
+		return dialName(ctx, b, network, host, port, tr)
 	}
 	var firstErr error
 	for _, d := range b.searchDomains(ctx) {
-		conn, err := dialName(ctx, b, network, name+"."+d, port)
+		conn, err := dialName(ctx, b, network, name+"."+d, port, tr)
 		if err == nil {
 			return conn, nil
 		}
@@ -266,6 +285,7 @@ func nbDial(ctx context.Context, b nbNode, network, addr string) (net.Conn, erro
 		}
 	}
 	// No search domain answered: let NetBird try the bare name.
+	tr.set(host, "netbird", "")
 	conn, err := c.Dial(ctx, network, addr)
 	if err != nil && firstErr != nil {
 		return nil, firstErr
@@ -275,7 +295,7 @@ func nbDial(ctx context.Context, b nbNode, network, addr string) (net.Conn, erro
 
 // dialName resolves one name (through a nameserver group in the tunnel, or
 // NetBird's resolver) and dials it.
-func dialName(ctx context.Context, b nbNode, network, host, port string) (net.Conn, error) {
+func dialName(ctx context.Context, b nbNode, network, host, port string, tr *dialTrace) (net.Conn, error) {
 	c := b.c
 	addr := net.JoinHostPort(host, port)
 	servers, settling := tunnelServers(c, host)
@@ -288,13 +308,16 @@ func dialName(ctx context.Context, b nbNode, network, host, port string) (net.Co
 		servers, settling = tunnelServers(c, host)
 	}
 	if len(servers) == 0 {
+		tr.set(host, "netbird", "")
 		return c.Dial(ctx, network, addr)
 	}
-	ips, err := tunnelLookup(ctx, c.Dial, host, servers)
+	ips, server, err := tunnelLookup(ctx, c.Dial, host, servers)
 	if err != nil {
 		log.Debugf("labterm dns: %s through the tunnel: %v; using NetBird's resolver", host, err)
+		tr.set(host, "netbird", "")
 		return c.Dial(ctx, network, addr)
 	}
+	tr.set(host, "nameserver", server.String())
 	for _, ip := range ips {
 		conn, derr := c.Dial(ctx, network, net.JoinHostPort(ip.String(), port))
 		if derr == nil {
