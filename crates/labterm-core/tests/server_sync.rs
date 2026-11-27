@@ -359,6 +359,7 @@ async fn entities_round_trip_with_tombstones_and_cursors() {
     let pull = a
         .api
         .sync_pull(&labterm_proto::sync::PullRequest {
+            protocol: labterm_proto::sync::SYNC_PROTOCOL,
             cursors: Default::default(),
             limit: None,
         })
@@ -397,6 +398,7 @@ async fn server_kinds(d: &Device) -> Vec<(String, bool)> {
     let mut v: Vec<(String, bool)> = d
         .api
         .sync_pull(&labterm_proto::sync::PullRequest {
+            protocol: labterm_proto::sync::SYNC_PROTOCOL,
             cursors: [(d.personal_vault(), 0)].into_iter().collect(),
             limit: None,
         })

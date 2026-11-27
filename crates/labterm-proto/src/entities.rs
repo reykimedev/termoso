@@ -67,6 +67,23 @@ pub fn is_known_kind(kind: &str) -> bool {
     KINDS.contains(&kind)
 }
 
+/// Longest kind name [`is_valid_kind`] accepts.
+pub const MAX_KIND_LEN: usize = 32;
+
+/// Whether `kind` is a well-formed kind name: a lowercase letter, then
+/// lowercase letters, digits or `_`, at most [`MAX_KIND_LEN`] bytes.
+///
+/// The server stores payloads it cannot read, so it accepts any such kind,
+/// not only [`KINDS`]: newer clients can sync new item types without a
+/// server update. Kinds with server-side rules ([`PERSONAL_ONLY_KINDS`])
+/// still have to be listed here.
+pub fn is_valid_kind(kind: &str) -> bool {
+    let mut bytes = kind.bytes();
+    kind.len() <= MAX_KIND_LEN
+        && bytes.next().is_some_and(|b| b.is_ascii_lowercase())
+        && bytes.all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_')
+}
+
 /// Kinds that carry secrets a user may want to keep off the server entirely
 /// (usernames, passwords, private keys, certificates). Clients can be told
 /// to keep these device-local for the Personal vault; see
@@ -937,5 +954,28 @@ pub mod payload {
             /// blue, magenta, cyan, white, then the bright eight.
             pub ansi: Vec<String>,
         }
+    }
+}
+
+#[cfg(test)]
+mod kind_tests {
+    use super::*;
+
+    #[test]
+    fn every_known_kind_is_valid() {
+        for k in KINDS {
+            assert!(is_valid_kind(k), "{k}");
+        }
+    }
+
+    #[test]
+    fn valid_kind_names() {
+        assert!(is_valid_kind("spaceship"));
+        assert!(is_valid_kind("vpn_network2"));
+        assert!(is_valid_kind(&"a".repeat(MAX_KIND_LEN)));
+        for bad in ["", "Host", "2fa", "_x", "a-b", "a b", "kind!", "ü"] {
+            assert!(!is_valid_kind(bad), "{bad:?}");
+        }
+        assert!(!is_valid_kind(&"a".repeat(MAX_KIND_LEN + 1)));
     }
 }

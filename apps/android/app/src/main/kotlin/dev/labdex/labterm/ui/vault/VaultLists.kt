@@ -1,6 +1,5 @@
 package dev.labdex.labterm.ui.vault
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -12,6 +11,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,6 +39,15 @@ import dev.labdex.labterm.data.userMessage
 import dev.labdex.labterm.ui.components.EmptyState
 import dev.labdex.labterm.ui.components.IconTile
 import dev.labdex.labterm.ui.components.ListRow
+import dev.labdex.labterm.ui.components.ItemActionsSheet
+import dev.labdex.labterm.ui.components.ItemMoreButton
+import dev.labdex.labterm.ui.components.SheetAction
+import dev.labdex.labterm.ui.components.SheetSection
+import dev.labdex.labterm.ui.components.itemClicks
+import dev.labdex.labterm.ui.terminal.copyToClipboard
+import dev.labdex.labterm.str
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material.icons.filled.ContentCopy
 import dev.labdex.labterm.ui.components.RowDivider
 import dev.labdex.labterm.ui.components.SectionCard
 import dev.labdex.labterm.ui.components.SectionLabel
@@ -58,6 +68,8 @@ fun KnownHostsScreen(shell: ShellViewModel, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     var items by remember { mutableStateOf<List<KnownHostItem>>(emptyList()) }
     var confirm by remember { mutableStateOf<KnownHostItem?>(null) }
+    var menu by remember { mutableStateOf<KnownHostItem?>(null) }
+    val context = LocalContext.current
     LaunchedEffect(revision) {
         runCatching { shell.repo.read { knownHosts() } }
             .onSuccess { items = it }
@@ -84,15 +96,34 @@ fun KnownHostsScreen(shell: ShellViewModel, onBack: () -> Unit) {
                             title = k.hostname,
                             subtitle = "${k.keyType} · ${k.fingerprint}",
                             leading = { IconTile(Icons.Filled.Fingerprint) },
+                            modifier = Modifier.itemClicks(onClick = { menu = k }, onMenu = { menu = k }),
                         ) {
-                            IconButton(onClick = { confirm = k }) {
-                                Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.forget), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
+                            ItemMoreButton({ menu = k })
                         }
                     }
                 }
             }
         }
+    }
+    menu?.let { k ->
+        ItemActionsSheet(
+            title = k.hostname,
+            subtitle = "${k.keyType} · ${k.fingerprint}",
+            leading = { IconTile(Icons.Filled.Fingerprint) },
+            sections = listOf(
+                SheetSection(
+                    stringResource(R.string.known_hosts),
+                    listOf(
+                        SheetAction(Icons.Filled.ContentCopy, stringResource(R.string.copy_fingerprint)) {
+                            copyToClipboard(context, k.fingerprint)
+                            shell.notify(str(R.string.copied, k.fingerprint))
+                        },
+                    ),
+                ),
+                SheetSection(null, listOf(SheetAction(Icons.Filled.Delete, stringResource(R.string.forget), danger = true) { confirm = k })),
+            ),
+            onClose = { menu = null },
+        )
     }
     confirm?.let { k ->
         ConfirmDialog(
@@ -113,7 +144,7 @@ fun KnownHostsScreen(shell: ShellViewModel, onBack: () -> Unit) {
 
 /** Past connections of the selected vault, newest first. */
 @Composable
-fun HistoryScreen(shell: ShellViewModel, onBack: () -> Unit, onOpenHost: (String) -> Unit) {
+fun HistoryScreen(shell: ShellViewModel, onBack: () -> Unit, onOpenHost: (String) -> Unit, onConnect: (String) -> Unit = {}) {
     val revision by shell.repo.revision.collectAsStateWithLifecycle()
     val vaults by shell.vaults.collectAsStateWithLifecycle()
     val selectedId by shell.selectedVaultId.collectAsStateWithLifecycle()
@@ -121,7 +152,10 @@ fun HistoryScreen(shell: ShellViewModel, onBack: () -> Unit, onOpenHost: (String
     val scope = rememberCoroutineScope()
     var items by remember { mutableStateOf<List<HistoryItem>>(emptyList()) }
     var confirmClear by remember { mutableStateOf(false) }
-    LaunchedEffect(revision, vault) {
+    var historyMenu by remember { mutableStateOf<HistoryItem?>(null) }
+    val context = LocalContext.current
+    var reload by remember { mutableStateOf(0) }
+    LaunchedEffect(revision, vault, reload) {
         val v = vault ?: return@LaunchedEffect
         runCatching { shell.repo.read { history(200u) } }
             .onSuccess { items = it.filter { h -> h.belongsTo(v) } }
@@ -157,13 +191,49 @@ fun HistoryScreen(shell: ShellViewModel, onBack: () -> Unit, onOpenHost: (String
                             title = h.label.ifBlank { h.target },
                             subtitle = historySubtitle(h),
                             leading = { IconTile(Icons.Filled.History) },
-                            modifier = if (hostId != null) Modifier.clickable { onOpenHost(hostId) } else Modifier,
+                            modifier = Modifier.itemClicks(onClick = { if (hostId != null) onOpenHost(hostId) else historyMenu = h }, onMenu = { historyMenu = h }),
                             titleColor = if (h.error != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
-                        )
+                        ) {
+                            ItemMoreButton({ historyMenu = h })
+                        }
                     }
                 }
             }
         }
+    }
+    historyMenu?.let { h ->
+        val hostId = h.hostId
+        ItemActionsSheet(
+            title = h.label.ifBlank { h.target },
+            subtitle = historySubtitle(h),
+            leading = { IconTile(Icons.Filled.History) },
+            sections = listOf(
+                SheetSection(
+                    stringResource(R.string.history),
+                    listOfNotNull(
+                        hostId?.let { SheetAction(Icons.Filled.PlayArrow, stringResource(R.string.connect_again)) { onConnect(it) } },
+                        hostId?.let { SheetAction(Icons.Filled.Dns, stringResource(R.string.open_host)) { onOpenHost(it) } },
+                        SheetAction(Icons.Filled.ContentCopy, stringResource(R.string.copy_target)) {
+                            copyToClipboard(context, h.target)
+                            shell.notify(str(R.string.copied, h.target))
+                        },
+                    ),
+                ),
+                SheetSection(
+                    null,
+                    listOf(
+                        SheetAction(Icons.Filled.Delete, stringResource(R.string.remove_entry), danger = true) {
+                            scope.launch {
+                                runCatching { shell.repo.write { deleteHistoryEntry(h.id) } }
+                                    .onSuccess { reload++ }
+                                    .onFailure { shell.notify(it.userMessage()) }
+                            }
+                        },
+                    ),
+                ),
+            ),
+            onClose = { if (historyMenu == h) historyMenu = null },
+        )
     }
     if (confirmClear) {
         ConfirmDialog(

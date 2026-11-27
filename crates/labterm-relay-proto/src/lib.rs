@@ -101,7 +101,14 @@ pub fn verify(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand_core::OsRng;
+    use rand_core::{OsRng, RngCore as _};
+
+    // ed25519-dalek 3 wants a rand_core 0.10 RNG; the workspace's OsRng is 0.6.
+    fn new_key() -> SigningKey {
+        let mut secret = ed25519_dalek::SecretKey::default();
+        OsRng.fill_bytes(&mut secret);
+        SigningKey::from_bytes(&secret)
+    }
 
     fn claims(exp: u64) -> Claims {
         Claims {
@@ -121,7 +128,7 @@ mod tests {
 
     #[test]
     fn round_trip() {
-        let key = SigningKey::generate(&mut OsRng);
+        let key = new_key();
         let t = sign(&key, &claims(1_030));
         assert_eq!(
             verify(&key.verifying_key(), &t, ORIGIN, 1_000),
@@ -131,8 +138,8 @@ mod tests {
 
     #[test]
     fn rejects_other_key() {
-        let t = sign(&SigningKey::generate(&mut OsRng), &claims(1_030));
-        let other = SigningKey::generate(&mut OsRng).verifying_key();
+        let t = sign(&new_key(), &claims(1_030));
+        let other = new_key().verifying_key();
         assert_eq!(
             verify(&other, &t, ORIGIN, 1_000),
             Err(TicketError::BadSignature)
@@ -141,7 +148,7 @@ mod tests {
 
     #[test]
     fn rejects_changed_body() {
-        let key = SigningKey::generate(&mut OsRng);
+        let key = new_key();
         let t = sign(&key, &claims(1_030));
         let (_, sig) = t.split_once('.').unwrap();
         let mut forged = claims(1_030);
@@ -156,7 +163,7 @@ mod tests {
 
     #[test]
     fn rejects_expired_long_and_wrong_origin() {
-        let key = SigningKey::generate(&mut OsRng);
+        let key = new_key();
         let vk = key.verifying_key();
         assert_eq!(
             verify(&vk, &sign(&key, &claims(1_000)), ORIGIN, 1_000),
@@ -179,7 +186,7 @@ mod tests {
 
     #[test]
     fn rejects_garbage() {
-        let vk = SigningKey::generate(&mut OsRng).verifying_key();
+        let vk = new_key().verifying_key();
         for t in ["", ".", "abc", "a.b", &"x".repeat(MAX_TICKET_LEN + 1)] {
             assert_eq!(
                 verify(&vk, t, ORIGIN, 1_000),

@@ -405,6 +405,7 @@ impl SyncEngine {
             let mut retry = Vec::new();
             for chunk in pending.chunks(self.opts.batch) {
                 let req = PushRequest {
+                    protocol: labterm_proto::sync::SYNC_PROTOCOL,
                     changes: Vec::new(),
                     deletes: chunk.iter().map(EntityRow::to_delete).collect(),
                 };
@@ -492,6 +493,7 @@ impl SyncEngine {
         for chunk in rows.chunks(self.opts.batch) {
             let by_id: HashMap<Uuid, &EntityRow> = chunk.iter().map(|r| (r.id, r)).collect();
             let mut req = PushRequest {
+                protocol: labterm_proto::sync::SYNC_PROTOCOL,
                 changes: Vec::new(),
                 deletes: Vec::new(),
             };
@@ -604,6 +606,7 @@ impl SyncEngine {
             let resp = self
                 .api
                 .sync_pull(&PullRequest {
+                    protocol: labterm_proto::sync::SYNC_PROTOCOL,
                     cursors: cursors.clone(),
                     limit: Some(self.opts.batch as u32),
                 })

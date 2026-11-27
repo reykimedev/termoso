@@ -352,7 +352,7 @@ def keys():
         wait(label, timeout=30)
         # Saving opens the new key; the picture is the list.
         if has("Fingerprint"):
-            tap("Back")
+            tap("Close")  # the key page is an edit page now: Close, Save
             wait("Add")
 
 

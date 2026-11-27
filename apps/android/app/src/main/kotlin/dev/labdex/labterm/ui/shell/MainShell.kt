@@ -100,6 +100,7 @@ import dev.labdex.labterm.ui.team.TeamVaultScreen
 import dev.labdex.labterm.ui.team.TeamsScreen
 import dev.labdex.labterm.ui.terminal.TerminalScreen
 import dev.labdex.labterm.ui.vault.HistoryScreen
+import dev.labdex.labterm.ui.hosts.TagsScreen
 import dev.labdex.labterm.ui.vault.KnownHostsScreen
 import dev.labdex.labterm.ui.vault.SessionLogScreen
 import dev.labdex.labterm.ui.vault.SessionLogsScreen
@@ -114,7 +115,8 @@ object Routes {
     const val VAULT = "vault"
     const val CONNECTIONS = "connections"
     const val SETTINGS = "settings"
-    const val HOSTS = "hosts?group={group}"
+    const val HOSTS = "hosts?group={group}&tag={tag}"
+    const val TAGS = "tags"
     const val HOST_NEW = "hostNew?group={group}&target={target}"
     const val HOST_EDIT = "hostEdit/{id}"
     const val KEYCHAIN = "keychain"
@@ -129,6 +131,8 @@ object Routes {
     const val TERMINAL_INPUT = "terminalInput"
     const val LINUX = "linux"
     const val KNOWN_HOSTS = "knownHosts"
+    const val PROXIES = "proxies"
+    const val JUMP_CHAINS = "jumpChains"
     const val OIDC_PROVIDERS = "oidcProviders"
     const val NETBIRD = "netbird"
     const val VPN_NETWORK = "vpn/{id}"
@@ -165,6 +169,9 @@ object Routes {
     const val SNIPPET_EDIT = "snippetEdit/{id}"
 
     fun hosts(group: String?) = if (group == null) "hosts" else "hosts?group=$group"
+
+    /** Every host of the vault with this tag label. */
+    fun hostsTagged(tag: String) = "hosts?tag=${Uri.encode(tag)}"
     fun hostNew(group: String?) = if (group == null) "hostNew" else "hostNew?group=$group"
 
     /** New-host form prefilled from a quick-connect target (`user@host:port`, `telnet://host`). */
@@ -469,6 +476,7 @@ fun MainShell(
         },
     ) { padding ->
         val groupArg = navArgument("group") { type = NavType.StringType; nullable = true; defaultValue = null }
+        val tagArg = navArgument("tag") { type = NavType.StringType; nullable = true; defaultValue = null }
         val targetArg = navArgument("target") { type = NavType.StringType; nullable = true; defaultValue = null }
         val idArg = navArgument("id") { type = NavType.StringType }
         NavHost(
@@ -487,6 +495,8 @@ fun MainShell(
                     onOpenForwarding = { nav.navigate(Routes.FORWARDING) },
                     onOpenSnippets = { nav.navigate(Routes.snippets(null)) },
                     onOpenKnownHosts = { nav.navigate(Routes.KNOWN_HOSTS) },
+                    onOpenProxies = { nav.navigate(Routes.PROXIES) },
+                    onOpenJumpChains = { nav.navigate(Routes.JUMP_CHAINS) },
                     onOpenOidcProviders = { nav.navigate(Routes.OIDC_PROVIDERS) },
                     onOpenNetbird = { nav.navigate(Routes.NETBIRD) },
                     onOpenHistory = { nav.navigate(Routes.HISTORY) },
@@ -651,11 +661,13 @@ fun MainShell(
                     },
                 )
             }
-            composable(Routes.HOSTS, arguments = listOf(groupArg)) { entry ->
+            composable(Routes.HOSTS, arguments = listOf(groupArg, tagArg)) { entry ->
                 val group = entry.arguments?.getString("group")
                 HostsScreen(
                     shell = shell,
                     groupId = group,
+                    tag = entry.arguments?.getString("tag"),
+                    onOpenTags = { nav.navigate(Routes.TAGS) },
                     onBack = { nav.popBackStack() },
                     onOpenGroup = { nav.navigate(Routes.hosts(it)) },
                     onNewHost = { nav.navigate(Routes.hostNew(group)) },
@@ -668,8 +680,12 @@ fun MainShell(
                     onS3 = ::s3Host,
                     onOpenSftp = ::openSftp,
                     onOpenTerminal = ::openTerminal,
+                    onOpenVpn = { nav.navigate(Routes.vpnNetwork(it)) },
                     onForward = { nav.navigate(Routes.pfNew(PfKind.LOCAL, null, it)) },
                 )
+            }
+            composable(Routes.TAGS) {
+                TagsScreen(shell = shell, onBack = { nav.popBackStack() }, onOpenTag = { nav.navigate(Routes.hostsTagged(it)) })
             }
             composable(Routes.HOST_NEW, arguments = listOf(groupArg, targetArg)) { entry ->
                 val target = entry.arguments?.getString("target")
@@ -743,6 +759,8 @@ fun MainShell(
                 IdentityEditorScreen(shell = shell, identityId = entry.arguments?.getString("id"), onClose = { nav.popBackStack() })
             }
             composable(Routes.KNOWN_HOSTS) { KnownHostsScreen(shell = shell, onBack = { nav.popBackStack() }) }
+            composable(Routes.PROXIES) { dev.labdex.labterm.ui.hosts.ProxiesScreen(shell = shell, onBack = { nav.popBackStack() }) }
+            composable(Routes.JUMP_CHAINS) { dev.labdex.labterm.ui.hosts.JumpChainsScreen(shell = shell, onBack = { nav.popBackStack() }) }
             composable(Routes.OIDC_PROVIDERS) { dev.labdex.labterm.ui.keychain.OidcProvidersScreen(shell = shell, onBack = { nav.popBackStack() }) }
             composable(Routes.NETBIRD) {
                 dev.labdex.labterm.ui.netbird.NetbirdNetworksScreen(
@@ -760,7 +778,7 @@ fun MainShell(
                 )
             }
             composable(Routes.HISTORY) {
-                HistoryScreen(shell = shell, onBack = { nav.popBackStack() }, onOpenHost = { nav.navigate(Routes.hostEdit(it)) })
+                HistoryScreen(shell = shell, onBack = { nav.popBackStack() }, onOpenHost = { nav.navigate(Routes.hostEdit(it)) }, onConnect = { connectHost(it) })
             }
             composable(Routes.LOGS) {
                 SessionLogsScreen(shell = shell, onBack = { nav.popBackStack() }, onOpen = { nav.navigate(Routes.log(it)) })

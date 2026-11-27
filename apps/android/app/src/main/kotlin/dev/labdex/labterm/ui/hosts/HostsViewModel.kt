@@ -68,6 +68,8 @@ class HostsViewModel(
     private val repo: VaultRepository,
     vaultId: StateFlow<String?>,
     private val groupId: String?,
+    /** Show every host of the vault carrying this tag (label) instead of one group level. */
+    private val tag: String? = null,
 ) : ViewModel() {
     private val _state = MutableStateFlow(HostsUiState())
     val state: StateFlow<HostsUiState> = _state.asStateFlow()
@@ -117,11 +119,15 @@ class HostsViewModel(
         runCatching {
             repo.read {
                 val all = groups(vaultId)
-                Triple(
-                    all,
-                    all.filter { it.parentId == groupId },
-                    hosts(vaultId).filter { it.groupId == groupId },
-                )
+                if (tag != null) {
+                    Triple(all, emptyList(), hosts(vaultId).filter { h -> h.tags.any { it.equals(tag, ignoreCase = true) } })
+                } else {
+                    Triple(
+                        all,
+                        all.filter { it.parentId == groupId },
+                        hosts(vaultId).filter { it.groupId == groupId },
+                    )
+                }
             }
         }.onSuccess { (all, groups, hosts) ->
             _state.update {
@@ -192,8 +198,17 @@ class HostsViewModel(
         repo.write { saveGroup(group.vaultId, group.id, label.trim(), group.parentId) }
     }
 
-    fun deleteGroup(group: GroupItem) = mutate {
-        repo.write { deleteGroup(group.id) }
+    /** `withContents` deletes the hosts and sub-groups too; otherwise they move up one level. */
+    fun deleteGroup(group: GroupItem, withContents: Boolean = false) = mutate {
+        repo.write { if (withContents) deleteGroupRecursive(group.id) else deleteGroup(group.id) }
+    }
+
+    fun duplicateGroup(group: GroupItem) = mutate {
+        repo.write { duplicateGroup(group.id) }
+    }
+
+    fun moveGroup(group: GroupItem, parentId: String?) = mutate {
+        repo.write { saveGroup(group.vaultId, group.id, group.label, parentId) }
     }
 
     fun errorShown() = _state.update { it.copy(error = null) }

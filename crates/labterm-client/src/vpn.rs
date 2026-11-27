@@ -259,11 +259,31 @@ pub async fn sign_out(store: &Arc<Store>, network_id: Uuid) -> Result<()> {
     Ok(())
 }
 
-/// Delete a network and what this device kept for it.
-pub fn delete(store: &Store, id: Uuid) -> Result<()> {
+/// Delete a network and what this device kept for it: the running peer
+/// stops, and its peer keys (one per management server the network ever
+/// pointed at) and the remembered account go. Without this a deleted
+/// network left a usable peer key in the local store for good.
+pub async fn delete(store: &Store, id: Uuid) -> Result<()> {
+    sign_in_cancel(id);
+    NETBIRD.disconnect(id).await;
     transports::delete(store, id)?;
+    forget_peer_keys(store, id);
     remember_account(store, id, None);
     Ok(())
+}
+
+/// Drop every peer key kept for `network` (slots are `<id>@<server>`).
+fn forget_peer_keys(store: &Store, network: Uuid) {
+    match store.meta_keys(&format!("{PEER_META}{network}@")) {
+        Ok(keys) => {
+            for k in keys {
+                if let Err(e) = store.delete_meta(&k) {
+                    tracing::warn!("netbird: could not forget a peer key: {e}");
+                }
+            }
+        }
+        Err(e) => tracing::warn!("netbird: could not list peer keys: {e}"),
+    }
 }
 
 /// The network a host connects through when connecting needs a sign-in
@@ -381,4 +401,42 @@ pub async fn forget(store: &Store) {
 /// next connection.
 pub async fn stop_all() {
     NETBIRD.stop_all().await;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use labterm_core::labterm_crypto::keys::SymmetricKey;
+
+    #[tokio::test]
+    async fn deleting_a_network_forgets_its_peer_keys() {
+        let store = Arc::new(Store::open_in_memory(SymmetricKey::generate()).unwrap());
+        let vault = store.local_vault().unwrap().id;
+        let net = |label: &str| Transport {
+            label: label.into(),
+            provider: String::new(),
+            management_url: Some("https://netbird.example.com".into()),
+            setup_key: None,
+        };
+        let gone = transports::save(&store, vault, None, net("gone")).unwrap();
+        let kept = transports::save(&store, vault, None, net("kept")).unwrap();
+        let keys = StoreKeys(store.clone());
+        // One key per server the network pointed at, plus another network's.
+        keys.save(&format!("{}@https://netbird.example.com", gone.id), "k1");
+        keys.save(&format!("{}@https://old.example.com", gone.id), "k2");
+        keys.save(&format!("{}@https://netbird.example.com", kept.id), "k3");
+        remember_account(&store, gone.id, Some("me@example.com"));
+
+        delete(&store, gone.id).await.unwrap();
+
+        assert_eq!(
+            store.meta_keys(PEER_META).unwrap(),
+            vec![format!(
+                "{PEER_META}{}@https://netbird.example.com",
+                kept.id
+            )]
+        );
+        assert!(account(&store, gone.id).is_none());
+        assert!(store.get::<Transport>(gone.id).ok().flatten().is_none());
+    }
 }

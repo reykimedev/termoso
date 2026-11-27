@@ -8,7 +8,7 @@ use std::collections::{HashMap, HashSet};
 use axum::Json;
 use axum::extract::State;
 use labterm_crypto::encoding::unb64;
-use labterm_proto::entities::{SyncEntity, is_known_kind, is_personal_only_kind};
+use labterm_proto::entities::{SyncEntity, is_personal_only_kind, is_valid_kind};
 use labterm_proto::sync::*;
 use sqlx::AssertSqlSafe;
 use sqlx::{Postgres, Transaction};
@@ -144,6 +144,23 @@ fn err(id: Uuid, code: &str) -> PushResult {
     }
 }
 
+/// Refuse clients older than [`MIN_SYNC_PROTOCOL`]: they would drop or
+/// mishandle item kinds they do not know, so they are told to update.
+fn check_protocol(protocol: u32) -> ApiResult<()> {
+    if protocol >= MIN_SYNC_PROTOCOL {
+        return Ok(());
+    }
+    Err(Error::new(
+        axum::http::StatusCode::UPGRADE_REQUIRED,
+        labterm_proto::error::codes::CLIENT_UPDATE_REQUIRED,
+        "This server needs a newer Labterm app to sync. Please update the app.".to_string(),
+    )
+    .with_details(serde_json::json!({
+        "required_protocol": MIN_SYNC_PROTOCOL,
+        "client_protocol": protocol,
+    })))
+}
+
 #[utoipa::path(post, path = "/api/v1/sync/push", tag = "sync",
     request_body = PushRequest, responses((status = 200, body = PushResponse)))]
 pub async fn push(
@@ -152,6 +169,7 @@ pub async fn push(
     Body(req): Body<PushRequest>,
 ) -> ApiResult<Json<PushResponse>> {
     ratelimit::check(&state, ratelimit::SYNC_PUSH, &auth.user_id().to_string()).await?;
+    check_protocol(req.protocol)?;
     if req.changes.len() + req.deletes.len() > MAX_BATCH {
         return Err(Error::too_large(format!(
             "At most {MAX_BATCH} items per push"
@@ -199,8 +217,10 @@ pub async fn push(
             results.push(err(c.id, "forbidden"));
             continue;
         };
-        if !is_known_kind(&c.kind) {
-            results.push(err(c.id, "unknown_kind"));
+        // Payloads are opaque, so any well-formed kind syncs; only the kinds
+        // with rules below need this server to know them.
+        if !is_valid_kind(&c.kind) {
+            results.push(err(c.id, "invalid_kind"));
             continue;
         }
         // Personal overlays name team items; a team vault must never hold one.
@@ -379,6 +399,7 @@ pub async fn pull(
     auth: Auth,
     Body(req): Body<PullRequest>,
 ) -> ApiResult<Json<PullResponse>> {
+    check_protocol(req.protocol)?;
     let limit = req
         .limit
         .map(|l| l as usize)

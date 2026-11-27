@@ -19,7 +19,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentPaste
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Save
@@ -27,7 +26,6 @@ import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -47,6 +45,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.labdex.labterm.R
+import dev.labdex.labterm.ui.components.DeleteCard
+import dev.labdex.labterm.ui.components.EditScreen
+import androidx.compose.foundation.layout.imePadding
 import dev.labdex.labterm.str
 import dev.labdex.labterm.ui.components.ChevronRow
 import dev.labdex.labterm.ui.components.FormField
@@ -56,7 +57,6 @@ import dev.labdex.labterm.ui.components.RowDivider
 import dev.labdex.labterm.ui.components.SecretField
 import dev.labdex.labterm.ui.components.SectionCard
 import dev.labdex.labterm.ui.components.SectionLabel
-import dev.labdex.labterm.ui.components.SubScreen
 import dev.labdex.labterm.ui.components.SwitchRow
 import dev.labdex.labterm.ui.hosts.ConfirmDialog
 import dev.labdex.labterm.ui.shell.ShellViewModel
@@ -65,7 +65,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private enum class Sheet { RENAME, PASSPHRASE, CERTIFICATE, OIDC, SIGN_OUT, OPKSSH_HOST, PROVIDERS, EXPORT, TO_HOST, DELETE }
+private enum class Sheet { PASSPHRASE, CERTIFICATE, OIDC, SIGN_OUT, OPKSSH_HOST, PROVIDERS, EXPORT, TO_HOST, DELETE }
 
 /** Details and actions for one stored SSH key. */
 @Composable
@@ -79,25 +79,33 @@ fun KeyDetailScreen(shell: ShellViewModel, keyId: String, onBack: () -> Unit) {
     LaunchedEffect(s.deleted) { if (s.deleted) onBack() }
 
     val key = s.key
-    SubScreen(
-        key?.label ?: stringResource(R.string.key),
-        onBack,
-        actions = {
-            if (key != null) {
-                IconButton(onClick = { sheet = Sheet.RENAME }) { Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.rename)) }
-            }
+    // The name is edited in place and saved with Save, like every edit page;
+    // the other rows act at once (passphrase, certificate, export, ...).
+    var label by remember(keyId) { mutableStateOf<String?>(null) }
+    val name = label ?: key?.label.orEmpty()
+    EditScreen(
+        title = stringResource(R.string.edit_key),
+        canSave = key != null && name.isNotBlank(),
+        onSave = {
+            if (key != null && name.trim() != key.label) vm.rename(name)
+            onBack()
         },
+        onClose = onBack,
     ) { padding ->
         if (key == null) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 if (s.loading) CircularProgressIndicator()
             }
-            return@SubScreen
+            return@EditScreen
         }
         Column(
-            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 12.dp),
+            Modifier.fillMaxSize().padding(padding).imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 12.dp),
         ) {
             SectionCard {
+                Column(Modifier.padding(16.dp)) {
+                    FormField(name, { label = it }, stringResource(R.string.label))
+                }
+                RowDivider()
                 ListRow(
                     title = key.label,
                     subtitle = keyTypeLabel(key.keyType, key.bits) + if (key.usedBy > 0u) pluralStringResource(R.plurals.sep_used_by_hosts, key.usedBy.toInt(), key.usedBy.toInt()) else "",
@@ -247,19 +255,15 @@ fun KeyDetailScreen(shell: ShellViewModel, keyId: String, onBack: () -> Unit) {
             }
 
             SectionLabel(" ")
-            SectionCard {
-                ListRow(
-                    title = stringResource(R.string.delete_key),
-                    subtitle = if (key.usedBy > 0u) stringResource(R.string.hosts_using_it_will_fall_back_to_password) else null,
-                    titleColor = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.clickable { sheet = Sheet.DELETE },
-                )
-            }
+            DeleteCard(
+                stringResource(R.string.delete_key),
+                { sheet = Sheet.DELETE },
+                subtitle = if (key.usedBy > 0u) stringResource(R.string.hosts_using_it_will_fall_back_to_password) else null,
+            )
         }
     }
 
     when (sheet) {
-        Sheet.RENAME -> RenameDialog(key?.label ?: "", onDismiss = { sheet = null }) { vm.rename(it); sheet = null }
         Sheet.PASSPHRASE -> key?.let { k ->
             PassphraseDialog(k, onDismiss = { sheet = null }) { cur, next, remember ->
                 vm.changePassphrase(cur, next, remember)
@@ -307,18 +311,6 @@ fun KeyDetailScreen(shell: ShellViewModel, keyId: String, onBack: () -> Unit) {
         )
         null -> {}
     }
-}
-
-@Composable
-private fun RenameDialog(current: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
-    var label by remember { mutableStateOf(current) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.rename_key)) },
-        text = { FormField(label, { label = it }, stringResource(R.string.label)) },
-        confirmButton = { TextButton(enabled = label.isNotBlank(), onClick = { onSave(label) }) { Text(stringResource(R.string.save)) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
-    )
 }
 
 @Composable

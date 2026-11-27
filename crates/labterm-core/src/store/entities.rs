@@ -606,8 +606,12 @@ impl Store {
                     .then_with(|| a.id.cmp(&b.id))
             });
             out.tags = tags.iter().map(|t| t.data.label.clone()).collect();
-            out.ssh
-                .extend(tags.iter().rev().filter_map(|t| t.data.ssh_config_id));
+            for t in tags.iter().rev() {
+                if let Some(cid) = t.data.ssh_config_id {
+                    out.ssh.push(cid);
+                    out.ssh_sources.push(LayerSource::Tag(t.id));
+                }
+            }
         }
 
         let groups: Vec<Entity<Group>> = self.list(Some(vault))?;
@@ -623,13 +627,16 @@ impl Store {
                 break;
             };
             out.group_path.push(g.data.label.clone());
-            chain_ssh.extend(g.data.ssh_config_id);
+            chain_ssh.extend(g.data.ssh_config_id.map(|c| (c, g.id)));
             out.telnet.extend(g.data.telnet_config_id);
             cursor = g.data.parent_id;
         }
         out.group_path.reverse();
         out.telnet.reverse();
-        out.ssh.extend(chain_ssh.into_iter().rev());
+        for (cid, gid) in chain_ssh.into_iter().rev() {
+            out.ssh.push(cid);
+            out.ssh_sources.push(LayerSource::Group(gid));
+        }
         Ok(out)
     }
 
@@ -856,10 +863,21 @@ pub struct DefaultsLayers {
     pub group_path: Vec<String>,
     /// SSH config ids, lowest precedence first (tags, then groups).
     pub ssh: Vec<Uuid>,
+    /// Which tag or group each entry of `ssh` belongs to, same order.
+    pub ssh_sources: Vec<LayerSource>,
     /// Telnet config ids of the group chain, root first.
     pub telnet: Vec<Uuid>,
     /// Labels of the host's tags that carry settings, the winner first.
     pub tags: Vec<String>,
+}
+
+/// The tag or group a layer of [`DefaultsLayers::ssh`] comes from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LayerSource {
+    /// A tag on the host.
+    Tag(Uuid),
+    /// A group in the host's group chain.
+    Group(Uuid),
 }
 
 /// What a host inherits before its own settings, from

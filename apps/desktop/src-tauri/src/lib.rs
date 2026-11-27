@@ -22,6 +22,7 @@ mod linux_graphics;
 mod logs;
 mod mosh;
 mod multiplayer;
+mod policy_view;
 mod presence;
 mod prompts;
 mod quick;
@@ -469,6 +470,7 @@ pub fn run() {
             commands_tools::team_upsert_acl,
             commands_tools::team_delete_acl,
             commands_tools::acl_me,
+            policy_view::vault_policy,
             commands_tools::team_logs,
             commands_tools::team_logs_export,
             commands_tools::team_rotation,
