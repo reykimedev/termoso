@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.Policy
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -67,6 +68,7 @@ fun TeamVaultScreen(
     account: AccountManager,
     vaultId: String,
     onBack: () -> Unit,
+    onOverview: () -> Unit = {},
 ) {
     val status by account.status.collectAsStateWithLifecycle()
     val vault = status.vaults.firstOrNull { it.id == vaultId }
@@ -144,6 +146,18 @@ fun TeamVaultScreen(
                     },
                     leading = { IconTile(if (vault.locked) Icons.Filled.Lock else Icons.Filled.LockOpen) },
                 )
+            }
+
+            if (!vault.locked) {
+                Spacer(Modifier.height(12.dp))
+                SectionCard {
+                    ListRow(
+                        title = stringResource(R.string.ao_title),
+                        subtitle = stringResource(R.string.ao_open_hint),
+                        leading = { IconTile(Icons.Filled.Policy) },
+                        modifier = Modifier.clickable(onClick = onOverview),
+                    )
+                }
             }
 
             vault.teamId?.let { tid -> AclSection(shell = shell, teamId = tid, vaultId = vaultId) }

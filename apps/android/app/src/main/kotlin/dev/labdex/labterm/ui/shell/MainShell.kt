@@ -96,6 +96,7 @@ import dev.labdex.labterm.ui.team.TeamAutomationsScreen
 import dev.labdex.labterm.ui.team.TeamComplianceScreen
 import dev.labdex.labterm.ui.team.TeamDataScreen
 import dev.labdex.labterm.ui.team.TeamScreen
+import dev.labdex.labterm.ui.team.AccessOverviewScreen
 import dev.labdex.labterm.ui.team.TeamVaultScreen
 import dev.labdex.labterm.ui.team.TeamsScreen
 import dev.labdex.labterm.ui.terminal.TerminalScreen
@@ -157,6 +158,7 @@ object Routes {
     const val TEAM_COMPLIANCE = "team/{id}/compliance"
     const val TEAM_AUTOMATIONS = "team/{id}/automations"
     const val TEAM_VAULT = "teamVault/{id}"
+    const val TEAM_VAULT_OVERVIEW = "teamVault/{id}/overview"
     const val SIGN_IN = "signIn/{mode}"
     const val SFTP = "sftp/{id}"
     const val SFTP_PICK = "sftpPick"
@@ -192,6 +194,7 @@ object Routes {
     fun teamCompliance(id: String) = "team/$id/compliance"
     fun teamAutomations(id: String) = "team/$id/automations"
     fun teamVault(id: String) = "teamVault/$id"
+    fun teamVaultOverview(id: String) = "teamVault/$id/overview"
     fun sftp(id: String) = "sftp/$id"
     fun pfNew(kind: PfKind, vault: String?, host: String?) =
         "pfNew?kind=${kind.name}" + (vault?.let { "&vault=$it" } ?: "") + (host?.let { "&host=$it" } ?: "")
@@ -642,7 +645,25 @@ fun MainShell(
             }
             composable(Routes.TEAM_VAULT, arguments = listOf(idArg)) { entry ->
                 val id = entry.arguments?.getString("id") ?: return@composable
-                TeamVaultScreen(shell = shell, account = account, vaultId = id, onBack = { nav.popBackStack() })
+                TeamVaultScreen(
+                    shell = shell,
+                    account = account,
+                    vaultId = id,
+                    onBack = { nav.popBackStack() },
+                    onOverview = { nav.navigate(Routes.teamVaultOverview(id)) },
+                )
+            }
+            composable(Routes.TEAM_VAULT_OVERVIEW, arguments = listOf(idArg)) { entry ->
+                val id = entry.arguments?.getString("id") ?: return@composable
+                val v = account.status.collectAsState().value.vaults.firstOrNull { it.id == id }
+                AccessOverviewScreen(
+                    shell = shell,
+                    vaultId = id,
+                    teamId = v?.teamId,
+                    vaultName = v?.name.orEmpty(),
+                    onEditHost = { nav.navigate(Routes.hostEdit(it)) },
+                    onBack = { nav.popBackStack() },
+                )
             }
             composable(Routes.SIGN_IN, arguments = listOf(navArgument("mode") { type = NavType.StringType })) { entry ->
                 val mode = entry.arguments?.getString("mode")?.let { m -> AuthMode.entries.firstOrNull { it.name == m } } ?: AuthMode.SignIn

@@ -29,6 +29,7 @@ mod linux;
 mod live;
 mod netbird;
 mod oidc;
+mod policy_view;
 mod presence;
 mod quiet;
 mod s3;
