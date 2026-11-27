@@ -208,6 +208,7 @@ const commands: Record<string, Handler> = {
   vault_unlock_hello: notInBrowser("Windows Hello (add it as a passkey instead)"),
   unlock_hello_add: notInBrowser("Windows Hello (add it as a passkey instead)"),
   unlock_security_key_add: async (a) => {
+    st.s();
     const name = String(a.name ?? "").trim() || tr("Passkey");
     const p = await proof(a.password);
     const salt = b64(crypto.getRandomValues(new Uint8Array(32)));
@@ -222,21 +223,20 @@ const commands: Record<string, Handler> = {
     return vaultStatus();
   },
   unlock_factor_remove: async (a) => {
-    const m = db.current();
-    const id = String(a.id ?? "");
-    // The last way in stays: without a lock password the last passkey can't go.
-    if (m?.password == null && (m?.passkeys.length ?? 0) <= 1)
-      fail("invalid", "Set a lock password before you remove your last passkey.");
-    await db.removePasskey(id);
+    st.s(); // only while unlocked, like the desktop
+    // db refuses the last way in, on the stored meta.
+    await db.removePasskey(String(a.id ?? ""));
     return vaultStatus();
   },
   unlock_factor_rename: async (a) => {
+    st.s();
     const name = String(a.name ?? "").trim();
     if (!name) fail("invalid", "Enter a name");
     await db.renamePasskey(String(a.id ?? ""), name);
     return vaultStatus();
   },
   master_password_set: async (a) => {
+    st.s();
     const next = String(a.password ?? "");
     if (next.length < MIN_PASSWORD)
       fail("invalid", "Use at least {count} characters", { count: MIN_PASSWORD });
@@ -245,8 +245,7 @@ const commands: Record<string, Handler> = {
     return vaultStatus();
   },
   master_password_remove: async (a) => {
-    if ((db.current()?.passkeys.length ?? 0) === 0)
-      fail("invalid", "Add a passkey or security key before you turn the lock password off.");
+    st.s();
     if (!(await db.checkPassword(String(a.current ?? ""))))
       fail("wrong_password", "Wrong password");
     await db.removePassword();

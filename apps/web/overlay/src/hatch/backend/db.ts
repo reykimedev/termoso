@@ -3,6 +3,7 @@
 // labterm-web-wasm) and by each enrolled passkey's WebAuthn PRF value (HKDF-SHA256). IndexedDB holds
 // the wrappers and ciphertext. While unlocked the data key is a non-extractable WebCrypto key; its
 // raw bytes exist only while a wrapper is made or opened.
+import { fail } from "./errors";
 import { w } from "./wasm";
 
 const DB = "hatch";
@@ -182,9 +183,35 @@ async function putAll(entries: [string, unknown][]): Promise<void> {
   });
 }
 
-async function writeMeta(m: Meta): Promise<void> {
-  await put("meta", m);
-  cached = m;
+/**
+ * Reads the stored meta and writes `change(meta)` in one transaction, so a change made in another
+ * tab in between is neither lost nor checked against a stale copy. `change` runs synchronously
+ * inside the transaction; what it throws aborts it.
+ */
+async function mutateMeta(change: (m: Meta) => Meta): Promise<void> {
+  const db = await idb();
+  const next = await new Promise<Meta>((resolve, reject) => {
+    const t = db.transaction(STORE, "readwrite");
+    const store = t.objectStore(STORE);
+    let out: Meta | null = null;
+    let err: Error | null = null;
+    const r = store.get("meta");
+    r.onsuccess = () => {
+      try {
+        const m = r.result as Meta | MetaV1 | undefined;
+        if (m?.v !== 2) throw new Error("unknown");
+        out = change(m);
+        store.put(out, "meta");
+      } catch (e) {
+        err = e instanceof Error ? e : new Error(String(e));
+        t.abort();
+      }
+    };
+    t.oncomplete = () => (out ? resolve(out) : reject(new Error("unknown")));
+    t.onabort = () => reject(err ?? t.error ?? new Error("IndexedDB"));
+    t.onerror = () => reject(err ?? t.error ?? new Error("IndexedDB"));
+  });
+  cached = next;
 }
 
 async function passwordWrapper(password: string, raw: Uint8Array<ArrayBuffer>) {
@@ -290,7 +317,7 @@ export async function unlockPasskey(a: PrfAnswer): Promise<Opened> {
   const m = await v2();
   const r = await rawFromPasskey(m, a);
   if ("error" in r) throw new Error(r.error);
-  await touchEntry(m, r.entry.id);
+  await touchEntry(r.entry.id);
   return openWith(r.raw);
 }
 
@@ -300,12 +327,12 @@ async function v2(): Promise<Meta> {
   return m;
 }
 
-async function touchEntry(m: Meta, id: string) {
+async function touchEntry(id: string) {
   const now = Math.floor(Date.now() / 1000);
-  await writeMeta({
+  await mutateMeta((m) => ({
     ...m,
     passkeys: m.passkeys.map((p) => (p.id === id ? { ...p, lastUsedAt: now } : p)),
-  });
+  }));
 }
 
 /**
@@ -338,21 +365,27 @@ export async function addPasskey(
       lastUsedAt: null,
       wrapped,
     };
-    await writeMeta({ ...m, passkeys: [...m.passkeys, p] });
+    await mutateMeta((cur) => ({ ...cur, passkeys: [...cur.passkeys, p] }));
     return true;
   } finally {
     raw.fill(0);
   }
 }
 
+/** Removes a passkey; refuses the last way in, checked on the stored meta (other tabs too). */
 export async function removePasskey(id: string): Promise<void> {
-  const m = await v2();
-  await writeMeta({ ...m, passkeys: m.passkeys.filter((p) => p.id !== id) });
+  await mutateMeta((m) => {
+    if (!m.password && m.passkeys.every((p) => p.id === id))
+      fail("invalid", "Set a lock password before you remove your last passkey.");
+    return { ...m, passkeys: m.passkeys.filter((p) => p.id !== id) };
+  });
 }
 
 export async function renamePasskey(id: string, name: string): Promise<void> {
-  const m = await v2();
-  await writeMeta({ ...m, passkeys: m.passkeys.map((p) => (p.id === id ? { ...p, name } : p)) });
+  await mutateMeta((m) => ({
+    ...m,
+    passkeys: m.passkeys.map((p) => (p.id === id ? { ...p, name } : p)),
+  }));
 }
 
 /** Sets or changes the lock password; the data key and passkeys stay. */
@@ -361,17 +394,21 @@ export async function setPassword(proof: Proof, password: string): Promise<boole
   const raw = await rawFor(m, proof);
   if (!raw) return false;
   try {
-    await writeMeta({ ...m, password: await passwordWrapper(password, raw) });
+    const wrapper = await passwordWrapper(password, raw);
+    await mutateMeta((cur) => ({ ...cur, password: wrapper }));
     return true;
   } finally {
     raw.fill(0);
   }
 }
 
-/** Turns the lock password off; the caller checked it and that a passkey is enrolled. */
+/** Turns the lock password off; refuses unless a passkey is enrolled (checked on stored meta). */
 export async function removePassword(): Promise<void> {
-  const m = await v2();
-  await writeMeta({ ...m, password: null });
+  await mutateMeta((m) => {
+    if (m.passkeys.length === 0)
+      fail("invalid", "Add a passkey or security key before you turn the lock password off.");
+    return { ...m, password: null };
+  });
 }
 
 export async function save(key: CryptoKey, state: string): Promise<void> {

@@ -2,7 +2,8 @@
 // Needs only the built app:   node apps/web/e2e/serve.mjs apps/web/dist <config.json> 5173
 // then                        node apps/web/e2e/passkey-unlock.mjs
 // It moves a v1 store (state under the Argon2id key) to a data key, adds two keys, unlocks with
-// each, turns the lock password off and on with a key, and checks that the last way in stays.
+// each, turns the lock password off and on with a key, and checks that the last way in stays,
+// also against a second tab.
 import { execSync } from "node:child_process";
 import { createRequire } from "node:module";
 
@@ -124,32 +125,58 @@ check(r.ok && r.v.locked === false, "key A unlocks");
 check((await invoke("settings_get")).v.lockAfterMinutes === 7, "same state after a key unlock");
 check((await invoke("vault_status")).v.factors[0].lastUsedAt !== null, "last used is recorded");
 
+// A backup key. Chromium sends a request to every virtual key and takes whichever answers first,
+// so a key that shouldn't answer has its touch turned off, as if it were in a drawer.
+const touch = (authenticatorId, enabled) =>
+  cdp.send("WebAuthn.setAutomaticPresenceSimulation", { authenticatorId, enabled });
+const second = await authenticator();
+await touch(first, false);
+r = await invoke("unlock_security_key_add", { password: V1_PASSWORD, name: "Key B" });
+check(r.ok && r.v.factors.length === 2, "key B added");
+const idB = r.v.factors[1].id;
+r = await invoke("unlock_factor_rename", { id: idB, name: "Backup" });
+check(r.ok && r.v.factors[1].name === "Backup", "renamed");
+await invoke("vault_lock");
+r = await invoke("unlock_factor_rename", { id: idB, name: "x" });
+check(!r.ok && r.e.kind === "locked", "no changes to keys while locked");
+r = await invoke("vault_unlock_security_key");
+check(r.ok && r.v.locked === false, "the backup key unlocks on its own");
+await touch(second, false);
+await touch(first, true);
+
+// A second tab, unlocked while the password was still on: its cached meta goes stale below.
+const tab2 = await page.context().newPage();
+await tab2.goto(APP);
+await tab2.getByText("Vault locked").waitFor({ timeout: 60_000 });
+const invoke2 = (cmd, args = {}) =>
+  tab2.evaluate(
+    ([c, a]) =>
+      window.__TAURI_INTERNALS__.invoke(c, a).then(
+        (v) => ({ ok: true, v }),
+        (e) => ({ ok: false, e: { kind: e?.kind, message: e?.message ?? String(e) } }),
+      ),
+    [cmd, args],
+  );
+check((await invoke2("vault_unlock", { password: V1_PASSWORD })).ok, "a second tab unlocks");
+
 // The password off: only keys open it; the last one can't go.
 r = await invoke("master_password_remove", { current: V1_PASSWORD });
 check(r.ok && r.v.passwordProtected === false && r.v.masterSource === "factor", "password off");
 const id = r.v.factors[0].id;
+r = await invoke("unlock_factor_remove", { id: idB });
+check(r.ok && r.v.factors.length === 1, "the backup removed while key A stays");
 r = await invoke("unlock_factor_remove", { id });
 check(!r.ok && r.e.kind === "invalid", "the last key can't be removed without a password");
+r = await invoke2("unlock_factor_remove", { id });
+check(!r.ok && r.e.kind === "invalid", "nor from a tab that still thinks a password is set");
+await tab2.close();
+// WebAuthn needs the focused tab.
+await page.bringToFront();
 await invoke("vault_lock");
 r = await invoke("vault_unlock", { password: V1_PASSWORD });
 check(!r.ok, "the old password no longer opens it");
 r = await invoke("vault_unlock_security_key");
 check(r.ok && r.v.locked === false, "key A still unlocks");
-
-// A backup key, confirmed with key A (no password set).
-const second = await authenticator();
-r = await invoke("unlock_security_key_add", { password: null, name: "Key B" });
-check(r.ok && r.v.factors.length === 2, "key B added after a touch of an enrolled key");
-r = await invoke("unlock_factor_rename", { id: r.v.factors[1].id, name: "Backup" });
-check(r.ok && r.v.factors[1].name === "Backup", "renamed");
-
-// Only key B present.
-await cdp.send("WebAuthn.removeVirtualAuthenticator", { authenticatorId: first });
-await invoke("vault_lock");
-r = await invoke("vault_unlock_security_key");
-check(r.ok && r.v.locked === false, "the backup key unlocks on its own");
-r = await invoke("unlock_factor_remove", { id });
-check(r.ok && r.v.factors.length === 1, "key A removed while the backup stays");
 
 // A new password, confirmed with the key.
 r = await invoke("master_password_set", { current: null, password: "a new lock password" });
@@ -160,6 +187,7 @@ check(r.ok && r.v.locked === false, "the new password unlocks");
 check((await invoke("settings_get")).v.lockAfterMinutes === 7, "state intact at the end");
 
 // A key that isn't enrolled.
+await cdp.send("WebAuthn.removeVirtualAuthenticator", { authenticatorId: first });
 await cdp.send("WebAuthn.removeVirtualAuthenticator", { authenticatorId: second });
 await authenticator();
 await invoke("vault_lock");

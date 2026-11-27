@@ -39,7 +39,11 @@ Keychain and Google Password Manager passkeys do the same in software or a TPM).
    removed until a lock password is set again (the browser copy is never left unprotected, unlike
    the desktop's "protection off"). Setting the password again needs a touch of an enrolled key.
    Without a password a lost passkey means resetting this browser; synced data comes back after
-   signing in, entries in the local "This browser" vault don't.
+   signing in, entries in the local "This browser" vault don't. Removing a passkey or changing
+   the password keeps the same data key (no re-encryption): someone with an old copy of the
+   profile and a removed key, or the old password, can still open copies taken later. Accepted;
+   "Reset this browser" is the way to a fresh key. Keys can only be changed while unlocked, and
+   the last-way-in check reads the stored meta, so another tab's change counts.
 6. *Nothing leaves the browser.* Credentials and wrappers live only in IndexedDB. They are not
    synced into a vault and the Labterm server gets nothing new.
 
