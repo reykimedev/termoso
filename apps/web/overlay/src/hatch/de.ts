@@ -85,6 +85,27 @@ export const de: Readonly<Record<string, string>> = {
   "Sign-in refused (tried {tried}; the server offers {offered})":
     "Anmeldung abgelehnt (versucht: {tried}; der Server bietet: {offered})",
   "Connection failed": "Verbindung fehlgeschlagen",
+  "All sessions": "Alle Sitzungen",
+  Command: "Befehl",
+  "Command window": "Befehlsfenster",
+  "Host groups": "Hostgruppen",
+  "Keys go straight to {count} sessions": "Tasten gehen direkt an {count} Sitzungen",
+  "New tab group": "Neue Tab-Gruppe",
+  "New tab group…": "Neue Tab-Gruppe…",
+  "Send commands to “{name}”": "Befehle an «{name}» senden",
+  "Send keys as I type": "Tasten sofort senden",
+  "Send to": "Senden an",
+  "Send to {count}": "An {count} senden",
+  "Tab groups": "Tab-Gruppen",
+  "This session": "Diese Sitzung",
+  "Type a command, Enter sends it, Shift+Enter adds a line":
+    "Befehl eingeben: Enter sendet, Shift+Enter fügt eine Zeile hinzu",
+  "Visible sessions": "Sichtbare Sitzungen",
+  "Connect all": "Alle verbinden",
+  "Connect all ({n})": "Alle verbinden ({n})",
+  "Connect {n} hosts?": "{n} Hosts verbinden?",
+  "Opens a tab for every host in “{label}” and its sub-groups.":
+    "Öffnet einen Tab für jeden Host in «{label}» und seinen Untergruppen.",
 
   // identity provider (Authentik)
   "This Labterm Web has no sign-in provider configured (config.json).":

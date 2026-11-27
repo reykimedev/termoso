@@ -64,6 +64,7 @@ import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
 import LanOutlinedIcon from "@mui/icons-material/LanOutlined";
 import { EmptyState } from "@/components/EmptyState";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { CONNECT_ALL_CONFIRM_ABOVE, groupSubtree, hostsInGroup } from "@/hosts/groupHosts";
 import * as ipc from "@/ipc/commands";
 import { useSnackbar } from "@/components/Snackbar";
 import {
@@ -100,7 +101,7 @@ import {
   hasWebDav,
   hostProtocols,
 } from "@/ipc/types";
-import { openTerminal, useTerminal } from "@/terminal/store";
+import { ensureTabGroup, openTerminal, useTerminal } from "@/terminal/store";
 import { useOpenQuick } from "./useOpenQuick";
 import { addToWorkspace, useWorkspaces, workspaceChoices } from "@/terminal/workspaces";
 import { openS3ForHost, openSftpForHost, openWebDavForHost } from "@/sftp/store";
@@ -312,6 +313,10 @@ export function HostsPage() {
   const [exportOpen, setExportOpen] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState<HostCard[] | null>(null);
   const [confirmGroup, setConfirmGroup] = useState<GroupNode | null>(null);
+  const [confirmConnect, setConfirmConnect] = useState<{
+    group: GroupNode;
+    hosts: HostCard[];
+  } | null>(null);
 
   const view: HostsView = settings.data?.hostsView ?? "grid";
   const setView = (v: HostsView | null) => {
@@ -359,21 +364,10 @@ export function HostsPage() {
     return t && (t.username || /^(ssh|telnet)\s/i.test(q)) ? t.address.toLowerCase() : null;
   }, [q]);
   /** The open group and everything nested under it. */
-  const subtree = useMemo(() => {
-    if (!groupId) return null;
-    const ids = new Set<Uuid>([groupId]);
-    let grew = true;
-    while (grew) {
-      grew = false;
-      for (const g of groups.data ?? []) {
-        if (g.parentId && ids.has(g.parentId) && !ids.has(g.id)) {
-          ids.add(g.id);
-          grew = true;
-        }
-      }
-    }
-    return ids;
-  }, [groups.data, groupId]);
+  const subtree = useMemo(
+    () => (groupId ? groupSubtree(groups.data ?? [], groupId) : null),
+    [groups.data, groupId],
+  );
   const scope = filtering && !searchEverywhere ? subtree : null;
   const scopedToGroup = scope !== null;
   const childGroups = useMemo(
@@ -518,12 +512,12 @@ export function HostsPage() {
     setPanel({ mode: "edit", id: h.id });
   };
   /** Terminal for hosts that have one; a WebDAV-only host opens its share in Files. */
-  const connectHosts = (list: HostCard[], background = false) => {
+  const connectHosts = (list: HostCard[], background = false, tabGroupId?: string) => {
     const terminal = list.filter((h) => hostProtocols(h).length > 0);
     terminal.forEach((h, i) =>
       openTerminal(
         { kind: "host", host_id: h.id, vault_id: h.vaultId },
-        { background: background || i > 0 },
+        { background: background || i > 0, tabGroupId },
       ),
     );
     const files = list.filter((h) => hostProtocols(h).length === 0 && (hasWebDav(h) || hasS3(h)));
@@ -535,6 +529,19 @@ export function HostsPage() {
     if (files.length > 0 && terminal.length === 0) goToSftp();
   };
   const connectHost = (h: HostCard) => connectHosts([h]);
+  /** Hosts "Connect all" opens for `g`: sub-groups included, sessions only. */
+  const groupTargets = (g: GroupNode) =>
+    hostsInGroup(groups.data ?? [], hosts.data ?? [], g.id, comparators[sort]).filter(
+      (h) => hostProtocols(h).length > 0,
+    );
+  /** Opens the hosts as tabs in a tab group named after the host group (reused if open). */
+  const openGroupTabs = (g: GroupNode, list: HostCard[]) =>
+    connectHosts(list, false, ensureTabGroup(g.label));
+  const connectGroup = (g: GroupNode) => {
+    const list = groupTargets(g);
+    if (list.length > CONNECT_ALL_CONFIRM_ABOVE) setConfirmConnect({ group: g, hosts: list });
+    else openGroupTabs(g, list);
+  };
   /** Workspace tabs are terminals, so WebDAV-only hosts are left out. */
   const hostTargets = (list: HostCard[]) =>
     list
@@ -870,46 +877,55 @@ export function HostsPage() {
     );
   };
 
-  const groupMenu = (g: GroupNode): MenuAction[] => [
-    {
-      label: tr("Open"),
-      icon: <FolderOpenRoundedIcon fontSize="small" />,
-      onClick: () => setGroupId(g.id),
-    },
-    {
-      label: tr("Group details"),
-      icon: <EditOutlinedIcon fontSize="small" />,
-      onClick: () => openGroupPanel(g),
-      divider: true,
-    },
-    {
-      label: tr("New host here"),
-      icon: <DnsRoundedIcon fontSize="small" />,
-      disabled: readOnly,
-      onClick: () => setPanel({ mode: "new", groupId: g.id }),
-    },
-    {
-      label: tr("New sub-group"),
-      icon: <CreateNewFolderRoundedIcon fontSize="small" />,
-      disabled: readOnly,
-      onClick: () => setPanel({ mode: "group", id: null, parentId: g.id }),
-      divider: true,
-    },
-    {
-      label: tr("Duplicate"),
-      icon: <ContentCopyRoundedIcon fontSize="small" />,
-      disabled: readOnly,
-      onClick: () => onDuplicateGroup(g),
-      divider: true,
-    },
-    {
-      label: tr("Remove"),
-      icon: <DeleteOutlineRoundedIcon fontSize="small" />,
-      disabled: readOnly,
-      onClick: () => setConfirmGroup(g),
-      danger: true,
-    },
-  ];
+  const groupMenu = (g: GroupNode): MenuAction[] => {
+    const n = groupTargets(g).length;
+    return [
+      {
+        label: n > 0 ? tr("Connect all ({n})", { n }) : tr("Connect all"),
+        icon: <PlayArrowRoundedIcon fontSize="small" />,
+        disabled: n === 0,
+        onClick: () => connectGroup(g),
+      },
+      {
+        label: tr("Open"),
+        icon: <FolderOpenRoundedIcon fontSize="small" />,
+        onClick: () => setGroupId(g.id),
+      },
+      {
+        label: tr("Group details"),
+        icon: <EditOutlinedIcon fontSize="small" />,
+        onClick: () => openGroupPanel(g),
+        divider: true,
+      },
+      {
+        label: tr("New host here"),
+        icon: <DnsRoundedIcon fontSize="small" />,
+        disabled: readOnly,
+        onClick: () => setPanel({ mode: "new", groupId: g.id }),
+      },
+      {
+        label: tr("New sub-group"),
+        icon: <CreateNewFolderRoundedIcon fontSize="small" />,
+        disabled: readOnly,
+        onClick: () => setPanel({ mode: "group", id: null, parentId: g.id }),
+        divider: true,
+      },
+      {
+        label: tr("Duplicate"),
+        icon: <ContentCopyRoundedIcon fontSize="small" />,
+        disabled: readOnly,
+        onClick: () => onDuplicateGroup(g),
+        divider: true,
+      },
+      {
+        label: tr("Remove"),
+        icon: <DeleteOutlineRoundedIcon fontSize="small" />,
+        disabled: readOnly,
+        onClick: () => setConfirmGroup(g),
+        danger: true,
+      },
+    ];
+  };
 
   const selectedId = panel.mode === "edit" ? panel.id : null;
   const loading = vault.isPending || hosts.isPending || groups.isPending;
@@ -1318,6 +1334,21 @@ export function HostsPage() {
                   </IconButton>
                 </Tooltip>
               )}
+              {!filtering && crumbs.length > 0 && (
+                <Tooltip title={tr("Connect all")}>
+                  <IconButton
+                    size="small"
+                    aria-label={tr("Connect all")}
+                    onClick={() => {
+                      const g = crumbs[crumbs.length - 1];
+                      if (g) connectGroup(g);
+                    }}
+                    sx={{ ml: -0.5 }}
+                  >
+                    <PlayArrowRoundedIcon sx={{ fontSize: 18 }} />
+                  </IconButton>
+                </Tooltip>
+              )}
               {tagFilter.map((t) => (
                 <TagChip
                   key={t}
@@ -1569,6 +1600,21 @@ export function HostsPage() {
             "The host and its inline credentials are removed. Shared identities and keys stay in the Keychain.",
           )
         )}
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={confirmConnect !== null}
+        title={tr("Connect {n} hosts?", { n: confirmConnect?.hosts.length ?? 0 })}
+        confirmLabel={tr("Connect all")}
+        onCancel={() => setConfirmConnect(null)}
+        onConfirm={() => {
+          if (confirmConnect) openGroupTabs(confirmConnect.group, confirmConnect.hosts);
+          setConfirmConnect(null);
+        }}
+      >
+        {tr("Opens a tab for every host in “{label}” and its sub-groups.", {
+          label: confirmConnect?.group.label ?? "",
+        })}
       </ConfirmDialog>
 
       <DeleteGroupDialog

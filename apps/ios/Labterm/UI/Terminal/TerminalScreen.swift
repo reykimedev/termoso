@@ -21,6 +21,7 @@ struct TerminalScreen: View {
     @State private var showMore = false
     @State private var showLongPress = false
     @State private var newSession = false
+    @State private var commandSheet = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -66,6 +67,9 @@ struct TerminalScreen: View {
         }
         .sheet(isPresented: $newSession) {
             NewConnectionSheet(store: store)
+        }
+        .sheet(isPresented: $commandSheet) {
+            CommandSheet(store: store)
         }
         .confirmationDialog("Session", isPresented: $showMore, titleVisibility: .hidden) {
             moreActions
@@ -291,6 +295,8 @@ struct TerminalScreen: View {
                 if store.sessions.isEmpty { dismiss() }
             }
             Button("Copy screen text") { UIPasteboard.general.string = session.visibleText.joined(separator: "\n") }
+            Button("Send command to several sessions…") { commandSheet = true }
+                .accessibilityIdentifier("terminal.commandSheet")
             Button("Reset text size") { fontScale = 1 }
         }
     }

@@ -40,6 +40,12 @@ fun ComposeSheet(
     onPaste: (String) -> Unit,
     onSend: (String) -> Unit,
     onClose: () -> Unit,
+    /** Picks where Send goes (this session, all, a tab group, ...); null for this session only. */
+    targetPicker: (@Composable () -> Unit)? = null,
+    /** Send button text when it reaches more than this session. */
+    sendLabel: String? = null,
+    /** Paste only makes sense for this session. */
+    canPaste: Boolean = true,
 ) {
     ModalBottomSheet(onDismissRequest = onClose) {
         Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -62,10 +68,13 @@ fun ComposeSheet(
                     }
                 },
             )
+            targetPicker?.invoke()
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Spacer(Modifier.weight(1f))
-                TextButton(onClick = { onPaste(text) }, enabled = text.isNotEmpty()) { Text(stringResource(R.string.paste_without_enter)) }
-                Button(onClick = { onSend(text) }, enabled = text.isNotBlank()) { Text(stringResource(R.string.send)) }
+                if (canPaste) {
+                    TextButton(onClick = { onPaste(text) }, enabled = text.isNotEmpty()) { Text(stringResource(R.string.paste_without_enter)) }
+                }
+                Button(onClick = { onSend(text) }, enabled = text.isNotBlank()) { Text(sendLabel ?: stringResource(R.string.send)) }
             }
         }
     }

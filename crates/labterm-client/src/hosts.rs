@@ -998,6 +998,45 @@ pub fn groups(store: &Store, vault_id: Option<Uuid>) -> Result<Vec<GroupNode>> {
     Ok(out)
 }
 
+/// The hosts "Connect all" opens for a group: its own hosts, then each
+/// sub-group's in tree order, at any depth. Only hosts that open a terminal
+/// (SSH or Telnet); file-only hosts are left out.
+pub fn connect_all(store: &Store, group_id: Uuid) -> Result<Vec<HostCard>> {
+    let group: Entity<Group> = store.require(group_id)?;
+    let groups = groups(store, Some(group.vault_id))?;
+    let cards = cards(store, Some(group.vault_id))?;
+    Ok(connect_all_order(&groups, cards, group_id))
+}
+
+fn connect_all_order(groups: &[GroupNode], cards: Vec<HostCard>, root: Uuid) -> Vec<HostCard> {
+    let mut by_group: HashMap<Uuid, Vec<HostCard>> = HashMap::new();
+    for c in cards {
+        if matches!(c.protocol.as_str(), "ssh" | "telnet")
+            && let Some(g) = c.group_id
+        {
+            by_group.entry(g).or_default().push(c);
+        }
+    }
+    let mut out = Vec::new();
+    let mut seen = HashSet::new();
+    let mut todo = vec![root];
+    // Depth first, children in list order (groups() is already sorted);
+    // `seen` stops a parent cycle from a sync conflict.
+    while let Some(id) = todo.pop() {
+        if !seen.insert(id) {
+            continue;
+        }
+        out.extend(by_group.remove(&id).unwrap_or_default());
+        let kids: Vec<Uuid> = groups
+            .iter()
+            .filter(|g| g.parent_id == Some(id))
+            .map(|g| g.id)
+            .collect();
+        todo.extend(kids.into_iter().rev());
+    }
+    out
+}
+
 pub fn tags(store: &Store, vault_id: Option<Uuid>) -> Result<Vec<TagInfo>> {
     let tags: Vec<Entity<Tag>> = store.list(vault_id)?;
     let hosts: Vec<Entity<Host>> = store.list(vault_id)?;
@@ -2752,6 +2791,45 @@ mod tests {
             shell_integration: None,
             totp_secret: None,
         }
+    }
+
+    #[test]
+    fn connect_all_walks_sub_groups_in_tree_order_and_skips_file_hosts() {
+        let s = store();
+        let vault = s.local_vault().unwrap().id;
+        let prod = save_group(&s, vault, None, "prod", None).unwrap().id;
+        let web = save_group(&s, vault, None, "web", Some(prod)).unwrap().id;
+        let db = save_group(&s, vault, None, "db", Some(prod)).unwrap().id;
+        let deep = save_group(&s, vault, None, "replicas", Some(db))
+            .unwrap()
+            .id;
+        let other = save_group(&s, vault, None, "other", None).unwrap().id;
+        let host = |label: &str, group: Uuid| {
+            let mut f = new_form(vault);
+            f.label = label.into();
+            f.group_id = Some(group);
+            save(&s, &f).unwrap();
+        };
+        host("lb", prod);
+        host("web-1", web);
+        host("db-1", db);
+        host("db-2", deep);
+        host("elsewhere", other);
+        let mut files = new_form(vault);
+        files.label = "share".into();
+        files.group_id = Some(web);
+        files.ssh = false;
+        files.webdav = Some(Default::default());
+        let _ = save(&s, &files);
+
+        let labels: Vec<String> = connect_all(&s, prod)
+            .unwrap()
+            .into_iter()
+            .map(|c| c.label)
+            .collect();
+        // Sub-groups sort A-Z at equal sort order: db (with replicas) before web.
+        assert_eq!(labels, ["lb", "db-1", "db-2", "web-1"]);
+        assert!(connect_all(&s, other).unwrap().len() == 1);
     }
 
     #[test]

@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.DriveFileRenameOutline
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.VpnLock
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
@@ -73,6 +74,8 @@ fun GroupActionsSheet(
     repo: VaultRepository,
     group: GroupItem,
     onOpen: () -> Unit,
+    /** Gets the ids of the hosts to open: this group's and its sub-groups'. */
+    onConnectAll: (List<String>) -> Unit,
     onEdit: () -> Unit,
     onVpn: () -> Unit,
     onRename: () -> Unit,
@@ -95,6 +98,10 @@ fun GroupActionsSheet(
             }
         }.getOrNull()
     }
+    // Terminal hosts in the group and its sub-groups, in tree order.
+    val connectIds by produceState(emptyList<String>(), group.id) {
+        value = runCatching { repo.read { groupConnectAll(group.id) }.map { it.id } }.getOrDefault(emptyList())
+    }
     ItemActionsSheet(
         title = group.label,
         subtitle = groupSubtitle(group),
@@ -109,6 +116,13 @@ fun GroupActionsSheet(
             SheetSection(
                 stringResource(R.string.group),
                 listOf(
+                    SheetAction(
+                        Icons.Filled.PlayArrow,
+                        if (connectIds.isEmpty()) stringResource(R.string.connect_all)
+                        else stringResource(R.string.connect_all_n, connectIds.size),
+                        enabled = connectIds.isNotEmpty(),
+                        onClick = { onConnectAll(connectIds) },
+                    ),
                     SheetAction(Icons.Filled.FolderOpen, stringResource(R.string.open), onClick = onOpen),
                     SheetAction(Icons.Filled.Edit, stringResource(R.string.edit), onClick = onEdit),
                     SheetAction(Icons.Filled.VpnLock, stringResource(R.string.vpn_network), onClick = onVpn),
@@ -123,6 +137,21 @@ fun GroupActionsSheet(
             ),
         ),
         onClose = onClose,
+    )
+}
+
+/** Opening more sessions than this at once asks first. */
+const val CONNECT_ALL_CONFIRM_ABOVE = 10
+
+/** "Connect all" on a big group: say how many sessions open before doing it. */
+@Composable
+fun ConfirmConnectAllDialog(group: GroupItem, count: Int, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(pluralStringResource(R.plurals.connect_n_hosts_question, count, count)) },
+        text = { Text(stringResource(R.string.connect_all_explain, group.label)) },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(stringResource(R.string.connect_all)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 

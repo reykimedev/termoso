@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.Workspaces
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -103,6 +104,11 @@ fun SessionActionsSheet(
 
     fun then(action: () -> Unit): () -> Unit = { onClose(); action() }
 
+    var tabGroups by remember { mutableStateOf(false) }
+    if (tabGroups) {
+        TabGroupsDialog(shell.sessions, session, onDismiss = { tabGroups = false; onClose() })
+    }
+
     var saveWorkspace by remember { mutableStateOf(false) }
     if (saveWorkspace) {
         var name by remember { mutableStateOf("") }
@@ -163,6 +169,17 @@ fun SessionActionsSheet(
                         Icons.Filled.ContentCopy,
                         stringResource(R.string.duplicate),
                         onClick = then { shell.launch { shell.duplicateSession(session.id) } },
+                    )
+                    RowDivider()
+                }
+                if (!session.isView) {
+                    val groups by shell.sessions.tabGroups.collectAsStateWithLifecycle()
+                    val mine by session.tabGroupIds.collectAsStateWithLifecycle()
+                    ActionRow(
+                        Icons.Filled.Workspaces,
+                        groups.values.filter { it.id in mine }.joinToString(", ") { it.name }
+                            .let { names -> if (names.isEmpty()) stringResource(R.string.tab_groups) else stringResource(R.string.tab_groups_named, names) },
+                        onClick = { tabGroups = true },
                     )
                     RowDivider()
                 }

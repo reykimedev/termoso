@@ -59,6 +59,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.labdex.labterm.R
+import dev.labdex.labterm.data.TabGroup
 import dev.labdex.labterm.data.TerminalSession
 import dev.labdex.labterm.ui.components.HostAvatar
 import dev.labdex.labterm.core.SessionState
@@ -158,6 +159,8 @@ fun TabSwitcher(
     onMenu: (String) -> Unit,
     onNew: () -> Unit,
     onDismiss: () -> Unit,
+    /** Tab groups by id, for the coloured dots on each card. */
+    tabGroups: Map<String, TabGroup> = emptyMap(),
 ) {
     BackHandler(onBack = onDismiss)
     Column(
@@ -195,6 +198,7 @@ fun TabSwitcher(
                     onClick = { onSelect(s.id); onDismiss() },
                     onLongClick = { onMenu(s.id) },
                     onClose = { onClose(s.id) },
+                    tabGroups = tabGroups,
                 )
             }
             item(key = "new") { NewTabCard(onNew) }
@@ -211,8 +215,10 @@ private fun TabCard(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onClose: () -> Unit,
+    tabGroups: Map<String, TabGroup> = emptyMap(),
 ) {
     val state by session.state.collectAsStateWithLifecycle()
+    val groupIds by session.tabGroupIds.collectAsStateWithLifecycle()
     val detected by session.detectedOs.collectAsStateWithLifecycle()
     val accent = MaterialTheme.colorScheme.primary
     val outline = if (active) accent else MaterialTheme.colorScheme.outlineVariant
@@ -307,6 +313,7 @@ private fun TabCard(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
+            groupIds.mapNotNull { tabGroups[it] }.take(3).forEach { TabGroupDot(it, size = 8) }
             IconButton(onClick = onClose, modifier = Modifier.size(32.dp)) {
                 Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.close_session), tint = fg, modifier = Modifier.size(18.dp))
             }
