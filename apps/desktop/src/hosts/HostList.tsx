@@ -15,6 +15,7 @@ import { PROTOCOL_NAME } from "./ConnectSplit";
 import { HostAvatar } from "./HostAvatar";
 import { GroupTile, groupSubtitle, SelectableTile, type HostCollectionProps } from "./HostGrid";
 import { PresenceStack } from "./PresenceViews";
+import { HostBadges } from "./HostBadges";
 import { tr } from "@/i18n";
 import { HOST_ITEM_ATTR, hostItemFocusSx, hostItemKeyDown } from "./keyboardNav";
 
@@ -133,6 +134,7 @@ export function HostList(p: HostCollectionProps) {
                   {p.presence?.has(h.id) && (
                     <PresenceStack viewers={p.presence.get(h.id) ?? []} size={18} />
                   )}
+                  <HostBadges host={h} vpnState={h.vpn ? p.vpnStates?.[h.vpn.id] : undefined} />
                 </Box>
                 {p.showPath && h.groupPath.length > 0 && (
                   <Typography

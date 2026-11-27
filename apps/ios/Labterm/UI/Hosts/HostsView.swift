@@ -241,16 +241,9 @@ struct HostRow: View {
                         .foregroundStyle(Color.accentColor)
                         .lineLimit(1)
                 }
+                HostBadgesRow(host: host)
             }
             Spacer(minLength: 8)
-            if host.useMosh {
-                Text("mosh")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Theme.cardInset, in: Capsule())
-            }
             if let onEdit {
                 Button(action: onEdit) {
                     Image(systemName: "pencil")
@@ -280,5 +273,74 @@ struct HostRow: View {
             text = host.groupPath.joined(separator: " / ") + " · " + text
         }
         return text
+    }
+}
+
+/// VPN network and connection facts under a host row, the same set as Android and desktop.
+/// iOS cannot join a VPN network yet, so the network chip has no tunnel state colour.
+struct HostBadgesRow: View {
+    let host: HostItem
+
+    private struct Fact: Identifiable {
+        let id: String
+        let symbol: String
+        let label: String
+        var warn = false
+    }
+
+    private var facts: [Fact] {
+        let b = host.badges
+        var out: [Fact] = []
+        switch b.auth {
+        case "opkssh": out.append(Fact(id: "auth", symbol: "person.text.rectangle", label: "OpenID (opkssh)"))
+        case "ssh_id": out.append(Fact(id: "auth", symbol: "touchid", label: "SSH ID"))
+        case "certificate": out.append(Fact(id: "auth", symbol: "checkmark.shield", label: "Certificate"))
+        case "key": out.append(Fact(id: "auth", symbol: "key", label: "SSH key"))
+        case "password": out.append(Fact(id: "auth", symbol: "ellipsis.rectangle", label: "Password"))
+        default: break
+        }
+        if b.overlayPaused {
+            out.append(Fact(id: "overlay", symbol: "person.slash", label: "My credentials paused", warn: true))
+        } else if b.overlay {
+            out.append(Fact(id: "overlay", symbol: "person", label: "My credentials"))
+        }
+        if b.hostKeyTrusted == false {
+            out.append(Fact(id: "hostKey", symbol: "exclamationmark.shield", label: "Server key not yet trusted", warn: true))
+        }
+        if b.jump { out.append(Fact(id: "jump", symbol: "point.3.connected.trianglepath.dotted", label: "Jump host")) }
+        if b.gateway { out.append(Fact(id: "gateway", symbol: "wifi.router", label: "Gateway")) }
+        if b.proxy { out.append(Fact(id: "proxy", symbol: "shield", label: "Proxy")) }
+        if host.useMosh { out.append(Fact(id: "mosh", symbol: "bolt", label: "Mosh")) }
+        return out
+    }
+
+    private func vpnLabel(_ vpn: HostVpnItem) -> String {
+        vpn.inherited ? "VPN network \(vpn.label), from its group" : "VPN network \(vpn.label)"
+    }
+
+    var body: some View {
+        let list = facts
+        if host.vpn != nil || !list.isEmpty {
+            HStack(spacing: 6) {
+                if let vpn = host.vpn {
+                    Label(vpn.label, systemImage: "lock.shield")
+                        .font(.caption2.weight(.semibold))
+                        .lineLimit(1)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(vpn.inherited ? Color.clear : Theme.cardInset, in: Capsule())
+                        .overlay(Capsule().strokeBorder(vpn.inherited ? Color.secondary.opacity(0.5) : Color.clear))
+                        .accessibilityLabel(vpnLabel(vpn))
+                }
+                ForEach(list) { f in
+                    Image(systemName: f.symbol)
+                        .font(.caption2)
+                        .foregroundStyle(f.warn ? Color.orange : Color.secondary)
+                        .accessibilityLabel(f.label)
+                }
+            }
+            .padding(.top, 2)
+        }
     }
 }

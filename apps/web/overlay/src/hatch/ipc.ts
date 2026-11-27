@@ -6,6 +6,7 @@ import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
 import { emit } from "@tauri-apps/api/event";
 import * as account from "./backend/account";
 import * as backup from "./backend/backup";
+import { withBadges } from "./backend/badges";
 import { call, normalizeServer } from "./backend/api";
 import { config } from "./backend/config";
 import * as db from "./backend/db";
@@ -208,7 +209,7 @@ const commands: Record<string, Handler> = {
   user_avatar: () => null,
 
   // hosts, groups, tags
-  hosts_list: (a) => m.hostCards(a.vaultId ?? null),
+  hosts_list: (a) => withBadges(m.hostCards(a.vaultId ?? null)),
   host_form: (a) => m.hostForm(a.id),
   host_save: (a) => m.hostSave(a.form),
   host_delete: (a) => m.hostDelete(a.id),

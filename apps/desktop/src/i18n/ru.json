@@ -2923,5 +2923,10 @@
   "This device may not reach any peer in this network.": "Этому устройству не доступен ни один узел в этой сети.",
   "Whoever signed in": "Тот, кто вошёл",
   "Sign in again": "Войти снова",
-  "Waiting for the browser…": "Ожидание браузера…"
+  "Waiting for the browser…": "Ожидание браузера…",
+  "My credentials": "Мои учётные данные",
+  "My credentials paused": "Мои учётные данные приостановлены",
+  "Server key not yet trusted": "Ключ сервера ещё не доверен",
+  "From its group": "Из группы",
+  "VPN network {label}": "VPN-сеть {label}"
 }

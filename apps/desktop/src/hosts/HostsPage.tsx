@@ -89,6 +89,7 @@ import {
   useSettings,
   useTags,
   useSshKeys,
+  useVpnStates,
 } from "@/ipc/hooks";
 import { useActiveVault, vaultIcon, ViewOnlyChip } from "@/app/vault";
 import type { CloudProvider, GroupNode, HostCard, HostsView, Uuid } from "@/ipc/types";
@@ -877,7 +878,7 @@ export function HostsPage() {
       onClick: () => setGroupId(g.id),
     },
     {
-      label: tr("Group details"),
+      label: tr("Edit"),
       icon: <EditOutlinedIcon fontSize="small" />,
       onClick: () => openGroupPanel(g),
       divider: true,
@@ -911,6 +912,12 @@ export function HostsPage() {
     },
   ];
 
+  const vpnIds = useMemo(
+    () => visibleHosts.flatMap((h) => (h.vpn ? [h.vpn.id] : [])),
+    [visibleHosts],
+  );
+  const vpnStates = useVpnStates(vpnIds).data;
+
   const selectedId = panel.mode === "edit" ? panel.id : null;
   const loading = vault.isPending || hosts.isPending || groups.isPending;
   const loadError = vault.error ?? hosts.error ?? groups.error;
@@ -934,6 +941,7 @@ export function HostsPage() {
     tagColors,
     presence,
     cloudSynced,
+    vpnStates,
   };
 
   const crumbSx = (active: boolean) => ({
