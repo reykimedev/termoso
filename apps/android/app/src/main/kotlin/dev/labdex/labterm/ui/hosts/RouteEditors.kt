@@ -1,6 +1,5 @@
 package dev.labdex.labterm.ui.hosts
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,14 +11,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,17 +33,15 @@ import dev.labdex.labterm.core.HostChainDraft
 import dev.labdex.labterm.core.HostItem
 import dev.labdex.labterm.core.IdentityItem
 import dev.labdex.labterm.core.ProxyDraft
+import dev.labdex.labterm.ui.components.DeleteCard
+import dev.labdex.labterm.ui.components.EditScreen
 import dev.labdex.labterm.ui.components.FormField
 import dev.labdex.labterm.ui.components.PickerRow
 import dev.labdex.labterm.ui.components.SectionCard
 
 val PROXY_KINDS = listOf("socks5" to "SOCKS5", "socks4" to "SOCKS4", "http" to "HTTP")
 
-/**
- * The full-screen edit page every item uses: close on the left, Save on the
- * right, cards below, and a red Delete row at the end for stored items.
- */
-@OptIn(ExperimentalMaterial3Api::class)
+/** A full-screen edit page over the current screen, in the shared [EditScreen] layout. */
 @Composable
 fun FullScreenEditor(
     title: String,
@@ -60,31 +53,13 @@ fun FullScreenEditor(
     content: @Composable () -> Unit,
 ) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = { Text(title) },
-                    navigationIcon = {
-                        IconButton(onClick = onDismiss) { Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.close)) }
-                    },
-                    actions = { TextButton(onClick = onSave, enabled = canSave) { Text(stringResource(R.string.save)) } },
-                )
-            },
-        ) { padding ->
+        EditScreen(title = title, canSave = canSave, onSave = onSave, onClose = onDismiss) { padding ->
             Column(
                 Modifier.fillMaxSize().padding(padding).imePadding().verticalScroll(rememberScrollState()).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 content()
-                if (onDelete != null) {
-                    SectionCard {
-                        Text(
-                            deleteLabel ?: stringResource(R.string.delete),
-                            color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.clickable(onClick = onDelete).padding(16.dp),
-                        )
-                    }
-                }
+                if (onDelete != null) DeleteCard(deleteLabel ?: stringResource(R.string.delete), onDelete)
             }
         }
     }

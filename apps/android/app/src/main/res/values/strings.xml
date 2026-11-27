@@ -1852,6 +1852,7 @@
     <string name="icon_section_generic">General</string>
     <string name="icon_section_apps">Apps and products</string>
     <string name="icon_section_systems">Operating systems</string>
+    <string name="edit_key">Edit key</string>
     <plurals name="tag_host_count">
         <item quantity="one">%d host</item>
         <item quantity="other">%d hosts</item>

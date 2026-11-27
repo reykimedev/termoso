@@ -1890,6 +1890,7 @@
     <string name="icon_section_generic">Общие</string>
     <string name="icon_section_apps">Приложения и продукты</string>
     <string name="icon_section_systems">Операционные системы</string>
+    <string name="edit_key">Изменить ключ</string>
     <plurals name="tag_host_count">
         <item quantity="one">%d хост</item>
         <item quantity="few">%d хоста</item>
