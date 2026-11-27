@@ -56,6 +56,7 @@ import dev.labdex.labterm.data.userMessage
 import dev.labdex.labterm.str
 import dev.labdex.labterm.ui.components.ChevronRow
 import dev.labdex.labterm.ui.components.FormField
+import dev.labdex.labterm.ui.components.NewItemVaultPicker
 import dev.labdex.labterm.ui.components.PickerRow
 import dev.labdex.labterm.ui.components.RowDivider
 import dev.labdex.labterm.ui.components.SectionCard
@@ -63,7 +64,6 @@ import dev.labdex.labterm.ui.components.SectionLabel
 import dev.labdex.labterm.ui.components.SwitchRow
 import dev.labdex.labterm.ui.hosts.ConfirmDialog
 import dev.labdex.labterm.ui.shell.ShellViewModel
-import dev.labdex.labterm.ui.vault.vaultLabel
 import dev.labdex.labterm.core.HostItem
 import dev.labdex.labterm.core.SnippetDraft
 import dev.labdex.labterm.core.SnippetPackageItem
@@ -251,16 +251,7 @@ fun SnippetEditorScreen(
         ) {
             SectionCard {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    if (draft.id == null && s.vaults.size > 1) {
-                        PickerRow(
-                            label = stringResource(R.string.vault),
-                            value = s.vaults.firstOrNull { it.id == draft.vaultId }?.let { vaultLabel(it) } ?: "",
-                            options = s.vaults.map { it.id to vaultLabel(it) },
-                            selected = draft.vaultId,
-                            onPick = { id -> id?.let(vm::setVault) },
-                            empty = null,
-                        )
-                    }
+                    if (draft.id == null) NewItemVaultPicker(s.vaults, draft.vaultId, vm::setVault)
                     FormField(draft.label, { v -> vm.update { it.copy(label = v) } }, stringResource(R.string.name))
                     PickerRow(
                         label = stringResource(R.string.package_),

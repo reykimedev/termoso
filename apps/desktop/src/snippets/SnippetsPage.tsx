@@ -76,6 +76,7 @@ import { TargetsDialog } from "./TargetsDialog";
 import { QuietRunDialog } from "./QuietRunDialog";
 import { tr, trn, trx, msg } from "@/i18n";
 import { requirePerm } from "@/team/perms";
+import { NewItemVaultField } from "@/hosts/NewItemVaultField";
 
 const VAR_HINT = msg("Use {{name}} placeholders; you will be asked for values on run.");
 
@@ -117,26 +118,37 @@ function SnippetDialog({
       onClose={onCancel}
     >
       <Stack spacing={2}>
+        {!initial && (
+          <NewItemVaultField
+            value={f.vaultId}
+            onChange={(v) =>
+              setF({ ...f, vaultId: v, packageId: v === vaultId ? defaultPackage : null })
+            }
+          />
+        )}
         <Stack direction="row" spacing={2}>
           <Field label={tr("Label")} sx={{ flex: 1 }}>
             <TextField autoFocus value={f.label} onChange={(e) => set("label", e.target.value)} />
           </Field>
-          <Field label={tr("Package")} sx={{ width: 200 }}>
-            <TextField
-              select
-              value={f.packageId ?? ""}
-              onChange={(e) => set("packageId", e.target.value === "" ? null : e.target.value)}
-            >
-              <MenuItem value="">
-                <em>{tr("None")}</em>
-              </MenuItem>
-              {packages.map((p) => (
-                <MenuItem key={p.id} value={p.id}>
-                  {p.label}
+          {/* Packages belong to the vault shown in the list. */}
+          {f.vaultId === vaultId && (
+            <Field label={tr("Package")} sx={{ width: 200 }}>
+              <TextField
+                select
+                value={f.packageId ?? ""}
+                onChange={(e) => set("packageId", e.target.value === "" ? null : e.target.value)}
+              >
+                <MenuItem value="">
+                  <em>{tr("None")}</em>
                 </MenuItem>
-              ))}
-            </TextField>
-          </Field>
+                {packages.map((p) => (
+                  <MenuItem key={p.id} value={p.id}>
+                    {p.label}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Field>
+          )}
         </Stack>
         <Field label={tr("Script")}>
           <TextField
