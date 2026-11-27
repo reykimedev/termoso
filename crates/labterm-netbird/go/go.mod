@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	github.com/netbirdio/netbird v0.83.2
-	golang.org/x/oauth2 v0.36.0
+	golang.org/x/oauth2 v0.38.0
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20241231184526-a9ab2273dd10
 )
 

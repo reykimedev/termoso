@@ -171,3 +171,117 @@ pub(crate) async fn forget(store: &Store) {
 pub(crate) async fn stop_all() {
     vpn::stop_all().await;
 }
+
+/// A network's state on this device, for the details page and host badges
+/// (see `labterm_client::vpn::VpnState`).
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Enum)]
+pub enum TransportState {
+    Off,
+    Connecting,
+    Connected,
+    NeedsSignIn,
+    Error {
+        message: String,
+    },
+    /// This build has no embedded client.
+    Unavailable,
+}
+
+impl From<vpn::VpnState> for TransportState {
+    fn from(s: vpn::VpnState) -> Self {
+        match s {
+            vpn::VpnState::Off => Self::Off,
+            vpn::VpnState::Connecting => Self::Connecting,
+            vpn::VpnState::Connected => Self::Connected,
+            vpn::VpnState::NeedsSignIn => Self::NeedsSignIn,
+            vpn::VpnState::Error(message) => Self::Error { message },
+        }
+    }
+}
+
+/// One peer the device sees in a joined network.
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct TransportPeer {
+    pub fqdn: String,
+    pub ip: String,
+    pub connected: bool,
+    pub relayed: bool,
+    pub latency_ms: u64,
+    /// Unix seconds of the last handshake; 0 = none yet.
+    pub handshake: i64,
+}
+
+/// A host that connects through a network.
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct TransportHost {
+    pub id: String,
+    pub label: String,
+    pub address: String,
+}
+
+/// What the network details page shows.
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct TransportDetails {
+    pub network: TransportItem,
+    pub state: TransportState,
+    /// This device's address and DNS name in the network; empty while not
+    /// joined.
+    pub ip: String,
+    pub fqdn: String,
+    pub management_connected: bool,
+    pub signal_connected: bool,
+    /// Why the live part is missing although the network is joined.
+    pub live_error: Option<String>,
+    pub peers: Vec<TransportPeer>,
+    pub hosts: Vec<TransportHost>,
+}
+
+pub(crate) fn state(store: &Arc<Store>, network_id: &str) -> Result<TransportState> {
+    Ok(vpn::state(store, parse_id(network_id)?).into())
+}
+
+pub(crate) async fn details(store: &Arc<Store>, network_id: &str) -> Result<TransportDetails> {
+    let id = parse_id(network_id)?;
+    let entity = store.require::<Transport>(id)?;
+    let d = vpn::details(store, id).await?;
+    let live = d.live.unwrap_or_default();
+    Ok(TransportDetails {
+        network: to_item(store, entity),
+        state: d.state.into(),
+        ip: live.ip,
+        fqdn: live.fqdn,
+        management_connected: live.management,
+        signal_connected: live.signal,
+        live_error: d.live_error,
+        peers: live
+            .peers
+            .into_iter()
+            .map(|p| TransportPeer {
+                fqdn: p.fqdn,
+                ip: p.ip,
+                connected: p.connected,
+                relayed: p.relayed,
+                latency_ms: p.latency_ms,
+                handshake: p.handshake,
+            })
+            .collect(),
+        hosts: d
+            .hosts
+            .into_iter()
+            .map(|h| TransportHost {
+                id: h.id.to_string(),
+                label: h.label,
+                address: h.address,
+            })
+            .collect(),
+    })
+}
+
+pub(crate) async fn disconnect(network_id: &str) -> Result<()> {
+    vpn::disconnect(parse_id(network_id)?).await;
+    Ok(())
+}
+
+pub(crate) async fn sign_out(store: &Arc<Store>, network_id: &str) -> Result<()> {
+    Ok(vpn::sign_out(store, parse_id(network_id)?).await?)
+}

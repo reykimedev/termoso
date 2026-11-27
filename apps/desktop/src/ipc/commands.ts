@@ -80,8 +80,10 @@ import type {
   KeyCard,
   OidcKeyOptions,
   OidcProvider,
+  VpnDetails,
   VpnNetwork,
   VpnNetworkForm,
+  VpnState,
   OidcSession,
   OpksshHostSetup,
   OpksshKeyForm,
@@ -505,6 +507,13 @@ export const vpnSignInCancel = (id: Uuid) => invoke<null>("vpn_sign_in_cancel", 
 export const vpnConnect = (id: Uuid) => invoke<null>("vpn_connect", { id });
 /** Of `ids`, the networks this app has joined right now. */
 export const vpnRunning = (ids: Uuid[]) => invoke<Uuid[]>("vpn_running", { ids });
+/** Each network's state on this device, by id. */
+export const vpnStates = (ids: Uuid[]) => invoke<Record<Uuid, VpnState>>("vpn_states", { ids });
+export const vpnDetails = (id: Uuid) => invoke<VpnDetails>("vpn_details", { id });
+/** Leave a network now; the next connection joins again. */
+export const vpnDisconnect = (id: Uuid) => invoke<null>("vpn_disconnect", { id });
+/** Leave and forget this device's peer key: the next connection signs in again. */
+export const vpnSignOut = (id: Uuid) => invoke<null>("vpn_sign_out", { id });
 export const keyCreateOpkssh = (form: OpksshKeyForm) =>
   invoke<KeyCard>("key_create_opkssh", { form });
 export const keySetOidc = (id: Uuid, oidc: OidcKeyOptions) =>

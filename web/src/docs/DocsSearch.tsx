@@ -130,6 +130,8 @@ export function DocsSearch({ open, onClose }: { open: boolean; onClose: () => vo
                     sx: {
                       display: "-webkit-box",
                       WebkitLineClamp: 2,
+                      // Still required for -webkit-line-clamp in every browser; csstype marks it deprecated.
+                      // eslint-disable-next-line @typescript-eslint/no-deprecated
                       WebkitBoxOrient: "vertical",
                       overflow: "hidden",
                     },

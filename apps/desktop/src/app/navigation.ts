@@ -34,6 +34,8 @@ interface NavState {
   pendingCreate: CreateKind | null;
   /** Host whose edit panel should open once the hosts page shows. */
   pendingEdit: Uuid | null;
+  /** VPN network whose details the networks page should open. */
+  pendingVpnNetwork: Uuid | null;
   /** Host a new port-forwarding rule should be pre-filled with. */
   pendingForwardHost: Uuid | null;
   /** Something the Team / Vaults settings page should open as soon as it shows. */
@@ -67,6 +69,7 @@ export const navStore = createStore<NavState>({
   settingsPage: "account",
   pendingCreate: null,
   pendingEdit: null,
+  pendingVpnNetwork: null,
   pendingForwardHost: null,
   pendingSettingsIntent: null,
   pendingOpenFile: null,
@@ -180,7 +183,10 @@ export function requestForwardingRule(hostId: Uuid) {
   setActiveTab(HOME_TAB);
 }
 
-function usePendingHost(key: "pendingEdit" | "pendingForwardHost", onTake: (id: Uuid) => void) {
+function usePendingHost(
+  key: "pendingEdit" | "pendingForwardHost" | "pendingVpnNetwork",
+  onTake: (id: Uuid) => void,
+) {
   const cb = useRef(onTake);
   useEffect(() => {
     cb.current = onTake;
@@ -204,6 +210,10 @@ function usePendingHost(key: "pendingEdit" | "pendingForwardHost", onTake: (id: 
 /** Open the edit panel for hosts requested via `requestEditHost`. */
 export const useEditRequests = (onEdit: (id: Uuid) => void) =>
   usePendingHost("pendingEdit", onEdit);
+
+/** Show the details of the network requested via `openVpnNetwork`. */
+export const useVpnNetworkRequests = (onOpen: (id: Uuid) => void) =>
+  usePendingHost("pendingVpnNetwork", onOpen);
 
 /** Start a rule for the host requested via `requestForwardingRule`. */
 export const useForwardRequests = (onRule: (hostId: Uuid) => void) =>

@@ -14,12 +14,14 @@ use std::time::Duration;
 use labterm_core::model::{Entity, ResolvedHost, Transport};
 use labterm_core::store::Store;
 use labterm_core::transport::TransportDial;
-use labterm_netbird::{Netbird, NetworkConfig, PeerKeys, SignIn};
+use labterm_netbird::{Netbird, NetworkConfig, NodeState, PeerKeys, SIGN_IN_NEEDED, SignIn};
+
+pub use labterm_netbird::{Details, PeerDetails};
 use uuid::Uuid;
 use zeroize::Zeroizing;
 
 use crate::error::{ClientError, Result};
-use crate::transports;
+use crate::transports::{self, HostUse, hosts_using};
 
 /// How long a sign-in may wait for the browser.
 pub const SIGN_IN_TIMEOUT: Duration = Duration::from_secs(300);
@@ -145,6 +147,116 @@ fn remember_account(store: &Store, network: Uuid, account: Option<&str>) {
     if let Err(e) = r {
         tracing::warn!("netbird: could not remember the account: {e}");
     }
+}
+
+/// A network's state on this device: one model for the networks page, the
+/// details page and the host badges of every client. Shells without an
+/// embedded client (Windows, the web) show "unavailable" instead.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum VpnState {
+    /// Not joined right now; connecting to a host joins.
+    Off,
+    /// Joining, or a sign-in is waiting for the browser.
+    Connecting,
+    /// Joined: hosts on this network connect through it.
+    Connected,
+    /// This device has to sign in first (never joined, or the server
+    /// refused the saved peer).
+    NeedsSignIn,
+    /// The last attempt to join failed.
+    Error(String),
+}
+
+impl VpnState {
+    /// Stable name for the shells (`off`, `connecting`, ...).
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Off => "off",
+            Self::Connecting => "connecting",
+            Self::Connected => "connected",
+            Self::NeedsSignIn => "needs_sign_in",
+            Self::Error(_) => "error",
+        }
+    }
+
+    /// The error message, for [`Self::Error`].
+    pub fn error(&self) -> Option<&str> {
+        match self {
+            Self::Error(e) => Some(e),
+            _ => None,
+        }
+    }
+}
+
+/// `network_id`'s state on this device. Cheap and synchronous, so lists
+/// can call it for every row.
+pub fn state(store: &Arc<Store>, network_id: Uuid) -> VpnState {
+    match NETBIRD.state(network_id) {
+        Some(NodeState::Starting) => return VpnState::Connecting,
+        Some(NodeState::Running) => return VpnState::Connected,
+        Some(NodeState::Failed(e)) if e.contains(SIGN_IN_NEEDED) => return VpnState::NeedsSignIn,
+        Some(NodeState::Failed(e)) => return VpnState::Error(e),
+        None => {}
+    }
+    if SIGN_INS
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .contains_key(&network_id)
+    {
+        return VpnState::Connecting;
+    }
+    match network(store, network_id) {
+        Ok(c) if c.setup_key.is_none() && !NETBIRD.has_peer(&c, &StoreKeys(store.clone())) => {
+            VpnState::NeedsSignIn
+        }
+        _ => VpnState::Off,
+    }
+}
+
+/// Everything the details page shows about one network.
+#[derive(Debug, Clone)]
+pub struct NetworkDetails {
+    pub state: VpnState,
+    pub status: Status,
+    /// The running peer's view (address, peers); `None` when not joined.
+    pub live: Option<Details>,
+    /// Why `live` is missing although the peer runs.
+    pub live_error: Option<String>,
+    /// Hosts of the network's vault that connect through it, by label.
+    pub hosts: Vec<HostUse>,
+}
+
+/// The details page's data for `network_id`.
+pub async fn details(store: &Arc<Store>, network_id: Uuid) -> Result<NetworkDetails> {
+    let entity = store.require::<Transport>(network_id)?;
+    let (live, live_error) = match NETBIRD.details(network_id).await {
+        Some(Ok(d)) => (Some(d), None),
+        Some(Err(e)) => (None, Some(e.to_string())),
+        None => (None, None),
+    };
+    Ok(NetworkDetails {
+        state: state(store, network_id),
+        status: status(store, &entity),
+        live,
+        live_error,
+        hosts: hosts_using(store, &entity)?,
+    })
+}
+
+/// Leave a network now; the next connection through it joins again.
+pub async fn disconnect(network_id: Uuid) {
+    NETBIRD.disconnect(network_id).await;
+}
+
+/// Leave a network and forget this device's peer key for it, so the next
+/// connection asks to sign in again (another account, say). The peer stays
+/// in the NetBird dashboard until its login expires or someone removes it.
+pub async fn sign_out(store: &Arc<Store>, network_id: Uuid) -> Result<()> {
+    let c = network(store, network_id)?;
+    sign_in_cancel(network_id);
+    NETBIRD.disconnect(network_id).await;
+    store.delete_meta(&format!("{PEER_META}{}", c.peer_slot()))?;
+    Ok(())
 }
 
 /// Delete a network and what this device kept for it.
