@@ -211,6 +211,12 @@ another one. The secret comes out of hardware only after the user is checked:
   Several keys can be enrolled, so a backup key works like the first one.
   Linux and macOS talk raw CTAP over HID; Windows needs `webauthn.dll` and
   follows.
+* **Android security keys** (USB-C or NFC, `labterm-mobile::unlock`): the
+  same credentials and `master.factors` file in the profile. The Keystore
+  wrappers stay in Kotlin (`MasterKeyStore`): once a key is enrolled the plain
+  wrapper goes, so the vault opens with a key, or with the device
+  authentication when app lock is on. Removing the last key while app lock is
+  off needs a touch of it and brings the plain wrapper back.
 * macOS Touch ID follows (#159).
 
 Rules: with any method or the password present the profile starts locked and

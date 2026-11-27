@@ -323,6 +323,13 @@ pub struct LabtermApp {
     presence: Arc<presence::Tracker>,
 }
 
+impl LabtermApp {
+    /// The profile directory (vault, `master.factors`, logs).
+    pub(crate) fn profile_path(&self) -> &Path {
+        &self.profile_dir
+    }
+}
+
 impl Drop for LabtermApp {
     fn drop(&mut self) {
         self.account.shutdown(RUNTIME.handle());
