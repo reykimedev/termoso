@@ -282,8 +282,23 @@ def compose():
     wait("Paste only")
 
 
+@step("android-gesture-overlay")
+def gesture_overlay():
+    """A finger held mid-drag on the terminal: DOWN and MOVE now, UP in the next step."""
+    drive.back()
+    open_session()
+    w, h = screen_size()
+    x, y = w // 2, int(h * 0.35)
+    sh(f"input motionevent DOWN {x} {y}")
+    for dx in range(40, 361, 40):
+        sh(f"input motionevent MOVE {x + dx} {y}")
+    time.sleep(0.5)
+
+
 @step("android-connections")
 def connections():
+    w, h = screen_size()
+    sh(f"input motionevent UP {w // 2 + 360} {int(h * 0.35)}")
     to_tabs()
     nav("Connections")
     wait("Ways to connect", exact=False)
@@ -374,7 +389,9 @@ def settings():
 @step("android-gestures-settings")
 def gestures():
     tap("Keyboard & gestures")
-    scroll_to("Gestures", exact=False)
+    scroll_to("Arrow gesture")
+    w, h = screen_size()
+    swipe(w // 2, int(h * 0.7), w // 2, int(h * 0.45))
 
 
 @step("android-linux-env")
@@ -384,9 +401,23 @@ def linux_env():
     time.sleep(1.5)
 
 
+@step("android-linux-shell")
+def linux_shell():
+    if not has("Open a shell in it"):
+        tap("Ubuntu", exact=False)
+        wait("Open a shell in it", timeout=420)
+    tap("Open a shell in it")
+    wait("Session actions", timeout=60)
+    time.sleep(3)
+    for cmd in ("head -n 4 /etc/os-release", "uname -srm", "apt --version", "df -h / | tail -n 1"):
+        type_text(cmd + "\n")
+        time.sleep(1.5)
+
+
 @step("android-pin")
 def pin():
-    back()
+    to_tabs()
+    nav("Settings")
     scroll_to("App PIN / pattern")
     tap("App PIN / pattern")
     time.sleep(1)
