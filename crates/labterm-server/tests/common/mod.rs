@@ -209,12 +209,23 @@ async fn boot() -> Option<TestServer> {
         }
     };
     // Databases from earlier runs are dropped lazily here (the harness has no
-    // reliable shutdown hook). Anything still in use is simply skipped.
-    let stale: Vec<(String,)> =
+    // reliable shutdown hook). Anything still in use is simply skipped. Test
+    // processes run in parallel (nextest), so a database another process has
+    // just created but not yet connected to must survive: names carry their
+    // creation time and only those older than an hour go.
+    let now = OffsetDateTime::now_utc().unix_timestamp();
+    let all: Vec<(String,)> =
         sqlx::query_as("SELECT datname FROM pg_database WHERE datname LIKE 'labterm_test_%'")
             .fetch_all(&mut admin)
             .await
             .expect("list test databases");
+    let stale = all.into_iter().filter(|(name,)| {
+        name.trim_start_matches("labterm_test_")
+            .split_once('_')
+            .and_then(|(t, _)| t.parse::<i64>().ok())
+            // Older harnesses named them without a time.
+            .is_none_or(|t| now - t > 3600)
+    });
     for (name,) in stale {
         let _ = sqlx::query(sqlx::AssertSqlSafe(format!(
             "DROP DATABASE IF EXISTS \"{name}\""
@@ -223,7 +234,7 @@ async fn boot() -> Option<TestServer> {
         .await;
     }
 
-    let db_name = format!("labterm_test_{}", Uuid::new_v4().simple());
+    let db_name = format!("labterm_test_{now}_{}", Uuid::new_v4().simple());
     sqlx::query(sqlx::AssertSqlSafe(format!(
         "CREATE DATABASE \"{db_name}\""
     )))
@@ -749,6 +760,32 @@ pub fn device(name: &str) -> DeviceInfo {
         app_version: "test".into(),
         client_device_id: Some(Uuid::new_v4()),
         posture: None,
+    }
+}
+
+/// A TOTP code the server accepts (it allows one step of skew either way) from a step none of
+/// the `used` codes came from, so its replay check passes without waiting up to 30 s for the
+/// next step. The previous step is only used well before the step ends, so the server's clock
+/// cannot move past it mid-request.
+pub async fn unused_totp_code(totp: &totp_rs::Totp, used: &[&str]) -> String {
+    loop {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("clock after 1970")
+            .as_secs();
+        let step = totp.step();
+        let left = step - now % step;
+        let mut times = vec![now + step, now];
+        if left > 5 {
+            times.push(now - step);
+        }
+        for t in times {
+            let c = totp.generate(t).to_string();
+            if !used.contains(&c.as_str()) {
+                return c;
+            }
+        }
+        tokio::time::sleep(Duration::from_secs(left)).await;
     }
 }
 

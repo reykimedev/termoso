@@ -134,11 +134,22 @@ async fn boot() -> Option<TestServer> {
             return None;
         }
     };
-    let stale: Vec<(String,)> =
+    // Test processes run in parallel (nextest), so a database another process has just
+    // created but not yet connected to must survive: names carry their creation time and
+    // only those older than an hour are dropped.
+    let now = time::OffsetDateTime::now_utc().unix_timestamp();
+    let all: Vec<(String,)> =
         sqlx::query_as("SELECT datname FROM pg_database WHERE datname LIKE 'labterm_coretest_%'")
             .fetch_all(&mut admin)
             .await
             .expect("list test databases");
+    let stale = all.into_iter().filter(|(name,)| {
+        name.trim_start_matches("labterm_coretest_")
+            .split_once('_')
+            .and_then(|(t, _)| t.parse::<i64>().ok())
+            // Older harnesses named them without a time.
+            .is_none_or(|t| now - t > 3600)
+    });
     for (name,) in stale {
         let _ = sqlx::query(sqlx::AssertSqlSafe(format!(
             "DROP DATABASE IF EXISTS \"{name}\""
@@ -146,7 +157,7 @@ async fn boot() -> Option<TestServer> {
         .execute(&mut admin)
         .await;
     }
-    let db_name = format!("labterm_coretest_{}", Uuid::new_v4().simple());
+    let db_name = format!("labterm_coretest_{now}_{}", Uuid::new_v4().simple());
     sqlx::query(sqlx::AssertSqlSafe(format!(
         "CREATE DATABASE \"{db_name}\""
     )))

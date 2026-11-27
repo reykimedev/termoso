@@ -66,15 +66,15 @@ async fn wait_for<F: FnMut(&SyncEvent) -> bool>(
     .expect("expected sync event in time")
 }
 
-/// A TOTP code different from `used` (waits for the next 30 s step if needed).
-async fn fresh_code(totp: &totp_rs::Totp, used: &str) -> String {
-    loop {
-        let c = totp.generate_current().to_string();
-        if c != used {
-            return c;
-        }
-        tokio::time::sleep(Duration::from_millis(500)).await;
-    }
+/// A code for the next TOTP step: the server allows one step of skew, and the step always
+/// differs from the one `enrolled` came from, so the replay check passes without waiting
+/// up to 30 s for the step to turn.
+fn next_step_code(totp: &totp_rs::Totp) -> String {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("clock after 1970")
+        .as_secs();
+    totp.generate(now + totp.step()).to_string()
 }
 
 // ───────────────────────────── account ─────────────────────────────
@@ -213,7 +213,7 @@ async fn login_with_totp_second_factor() {
 
     let done = flow
         .mfa(MfaCredential::Totp {
-            code: fresh_code(&totp, &enrolled).await,
+            code: next_step_code(&totp),
         })
         .await
         .unwrap();

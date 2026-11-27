@@ -44,7 +44,7 @@ Work on what you touch; nothing below is needed for everything.
 ```bash
 git clone https://github.com/termoso/termoso.git && cd labterm
 docker compose -f deploy/docker-compose.dev.yml up -d --wait
-cargo test --workspace
+cargo test --workspace                 # or: cargo nextest run --workspace (much faster, see below)
 cargo run -p labterm-server            # http://localhost:8080 (API only until web/ is built)
 
 cd web && npm ci && npm run wasm && npm run dev          # cabinet on :5173 → API on :8080
@@ -72,11 +72,16 @@ What it runs, per area:
 
 | Area | Commands |
 |---|---|
-| rust | `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets --locked` (warnings are errors), `cargo test --workspace --locked` |
+| rust | `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets --locked` (warnings are errors), `cargo nextest run --workspace --locked` plus `cargo test --doc` when [cargo-nextest](https://nexte.st) is installed, else `cargo test --workspace --locked` |
 | web | `npm ci`, `npm run wasm`, `format:check`, `typecheck`, `lint`, `build` in `web/` |
 | desktop | `npm ci`, `format:check`, `typecheck`, `lint`, `test`, `build` in `apps/desktop/` |
 | android | `./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug` in `apps/android/` |
 | deploy | `docker compose config` for both stacks, Quadlet `-dryrun` when the binary exists |
+
+`cargo test` runs the ~90 test binaries one after another. [cargo-nextest](https://nexte.st)
+(`cargo install cargo-nextest --locked`) runs them in parallel, which is several times faster;
+CI uses it. It skips doc tests, so run `cargo test --doc` as well. To work on one crate or
+test, narrow it down: `cargo nextest run -p labterm-server --test mfa`.
 
 CI additionally runs a **supply chain** job (`cargo deny --locked check
 bans licenses sources` against `deny.toml`) and a **fuzz** job that checks

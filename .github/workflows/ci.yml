@@ -75,7 +75,7 @@ jobs:
           light="rust opkssh web desktop labterm_web kubernetes supply_chain"
           heavy="web_images android netbird fuzz docker docker_backup"
           set_to() { v=$1; shift; for j in "$@"; do echo "$j=$v" >> "$GITHUB_OUTPUT"; done; }
-          shared='^(crates/|Cargo\.(toml|lock)$|rust-toolchain|\.cargo/|\.github/workflows/ci\.yml$|\.github/actions/)'
+          shared='^(crates/|Cargo\.(toml|lock)$|rust-toolchain|\.cargo/|\.config/nextest\.toml$|\.github/workflows/ci\.yml$|\.github/actions/)'
           ci='^\.github/workflows/ci\.yml$'
           has() { grep -qE "$1" <<<"$files" && echo true || echo false; }
           if [ "$WORKFLOW" = "Desktop release" ]; then
@@ -229,7 +229,13 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
-      - run: cargo test --workspace --locked
+      # nextest runs the ~90 test binaries in parallel; cargo test ran them one by one and
+      # spent five minutes there. Doc tests are not covered by nextest, hence the second step.
+      - uses: taiki-e/install-action@073e1fd0bc889c9aee68dbaaa927cde1b5653a83 # v2.90.11
+        with:
+          tool: cargo-nextest@0.9.152
+      - run: cargo nextest run --workspace --locked --profile ci
+      - run: cargo test --workspace --locked --doc
       - if: always()
         run: df -h / target
 
