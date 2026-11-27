@@ -21,6 +21,10 @@ fun versionCodeOf(v: String): Int {
     return major * 10_000 + minor * 100 + patch
 }
 
+// Devel builds for Google Play set both (devel.yml); every other build derives them from Cargo.toml.
+val versionCodeOverride: Int? = (findProperty("labterm.versionCode") as String?)?.toInt()
+val versionNameOverride: String? = findProperty("labterm.versionName") as String?
+
 // Release signing comes from the environment only (CI secrets or a developer shell);
 // nothing is read from the tree, so a checkout never contains key material.
 val releaseKeystore: File? = System.getenv("LABTERM_ANDROID_KEYSTORE")?.let(::File)?.takeIf { it.isFile }
@@ -50,8 +54,8 @@ android {
         applicationId = "dev.labdex.labterm"
         minSdk = 26
         targetSdk = 36
-        versionCode = versionCodeOf(workspaceVersion)
-        versionName = workspaceVersion
+        versionCode = versionCodeOverride ?: versionCodeOf(workspaceVersion)
+        versionName = versionNameOverride ?: workspaceVersion
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
         // Only ship the ABIs we build Rust for (JNA's AAR carries mips/armeabi too).

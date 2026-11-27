@@ -19,9 +19,14 @@
 # workflows published (Android up to ~45). A feed only moves forward: an older run that finishes
 # late never replaces a newer build.
 #
-# Secrets (both environments are limited to main):
+# Secrets (every environment is limited to main):
 #   android-debug   ANDROID_DEBUG_KEYSTORE_BASE64, ANDROID_DEBUG_KEYSTORE_PASSWORD (alias termoso-debug)
 #   desktop-dev     TAURI_SIGNING_PRIVATE_KEY, TAURI_SIGNING_PRIVATE_KEY_PASSWORD (the dev updater key)
+#   google-play     PLAY_SERVICE_ACCOUNT_JSON, PLAY_UPLOAD_KEYSTORE_BASE64, PLAY_UPLOAD_KEYSTORE_PASSWORD
+#                   (alias upload)
+# Google Play: the repository variable PLAY_TRACK (e.g. `alpha` = closed testing) sends each build of
+# Labterm (dev.labdex.labterm) to that testing track; unset, the Play jobs are skipped.
+# docs/RELEASING.md has the one-time setup.
 # Tags (`v*`) are not handled here: release.yml builds and signs stable releases.
 name: Devel
 
@@ -135,6 +140,96 @@ jobs:
           path: ${{ runner.temp }}/out/labterm-debug.apk
           if-no-files-found: error
           retention-days: 7
+
+  # Labterm for Google Play's testing track: the release build (same app id and code as stable,
+  # no in-app updater), built unsigned so no key is on a runner that runs Cargo and Gradle.
+  play-bundle:
+    name: android (Labterm AAB for Google Play)
+    needs: plan
+    if: vars.PLAY_TRACK != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          shared-key: android-play
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - uses: taiki-e/cache-cargo-install-action@9ee83daaa7b96a6fab930949ecf1122bba04a389 # v3.0.8
+        with:
+          tool: cargo-ndk@4.1.2
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+        with:
+          packages: platform-tools platforms;android-36 build-tools;36.0.0 ndk;27.2.12479018
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: crates/labterm-netbird/go/go.mod
+          cache-dependency-path: crates/labterm-netbird/go/go.sum
+      # Version code 100000000 + build: above every stable release (MMmmpp), so testers always get
+      # the newest devel build. The name matches Labterm Dev on the desktop (X.Y.Z+1-dev.<build>).
+      - name: Build
+        working-directory: apps/android
+        env:
+          ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.2.12479018
+          BUILD: ${{ needs.plan.outputs.build }}
+          VERSION: ${{ needs.plan.outputs.desktop_version }}
+        run: |
+          ./gradlew --no-daemon -Plabterm.abis=arm64-v8a,armeabi-v7a \
+            "-Plabterm.versionCode=$((100000000 + BUILD))" "-Plabterm.versionName=$VERSION" :app:bundleRelease
+          mkdir -p "$RUNNER_TEMP/play"
+          cp app/build/outputs/bundle/release/*.aab "$RUNNER_TEMP/play/labterm-unsigned.aab"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: devel-play-bundle
+          path: ${{ runner.temp }}/play/labterm-unsigned.aab
+          if-no-files-found: error
+          retention-days: 7
+
+  # Signs the bundle with the Play upload key and puts it on the PLAY_TRACK testing track. Only this
+  # job holds the Play credentials, and it runs no third-party code. Without them it leaves a
+  # notice and passes.
+  play:
+    name: google play (Labterm testing track)
+    needs: [plan, play-bundle]
+    runs-on: ubuntu-latest
+    environment: google-play
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: devel-play-bundle
+          path: out
+      - name: Sign and upload
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          KEYSTORE_BASE64: ${{ secrets.PLAY_UPLOAD_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.PLAY_UPLOAD_KEYSTORE_PASSWORD }}
+          TRACK: ${{ vars.PLAY_TRACK }}
+          # `draft` while Play still treats the app as a draft (before its first release by hand).
+          STATUS: ${{ vars.PLAY_RELEASE_STATUS || 'completed' }}
+          BUILD: ${{ needs.plan.outputs.build }}
+          COMMIT: ${{ github.sha }}
+        run: |
+          if [ -z "$PLAY_SERVICE_ACCOUNT_JSON" ] || [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::notice::the google-play environment has no service account or upload key yet; not uploading"
+            exit 0
+          fi
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          cp out/labterm-unsigned.aab out/labterm.aab
+          "${JAVA_HOME_17_X64:-$JAVA_HOME}/bin/jarsigner" -keystore "$RUNNER_TEMP/upload.jks" -storepass:env KEYSTORE_PASSWORD \
+            -sigalg SHA256withRSA -digestalg SHA-256 out/labterm.aab upload
+          rm -f "$RUNNER_TEMP/upload.jks"
+          python3 scripts/play-upload.py dev.labdex.labterm "$TRACK" out/labterm.aab \
+            --status "$STATUS" --notes "Devel build $BUILD from ${COMMIT:0:12}"
 
   desktop:
     name: ${{ matrix.name }}
