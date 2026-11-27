@@ -3,6 +3,10 @@ package dev.labdex.labterm.ui.components
 import android.graphics.Bitmap
 import android.util.Base64
 import java.io.ByteArrayOutputStream
+import java.nio.ByteBuffer
+import java.util.zip.CRC32
+import java.util.zip.Deflater
+import java.util.zip.DeflaterOutputStream
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -45,6 +49,40 @@ class CustomIconTest : ResourceTest() {
         // Over the 32 KiB limit: rejected before decoding.
         assertNull(CustomIcon.bitmap("custom:data:data:image/png;base64," + "A".repeat(40 * 1024)))
         assertNull(CustomIcon.bitmap("custom:data:data:image/png;base64,"))
+    }
+
+    @Test
+    fun aStoredRasterIsNeverDecodedAtFullSize() {
+        // What another client (or a hand-made value) can sync: small in bytes, large in pixels.
+        val large = CustomIcon.bitmap(png(1024))
+        assertNotNull(large)
+        assertTrue(large!!.width < CustomIcon.MAX_SHOWN_SIDE * 2)
+        val huge = hugePng(CustomIcon.MAX_SOURCE_SIDE * 2)
+        assertTrue(CustomIcon.isCustom(huge))
+        assertNull(CustomIcon.bitmap(huge))
+    }
+
+    /** A one-bit grey PNG of [side] px: a few KiB that would decode to hundreds of MB. */
+    private fun hugePng(side: Int): String {
+        fun chunk(out: ByteArrayOutputStream, type: String, data: ByteArray) {
+            val body = type.toByteArray(Charsets.US_ASCII) + data
+            val crc = CRC32().apply { update(body) }.value.toInt()
+            out.write(ByteBuffer.allocate(4).putInt(data.size).array())
+            out.write(body)
+            out.write(ByteBuffer.allocate(4).putInt(crc).array())
+        }
+        val out = ByteArrayOutputStream()
+        out.write(byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A))
+        // Bit depth 1, colour type 0 (grey), no interlace.
+        chunk(out, "IHDR", ByteBuffer.allocate(13).putInt(side).putInt(side).put(1).put(0).put(0).put(0).put(0).array())
+        val pixels = ByteArrayOutputStream()
+        DeflaterOutputStream(pixels, Deflater(Deflater.BEST_COMPRESSION)).use { z ->
+            val row = ByteArray(1 + (side + 7) / 8)
+            repeat(side) { z.write(row) }
+        }
+        chunk(out, "IDAT", pixels.toByteArray())
+        chunk(out, "IEND", ByteArray(0))
+        return "custom:data:data:image/png;base64," + Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP)
     }
 
     @Test
