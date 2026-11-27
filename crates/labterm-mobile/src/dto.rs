@@ -920,6 +920,12 @@ pub struct InheritedInfo {
     pub ssh_id: bool,
     /// VPN network inherited from the group chain or tags.
     pub transport_id: Option<String>,
+    /// Jump host chain inherited from the group chain or tags.
+    pub host_chain_id: Option<String>,
+    /// Proxy inherited from the group chain or tags.
+    pub proxy_id: Option<String>,
+    /// OpenID (opkssh) key inherited from the group chain or tags.
+    pub oidc_key_id: Option<String>,
 }
 
 impl From<hosts::Inherited> for InheritedInfo {
@@ -937,6 +943,9 @@ impl From<hosts::Inherited> for InheritedInfo {
             identity_label: i.identity_label,
             ssh_id: i.ssh_id,
             transport_id: i.transport_id.map(|t| t.to_string()),
+            host_chain_id: i.host_chain_id.map(|t| t.to_string()),
+            proxy_id: i.proxy_id.map(|t| t.to_string()),
+            oidc_key_id: i.oidc_key_id.map(|t| t.to_string()),
         }
     }
 }

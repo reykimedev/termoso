@@ -9,7 +9,9 @@ use ctap_hid_fido2::fidokey::get_assertion::get_assertion_params::Assertion;
 use ctap_hid_fido2::fidokey::make_credential::make_credential_params::{
     Attestation, CredentialSupportedKeyType,
 };
-use ctap_hid_fido2::fidokey::{GetAssertionArgsBuilder, MakeCredentialArgsBuilder};
+use ctap_hid_fido2::fidokey::{
+    AssertionExtension, CredentialExtension, GetAssertionArgsBuilder, MakeCredentialArgsBuilder,
+};
 use ctap_hid_fido2::public_key::PublicKeyType;
 use ctap_hid_fido2::public_key_credential_user_entity::PublicKeyCredentialUserEntity;
 use ctap_hid_fido2::{FidoKeyHid, FidoKeyHidFactory, HidInfo, HidParam, LibCfg};
@@ -311,6 +313,84 @@ pub fn sign(
             signature: assertion.signature,
         },
     )
+}
+
+/// Make a non-resident credential with `hmac-secret` under `rp_id` (used to
+/// unlock the vault; nothing is stored on the token) and return its id.
+/// Tokens with a PIN set need `pin` for this step only. Blocking: waits for
+/// a touch.
+pub fn hmac_secret_credential(
+    rp_id: &str,
+    user_name: &str,
+    pin: Option<&str>,
+    device: Option<&str>,
+) -> Result<Vec<u8>> {
+    let dev = open(device)?;
+    let challenge: [u8; 32] = rand::random();
+    let user_id: [u8; 16] = rand::random();
+    let user_entity =
+        PublicKeyCredentialUserEntity::new(Some(&user_id), Some(user_name), Some(user_name));
+    let mut builder = MakeCredentialArgsBuilder::new(rp_id, &challenge)
+        .key_type(SkAlgorithm::EcdsaP256.cose())
+        .user_entity(&user_entity)
+        .extensions(&[CredentialExtension::HmacSecret(Some(true))]);
+    builder = match pin {
+        Some(p) if !p.is_empty() => builder.pin(p),
+        _ => builder.without_pin_and_uv(),
+    };
+    let attestation = dev
+        .make_credential_with_args(&builder.build())
+        .map_err(|e| Fido2Error::from_ctap(&e))?;
+    Ok(attestation.credential_descriptor.id)
+}
+
+/// `hmac-secret` over `salt` from whichever of `credentials` the token holds
+/// (one touch); returns that credential's id and the 32-byte output. Always
+/// asked without user verification so the output does not depend on a PIN.
+pub fn hmac_secret(
+    rp_id: &str,
+    credentials: &[&[u8]],
+    salt: &[u8; 32],
+    device: Option<&str>,
+) -> Result<(Vec<u8>, zeroize::Zeroizing<Vec<u8>>)> {
+    let dev = open(device)?;
+    let challenge: [u8; 32] = rand::random();
+    let mut builder = GetAssertionArgsBuilder::new(rp_id, &challenge)
+        .without_pin_and_uv()
+        .extensions(&[AssertionExtension::HmacSecret(Some(*salt))]);
+    for id in credentials {
+        builder = builder.add_credential_id(id);
+    }
+    let assertion: Assertion = dev
+        .get_assertion_with_args(&builder.build())
+        .map_err(|e| Fido2Error::from_ctap(&e))?
+        .into_iter()
+        .next()
+        .ok_or_else(|| Fido2Error::Other("token returned no assertion".into()))?;
+    let secret = assertion
+        .extensions
+        .iter()
+        .find_map(|e| match e {
+            AssertionExtension::HmacSecret(Some(out)) => {
+                Some(zeroize::Zeroizing::new(out.to_vec()))
+            }
+            _ => None,
+        })
+        .ok_or_else(|| Fido2Error::Other("token returned no hmac-secret".into()))?;
+    let id = if assertion.credential_id.is_empty() {
+        match credentials {
+            [only] => only.to_vec(),
+            _ => {
+                return Err(Fido2Error::Other(
+                    "token did not say which credential answered".into(),
+                )
+                .into());
+            }
+        }
+    } else {
+        assertion.credential_id
+    };
+    Ok((id, secret))
 }
 
 /// [`SkBackend`] over the plugged-in USB tokens.

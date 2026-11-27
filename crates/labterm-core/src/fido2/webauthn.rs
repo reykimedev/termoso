@@ -267,6 +267,7 @@ pub fn assert<T: CtapTransport>(
             allow: &allow,
             user_presence: true,
             user_verification: options.requires_user_verification(),
+            hmac_salt: None,
         },
         pin,
     )?;
@@ -317,6 +318,7 @@ pub fn register<T: CtapTransport>(
             resident: options.resident(),
             user_verification: options.requires_user_verification(),
             client_data_hash,
+            hmac_secret: false,
         },
         pin,
     )?;

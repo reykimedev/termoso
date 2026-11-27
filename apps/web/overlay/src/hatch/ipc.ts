@@ -63,7 +63,12 @@ function lockedSettings(): Record<string, unknown> {
 function vaultStatus() {
   return {
     locked: !st.isUnlocked(),
+    protected: true,
     passwordProtected: true,
+    // Unlock methods (Windows Hello, security keys) are desktop-only for now.
+    factors: [],
+    helloAvailable: false,
+    securityKeysSupported: false,
     masterSource: "password",
     minPasswordChars: MIN_PASSWORD,
   };

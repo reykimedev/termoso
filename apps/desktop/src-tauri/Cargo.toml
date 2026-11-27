@@ -70,4 +70,10 @@ windows = { version = "0.62", features = [
   "Win32_UI_Shell",
   "Win32_UI_Shell_Common",
   "Win32_UI_Shell_PropertiesSystem",
+  # Windows Hello unlock (hello.rs).
+  "Foundation",
+  "Security_Credentials",
+  "Security_Cryptography",
+  "Storage_Streams",
+  "Win32_UI_WindowsAndMessaging",
 ] }

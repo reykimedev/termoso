@@ -222,6 +222,8 @@ class Transfer {
   /** The id something the copies point at gets in the target vault, or null (unlinked). */
   dep(kind: string, id: Id | undefined): Id {
     if (!id) return null;
+    // "None" on purpose (`EXPLICIT_NONE`) means the same in every vault.
+    if (id === NIL) return id;
     if (this.done.has(id)) return this.done.get(id) ?? null;
     const e = get<Rec>(id);
     if (!e) return null;
