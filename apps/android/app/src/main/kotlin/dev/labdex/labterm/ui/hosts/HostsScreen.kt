@@ -99,6 +99,7 @@ import dev.labdex.labterm.ui.components.SectionCard
 import dev.labdex.labterm.ui.components.SectionLabel
 import dev.labdex.labterm.ui.components.LabtermSwitch
 import dev.labdex.labterm.ui.shell.ShellViewModel
+import dev.labdex.labterm.ui.vault.VaultBar
 import dev.labdex.labterm.ui.vault.VaultPickerTitle
 import dev.labdex.labterm.ui.vault.vaultLabel
 import dev.labdex.labterm.core.GroupItem
@@ -213,8 +214,9 @@ fun HostsScreen(
                     onDelete = { dialog = HostsDialog.Delete(state.selected.toList()) },
                 )
             } else {
+                // The host list is the Hosts tab's root: no back arrow there.
                 val navigationIcon: @Composable () -> Unit = {
-                    IconButton(onClick = { if (searching) { searching = false; vm.setQuery("") } else onBack() }) {
+                    if (searching || groupId != null || tag != null) IconButton(onClick = { if (searching) { searching = false; vm.setQuery("") } else onBack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 }
@@ -243,11 +245,14 @@ fun HostsScreen(
                         navigationIcon = navigationIcon,
                         actions = actions,
                     )
-                    groupId == null -> CenterAlignedTopAppBar(
-                        title = { VaultPickerTitle(vaults, selectedVaultId, shell::selectVault, vaultPins, shell::toggleVaultPin) },
-                        navigationIcon = navigationIcon,
-                        actions = actions,
-                    )
+                    groupId == null -> Column {
+                        CenterAlignedTopAppBar(
+                            title = { VaultPickerTitle(vaults, selectedVaultId, shell::selectVault, vaultPins, shell::toggleVaultPin) },
+                            navigationIcon = navigationIcon,
+                            actions = actions,
+                        )
+                        VaultBar(vaults, selectedVaultId, vaultPins, shell::selectVault, shell::toggleVaultPin)
+                    }
                     else -> TopAppBar(
                         title = {
                             Column {

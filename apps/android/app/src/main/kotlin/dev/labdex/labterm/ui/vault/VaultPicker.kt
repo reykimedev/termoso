@@ -98,7 +98,7 @@ fun splitPinned(vaults: List<VaultInfo>, pinned: List<String>): Pair<List<VaultI
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun VaultPickerSheet(
+internal fun VaultPickerSheet(
     vaults: List<VaultInfo>,
     selectedId: String?,
     pinned: List<String>,
