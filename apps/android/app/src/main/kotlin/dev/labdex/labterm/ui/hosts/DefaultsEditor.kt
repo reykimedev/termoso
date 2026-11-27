@@ -39,6 +39,8 @@ import dev.labdex.labterm.data.userMessage
 import dev.labdex.labterm.ui.components.FormField
 import dev.labdex.labterm.ui.components.PickerRow
 import dev.labdex.labterm.ui.components.ChevronRow
+import dev.labdex.labterm.ui.components.IconCatalog
+import dev.labdex.labterm.ui.components.IconPickerSheet
 import dev.labdex.labterm.ui.components.RowDivider
 import dev.labdex.labterm.ui.components.SectionCard
 import dev.labdex.labterm.ui.components.SwitchRow
@@ -65,6 +67,7 @@ private data class Loaded(
     val inherited: InheritedInfo?,
     /** Groups only: the parent, and the groups it may move under. */
     val parentId: String? = null,
+    val icon: String? = null,
     val parents: List<GroupItem> = emptyList(),
     val allGroups: List<GroupItem> = emptyList(),
 )
@@ -86,6 +89,8 @@ fun DefaultsEditorDialog(shell: ShellViewModel, target: DefaultsTarget, onDismis
     var d by remember(target) { mutableStateOf<SshDefaultsDraft?>(null) }
     var parentId by remember(target) { mutableStateOf<String?>(null) }
     var parentPicker by remember { mutableStateOf(false) }
+    var icon by remember(target) { mutableStateOf<String?>(null) }
+    var iconPicker by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
 
     LaunchedEffect(target) {
@@ -98,6 +103,7 @@ fun DefaultsEditorDialog(shell: ShellViewModel, target: DefaultsTarget, onDismis
                         Loaded(
                             g.label, null, g.vaultId, g.defaults, keys(g.vaultId), g.parentId?.let { inherited(it) },
                             parentId = g.parentId,
+                            icon = g.icon,
                             parents = parentCandidates(all, target.id),
                             allGroups = all,
                         )
@@ -114,6 +120,7 @@ fun DefaultsEditorDialog(shell: ShellViewModel, target: DefaultsTarget, onDismis
             priority = it.priority?.toString() ?: "0"
             d = it.defaults
             parentId = it.parentId
+            icon = it.icon
         }.onFailure { shell.notify(it.userMessage()); onDismiss() }
     }
 
@@ -127,7 +134,7 @@ fun DefaultsEditorDialog(shell: ShellViewModel, target: DefaultsTarget, onDismis
                     when (target) {
                         is DefaultsTarget.Group -> {
                             val g = groupDraft(target.id)
-                            saveGroupDraft(g.copy(label = label.trim(), parentId = parentId, defaults = draft))
+                            saveGroupDraft(g.copy(label = label.trim(), parentId = parentId, icon = icon, defaults = draft))
                         }
                         is DefaultsTarget.Tag -> {
                             val t = tagDraft(target.id)
@@ -215,6 +222,13 @@ fun DefaultsEditorDialog(shell: ShellViewModel, target: DefaultsTarget, onDismis
                             title = stringResource(R.string.parent_group),
                             badge = parentId?.let { paths[it] } ?: stringResource(R.string.none),
                             modifier = Modifier.clickable { parentPicker = true },
+                        )
+                        RowDivider()
+                        ChevronRow(
+                            title = stringResource(R.string.icon),
+                            leading = { GroupIconTile(icon) },
+                            badge = icon?.let { IconCatalog.picked(it)?.title ?: stringResource(R.string.icon_custom) } ?: stringResource(R.string.icon_folder),
+                            modifier = Modifier.clickable { iconPicker = true },
                         )
                     }
                 }
@@ -318,6 +332,14 @@ fun DefaultsEditorDialog(shell: ShellViewModel, target: DefaultsTarget, onDismis
             }
         }
         val l = loaded
+        if (iconPicker) {
+            IconPickerSheet(
+                selected = icon,
+                automaticLabel = stringResource(R.string.icon_folder),
+                onPick = { icon = it; iconPicker = false },
+                onDismiss = { iconPicker = false },
+            )
+        }
         if (parentPicker && l != null) {
             ParentPicker(l.parents, parentId, onPick = { parentId = it; parentPicker = false }, onDismiss = { parentPicker = false })
         }

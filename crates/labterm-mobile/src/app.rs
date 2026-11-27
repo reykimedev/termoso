@@ -693,6 +693,10 @@ impl LabtermApp {
         };
         form.label = draft.label;
         form.parent_id = parse_opt_id(&draft.parent_id)?;
+        form.icon = draft
+            .icon
+            .map(|i| i.trim().to_string())
+            .filter(|i| !i.is_empty());
         draft.defaults.apply(&mut form.defaults)?;
         Ok(hosts::save_group_form(&self.store, &form)?.into())
     }

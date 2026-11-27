@@ -47,9 +47,13 @@ import dev.labdex.labterm.ui.components.rememberCustomIcon
 
 /** A group's tile: its picked icon, a custom one, or the folder. */
 @Composable
-fun GroupTile(g: GroupItem) {
-    val picked = remember(g.icon) { IconCatalog.picked(g.icon) }
-    val custom = rememberCustomIcon(g.icon)
+fun GroupTile(g: GroupItem) = GroupIconTile(g.icon)
+
+/** The tile for a group icon id; `null` (or an unknown id) is the folder. */
+@Composable
+fun GroupIconTile(icon: String?) {
+    val picked = remember(icon) { IconCatalog.picked(icon) }
+    val custom = rememberCustomIcon(icon)
     when {
         picked != null -> IconTile(distroVector(picked), tint = Color.White, container = picked.color)
         custom != null -> CustomIconTile(custom)

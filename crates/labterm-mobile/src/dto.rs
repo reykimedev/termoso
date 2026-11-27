@@ -837,6 +837,8 @@ pub struct GroupDraft {
     pub vault_id: String,
     pub label: String,
     pub parent_id: Option<String>,
+    /// Picked icon id (catalog or OS logo); `None` is the folder.
+    pub icon: Option<String>,
     pub defaults: SshDefaultsDraft,
 }
 
@@ -847,6 +849,7 @@ impl From<hosts::GroupForm> for GroupDraft {
             vault_id: g.vault_id.to_string(),
             label: g.label,
             parent_id: g.parent_id.map(|p| p.to_string()),
+            icon: g.icon,
             defaults: g.defaults.into(),
         }
     }

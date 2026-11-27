@@ -1845,6 +1845,13 @@
     <string name="open_host">Open host</string>
     <string name="copy_target">Copy address</string>
     <string name="remove_entry">Remove entry</string>
+    <string name="icon">Icon</string>
+    <string name="icon_automatic">Automatic</string>
+    <string name="icon_folder">Folder</string>
+    <string name="icon_custom">Custom</string>
+    <string name="icon_section_generic">General</string>
+    <string name="icon_section_apps">Apps and products</string>
+    <string name="icon_section_systems">Operating systems</string>
     <plurals name="tag_host_count">
         <item quantity="one">%d host</item>
         <item quantity="other">%d hosts</item>
