@@ -93,8 +93,8 @@ export const vaultHint = (v: LocalVault) =>
       : v.kind === "team"
         ? tr("Team vault")
         : v.kind === "personal"
-          ? tr("Synced personal vault")
-          : tr("This device only");
+          ? tr("Only you · synced")
+          : tr("Only this device · not synced");
 
 /** Small “View only” marker for pages whose active vault we can only read. */
 export function ViewOnlyChip({ sx }: { sx?: SxProps<Theme> }) {
@@ -118,7 +118,36 @@ export function openCollaboration(v: LocalVault | null) {
 
 const ORIGIN_TOP: PopoverOrigin = { vertical: "top", horizontal: "left" };
 const ORIGIN_BOTTOM: PopoverOrigin = { vertical: "bottom", horizontal: "left" };
+const ORIGIN_SIDE: PopoverOrigin = { vertical: "top", horizontal: "right" };
 const SUBHEADER = { lineHeight: "28px", fontSize: 11, bgcolor: "transparent" } as const;
+
+/** Unlocked pinned vaults in pin order, as the rail last showed them (for Ctrl+Alt+1…9). */
+let pinnedOrder: Uuid[] = [];
+
+/** The rail reports the pins it shows, so the shortcut matches what is on screen. */
+export function setPinnedOrder(ids: Uuid[]) {
+  pinnedOrder = ids;
+}
+
+/** Ctrl+Alt+n (⌘⌥n on macOS): switch to the n-th pinned vault. */
+export function selectPinnedVault(n: number): boolean {
+  const id = pinnedOrder[n - 1];
+  if (!id) return false;
+  selectVault(id);
+  return true;
+}
+
+/** The name a vault is shown under: the own vaults are always "Personal" and "Local". */
+export const vaultName = (v: LocalVault) =>
+  v.kind === "personal" ? tr("Personal") : v.kind === "local" ? tr("Local") : v.name;
+
+/** Who can see a vault, for subtitles: never inferred from its icon or colour. */
+export const vaultAudience = (v: LocalVault) =>
+  v.kind === "personal"
+    ? tr("Only you · synced")
+    : v.kind === "local"
+      ? tr("Only this device · not synced")
+      : tr("Team vault");
 
 /** Pinned vaults first (in pin order), then the rest in their usual order. */
 export function usePinnedVaults(vaults: LocalVault[]): {
@@ -137,9 +166,12 @@ export function usePinnedVaults(vaults: LocalVault[]): {
 export function VaultMenu({
   anchor,
   onClose,
+  side = false,
 }: {
   anchor: HTMLElement | null;
   onClose: () => void;
+  /** Open to the right of the anchor (the vault rail) instead of below it. */
+  side?: boolean;
 }) {
   const active = useActiveVault();
   const { pinned, others, isPinned } = usePinnedVaults(active.vaults);
@@ -160,7 +192,7 @@ export function VaultMenu({
       >
         <ListItemIcon>{vaultIcon(v)}</ListItemIcon>
         <ListItemText
-          primary={v.name}
+          primary={vaultName(v)}
           secondary={vaultHint(v)}
           slotProps={{ secondary: { sx: { fontSize: 11 } } }}
         />
@@ -194,7 +226,7 @@ export function VaultMenu({
       open={anchor !== null}
       anchorEl={anchor}
       onClose={onClose}
-      anchorOrigin={ORIGIN_BOTTOM}
+      anchorOrigin={side ? ORIGIN_SIDE : ORIGIN_BOTTOM}
       transformOrigin={ORIGIN_TOP}
       slotProps={{ paper: { sx: { minWidth: 240 } } }}
     >

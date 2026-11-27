@@ -131,6 +131,7 @@ fun VaultScreen(
 
     Scaffold(
         topBar = {
+            Column {
             CenterAlignedTopAppBar(
                 title = { VaultPickerTitle(vaults, selectedVaultId, shell::selectVault, vaultPins, shell::toggleVaultPin) },
                 actions = {
@@ -160,6 +161,8 @@ fun VaultScreen(
                     }
                 },
             )
+            VaultBar(vaults, selectedVaultId, vaultPins, shell::selectVault, shell::toggleVaultPin)
+            }
         },
     ) { padding ->
         Column(

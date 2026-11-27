@@ -17,7 +17,6 @@ import ViewListRoundedIcon from "@mui/icons-material/ViewListRounded";
 import DriveFileRenameOutlineRoundedIcon from "@mui/icons-material/DriveFileRenameOutlineRounded";
 import BookmarkAddedRoundedIcon from "@mui/icons-material/BookmarkAddedRounded";
 import ContentCopyRoundedIcon from "@mui/icons-material/ContentCopyRounded";
-import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import { Fragment, type DragEvent, type MouseEvent, type ReactNode } from "react";
 import type { HostCard, Uuid } from "@/ipc/types";
 import { PqBadge, StatusDot } from "@/terminal/TerminalPane";
@@ -77,7 +76,8 @@ import {
 import { AppMenuButton } from "./AppMenu";
 import { TeamBlock } from "./TeamBlock";
 import { WindowControls } from "./WindowControls";
-import { VaultMenu, useActiveVault } from "./vault";
+import { useActiveVault, vaultName } from "./vault";
+import { RailTile } from "./VaultRail";
 import { IS_MAC, MAC_TRAFFIC_LIGHTS_WIDTH } from "@/lib/platform";
 import { withHint } from "./shortcuts";
 import { useEffect, useState } from "react";
@@ -139,8 +139,6 @@ export function TopBar() {
   );
   const [newWorkspaceOver, mountNewWorkspaceDrop] = useHostDropNewWorkspace();
   const vault = useActiveVault();
-  const [vaultMenu, setVaultMenu] = useState<HTMLElement | null>(null);
-  const multiVault = vault.vaults.length > 1;
 
   return (
     <Box
@@ -163,38 +161,15 @@ export function TopBar() {
       <TopTab
         active={activeTabId === HOME_TAB}
         onClick={() => setActiveTab(HOME_TAB)}
-        icon={<LockRoundedIcon sx={{ fontSize: 16 }} />}
-        label={tr("Vaults")}
-        trailing={
-          multiVault ? (
-            <Tooltip
-              title={
-                vault.data ? tr("Vault: {name}", { name: vault.data.name }) : tr("Switch vault")
-              }
-            >
-              <IconButton
-                aria-label={tr("Switch vault")}
-                aria-haspopup="menu"
-                aria-expanded={vaultMenu !== null}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setVaultMenu(e.currentTarget);
-                }}
-                sx={{ width: 22, height: 22, mr: -0.5, color: "inherit" }}
-              >
-                <ExpandMoreRoundedIcon
-                  sx={{
-                    fontSize: 18,
-                    transition: "transform 120ms",
-                    transform: vaultMenu ? "rotate(180deg)" : "none",
-                  }}
-                />
-              </IconButton>
-            </Tooltip>
-          ) : null
+        icon={
+          vault.data ? (
+            <RailTile vault={vault.data} pinned active={false} size={18} />
+          ) : (
+            <LockRoundedIcon sx={{ fontSize: 16 }} />
+          )
         }
+        label={vault.data ? vaultName(vault.data) : tr("Vaults")}
       />
-      <VaultMenu anchor={vaultMenu} onClose={() => setVaultMenu(null)} />
       <TopTab
         active={activeTabId === SFTP_TAB}
         onClick={goToSftp}

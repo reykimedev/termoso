@@ -463,6 +463,7 @@
     <string name="add_tag">Добавить тег</string>
     <string name="done">Готово</string>
     <string name="hosts">Хосты</string>
+    <string name="tools">Инструменты</string>
     <string name="search">Поиск</string>
     <string name="add">Добавить</string>
     <string name="new_group">Новая группа</string>
@@ -1206,9 +1207,10 @@
     <string name="vault_hint_personal">Синхронизируется с вашими устройствами, сквозное шифрование</string>
     <string name="vault_hint_local">Только на этом устройстве</string>
     <string name="all_vaults">Все хранилища</string>
+    <string name="vault_bar_all">Все</string>
     <string name="known_hosts_shared_by_all_vaults">Общие для всех хранилищ</string>
-    <string name="local_vault">Локальное хранилище</string>
-    <string name="personal_vault">Личное хранилище</string>
+    <string name="local_vault">Локальное</string>
+    <string name="personal_vault">Личное</string>
     <string name="welcome_to_labterm">Добро пожаловать в Labterm</string>
     <string name="free_open_source_ssh_client_end_to_end">Бесплатный SSH-клиент с открытым исходным кодом. Синхронизация со сквозным шифрованием, команды и трансляция терминала — без телеметрии.</string>
     <string name="create_a_free_account">Создать бесплатный аккаунт</string>
