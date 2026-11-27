@@ -314,7 +314,13 @@ const commands: Record<string, Handler> = {
   },
 
   // encrypted .labterm backups: also how vaults move between accounts and servers
-  backup_export: (a) => backup.exportTo(a.vaultIds ?? [], String(a.password ?? ""), String(a.path)),
+  backup_export: (a) =>
+    backup.exportTo(
+      a.vaultIds ?? [],
+      String(a.password ?? ""),
+      String(a.path),
+      a.keepOpen === true,
+    ),
   backup_inspect: (a) => backup.inspect(String(a.path), String(a.password ?? "")),
   backup_discard: (a) => backup.discard(a.previewId),
   backup_restore: (a) => backup.restore(a.previewId, Number(a.source), a.vaultId),

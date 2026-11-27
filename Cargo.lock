@@ -4678,7 +4678,9 @@ dependencies = [
 name = "labterm-client"
 version = "0.12.1"
 dependencies = [
+ "base64 0.23.1",
  "labterm-core",
+ "labterm-crypto",
  "labterm-netbird",
  "labterm-oidc-cert",
  "labterm-proto",

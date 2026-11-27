@@ -316,10 +316,10 @@ pub fn server_info(url: String) -> Result<ServerCard> {
 /// An open profile.
 #[derive(uniffi::Object)]
 pub struct LabtermApp {
-    store: Arc<Store>,
+    pub(crate) store: Arc<Store>,
     secrets: Arc<SecretCache>,
     profile_dir: PathBuf,
-    account: Arc<AccountRuntime>,
+    pub(crate) account: Arc<AccountRuntime>,
     presence: Arc<presence::Tracker>,
 }
 
