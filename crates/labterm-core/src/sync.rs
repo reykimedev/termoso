@@ -46,6 +46,7 @@ fn kind_label(kind: &str) -> &str {
         "oidc_provider" => "OpenID providers",
         "transport" => "network transports",
         "host_overlay" => "personal host settings",
+        "vault_pin" => "pinned vaults",
         other => other,
     }
 }

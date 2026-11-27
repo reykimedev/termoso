@@ -571,6 +571,10 @@ export const identitiesList = (vaultId?: Uuid | null) =>
   invoke<IdentityCard[]>("identities_list", { vaultId: vaultId ?? null });
 export const identitySave = (form: IdentityForm) => invoke<IdentityCard>("identity_save", { form });
 export const identityDelete = (id: Uuid) => invoke<null>("identity_delete", { id });
+export const vaultPins = () => invoke<Uuid[]>("vault_pins");
+export const vaultPinToggle = (vaultId: Uuid) => invoke<boolean>("vault_pin_toggle", { vaultId });
+export const vaultPinsReorder = (vaultIds: Uuid[]) =>
+  invoke<null>("vault_pins_reorder", { vaultIds });
 export const overlaysList = () => invoke<OverlayCard[]>("overlays_list");
 export const overlayForTarget = (targetVaultId: Uuid, scope: OverlayScope, targetId: Uuid | null) =>
   invoke<OverlayCard | null>("overlay_for_target", { targetVaultId, scope, targetId });

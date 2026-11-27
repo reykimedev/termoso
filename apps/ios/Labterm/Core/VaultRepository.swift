@@ -31,6 +31,16 @@ struct VaultRepository: Sendable {
         try app.vaults()
     }
 
+    /// Pinned vault ids, first pin first (synced per user, never per team).
+    func vaultPins() throws -> [String] {
+        try app.vaultPins()
+    }
+
+    @discardableResult
+    func toggleVaultPin(vaultId: String) throws -> Bool {
+        try app.toggleVaultPin(vaultId: vaultId)
+    }
+
     func localVault() throws -> VaultInfo {
         try app.localVault()
     }

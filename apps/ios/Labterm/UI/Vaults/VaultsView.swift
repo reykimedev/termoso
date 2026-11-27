@@ -109,15 +109,39 @@ struct VaultsView: View {
     }
 
     private var vaultPicker: some View {
-        Picker(selection: $model.selectedVaultId) {
-            ForEach(model.vaults, id: \.id) { vault in
-                Label(vault.name, systemImage: vaultIcon(vault))
-                    .tag(Optional(vault.id))
+        HStack {
+            Picker(selection: $model.selectedVaultId) {
+                if !model.pinnedVaults.isEmpty {
+                    Section("Pinned") {
+                        ForEach(model.pinnedVaults, id: \.id) { vault in
+                            Label(vault.name, systemImage: vaultIcon(vault))
+                                .tag(Optional(vault.id))
+                        }
+                    }
+                }
+                Section(model.pinnedVaults.isEmpty ? "" : "All vaults") {
+                    ForEach(model.unpinnedVaults, id: \.id) { vault in
+                        Label(vault.name, systemImage: vaultIcon(vault))
+                            .tag(Optional(vault.id))
+                    }
+                }
+            } label: {
+                Label("Vault", systemImage: "lock.rectangle.stack")
             }
-        } label: {
-            Label("Vault", systemImage: "lock.rectangle.stack")
+            .accessibilityIdentifier("vaults.picker")
+            Spacer(minLength: 0)
+            if let id = model.selectedVaultId {
+                let pinned = model.isPinned(id)
+                Button {
+                    model.togglePin(id)
+                } label: {
+                    Image(systemName: pinned ? "pin.fill" : "pin")
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel(pinned ? "Unpin vault" : "Pin vault")
+                .accessibilityIdentifier("vaults.pin")
+            }
         }
-        .accessibilityIdentifier("vaults.picker")
     }
 
     private func plannedRow(_ title: String, systemImage: String) -> some View {

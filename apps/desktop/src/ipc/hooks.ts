@@ -32,6 +32,7 @@ export const keys = {
   tagForm: (id: Uuid) => ["tagForm", id] as const,
   identities: (vaultId: Uuid | null) => ["identities", vaultId] as const,
   overlays: ["overlays"] as const,
+  vaultPins: ["vaultPins"] as const,
   overlayFor: (vaultId: Uuid, scope: string, targetId: Uuid | null) =>
     ["overlays", vaultId, scope, targetId] as const,
   sshKeys: (vaultId: Uuid | null) => ["sshKeys", vaultId] as const,
@@ -155,6 +156,26 @@ export const useIdentities = (vaultId: Uuid | null) =>
     queryKey: keys.identities(vaultId),
     queryFn: () => ipc.identitiesList(vaultId),
   });
+
+/** Pinned vault ids, first pin first. Synced per user, never per team. */
+export const useVaultPins = () => useQuery({ queryKey: keys.vaultPins, queryFn: ipc.vaultPins });
+
+export function useToggleVaultPin() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vaultId: Uuid) => ipc.vaultPinToggle(vaultId),
+    onSettled: () => void qc.invalidateQueries({ queryKey: keys.vaultPins }),
+  });
+}
+
+export function useReorderVaultPins() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vaultIds: Uuid[]) => ipc.vaultPinsReorder(vaultIds),
+    onMutate: (vaultIds) => qc.setQueryData(keys.vaultPins, vaultIds),
+    onSettled: () => void qc.invalidateQueries({ queryKey: keys.vaultPins }),
+  });
+}
 
 export const useOverlays = () => useQuery({ queryKey: keys.overlays, queryFn: ipc.overlaysList });
 
@@ -432,6 +453,7 @@ export function useSyncNotices() {
             "knownHosts",
             "proxies",
             "hostChains",
+            "vaultPins",
           ]) {
             void qc.invalidateQueries({ queryKey: [k] });
           }
