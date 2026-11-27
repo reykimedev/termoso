@@ -448,6 +448,11 @@ export const theme = createTheme({
             color: sky.light,
             ...t.applyStyles("light", { color: sky.dark }),
           },
+          "&.MuiChip-colorInfo": {
+            backgroundColor: alpha(sky.main, 0.16),
+            color: sky.light,
+            ...t.applyStyles("light", { color: sky.dark }),
+          },
           "&.MuiChip-colorSuccess": {
             backgroundColor: alpha(ok.dark, 0.16),
             color: ok.dark,
