@@ -56,6 +56,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.labdex.labterm.R
 import dev.labdex.labterm.core.TransportItem
 import dev.labdex.labterm.core.TransportState
+import dev.labdex.labterm.core.VaultInfo
+import dev.labdex.labterm.core.VaultKind
 import dev.labdex.labterm.data.VaultRepository
 import dev.labdex.labterm.data.userMessage
 import dev.labdex.labterm.service.VpnSignIns
@@ -66,9 +68,11 @@ import dev.labdex.labterm.ui.components.IconTile
 import dev.labdex.labterm.ui.components.ItemActionsSheet
 import dev.labdex.labterm.ui.components.ItemMoreButton
 import dev.labdex.labterm.ui.components.ListRow
+import dev.labdex.labterm.ui.components.NewItemVaultPicker
 import dev.labdex.labterm.ui.components.RowDivider
 import dev.labdex.labterm.ui.components.SecretField
 import dev.labdex.labterm.ui.components.SectionCard
+import dev.labdex.labterm.ui.components.rememberWritableVaults
 import dev.labdex.labterm.ui.hosts.FullScreenEditor
 import dev.labdex.labterm.ui.components.SheetAction
 import dev.labdex.labterm.ui.components.SheetSection
@@ -203,10 +207,12 @@ fun NetbirdNetworksScreen(shell: ShellViewModel, onBack: () -> Unit, onOpenNetwo
         }
     }
 
+    val newItemVaults = rememberWritableVaults(shell.repo)
     editing?.let { n ->
         val id = n.id
         NetworkEditorPage(
             n,
+            vaults = newItemVaults,
             onDismiss = { editing = null },
             onSignIn = if (id == null || n.hasSetupKey) null else ({ editing = null; signingIn = n }),
             onDelete = if (id == null) null else ({
@@ -287,11 +293,16 @@ fun NetbirdNetworksScreen(shell: ShellViewModel, onBack: () -> Unit, onOpenNetwo
 @Composable
 internal fun NetworkEditorPage(
     current: TransportItem,
+    /** New networks: vaults to pick from (empty = keep [current]'s vault). */
+    vaults: List<VaultInfo> = emptyList(),
     onDismiss: () -> Unit,
     onSignIn: (() -> Unit)?,
     onDelete: (() -> Unit)?,
     onSave: (TransportItem) -> Unit,
 ) {
+    var vaultId by remember { mutableStateOf(current.vaultId) }
+    // A team vault never holds a setup key: everyone signs in.
+    val team = vaults.firstOrNull { it.id == vaultId }?.let { it.kind == VaultKind.TEAM } ?: current.team
     var label by remember { mutableStateOf(current.label) }
     var provider by remember { mutableStateOf(current.provider.ifEmpty { NETBIRD }) }
     val tailscale = provider == TAILSCALE
@@ -307,10 +318,12 @@ internal fun NetworkEditorPage(
         onSave = {
             onSave(
                 current.copy(
+                    vaultId = vaultId,
+                    team = team,
                     label = label.trim(),
                     provider = provider,
                     managementUrl = url.trim().ifEmpty { null },
-                    setupKey = if (current.team) null else setupKey.trim().ifEmpty { null },
+                    setupKey = if (team) null else setupKey.trim().ifEmpty { null },
                     directFirst = directFirst,
                 ),
             )
@@ -320,6 +333,7 @@ internal fun NetworkEditorPage(
     ) {
         SectionCard {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (current.id == null) NewItemVaultPicker(vaults, vaultId) { vaultId = it }
                 FormField(label, { label = it }, stringResource(R.string.label))
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     listOf(NETBIRD, TAILSCALE).forEachIndexed { i, p ->
@@ -340,7 +354,7 @@ internal fun NetworkEditorPage(
         }
         SectionCard {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (current.team) {
+                if (team) {
                     // A key here would let every vault member in without a NetBird account.
                     Text(
                         stringResource(R.string.netbird_team_sign_in_hint),

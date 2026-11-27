@@ -31,7 +31,8 @@ import {
 } from "@/components/ui";
 import { useActiveVault, ViewOnlyChip } from "@/app/vault";
 import { useVpnNetworkRequests } from "@/app/navigation";
-import { useVpnStates } from "@/ipc/hooks";
+import { useVaults, useVpnStates } from "@/ipc/hooks";
+import { NewItemVaultField } from "@/hosts/NewItemVaultField";
 import { VpnDetailsPanel } from "./VpnDetailsPanel";
 import { VpnStateChip } from "./VpnStateChip";
 import { tr } from "@/i18n";
@@ -71,6 +72,9 @@ function NetworksBody({ vault }: { vault: ReturnType<typeof useActiveVault> }) {
     enabled: vaultId !== null,
   });
   const [editing, setEditing] = useState<Editing | null>(null);
+  /** New networks may go into another vault; the active one is preselected. */
+  const [newVault, setNewVault] = useState<Uuid | null>(null);
+  const vaults = useVaults();
   const [showing, setShowing] = useState<Uuid | null>(null);
   // A host badge or picker asked for one network's details.
   useVpnNetworkRequests((id) => {
@@ -85,6 +89,7 @@ function NetworksBody({ vault }: { vault: ReturnType<typeof useActiveVault> }) {
 
   const add = () => {
     setShowing(null);
+    setNewVault(vaultId);
     setEditing({ network: null });
   };
   const shown = list.find((n) => n.id === showing) ?? null;
@@ -199,11 +204,21 @@ function NetworksBody({ vault }: { vault: ReturnType<typeof useActiveVault> }) {
           subtitle={vaultName}
           onClose={() => setEditing(null)}
         >
+          {!editing.network && newVault && (
+            <NewItemVaultField value={newVault} onChange={setNewVault} />
+          )}
           <NetworkForm
-            key={editing.network?.id ?? "new"}
-            vaultId={vaultId}
+            key={editing.network?.id ?? `new-${newVault ?? ""}`}
+            vaultId={editing.network ? vaultId : (newVault ?? vaultId)}
             network={editing.network}
-            signInOnly={signInOnly.data ?? true}
+            signInOnly={
+              // A team vault never holds setup keys.
+              !editing.network &&
+              newVault !== vaultId &&
+              vaults.data?.find((v) => v.id === newVault)?.kind === "team"
+                ? true
+                : (signInOnly.data ?? true)
+            }
             readOnly={readOnly}
             onDone={() => {
               setEditing(null);
