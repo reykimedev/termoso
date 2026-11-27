@@ -41,6 +41,11 @@ final class TerminalSession: Identifiable {
     var osName: String?
     var bellTick = 0
     var lastClipboard: String?
+    /// Tab groups this session is in (several allowed); see `SessionStore.tabGroups`.
+    var tabGroupIds: Set<String> = []
+    /// Tags and host group labels of the saved host, for automatic command targets.
+    var hostTags: [String] = []
+    var hostGroupPath: [String] = []
 
     init(origin: SessionOrigin) {
         self.origin = origin
@@ -226,10 +231,63 @@ final class SessionStore {
     // MARK: Connect
 
     @discardableResult
-    func connect(host: HostItem, transport: Transport = .auto) -> TerminalSession {
-        start(origin: .host(id: host.id, vaultId: host.vaultId, label: host.label.isEmpty ? host.address : host.label, transport: transport)) { listener in
+    func connect(host: HostItem, transport: Transport = .auto, tabGroup: String? = nil) -> TerminalSession {
+        let session = start(origin: .host(id: host.id, vaultId: host.vaultId, label: host.label.isEmpty ? host.address : host.label, transport: transport)) { listener in
             try repository.app.connectHost(hostId: host.id, vaultId: host.vaultId, options: Self.options(transport: transport), listener: listener)
         }
+        session.hostTags = host.tags
+        session.hostGroupPath = host.groupPath
+        if let tabGroup { session.tabGroupIds.insert(ensureTabGroup(tabGroup)) }
+        return session
+    }
+
+    // MARK: Tab groups and sending to many sessions
+
+    /// Tab groups by id; one goes away with its last session. In memory only.
+    private(set) var tabGroups: [String: TabGroup] = [:]
+
+    /// The tab group called `name`, created when there is none.
+    func ensureTabGroup(_ name: String) -> String {
+        if let found = tabGroups.values.first(where: { $0.name == name }) { return found.id }
+        let group = TabGroup(id: UUID().uuidString, name: name)
+        tabGroups[group.id] = group
+        return group.id
+    }
+
+    func setInTabGroup(_ session: TerminalSession, groupId: String, member: Bool) {
+        guard tabGroups[groupId] != nil else { return }
+        if member { session.tabGroupIds.insert(groupId) } else { session.tabGroupIds.remove(groupId) }
+        pruneTabGroups()
+    }
+
+    private func pruneTabGroups() {
+        let used = Set(sessions.flatMap { $0.tabGroupIds })
+        tabGroups = tabGroups.filter { used.contains($0.key) }
+    }
+
+    /// Connected sessions a command for `target` reaches, each once.
+    func sessions(for target: CommandTarget) -> [TerminalSession] {
+        let picked: [TerminalSession]
+        switch target {
+        case .active: picked = active.map { [$0] } ?? []
+        case .all: picked = sessions
+        case let .group(id): picked = sessions.filter { $0.tabGroupIds.contains(id) }
+        case let .tag(tag): picked = sessions.filter { $0.hostTags.contains { CommandTarget.tagCovers(tag, $0) } }
+        case let .hostGroup(path): picked = sessions.filter { CommandTarget.pathCovers(path, $0.hostGroupPath) }
+        }
+        var seen = Set<String>()
+        return picked.filter { session in
+            guard case .connected = session.state else { return false }
+            return seen.insert(session.id).inserted
+        }
+    }
+
+    /// Run `command` (Enter included) in every session `target` reaches; returns how many.
+    @discardableResult
+    func send(command: String, to target: CommandTarget) -> Int {
+        let reached = sessions(for: target)
+        reached.forEach { $0.run(command: command) }
+        return reached.count
     }
 
     @discardableResult
@@ -297,6 +355,7 @@ final class SessionStore {
         session.disconnect()
         sessions.removeAll { $0.id == session.id }
         bridges[session.id] = nil
+        pruneTabGroups()
         if activeId == session.id {
             activeId = sessions.last?.id
         }
@@ -319,5 +378,48 @@ final class SessionStore {
         if let activeId, !sessions.contains(where: { $0.id == activeId }) {
             self.activeId = sessions.last?.id
         }
+    }
+}
+
+/// A named set of sessions the command sheet can send to. A session can be in several.
+struct TabGroup: Identifiable, Hashable {
+    let id: String
+    let name: String
+}
+
+/// Where the command sheet sends a line.
+enum CommandTarget: Hashable {
+    case active
+    case all
+    case group(String)
+    /// Every session whose host has this tag or a sub-tag (`kube` covers `kube.oak`).
+    case tag(String)
+    /// Every session whose host is in this host group or below it.
+    case hostGroup([String])
+
+    static func tagCovers(_ group: String, _ tag: String) -> Bool {
+        let g = group.lowercased(), t = tag.lowercased()
+        return t == g || t.hasPrefix(g + ".")
+    }
+
+    static func pathCovers(_ group: [String], _ path: [String]) -> Bool {
+        !group.isEmpty && group.count <= path.count && Array(path.prefix(group.count)) == group
+    }
+
+    /// Each tag and all its parents.
+    static func tagGroups(_ tags: [String]) -> [String] {
+        var out = Set<String>()
+        for tag in tags {
+            let parts = tag.split(separator: ".").map(String.init)
+            for i in parts.indices { out.insert(parts[...i].joined(separator: ".")) }
+        }
+        return out.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+
+    /// Each host group path and all its parents.
+    static func hostGroups(_ paths: [[String]]) -> [[String]] {
+        var out = Set<[String]>()
+        for p in paths { for i in p.indices { out.insert(Array(p[...i])) } }
+        return out.sorted { $0.joined(separator: "\u{0}") < $1.joined(separator: "\u{0}") }
     }
 }

@@ -6,6 +6,7 @@ import { ApiError, call, normalizeServer } from "./api";
 import { fail } from "./errors";
 import { w, loadWasm } from "./wasm";
 import * as db from "./db";
+import * as acl from "./acl";
 import * as policy from "./policy";
 import {
   type Account,
@@ -313,6 +314,7 @@ export async function signOut(): Promise<null> {
   const st = s();
   st.account = null;
   policy.clear();
+  acl.clear();
   const keep = new Set(st.vaults.filter((v) => v.kind === "local").map((v) => v.id));
   st.vaults = st.vaults.filter((v) => keep.has(v.id));
   if (st.vaults.length === 0) st.vaults.push(localVault());
@@ -360,6 +362,9 @@ export async function refreshVaults(): Promise<void> {
   // Team policies travel with the vault list; a failed fetch keeps the last copy.
   await authed<{ teams: { id: Uuid; policies?: policy.TeamPolicies | null }[] }>("GET", "teams")
     .then((r) => policy.remember(r.teams))
+    .catch(() => undefined);
+  await authed<{ rules: acl.MyAclRule[] }>("GET", "acl/me")
+    .then((r) => acl.remember(r.rules))
     .catch(() => undefined);
   const st = s();
   const old = new Map(st.vaults.map((v) => [v.id, v]));

@@ -13,6 +13,11 @@ struct HostsView: View {
     @State private var editor: HostEditorTarget?
     @State private var newGroupName: String?
     @State private var alert: String?
+    /// A big group's "Connect all" waiting for a yes.
+    @State private var confirmConnect: (label: String, hosts: [HostItem])?
+
+    /// Opening more sessions than this at once asks first.
+    private static let connectAllConfirmAbove = 10
 
     private var title: String {
         groupId.flatMap { model.group($0)?.label } ?? "Hosts"
@@ -51,6 +56,7 @@ struct HostsView: View {
                                 .buttonStyle(.plain)
                                 .accessibilityIdentifier("hosts.group.\(group.label)")
                                 .contextMenu {
+                                    Button("Connect all", systemImage: "play.fill") { connectAll(group.id, label: group.label) }
                                     Button("Delete group", systemImage: "trash", role: .destructive) { model.deleteGroup(id: group.id) }
                                 }
                             }
@@ -88,6 +94,10 @@ struct HostsView: View {
         .navigationTitle(title)
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
+                if let groupId {
+                    Button("Connect all", systemImage: "play.fill") { connectAll(groupId, label: title) }
+                        .accessibilityIdentifier("hosts.connectAll")
+                }
                 tagMenu
                 addMenu
             }
@@ -109,6 +119,18 @@ struct HostsView: View {
             }
             .accessibilityIdentifier("hosts.newGroup.create")
         }
+        .alert(
+            "Connect \(confirmConnect?.hosts.count ?? 0) hosts?",
+            isPresented: Binding(get: { confirmConnect != nil }, set: { if !$0 { confirmConnect = nil } })
+        ) {
+            Button("Cancel", role: .cancel) { confirmConnect = nil }
+            Button("Connect all") {
+                if let c = confirmConnect { c.hosts.forEach { sessions.connect(host: $0, tabGroup: c.label) } }
+                confirmConnect = nil
+            }
+        } message: {
+            Text("Opens a session for every host in “\(confirmConnect?.label ?? "")” and its sub-groups.")
+        }
         .alert("Error", isPresented: Binding(get: { alert != nil }, set: { if !$0 { alert = nil } })) {
             Button("OK", role: .cancel) { alert = nil }
         } message: {
@@ -116,6 +138,18 @@ struct HostsView: View {
         }
         .onChange(of: model.error) { _, newValue in
             if let newValue { alert = newValue }
+        }
+    }
+
+    /// One session per terminal host in the group and its sub-groups.
+    private func connectAll(_ id: String, label: String) {
+        let hosts = model.connectAllHosts(inGroup: id)
+        if hosts.isEmpty {
+            alert = "No hosts to connect in “\(label)”."
+        } else if hosts.count > Self.connectAllConfirmAbove {
+            confirmConnect = (label, hosts)
+        } else {
+            hosts.forEach { sessions.connect(host: $0, tabGroup: label) }
         }
     }
 

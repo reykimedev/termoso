@@ -106,6 +106,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -120,6 +121,7 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import dev.labdex.labterm.R
+import dev.labdex.labterm.data.CommandTarget
 import dev.labdex.labterm.data.LiveEvent
 import dev.labdex.labterm.data.SessionEvent
 import dev.labdex.labterm.data.TerminalSession
@@ -307,6 +309,7 @@ fun TerminalScreen(
             onMenu = { id -> shell.sessions.setActive(id); menuFor = id },
             onNew = { switcherOpen = false; onNewSession() },
             onDismiss = { switcherOpen = false },
+            tabGroups = shell.sessions.tabGroups.collectAsStateWithLifecycle().value,
         )
     }
     }
@@ -1038,18 +1041,30 @@ private fun ActiveSession(
         PromptDialog(pending) { answer -> scope.launch { session.answer(pending, answer) } }
     }
     if (composeOpen) {
+        val commandTarget by shell.sessions.commandTarget.collectAsStateWithLifecycle()
+        val openSessions by shell.sessions.sessions.collectAsStateWithLifecycle()
+        val single = commandTarget == CommandTarget.Active
+        // Recount on every session change so the button says how many it reaches.
+        val reach = remember(commandTarget, openSessions) { shell.sessions.commandTargets(commandTarget).size }
         ComposeSheet(
             text = composeText,
             onTextChange = { composeText = it },
             onVoice = ::voiceInput,
             onPaste = { t -> controller.paste(t); composeText = ""; composeOpen = false },
             onSend = { t ->
-                controller.paste(t)
-                controller.sendKey(SpecialKey.ENTER)
+                if (single) {
+                    controller.paste(t)
+                    controller.sendKey(SpecialKey.ENTER)
+                } else {
+                    scope.launch { shell.sessions.sendCommand(commandTarget, t) }
+                }
                 composeText = ""
                 composeOpen = false
             },
             onClose = { composeOpen = false },
+            targetPicker = if (openSessions.size > 1) ({ CommandTargetPicker(shell.sessions) }) else null,
+            sendLabel = if (single) null else pluralStringResource(R.plurals.send_to_n_sessions, reach, reach),
+            canPaste = single,
         )
     }
     if (snippetPicker) {

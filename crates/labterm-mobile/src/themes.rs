@@ -142,7 +142,7 @@ fn all() -> Vec<TerminalTheme> {
     // labdex's Blueprint palette, the same values as the desktop pair (apps/desktop/src/terminal/themes.ts).
     t(LABTERM_DARK, "Labterm Dark", 0x0B0B0A, 0xECECEA, 0xF59A23, [
         0x1E1E1C, 0xF2555A, 0x3ECF8E, 0xF5C84C, 0x5AA9FF, 0xE879F9, 0x4FD1C5, 0xC9C9C4,
-        0x5F5F5C, 0xFF7B7F, 0x6EE0AB, 0xFFDB7A, 0x8CC5FF, 0xF0A6FB, 0x84E7DD, 0xF2F2EF,
+        0x8F8F8A, 0xFF7B7F, 0x6EE0AB, 0xFFDB7A, 0x8CC5FF, 0xF0A6FB, 0x84E7DD, 0xF2F2EF,
     ]),
     t(LABTERM_LIGHT, "Labterm Light", 0xFFFFFF, 0x1A1A19, 0xE8870E, [
         0x1A1A19, 0xC2410C, 0x15803D, 0xA16207, 0x2563EB, 0xA21CAF, 0x0F766E, 0x8F8F8A,
@@ -424,5 +424,16 @@ mod tests {
         );
         assert!(terminal_theme("nope".into()).is_none());
         assert!(themes.iter().all(|t| t.palette.ansi.len() == 16));
+    }
+
+    #[test]
+    fn labterm_dark_matches_the_default_palette() {
+        let p = &all()[0].palette;
+        let d = crate::terminal::TerminalPalette::labterm_dark();
+        assert_eq!(
+            (p.foreground, p.background, p.cursor),
+            (d.foreground, d.background, d.cursor)
+        );
+        assert_eq!(p.ansi, d.ansi);
     }
 }

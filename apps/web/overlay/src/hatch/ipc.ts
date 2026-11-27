@@ -5,6 +5,7 @@
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
 import { emit } from "@tauri-apps/api/event";
 import * as account from "./backend/account";
+import * as acl from "./backend/acl";
 import * as backup from "./backend/backup";
 import { withBadges } from "./backend/badges";
 import { call, normalizeServer } from "./backend/api";
@@ -210,7 +211,10 @@ const commands: Record<string, Handler> = {
 
   // hosts, groups, tags
   hosts_list: (a) => withBadges(m.hostCards(a.vaultId ?? null)),
-  host_form: (a) => m.hostForm(a.id),
+  host_form: (a) => {
+    acl.checkHostSettings(st.require<m.Host>(a.id, "host"));
+    return m.hostForm(a.id);
+  },
   host_save: (a) => m.hostSave(a.form),
   host_delete: (a) => m.hostDelete(a.id),
   hosts_delete: (a) => {
@@ -224,7 +228,10 @@ const commands: Record<string, Handler> = {
   host_inherited: (a) => m.inherited(a.groupId ?? null, a.vaultId ?? null, a.tagIds ?? []),
   groups_list: (a) => m.groupNodes(a.vaultId ?? null),
   group_save: (a) => m.groupSave(a as Parameters<typeof m.groupSave>[0]),
-  group_form: (a) => m.groupForm(a.id),
+  group_form: (a) => {
+    acl.checkGroupSettings(st.require<m.Group>(a.id, "group"));
+    return m.groupForm(a.id);
+  },
   group_save_form: (a) => m.groupSaveForm(a.form),
   group_delete: (a) => m.groupDelete(a.id, !!a.recursive),
   tags_list: (a) => m.tags(a.vaultId ?? null),

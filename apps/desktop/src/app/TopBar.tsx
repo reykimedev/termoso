@@ -50,6 +50,16 @@ import {
 import { addToWorkspace, saveTabAsTemplate, useWorkspaces } from "@/terminal/workspaces";
 import { MIME as HOST_MIME, droppedHostIds, isHostDrag, parseDragData } from "@/hosts/dnd";
 import { ActionMenu, InlineName, type MenuAction } from "@/components/ui";
+import { NameDialog } from "@/sftp/dialogs";
+import { liveGroups } from "@/terminal/commandTargets";
+import {
+  ensureTabGroup,
+  setCommandTarget,
+  setCommandWindowOpen,
+  setTabInGroup,
+} from "@/terminal/store";
+import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
+import WorkspacesRoundedIcon from "@mui/icons-material/WorkspacesRounded";
 import { useSnackbar } from "@/components/Snackbar";
 import { openSftpForSession, useSftp } from "@/sftp/store";
 import { useHosts } from "@/ipc/hooks";
@@ -372,7 +382,14 @@ function TerminalTopTab({
   const [over, setOver] = useState<DropSide>(null);
   const [menu, setMenu] = useState<{ left: number; top: number } | null>(null);
   const [renaming, setRenaming] = useState(false);
+  const [newGroup, setNewGroup] = useState(false);
+  const allGroups = useTerminal((s) => s.tabGroups);
   if (!pane) return null;
+  const groups = Object.values(liveGroups(allGroups, tabs)).sort((a, b) =>
+    a.name.localeCompare(b.name),
+  );
+  const myGroups = groups.filter((g) => tab.groupIds.includes(g.id));
+  const accent = myGroups[0]?.color;
   const paneHost = pane.hostId ? hosts.data?.find((h) => h.id === pane.hostId) : null;
   const distro = pane.status === "connected" ? hostIcon(paneHost) : null;
   const workspace = isWorkspaceTab(tab);
@@ -406,6 +423,36 @@ function TerminalTopTab({
       disabled: tab.paneIds.length < 2,
       divider: true,
       onClick: () => toggleBroadcast(tab.id),
+    },
+    {
+      label: tr("Tab groups"),
+      icon: <WorkspacesRoundedIcon fontSize="small" />,
+      items: [
+        ...groups.map((g) => {
+          const member = tab.groupIds.includes(g.id);
+          return {
+            label: g.name,
+            icon: member ? (
+              <CheckRoundedIcon fontSize="small" />
+            ) : (
+              <Box sx={{ width: 10, height: 10, mx: 0.5, borderRadius: "50%", bgcolor: g.color }} />
+            ),
+            onClick: () => setTabInGroup(tab.id, g.id, !member),
+          };
+        }),
+        {
+          label: tr("New tab group…"),
+          divider: groups.length > 0,
+          onClick: () => setNewGroup(true),
+        },
+        ...myGroups.map((g) => ({
+          label: tr("Send commands to “{name}”", { name: g.name }),
+          onClick: () => {
+            setCommandTarget({ kind: "group", id: g.id });
+            setCommandWindowOpen(true);
+          },
+        })),
+      ],
     },
     {
       label: tr("Duplicate session"),
@@ -598,6 +645,10 @@ function TerminalTopTab({
           )
         }
         label={title}
+        accent={accent}
+        tooltip={
+          myGroups.length > 0 ? `${title} · ${myGroups.map((g) => g.name).join(", ")}` : undefined
+        }
         editor={
           renaming ? (
             <InlineName
@@ -623,6 +674,20 @@ function TerminalTopTab({
         onClose={() => closeTab(tab.id)}
       />
       <ActionMenu position={menu} anchor={null} onClose={() => setMenu(null)} items={menuItems} />
+      {newGroup && (
+        <NameDialog
+          open
+          title={tr("New tab group")}
+          label={tr("Name")}
+          initial=""
+          confirmLabel={tr("Create")}
+          onCancel={() => setNewGroup(false)}
+          onConfirm={(name) => {
+            setNewGroup(false);
+            setTabInGroup(tab.id, ensureTabGroup(name), true);
+          }}
+        />
+      )}
     </>
   );
 }
@@ -645,6 +710,10 @@ interface TopTabProps {
   faded?: boolean;
   /** Session tabs: start at full width and shrink as more open; others fit their content. */
   fluid?: boolean;
+  /** Colour of the tab's first tab group, shown as a strip along its bottom edge. */
+  accent?: string;
+  /** Tooltip text when it should say more than the label. */
+  tooltip?: string;
 }
 
 interface DragHandlers {
@@ -724,9 +793,16 @@ function TopTab({
   dropSide,
   faded,
   fluid,
+  accent,
+  tooltip,
 }: TopTabProps) {
   return (
-    <Tooltip title={editor ? "" : label} enterDelay={0} enterNextDelay={0} placement="bottom">
+    <Tooltip
+      title={editor ? "" : (tooltip ?? label)}
+      enterDelay={0}
+      enterNextDelay={0}
+      placement="bottom"
+    >
       <Box
         role="tab"
         aria-selected={active}
@@ -754,6 +830,8 @@ function TopTab({
           borderRadius: 1.5,
           cursor: "default",
           opacity: faded ? 0.4 : 1,
+          // Tab group colour: a strip along the bottom edge.
+          borderBottom: accent ? `2px solid ${accent}` : "2px solid transparent",
           boxShadow:
             dropSide === "before"
               ? "-2px 0 0 0 var(--mui-palette-primary-main)"

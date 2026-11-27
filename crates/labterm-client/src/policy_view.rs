@@ -316,7 +316,9 @@ pub fn vault_policy(store: &Store, vault_id: Uuid) -> Result<VaultPolicy> {
             .map(|t| (t.id, t))
             .collect(),
     };
+    let rules = labterm_core::acl::VaultRules::load(store, vault_id)?;
     let mut hosts: Vec<Entity<Host>> = store.list(Some(vault_id))?;
+    hosts.retain(|h| rules.host_visible(h));
     hosts.sort_by(|a, b| {
         a.data
             .label

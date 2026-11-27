@@ -40,6 +40,7 @@ import dev.labdex.labterm.core.Transport
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
+import java.util.UUID
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -194,7 +195,7 @@ class LiveBridge(viewer: Boolean = false) : LiveListener {
 
 /** A live terminal: the Rust session plus everything the UI needs to show it. */
 class TerminalSession(
-    val id: String,
+    override val id: String,
     val label: String,
     val target: String,
     val hostId: String?,
@@ -215,7 +216,14 @@ class TerminalSession(
     /** Set for a USB-UART console; a reconnect reopens the same adapter. */
     val serial: SerialTarget? = null,
     private val live: LiveBridge = LiveBridge(),
-) {
+) : Targetable {
+    /** Tab groups this session is in (several allowed); see [SessionManager.tabGroups]. */
+    val tabGroupIds = MutableStateFlow<Set<String>>(emptySet())
+    override val groupIds: Set<String> get() = tabGroupIds.value
+
+    /** Tags and host group of the saved host, for automatic command targets. */
+    @Volatile override var hostInfo: SessionHostInfo = SessionHostInfo()
+
     val state: StateFlow<SessionState> get() = bridge.state
     val frameTick: StateFlow<Long> get() = bridge.frameTick
     val title: StateFlow<String?> get() = bridge.title
@@ -269,6 +277,10 @@ class SessionManager(
 
     private val _activeId = MutableStateFlow<String?>(null)
     val activeId: StateFlow<String?> = _activeId.asStateFlow()
+
+    private val _tabGroups = MutableStateFlow<Map<String, TabGroup>>(emptyMap())
+    /** Tab groups by id; one goes away with its last session. In memory only, not synced. */
+    val tabGroups: StateFlow<Map<String, TabGroup>> = _tabGroups.asStateFlow()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var reconnectJob: Job? = null
@@ -345,6 +357,7 @@ class SessionManager(
             else -> ""
         }
         val target = "$user${host.address}:${if (telnet) host.telnetPort ?: host.port else host.port}$suffix"
+        val info = SessionHostInfo(host.tags, host.groupPath)
         return register(
             TerminalSession(
                 rust.id(),
@@ -357,7 +370,7 @@ class SessionManager(
                 host.osName,
                 rust,
                 bridge,
-            ),
+            ).also { it.hostInfo = info },
         )
     }
 
@@ -557,6 +570,7 @@ class SessionManager(
             old.serial != null -> connectSerial(old.serial.adapterKey, old.serial.line)
             else -> return null
         }
+        fresh.tabGroupIds.value = old.tabGroupIds.value
         _sessions.update { list -> list.filterNot { it.id == fresh.id }.map { if (it.id == id) fresh else it } }
         withContext(Dispatchers.IO) {
             runCatching { old.rust.disconnect() }
@@ -613,6 +627,7 @@ class SessionManager(
     suspend fun close(id: String) {
         val session = find(id) ?: return
         _sessions.update { list -> list.filterNot { it.id == id } }
+        pruneTabGroups()
         if (_activeId.value == id) _activeId.value = _sessions.value.lastOrNull()?.id
         workspaces?.record(_sessions.value)
         withContext(Dispatchers.IO) { runCatching { session.rust.disconnect() } }
@@ -624,9 +639,54 @@ class SessionManager(
         val closing = _sessions.value.filter { it.id in wanted }
         if (closing.isEmpty()) return
         _sessions.update { list -> list.filterNot { it.id in wanted } }
+        pruneTabGroups()
         if (_activeId.value in wanted) _activeId.value = _sessions.value.lastOrNull()?.id
         workspaces?.record(_sessions.value)
         withContext(Dispatchers.IO) { closing.forEach { runCatching { it.rust.disconnect() } } }
+    }
+
+    // ---- tab groups and the command window ----
+
+    /** The tab group called [name], created with the next free colour when there is none. */
+    fun ensureTabGroup(name: String): String {
+        _tabGroups.value.values.firstOrNull { it.name == name }?.let { return it.id }
+        val group = TabGroup(UUID.randomUUID().toString(), name, nextTabGroupColor(_tabGroups.value.values.map { it.color }))
+        _tabGroups.update { it + (group.id to group) }
+        return group.id
+    }
+
+    /** Put a session into a tab group or take it out; a session can be in several. */
+    fun setInTabGroup(sessionId: String, groupId: String, member: Boolean) {
+        val session = find(sessionId) ?: return
+        if (groupId !in _tabGroups.value) return
+        session.tabGroupIds.update { if (member) it + groupId else it - groupId }
+        pruneTabGroups()
+    }
+
+    /** Groups left without a session go away. */
+    private fun pruneTabGroups() {
+        val used = _sessions.value.flatMap { it.tabGroupIds.value }.toSet()
+        _tabGroups.update { groups -> groups.filterKeys { it in used } }
+        val t = commandTarget.value
+        if (t is CommandTarget.Group && t.id !in _tabGroups.value) commandTarget.value = CommandTarget.Active
+    }
+
+    /** Where the compose sheet sends; this session until the user picks another target. */
+    val commandTarget = MutableStateFlow<CommandTarget>(CommandTarget.Active)
+
+    /** Sessions a command for [target] reaches now: connected and allowed to type, each once. */
+    fun commandTargets(target: CommandTarget): List<TerminalSession> =
+        resolveTargets(_sessions.value, _activeId.value, target) { s ->
+            s.state.value is SessionState.Connected && (!s.isView || s.canWrite.value)
+        }
+
+    /** Run [command] (Enter included) in every session [target] reaches; returns how many. */
+    suspend fun sendCommand(target: CommandTarget, command: String): Int {
+        val sessions = commandTargets(target)
+        withContext(Dispatchers.IO) {
+            sessions.forEach { s -> runCatching { s.rust.runCommand(command); s.rust.scrollToBottom() } }
+        }
+        return sessions.size
     }
 
     /** Every open tab to a saved host. */
@@ -635,6 +695,7 @@ class SessionManager(
     suspend fun closeAll() {
         val list = _sessions.value
         _sessions.value = emptyList()
+        _tabGroups.value = emptyMap()
         _activeId.value = null
         workspaces?.record(emptyList())
         withContext(Dispatchers.IO) { list.forEach { runCatching { it.rust.disconnect() } } }

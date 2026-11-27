@@ -3,6 +3,14 @@
 // auth, prompts, history) is made in Rust — this file only moves bytes
 // between the IPC channel and xterm.js.
 
+import {
+  liveGroups,
+  nextTabGroupColor,
+  resolveTargets,
+  type CommandTarget,
+  type PaneHostInfo,
+  type TabGroup,
+} from "./commandTargets";
 import { layoutIndependentInput } from "./layoutKeys";
 import { copyToClipboard } from "@/lib/clipboard";
 import { Terminal, type IBuffer, type IDisposable } from "@xterm/xterm";
@@ -229,6 +237,8 @@ export interface TerminalTab {
   zoom: number;
   /** Colour scheme picked from the side panel for this tab; `null` = host / app default. */
   themeOverride: string | null;
+  /** Tab groups (`TerminalState.tabGroups`) this tab belongs to. */
+  groupIds: string[];
 }
 
 export const isWorkspaceTab = (tab: TerminalTab) => tab.name !== null;
@@ -263,6 +273,10 @@ export interface TerminalState {
   suggestPausedUntil: number | null;
   reconnect: ReconnectQueue | null;
   linkHover: LinkHover | null;
+  /** Tab groups by id; one disappears with its last tab. In memory only, not synced. */
+  tabGroups: Record<string, TabGroup>;
+  /** The command window docked under the terminals, and where it sends. */
+  commandWindow: { open: boolean; target: CommandTarget };
 }
 
 const PAUSE_KEY = "termoso.suggestPausedUntil";
@@ -288,6 +302,8 @@ export const terminalStore = createStore<TerminalState>({
   suggestPausedUntil: loadPause(),
   reconnect: null,
   linkHover: null,
+  tabGroups: {},
+  commandWindow: { open: false, target: { kind: "all" } },
 });
 
 export const useTerminal = <S>(selector: (s: TerminalState) => S) =>
@@ -387,6 +403,7 @@ function newTab(layout: SplitNode, extra: Partial<TerminalTab> = {}): TerminalTa
     broadcast: false,
     zoom: 1,
     themeOverride: null,
+    groupIds: [],
     ...extra,
   };
 }
@@ -1645,6 +1662,8 @@ export interface OpenOptions {
   background?: boolean;
   /** Open in a new workspace tab with this name instead of a plain session tab. */
   workspaceName?: string;
+  /** Put the new tab into this tab group. */
+  tabGroupId?: string;
 }
 
 function newPane(paneId: Uuid, target: OpenTarget): Pane {
@@ -1728,7 +1747,10 @@ export function openTerminal(target: OpenTarget, opts: OpenOptions = {}): Uuid |
       );
       return { ...s, panes, tabs, activeTabId: opts.background ? s.activeTabId : existing.id };
     }
-    const tab = newTab(leaf(paneId), { name: opts.workspaceName ?? null });
+    const tab = newTab(leaf(paneId), {
+      name: opts.workspaceName ?? null,
+      groupIds: opts.tabGroupId && s.tabGroups[opts.tabGroupId] ? [opts.tabGroupId] : [],
+    });
     return {
       ...s,
       panes,
@@ -2187,6 +2209,7 @@ function removePane(paneId: Uuid) {
       ...s,
       panes,
       tabs,
+      ...pruneGroups(s, tabs),
       activeTabId,
       pendingClose: pendingClose?.length ? pendingClose : null,
       contextMenu,
@@ -2304,6 +2327,126 @@ export function setSidePanel(panel: SidePanelTab | null) {
 /** Open the side panel on `panel`, or close it when that section is already showing. */
 export function toggleSidePanel(panel: SidePanelTab = "snippets") {
   update((s) => ({ ...s, sidePanel: s.sidePanel === null ? panel : null }));
+}
+
+// ───────────────────────────── tab groups / command window ─────────────────────────────
+
+/** Drops tab groups left without a tab, and a command target pointing at one. */
+function pruneGroups(
+  s: TerminalState,
+  tabs: TerminalTab[],
+): Pick<TerminalState, "tabGroups" | "commandWindow"> {
+  const tabGroups = liveGroups(s.tabGroups, tabs);
+  const t = s.commandWindow.target;
+  const commandWindow =
+    t.kind === "group" && !tabGroups[t.id]
+      ? { ...s.commandWindow, target: { kind: "all" } as CommandTarget }
+      : s.commandWindow;
+  return { tabGroups, commandWindow };
+}
+
+/**
+ * The tab group called `name`, created (with the next free colour) when there
+ * is none. Connect all on a host group uses it, so reconnecting a group reuses it.
+ */
+export function ensureTabGroup(name: string): string {
+  const s = terminalStore.get();
+  const found = Object.values(s.tabGroups).find((g) => g.name === name);
+  if (found) return found.id;
+  const group: TabGroup = {
+    id: uuid(),
+    name,
+    color: nextTabGroupColor(Object.values(s.tabGroups).map((g) => g.color)),
+  };
+  update((st) => ({ ...st, tabGroups: { ...st.tabGroups, [group.id]: group } }));
+  return group.id;
+}
+
+/** Put a tab into a tab group or take it out. A tab can be in several. */
+export function setTabInGroup(tabId: string, groupId: string, member: boolean) {
+  update((s) => {
+    if (!s.tabGroups[groupId]) return s;
+    const tabs = s.tabs.map((t) => {
+      if (t.id !== tabId || t.groupIds.includes(groupId) === member) return t;
+      const groupIds = member ? [...t.groupIds, groupId] : t.groupIds.filter((g) => g !== groupId);
+      return { ...t, groupIds };
+    });
+    return { ...s, tabs, ...pruneGroups(s, tabs) };
+  });
+}
+
+export function renameTabGroup(groupId: string, name: string) {
+  const trimmed = name.trim();
+  if (!trimmed) return;
+  update((s) => {
+    const g = s.tabGroups[groupId];
+    return g ? { ...s, tabGroups: { ...s.tabGroups, [groupId]: { ...g, name: trimmed } } } : s;
+  });
+}
+
+/** Ungroup every tab of a group; the group goes with them. */
+export function dissolveTabGroup(groupId: string) {
+  update((s) => {
+    const tabs = s.tabs.map((t) =>
+      t.groupIds.includes(groupId)
+        ? { ...t, groupIds: t.groupIds.filter((g) => g !== groupId) }
+        : t,
+    );
+    return { ...s, tabs, ...pruneGroups(s, tabs) };
+  });
+}
+
+export function setCommandWindowOpen(open: boolean) {
+  update((s) => ({ ...s, commandWindow: { ...s.commandWindow, open } }));
+}
+
+export function toggleCommandWindow() {
+  setCommandWindowOpen(!terminalStore.get().commandWindow.open);
+}
+
+export function setCommandTarget(target: CommandTarget) {
+  update((s) => ({ ...s, commandWindow: { ...s.commandWindow, target } }));
+}
+
+/** Tags and group path per host id, for automatic targets; the UI keeps it current. */
+let hostInfo: ReadonlyMap<Uuid, PaneHostInfo> = new Map();
+export function setHostInfo(info: ReadonlyMap<Uuid, PaneHostInfo>) {
+  hostInfo = info;
+}
+
+/** Tags and group path of the saved host behind a pane (none for local and quick sessions). */
+export function paneHostInfo(paneId: Uuid, s: TerminalState = terminalStore.get()): PaneHostInfo {
+  const hostId = s.panes[paneId]?.hostId;
+  return (hostId ? hostInfo.get(hostId) : undefined) ?? { tags: [], groupPath: [] };
+}
+
+/** Connected panes a command sent to `target` reaches right now. */
+export function commandTargetPanes(
+  target: CommandTarget,
+  s: TerminalState = terminalStore.get(),
+): Uuid[] {
+  return resolveTargets(
+    s.tabs,
+    s.activeTabId,
+    (id) => s.panes[id]?.status === "connected",
+    target,
+    (id) => paneHostInfo(id, s),
+  );
+}
+
+/**
+ * Send `data` as typed input to every pane `target` reaches. It goes straight
+ * to each pane, not through a tab's broadcast, so no pane gets it twice.
+ * Returns how many panes it reached.
+ */
+export function sendToTarget(target: CommandTarget, data: string): number {
+  const ids = commandTargetPanes(target);
+  for (const id of ids) {
+    const rt = runtimes.get(id);
+    if (rt) noteTyped(id, rt, data);
+    void writeOrdered(id, data);
+  }
+  return ids.length;
 }
 
 /** Send text to a pane (e.g. a snippet); goes through the same broadcast rules. */
