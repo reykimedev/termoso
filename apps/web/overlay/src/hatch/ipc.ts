@@ -296,6 +296,8 @@ const commands: Record<string, Handler> = {
   vpn_connect: notInBrowser("Joining VPN networks"),
   vpn_test_host: notInBrowser("Joining VPN networks"),
   vpn_running: () => [],
+  // The browser joins no network: nothing in use, nothing stops.
+  vpn_activity: () => ({ networks: [], stops: [], seq: 0 }),
   vpn_states: (a) => vpn.states(a.ids ?? []),
   vpn_details: (a) => vpn.details(a.id),
   vpn_disconnect: () => null,

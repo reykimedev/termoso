@@ -94,6 +94,9 @@ pub struct NetworkConfig {
     /// Try a host's LAN address directly first (see
     /// `labterm_core::transport::TransportDial::direct_first`).
     pub direct_first: bool,
+    /// Seconds the peer stays up after its last connection closed; `None`
+    /// = [`Netbird`]'s default, `Some(0)` = until disconnected.
+    pub idle_secs: Option<u32>,
 }
 
 impl std::fmt::Debug for NetworkConfig {
@@ -105,6 +108,7 @@ impl std::fmt::Debug for NetworkConfig {
             .field("management_url", &self.management_url)
             .field("setup_key", &self.setup_key.as_ref().map(|_| "…"))
             .field("direct_first", &self.direct_first)
+            .field("idle_secs", &self.idle_secs)
             .finish()
     }
 }
@@ -139,6 +143,7 @@ impl NetworkConfig {
                 .filter(|k| !k.is_empty())
                 .map(|k| Zeroizing::new(k.to_string())),
             direct_first: t.data.direct_first,
+            idle_secs: t.data.idle_secs,
         })
     }
 
@@ -298,6 +303,20 @@ struct StartResult {
     #[serde(default)]
     registered: bool,
 }
+
+/// A network whose peer stopped by itself after its idle time, for a
+/// notice ("NetBird "home" disconnected").
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IdleStop {
+    /// Increases with every stop, so a shell shows each one once.
+    pub seq: u64,
+    pub network: Uuid,
+    pub label: String,
+    pub provider: String,
+}
+
+/// How many idle stops [`Netbird::idle_stops_since`] remembers.
+const IDLE_STOPS_KEPT: usize = 16;
 
 /// What this process is doing with one network's peer, for badges.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -495,6 +514,18 @@ struct Node {
     /// Runtime the node was started on; runs its idle timer even when the
     /// last stream is dropped outside of it.
     rt: tokio::runtime::Handle,
+    /// When the idle timer stops the peer; `None` while a stream is open or
+    /// when the network stays up until disconnected.
+    stops_at: Mutex<Option<Instant>>,
+}
+
+impl Node {
+    /// A stream opened: no idle timer runs until it closes.
+    fn opened(&self) {
+        self.streams.fetch_add(1, Ordering::SeqCst);
+        self.epoch.fetch_add(1, Ordering::SeqCst);
+        *self.stops_at.lock().unwrap_or_else(|p| p.into_inner()) = None;
+    }
 }
 
 /// Starts, shares and stops the NetBird peers of this process.
@@ -510,6 +541,9 @@ pub struct Netbird {
     states: Mutex<HashMap<Uuid, NodeState>>,
     /// Handles to stop once the last stream is gone.
     me: Mutex<Weak<Netbird>>,
+    /// The latest idle stops, oldest first.
+    idle_stops: Mutex<std::collections::VecDeque<IdleStop>>,
+    idle_seq: AtomicU64,
 }
 
 impl Netbird {
@@ -528,6 +562,8 @@ impl Netbird {
             nodes: tokio::sync::Mutex::new(HashMap::new()),
             states: Mutex::new(HashMap::new()),
             me: Mutex::new(Weak::new()),
+            idle_stops: Mutex::new(Default::default()),
+            idle_seq: AtomicU64::new(0),
         });
         *n.me.lock().expect("netbird self") = Arc::downgrade(&n);
         n
@@ -595,8 +631,7 @@ impl Netbird {
         };
         // The probe counts as a connection, so the idle timer can't stop the
         // network under it; dropping the guard starts the timer as usual.
-        node.streams.fetch_add(1, Ordering::SeqCst);
-        node.epoch.fetch_add(1, Ordering::SeqCst);
+        node.opened();
         let _guard = StreamGuard {
             netbird: self.me.lock().expect("netbird self").clone(),
             node: node.clone(),
@@ -819,6 +854,7 @@ impl Netbird {
             streams: AtomicUsize::new(0),
             epoch: AtomicU64::new(0),
             rt: tokio::runtime::Handle::current(),
+            stops_at: Mutex::new(None),
         });
         nodes.insert(config.id, node.clone());
         self.set_state(config.id, Some(NodeState::Running));
@@ -983,8 +1019,7 @@ impl Netbird {
         let started = Instant::now();
         let node = self.node(config, &d.device_name, d.keys.as_ref()).await?;
         let peer_ms = started.elapsed().as_millis();
-        node.streams.fetch_add(1, Ordering::SeqCst);
-        node.epoch.fetch_add(1, Ordering::SeqCst);
+        node.opened();
         let guard = StreamGuard {
             netbird: self.me.lock().expect("netbird self").clone(),
             node: node.clone(),
@@ -1030,11 +1065,83 @@ impl Netbird {
         }))
     }
 
+    /// How long `config`'s peer stays up without a connection; `None` =
+    /// until disconnected.
+    fn idle_for(&self, config: &NetworkConfig) -> Option<Duration> {
+        match config.idle_secs {
+            None => Some(self.idle),
+            Some(0) => None,
+            Some(s) => Some(Duration::from_secs(s.into())),
+        }
+    }
+
+    fn record_idle_stop(&self, config: &NetworkConfig) {
+        let seq = self.idle_seq.fetch_add(1, Ordering::SeqCst) + 1;
+        let mut stops = self.idle_stops.lock().unwrap_or_else(|p| p.into_inner());
+        if stops.len() == IDLE_STOPS_KEPT {
+            stops.pop_front();
+        }
+        stops.push_back(IdleStop {
+            seq,
+            network: config.id,
+            label: config.label.clone(),
+            provider: config.provider.clone(),
+        });
+    }
+
+    /// Idle stops after `seq` (0 = all remembered), oldest first. A shell
+    /// keeps the last `seq` it showed, so each notice shows once.
+    pub fn idle_stops_since(&self, seq: u64) -> Vec<IdleStop> {
+        self.idle_stops
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .iter()
+            .filter(|s| s.seq > seq)
+            .cloned()
+            .collect()
+    }
+
+    /// The newest idle stop's `seq` (0 = none yet): where a shell that just
+    /// started begins, so it doesn't show old notices.
+    pub fn idle_stop_seq(&self) -> u64 {
+        self.idle_seq.load(Ordering::SeqCst)
+    }
+
+    /// Networks with a peer starting, running or failed, with the seconds
+    /// until a running one stops by itself (`None`: a connection is open,
+    /// or it stays up until disconnected).
+    pub fn active(&self) -> Vec<(Uuid, NodeState, Option<u64>)> {
+        let states: Vec<(Uuid, NodeState)> = self
+            .states
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .iter()
+            .map(|(k, v)| (*k, v.clone()))
+            .collect();
+        // try_lock: a start in progress holds the nodes lock; its state is
+        // Starting, which has no countdown anyway.
+        let nodes = self.nodes.try_lock().ok();
+        states
+            .into_iter()
+            .map(|(id, st)| {
+                let left = nodes
+                    .as_ref()
+                    .and_then(|n| n.get(&id))
+                    .and_then(|n| *n.stops_at.lock().unwrap_or_else(|p| p.into_inner()))
+                    .map(|at| at.saturating_duration_since(Instant::now()).as_secs());
+                (id, st, left)
+            })
+            .collect()
+    }
+
     /// The last stream of `node` closed: stop it after the idle time unless
     /// a new stream opens meanwhile.
     fn released(self: Arc<Self>, node: Arc<Node>) {
         let epoch = node.epoch.load(Ordering::SeqCst);
-        let idle = self.idle;
+        let Some(idle) = self.idle_for(&node.config) else {
+            return;
+        };
+        *node.stops_at.lock().unwrap_or_else(|p| p.into_inner()) = Some(Instant::now() + idle);
         let rt = node.rt.clone();
         rt.spawn(async move {
             tokio::time::sleep(idle).await;
@@ -1054,6 +1161,7 @@ impl Netbird {
                 // Under the nodes lock: a new start can't be overwritten.
                 self.set_state(node.config.id, None);
                 drop(nodes);
+                self.record_idle_stop(&node.config);
                 self.stop_node(node).await;
             }
         });
@@ -1195,6 +1303,30 @@ mod tests {
         c.management_url = DEFAULT_MANAGEMENT_URL.into();
         assert!(c.check().is_ok());
     }
+    #[test]
+    fn idle_time_per_network_and_idle_stop_notices() {
+        let nb = Netbird::with_options(None, Duration::from_secs(120));
+        let mut c = NetworkConfig::from_entity(&entity(TRANSPORT_NETBIRD, None, None)).unwrap();
+        assert_eq!(nb.idle_for(&c), Some(Duration::from_secs(120)));
+        c.idle_secs = Some(600);
+        assert_eq!(nb.idle_for(&c), Some(Duration::from_secs(600)));
+        c.idle_secs = Some(0);
+        assert_eq!(nb.idle_for(&c), None);
+
+        assert_eq!(nb.idle_stop_seq(), 0);
+        for _ in 0..IDLE_STOPS_KEPT + 2 {
+            nb.record_idle_stop(&c);
+        }
+        let all = nb.idle_stops_since(0);
+        assert_eq!(all.len(), IDLE_STOPS_KEPT);
+        assert_eq!(all.last().unwrap().seq, nb.idle_stop_seq());
+        assert_eq!(all.last().unwrap().label, "home");
+        let seen = nb.idle_stop_seq();
+        assert!(nb.idle_stops_since(seen).is_empty());
+        nb.record_idle_stop(&c);
+        assert_eq!(nb.idle_stops_since(seen).len(), 1);
+    }
+
     fn entity(provider: &str, url: Option<&str>, key: Option<&str>) -> Entity<Transport> {
         Entity {
             id: Uuid::nil(),
@@ -1208,6 +1340,7 @@ mod tests {
                 management_url: url.map(Into::into),
                 setup_key: key.map(Into::into),
                 direct_first: false,
+                idle_secs: None,
             },
         }
     }

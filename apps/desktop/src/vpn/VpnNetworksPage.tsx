@@ -36,7 +36,13 @@ import { VpnDetailsPanel } from "./VpnDetailsPanel";
 import { VpnStateChip } from "./VpnStateChip";
 import { tr } from "@/i18n";
 import { vpnProviderName } from "@/hosts/HostBadges";
-import { networkTitle, providerCloud, VPN_PROVIDERS } from "./providers";
+import {
+  IDLE_CHOICES,
+  idleChoiceLabel,
+  networkTitle,
+  providerCloud,
+  VPN_PROVIDERS,
+} from "./providers";
 
 const mono = { spellCheck: false, style: { fontFamily: "monospace", fontSize: 12 } } as const;
 
@@ -241,6 +247,7 @@ function NetworkForm({
   const [url, setUrl] = useState(network?.managementUrl ?? "");
   const [setupKey, setSetupKey] = useState("");
   const [directFirst, setDirectFirst] = useState(network?.directFirst ?? false);
+  const [idleSecs, setIdleSecs] = useState<number | null>(network?.idleSecs ?? null);
   const [account, setAccount] = useState(network?.account ?? "");
   const [busy, setBusy] = useState<"save" | "delete" | "signIn" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -265,6 +272,7 @@ function NetworkForm({
     managementUrl: url.trim() || null,
     setupKey: !signInOnly && setupKey.trim() ? setupKey.trim() : null,
     directFirst,
+    idleSecs,
   });
   const save = async () => {
     if (await run("save", () => ipc.vpnNetworkSave(vaultId, network?.id ?? null, form()))) onDone();
@@ -353,6 +361,26 @@ function NetworkForm({
             )}
           </FormHelperText>
         </Box>
+        <TextField
+          select
+          value={idleSecs === null ? "default" : String(idleSecs)}
+          onChange={(e) =>
+            setIdleSecs(e.target.value === "default" ? null : Number(e.target.value))
+          }
+          label={tr("Stay connected when unused")}
+          helperText={tr(
+            "After the last connection closes. Longer keeps reconnects instant; shorter saves battery.",
+          )}
+          slotProps={{ htmlInput: { readOnly } }}
+        >
+          {(IDLE_CHOICES.includes(idleSecs) ? IDLE_CHOICES : [...IDLE_CHOICES, idleSecs]).map(
+            (c) => (
+              <MenuItem key={c ?? "default"} value={c === null ? "default" : String(c)}>
+                {idleChoiceLabel(c)}
+              </MenuItem>
+            ),
+          )}
+        </TextField>
         {error && (
           <Alert severity="error" variant="outlined">
             {error}

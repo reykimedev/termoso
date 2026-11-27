@@ -12,6 +12,8 @@ export interface Transport {
   management_url?: string | null;
   setup_key?: string | null;
   direct_first?: boolean;
+  /** null/absent = the default (2 minutes), 0 = until disconnected. */
+  idle_secs?: number | null;
   [k: string]: unknown;
 }
 
@@ -21,6 +23,7 @@ interface Form {
   managementUrl: string | null;
   setupKey: string | null;
   directFirst?: boolean;
+  idleSecs?: number | null;
 }
 
 const NETBIRD = "netbird";
@@ -44,6 +47,7 @@ function card(e: Ent<Transport>) {
     signedIn: false,
     account: null,
     directFirst: e.data.direct_first ?? false,
+    idleSecs: e.data.idle_secs ?? null,
   };
 }
 
@@ -91,6 +95,10 @@ export function save(vaultId: Uuid, id: Uuid | null, f: Form) {
     setup_key: keys ? setupKey : null,
     direct_first: f.directFirst ?? prev?.data.direct_first ?? false,
   };
+  const idle = f.idleSecs === undefined ? (prev?.data.idle_secs ?? null) : f.idleSecs;
+  // Absent rather than null, as the Rust clients write it.
+  if (idle === null) delete data.idle_secs;
+  else data.idle_secs = idle;
   return card(put<Transport>("transport", vaultId, prev?.id ?? null, data));
 }
 
