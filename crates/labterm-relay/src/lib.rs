@@ -22,3 +22,13 @@ pub fn parse_ticket_key(text: &str) -> Result<ed25519_dalek::SigningKey, String>
 
 #[cfg(test)]
 mod tests;
+
+/// A new random ticket signing key from the OS random source.
+///
+/// ed25519-dalek 3 takes a rand_core 0.10 RNG in `SigningKey::generate`; this workspace's `OsRng`
+/// is rand_core 0.6, so fill the 32-byte secret directly (what `generate` does internally).
+pub fn fresh_ticket_key() -> ed25519_dalek::SigningKey {
+    let mut secret = ed25519_dalek::SecretKey::default();
+    rand_core::RngCore::fill_bytes(&mut rand_core::OsRng, &mut secret);
+    ed25519_dalek::SigningKey::from_bytes(&secret)
+}

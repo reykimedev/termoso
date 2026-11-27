@@ -41,3 +41,7 @@ object LightLayers {
 val Danger = Color(0xFFF2555A)
 val DangerLight = Color(0xFFC2410C)
 val Warning = Color(0xFFF5C84C)
+
+// Status colours for badges (VPN tunnel state, warnings). Red is `error`.
+val StatusOk = Color(0xFF3FB950)
+val StatusWarn = Color(0xFFD9A21B)

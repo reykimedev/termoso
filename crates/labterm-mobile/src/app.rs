@@ -693,6 +693,10 @@ impl LabtermApp {
         };
         form.label = draft.label;
         form.parent_id = parse_opt_id(&draft.parent_id)?;
+        form.icon = draft
+            .icon
+            .map(|i| i.trim().to_string())
+            .filter(|i| !i.is_empty());
         draft.defaults.apply(&mut form.defaults)?;
         Ok(hosts::save_group_form(&self.store, &form)?.into())
     }
@@ -715,6 +719,16 @@ impl LabtermApp {
     /// Delete a group; hosts and sub-groups move up one level.
     pub fn delete_group(&self, id: String) -> Result<()> {
         Ok(hosts::delete_group(&self.store, parse_id(&id)?)?)
+    }
+
+    /// Delete a group with all its hosts and sub-groups.
+    pub fn delete_group_recursive(&self, id: String) -> Result<()> {
+        Ok(hosts::delete_group_recursive(&self.store, parse_id(&id)?)?)
+    }
+
+    /// Copy a group with its settings, hosts and sub-groups next to it.
+    pub fn duplicate_group(&self, id: String) -> Result<GroupItem> {
+        Ok(hosts::duplicate_group(&self.store, parse_id(&id)?)?.into())
     }
 
     /// Find-or-create a tag by label in `vault_id`.
@@ -909,7 +923,7 @@ impl LabtermApp {
 
     /// Delete a network; its hosts and groups connect directly again.
     pub fn delete_transport(&self, id: String) -> Result<()> {
-        crate::netbird::delete(&self.store, &id)
+        RUNTIME.block_on(crate::netbird::delete(&self.store, &id))
     }
 
     /// Network a host's own SSH settings name (not the group's).
@@ -1279,6 +1293,11 @@ impl LabtermApp {
         Ok(self
             .store
             .clear_history(Some(labterm_proto::sync::HistoryKind::Connection))?)
+    }
+
+    /// Forget one past connection (the history row's quick menu).
+    pub fn delete_history_entry(&self, id: String) -> Result<()> {
+        Ok(self.store.delete_history(parse_id(&id)?)?)
     }
 
     /// Commands entered at shell prompts, newest first. Lines that carried

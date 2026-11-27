@@ -117,6 +117,7 @@ async fn bridge_lifecycle_and_confinement() {
     // The bridge pushes an encrypted host through the normal sync path.
     let host_id = Uuid::new_v4();
     let push = PushRequest {
+        protocol: labterm_proto::sync::SYNC_PROTOCOL,
         changes: vec![EntityChange {
             secret_rotated_at: None,
             id: host_id,
@@ -155,6 +156,7 @@ async fn bridge_lifecycle_and_confinement() {
             "/sync/pull",
             Some(u.token()),
             Some(&PullRequest {
+                protocol: labterm_proto::sync::SYNC_PROTOCOL,
                 cursors: cursors(&[(vault_id, 0)]),
                 limit: None,
             }),
@@ -259,6 +261,7 @@ async fn bridge_is_confined_to_sealed_vaults_and_rotation_unseals() {
             "/sync/pull",
             Some(&token),
             Some(&PullRequest {
+                protocol: labterm_proto::sync::SYNC_PROTOCOL,
                 cursors: cursors(&[(vault_id, 0)]),
                 limit: None,
             }),
@@ -282,6 +285,7 @@ async fn bridge_is_confined_to_sealed_vaults_and_rotation_unseals() {
             "/sync/push",
             Some(&token),
             Some(&PushRequest {
+                protocol: labterm_proto::sync::SYNC_PROTOCOL,
                 changes: vec![change(1)],
                 deletes: vec![],
             }),
@@ -311,6 +315,7 @@ async fn bridge_is_confined_to_sealed_vaults_and_rotation_unseals() {
             "/sync/push",
             Some(&token),
             Some(&PushRequest {
+                protocol: labterm_proto::sync::SYNC_PROTOCOL,
                 changes: vec![change(1)],
                 deletes: vec![],
             }),
@@ -351,6 +356,7 @@ async fn bridge_is_confined_to_sealed_vaults_and_rotation_unseals() {
             "/sync/push",
             Some(&token),
             Some(&PushRequest {
+                protocol: labterm_proto::sync::SYNC_PROTOCOL,
                 changes: vec![EntityChange {
                     secret_rotated_at: None,
                     id: Uuid::new_v4(),

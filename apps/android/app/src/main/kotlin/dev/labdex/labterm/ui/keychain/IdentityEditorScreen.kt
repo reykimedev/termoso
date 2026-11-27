@@ -1,6 +1,5 @@
 package dev.labdex.labterm.ui.keychain
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,18 +9,10 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -37,6 +28,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.labdex.labterm.R
+import dev.labdex.labterm.ui.components.DeleteCard
+import dev.labdex.labterm.ui.components.EditScreen
+import androidx.compose.foundation.layout.Spacer
 import dev.labdex.labterm.data.VaultRepository
 import dev.labdex.labterm.data.userMessage
 import dev.labdex.labterm.str
@@ -181,26 +175,16 @@ fun IdentityEditorScreen(shell: ShellViewModel, identityId: String?, onClose: ()
     LaunchedEffect(s.error) { s.error?.let { shell.notify(it); vm.errorShown() } }
     LaunchedEffect(s.done) { if (s.done) onClose() }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(if (identityId == null) stringResource(R.string.new_identity) else s.label.ifBlank { stringResource(R.string.edit_identity) }) },
-                navigationIcon = { IconButton(onClick = onClose) { Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.close)) } },
-                actions = {
-                    IconButton(onClick = vm::save, enabled = s.canSave) {
-                        if (s.working) {
-                            CircularProgressIndicator(modifier = Modifier.height(20.dp), strokeWidth = 2.dp)
-                        } else {
-                            Icon(Icons.Filled.Check, contentDescription = stringResource(R.string.save))
-                        }
-                    }
-                },
-            )
-        },
+    EditScreen(
+        title = if (identityId == null) stringResource(R.string.new_identity) else stringResource(R.string.edit_identity),
+        canSave = s.canSave,
+        onSave = vm::save,
+        onClose = onClose,
+        saving = s.working,
     ) { padding ->
         if (s.loading) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-            return@Scaffold
+            return@EditScreen
         }
         Column(
             Modifier.fillMaxSize().padding(padding).imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 12.dp),
@@ -274,14 +258,8 @@ fun IdentityEditorScreen(shell: ShellViewModel, identityId: String?, onClose: ()
             }
 
             if (s.existing != null) {
-                SectionLabel(" ")
-                SectionCard {
-                    ListRow(
-                        title = stringResource(R.string.delete_identity),
-                        titleColor = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.clickable { confirmDelete = true },
-                    )
-                }
+                Spacer(Modifier.height(4.dp))
+                DeleteCard(stringResource(R.string.delete_identity), { confirmDelete = true })
             }
         }
     }

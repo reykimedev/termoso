@@ -530,6 +530,7 @@ async fn start_over_is_delayed_cancellable_and_destroys_the_old_vault() {
             "/sync/push",
             Some(u.token()),
             Some(&PushRequest {
+                protocol: labterm_proto::sync::SYNC_PROTOCOL,
                 changes: vec![EntityChange {
                     secret_rotated_at: None,
                     id: host_id,
@@ -805,6 +806,7 @@ async fn start_over_is_delayed_cancellable_and_destroys_the_old_vault() {
             "/sync/pull",
             Some(&reborn.token),
             Some(&PullRequest {
+                protocol: labterm_proto::sync::SYNC_PROTOCOL,
                 cursors: Default::default(),
                 limit: None,
             }),

@@ -12,7 +12,6 @@ use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD as B64;
 use ed25519_dalek::SigningKey;
 use futures_util::{SinkExt, StreamExt};
-use rand_core::OsRng;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -35,7 +34,7 @@ struct Issuer {
 
 impl Issuer {
     async fn start() -> Self {
-        let key = SigningKey::generate(&mut OsRng);
+        let key = crate::fresh_ticket_key();
         let x = B64.encode(key.verifying_key().as_bytes());
         let l = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let url = format!("http://{}/application/o/hatch/", l.local_addr().unwrap());
@@ -132,7 +131,7 @@ async fn setup(yaml: &str, limits: Limits) -> Setup {
         &config,
         list,
         verifier,
-        SigningKey::generate(&mut OsRng),
+        crate::fresh_ticket_key(),
     ));
     let relay = serve(relay::router(r)).await;
     Setup {
@@ -274,7 +273,7 @@ async fn bad_tokens_are_refused() {
     // A token signed by someone else, with the issuer's kid.
     let other = Issuer {
         url: i.url.clone(),
-        key: SigningKey::generate(&mut OsRng),
+        key: crate::fresh_ticket_key(),
     };
     let (status, _) = s.ticket(&other.good(&[]), ORIGIN, "127.0.0.1", port).await;
     assert_eq!(status, 401, "forged");

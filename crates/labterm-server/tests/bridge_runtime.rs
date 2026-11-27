@@ -95,6 +95,7 @@ impl Rig {
                 "/sync/pull",
                 Some(self.user.token()),
                 Some(&PullRequest {
+                    protocol: labterm_proto::sync::SYNC_PROTOCOL,
                     cursors,
                     limit: None,
                 }),
@@ -296,6 +297,7 @@ async fn hosts_and_groups_round_trip_encrypted() {
             "/sync/pull",
             Some(r.user.token()),
             Some(&PullRequest {
+                protocol: labterm_proto::sync::SYNC_PROTOCOL,
                 cursors,
                 limit: None,
             }),
@@ -433,6 +435,7 @@ async fn bridge_survives_concurrent_owner_edits() {
                 "/sync/pull",
                 Some(r.user.token()),
                 Some(&PullRequest {
+                    protocol: labterm_proto::sync::SYNC_PROTOCOL,
                     cursors,
                     limit: None,
                 }),
@@ -446,6 +449,7 @@ async fn bridge_survives_concurrent_owner_edits() {
             .version
     };
     let push = labterm_proto::sync::PushRequest {
+        protocol: labterm_proto::sync::SYNC_PROTOCOL,
         changes: vec![labterm_proto::sync::EntityChange {
             secret_rotated_at: None,
             id: host_id,
@@ -733,6 +737,7 @@ async fn rotation_pauses_writes_until_reseal() {
             "/sync/pull",
             Some(r.user.token()),
             Some(&PullRequest {
+                protocol: labterm_proto::sync::SYNC_PROTOCOL,
                 cursors,
                 limit: None,
             }),
@@ -769,6 +774,7 @@ async fn rotation_pauses_writes_until_reseal() {
             "/sync/push",
             Some(r.user.token()),
             Some(&labterm_proto::sync::PushRequest {
+                protocol: labterm_proto::sync::SYNC_PROTOCOL,
                 changes,
                 deletes: vec![],
             }),

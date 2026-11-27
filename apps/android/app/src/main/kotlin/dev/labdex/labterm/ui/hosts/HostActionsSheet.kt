@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.filled.Badge
-import androidx.compose.material.icons.filled.Hub
+import androidx.compose.material.icons.filled.VpnLock
 import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DriveFileMove
@@ -41,6 +41,7 @@ import dev.labdex.labterm.R
 import dev.labdex.labterm.str
 import dev.labdex.labterm.ui.components.ActionRow
 import dev.labdex.labterm.ui.components.HostAvatar
+import dev.labdex.labterm.ui.components.ItemSheetHeader
 import dev.labdex.labterm.ui.components.OpenSftpRow
 import dev.labdex.labterm.ui.components.OpenTerminalRow
 import dev.labdex.labterm.ui.components.RowDivider
@@ -97,6 +98,7 @@ fun closeConnectionsLabel(count: Int): String = if (count <= 1) str(R.string.clo
 fun HostActionsSheet(
     shell: ShellViewModel,
     host: HostItem,
+    badges: HostRowBadges = HostRowBadges.NONE,
     canCopyToVault: Boolean,
     onConnect: (Transport) -> Unit,
     onSftp: () -> Unit,
@@ -110,6 +112,8 @@ fun HostActionsSheet(
     onOpksshSetup: () -> Unit = {},
     onOidcKey: () -> Unit = {},
     onTunnel: () -> Unit = {},
+    /** Opens the VPN network's status page (the badge tap). */
+    onOpenVpn: (String) -> Unit = {},
     onDuplicate: () -> Unit,
     onMove: () -> Unit,
     onMoveVault: () -> Unit,
@@ -139,25 +143,9 @@ fun HostActionsSheet(
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 24.dp),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                HostAvatar(host.osName, icon = host.icon)
-                Spacer(Modifier.width(16.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        host.label.ifBlank { host.address },
-                        style = MaterialTheme.typography.titleMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        hostSubtitle(host),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
+            ItemSheetHeader(host.label.ifBlank { host.address }, hostSubtitle(host)) { HostAvatar(host.osName, icon = host.icon) }
+            val vpn = host.vpn
+            HostFactChips(vpn, vpn?.let { badges.vpn(it) }, badges.facts(host), onVpn = vpn?.let { v -> then { onOpenVpn(v.id) } })
 
             if (open > 0) {
                 SectionLabel(if (open == 1) stringResource(R.string.active_connection) else stringResource(R.string.active_connections, open))
@@ -232,7 +220,7 @@ fun HostActionsSheet(
                     RowDivider()
                     ActionRow(Icons.Filled.Badge, stringResource(R.string.openid_key_for_host), onClick = then(onOidcKey))
                     RowDivider()
-                    ActionRow(Icons.Filled.Hub, stringResource(R.string.tunnel), onClick = then(onTunnel))
+                    ActionRow(Icons.Filled.VpnLock, stringResource(R.string.vpn_network), onClick = then(onTunnel))
                 }
                 RowDivider()
                 ActionRow(Icons.Filled.ContentCopy, stringResource(R.string.duplicate), onClick = then(onDuplicate))

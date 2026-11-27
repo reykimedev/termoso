@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.automirrored.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.LibraryAdd
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
@@ -48,6 +49,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -59,6 +61,11 @@ import dev.labdex.labterm.ui.components.EmptyState
 import dev.labdex.labterm.ui.components.FormField
 import dev.labdex.labterm.ui.components.IconTile
 import dev.labdex.labterm.ui.components.ListRow
+import dev.labdex.labterm.ui.components.ItemActionsSheet
+import dev.labdex.labterm.ui.components.ItemMoreButton
+import dev.labdex.labterm.ui.components.SheetAction
+import dev.labdex.labterm.ui.components.SheetSection
+import dev.labdex.labterm.ui.components.itemClicks
 import dev.labdex.labterm.ui.components.RowDivider
 import dev.labdex.labterm.ui.components.SectionCard
 import dev.labdex.labterm.ui.components.SectionLabel
@@ -292,20 +299,17 @@ private sealed interface VaultTransfer {
     data class Package(val pkg: SnippetPackageItem, override val move: Boolean) : VaultTransfer
 }
 
+/** Copy/Move to vault entries for a quick menu; none when there is no other vault. */
 @Composable
-private fun TransferMenuItems(onTransfer: ((move: Boolean) -> Unit)?, onPicked: () -> Unit) {
-    if (onTransfer == null) return
-    DropdownMenuItem(
-        text = { Text(stringResource(R.string.copy_to_vault)) },
-        leadingIcon = { Icon(Icons.Filled.LibraryAdd, null) },
-        onClick = { onPicked(); onTransfer(false) },
-    )
-    DropdownMenuItem(
-        text = { Text(stringResource(R.string.move_to_vault)) },
-        leadingIcon = { Icon(Icons.AutoMirrored.Filled.DriveFileMove, null) },
-        onClick = { onPicked(); onTransfer(true) },
-    )
-}
+private fun transferActions(onTransfer: ((move: Boolean) -> Unit)?): List<SheetAction> =
+    if (onTransfer == null) {
+        emptyList()
+    } else {
+        listOf(
+            SheetAction(Icons.Filled.LibraryAdd, stringResource(R.string.copy_to_vault)) { onTransfer(false) },
+            SheetAction(Icons.AutoMirrored.Filled.DriveFileMove, stringResource(R.string.move_to_vault)) { onTransfer(true) },
+        )
+    }
 
 @Composable
 private fun PackageRow(
@@ -316,22 +320,29 @@ private fun PackageRow(
     onDelete: () -> Unit,
 ) {
     var menu by remember { mutableStateOf(false) }
-    Box {
-        ChevronRow(
+    ChevronRow(
+        title = pkg.label,
+        badge = pkg.snippetCount.toString(),
+        leading = { IconTile(Icons.Filled.Folder) },
+        modifier = Modifier.itemClicks(onClick = onOpen, onMenu = { menu = true }),
+    )
+    if (menu) {
+        ItemActionsSheet(
             title = pkg.label,
-            badge = pkg.snippetCount.toString(),
+            subtitle = pluralStringResource(R.plurals.n_items, pkg.snippetCount.toInt(), pkg.snippetCount.toInt()),
             leading = { IconTile(Icons.Filled.Folder) },
-            modifier = Modifier.combinedClickable(onClick = onOpen, onLongClick = { menu = true }),
+            sections = listOf(
+                SheetSection(
+                    stringResource(R.string.packages),
+                    listOf(
+                        SheetAction(Icons.Filled.FolderOpen, stringResource(R.string.open), onClick = onOpen),
+                        SheetAction(Icons.Filled.Edit, stringResource(R.string.rename), onClick = onRename),
+                    ) + transferActions(onTransfer),
+                ),
+                SheetSection(null, listOf(SheetAction(Icons.Filled.Delete, stringResource(R.string.delete), danger = true, onClick = onDelete))),
+            ),
+            onClose = { menu = false },
         )
-        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-            DropdownMenuItem(text = { Text(stringResource(R.string.rename)) }, leadingIcon = { Icon(Icons.Filled.Edit, null) }, onClick = { menu = false; onRename() })
-            TransferMenuItems(onTransfer) { menu = false }
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) },
-                leadingIcon = { Icon(Icons.Filled.Delete, null, tint = MaterialTheme.colorScheme.error) },
-                onClick = { menu = false; onDelete() },
-            )
-        }
     }
 }
 
@@ -346,31 +357,39 @@ private fun SnippetRow(
     onDelete: () -> Unit,
 ) {
     var menu by remember { mutableStateOf(false) }
-    Box {
-        ListRow(
+    ListRow(
+        title = snippet.label,
+        subtitle = snippetSubtitle(snippet),
+        leading = { IconTile(Icons.Filled.Code) },
+        modifier = Modifier.itemClicks(onClick = onEdit, onMenu = { menu = true }),
+    ) {
+        IconButton(onClick = onRun) { Icon(Icons.Filled.PlayArrow, contentDescription = stringResource(R.string.run), tint = MaterialTheme.colorScheme.primary) }
+        ItemMoreButton({ menu = true })
+    }
+    if (menu) {
+        ItemActionsSheet(
             title = snippet.label,
             subtitle = snippetSubtitle(snippet),
             leading = { IconTile(Icons.Filled.Code) },
-            modifier = Modifier.combinedClickable(onClick = onEdit, onLongClick = { menu = true }),
-        ) {
-            IconButton(onClick = onRun) { Icon(Icons.Filled.PlayArrow, contentDescription = stringResource(R.string.run), tint = MaterialTheme.colorScheme.primary) }
-        }
-        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-            DropdownMenuItem(text = { Text(stringResource(R.string.run)) }, leadingIcon = { Icon(Icons.Filled.PlayArrow, null) }, onClick = { menu = false; onRun() })
-            DropdownMenuItem(text = { Text(stringResource(R.string.run_quietly)) }, leadingIcon = { Icon(Icons.AutoMirrored.Filled.PlaylistPlay, null) }, onClick = { menu = false; onRunQuiet() })
-            DropdownMenuItem(text = { Text(stringResource(R.string.edit)) }, leadingIcon = { Icon(Icons.Filled.Edit, null) }, onClick = { menu = false; onEdit() })
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.duplicate)) },
-                leadingIcon = { Icon(Icons.Filled.ContentCopy, null) },
-                onClick = { menu = false; onDuplicate() },
-            )
-            TransferMenuItems(onTransfer) { menu = false }
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) },
-                leadingIcon = { Icon(Icons.Filled.Delete, null, tint = MaterialTheme.colorScheme.error) },
-                onClick = { menu = false; onDelete() },
-            )
-        }
+            sections = listOf(
+                SheetSection(
+                    stringResource(R.string.run),
+                    listOf(
+                        SheetAction(Icons.Filled.PlayArrow, stringResource(R.string.run), onClick = onRun),
+                        SheetAction(Icons.AutoMirrored.Filled.PlaylistPlay, stringResource(R.string.run_quietly), onClick = onRunQuiet),
+                    ),
+                ),
+                SheetSection(
+                    stringResource(R.string.snippets),
+                    listOf(
+                        SheetAction(Icons.Filled.Edit, stringResource(R.string.edit), onClick = onEdit),
+                        SheetAction(Icons.Filled.ContentCopy, stringResource(R.string.duplicate), onClick = onDuplicate),
+                    ) + transferActions(onTransfer),
+                ),
+                SheetSection(null, listOf(SheetAction(Icons.Filled.Delete, stringResource(R.string.delete), danger = true, onClick = onDelete))),
+            ),
+            onClose = { menu = false },
+        )
     }
 }
 
