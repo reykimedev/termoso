@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, Box, Button, Chip, CircularProgress, Stack, TextField } from "@mui/material";
+import { Alert, Box, Button, CircularProgress, Stack, TextField } from "@mui/material";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
@@ -8,7 +8,6 @@ import * as ipc from "@/ipc/commands";
 import { errorMessage, type Uuid, type VpnNetwork, type VpnNetworkForm } from "@/ipc/types";
 import { EmptyState } from "@/components/EmptyState";
 import { Page } from "@/components/PageHeader";
-import { useSnackbar } from "@/components/Snackbar";
 import {
   CardGrid,
   EntityCard,
@@ -20,13 +19,18 @@ import {
   ToolIconButton,
 } from "@/components/ui";
 import { useActiveVault, ViewOnlyChip } from "@/app/vault";
+import { useVpnNetworkRequests } from "@/app/navigation";
+import { useVpnStates } from "@/ipc/hooks";
+import { VpnDetailsPanel } from "./VpnDetailsPanel";
+import { VpnStateChip } from "./VpnStateChip";
 import { tr } from "@/i18n";
 
 const NETBIRD_CLOUD = "https://api.netbird.io";
 const mono = { spellCheck: false, style: { fontFamily: "monospace", fontSize: 12 } } as const;
 
-/** The vault's VPN networks. A tap joins one (signing in first when this
- *  device has not yet); the gear opens its settings. */
+/** The vault's VPN networks with their state on this device. A click opens
+ *  a network's details (join, leave, sign in, peers, hosts); the gear opens
+ *  its settings. */
 export function VpnNetworksPage() {
   const vault = useActiveVault();
   return <NetworksBody key={vault.data?.id ?? ""} vault={vault} />;
@@ -38,7 +42,6 @@ interface Editing {
 
 function NetworksBody({ vault }: { vault: ReturnType<typeof useActiveVault> }) {
   const qc = useQueryClient();
-  const snack = useSnackbar();
   const vaultId = vault.data?.id ?? null;
   const vaultName = vault.data?.name ?? tr("Vault");
   const readOnly = vault.readOnly;
@@ -49,43 +52,30 @@ function NetworksBody({ vault }: { vault: ReturnType<typeof useActiveVault> }) {
     enabled: vaultId !== null,
   });
   const list = networks.data ?? [];
-  const running = useQuery({
-    queryKey: ["vpnRunning", list.map((n) => n.id)],
-    queryFn: () => ipc.vpnRunning(list.map((n) => n.id)),
-    enabled: list.length > 0,
-    refetchInterval: 10_000,
-  });
+  const states = useVpnStates(list.map((n) => n.id));
   const signInOnly = useQuery({
     queryKey: ["vpnSignInOnly", vaultId],
     queryFn: () => (vaultId ? ipc.vpnSignInOnly(vaultId) : Promise.resolve(true)),
     enabled: vaultId !== null,
   });
   const [editing, setEditing] = useState<Editing | null>(null);
-  const [connecting, setConnecting] = useState<Uuid | null>(null);
+  const [showing, setShowing] = useState<Uuid | null>(null);
+  // A host badge or picker asked for one network's details.
+  useVpnNetworkRequests((id) => {
+    setEditing(null);
+    setShowing(id);
+  });
 
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: ["vpnNetworks"] });
-    void qc.invalidateQueries({ queryKey: ["vpnRunning"] });
+    void qc.invalidateQueries({ queryKey: ["vpnStates"] });
   };
 
-  /** Sign in when needed, then join. */
-  const open = async (n: VpnNetwork) => {
-    if (connecting) return;
-    setConnecting(n.id);
-    try {
-      if (!n.signedIn && !n.hasSetupKey) await ipc.vpnSignIn(n.id, n.account);
-      await ipc.vpnConnect(n.id);
-      snack.notify(tr("Connected to {name}", { name: n.label }));
-    } catch (e) {
-      snack.error(errorMessage(e));
-    } finally {
-      setConnecting(null);
-      refresh();
-    }
+  const add = () => {
+    setShowing(null);
+    setEditing({ network: null });
   };
-
-  const add = () => setEditing({ network: null });
-  const on = new Set(running.data ?? []);
+  const shown = list.find((n) => n.id === showing) ?? null;
 
   return (
     <Box sx={{ display: "flex", flex: 1, minHeight: 0 }}>
@@ -136,7 +126,7 @@ function NetworksBody({ vault }: { vault: ReturnType<typeof useActiveVault> }) {
                   key={n.id}
                   tile={
                     <IconTile>
-                      {connecting === n.id ? (
+                      {states.data?.[n.id]?.state === "connecting" ? (
                         <CircularProgress size={16} />
                       ) : (
                         <HubOutlinedIcon fontSize="small" />
@@ -147,26 +137,46 @@ function NetworksBody({ vault }: { vault: ReturnType<typeof useActiveVault> }) {
                   subtitle={[n.managementUrl ?? NETBIRD_CLOUD, n.account]
                     .filter(Boolean)
                     .join(" · ")}
-                  trailing={<StatusChip n={n} running={on.has(n.id)} />}
+                  trailing={<VpnStateChip state={states.data?.[n.id]} />}
                   actions={
                     <ToolIconButton
                       title={tr("Network settings")}
                       onClick={(e) => {
                         e.stopPropagation();
+                        setShowing(null);
                         setEditing({ network: n });
                       }}
                     >
                       <SettingsOutlinedIcon fontSize="small" />
                     </ToolIconButton>
                   }
-                  selected={editing?.network?.id === n.id}
-                  onClick={() => void open(n)}
+                  selected={editing?.network?.id === n.id || showing === n.id}
+                  onClick={() => {
+                    setEditing(null);
+                    setShowing(n.id);
+                  }}
                 />
               ))}
             </CardGrid>
           )}
         </Box>
       </Page>
+      {shown && !editing && (
+        <SidePanel
+          title={shown.label || "NetBird"}
+          subtitle={vaultName}
+          onClose={() => setShowing(null)}
+        >
+          <VpnDetailsPanel
+            key={shown.id}
+            network={shown}
+            onEdit={() => {
+              setShowing(null);
+              setEditing({ network: shown });
+            }}
+          />
+        </SidePanel>
+      )}
       {vaultId && editing && (
         <SidePanel
           title={editing.network ? tr("Edit network") : tr("New network")}
@@ -190,13 +200,6 @@ function NetworksBody({ vault }: { vault: ReturnType<typeof useActiveVault> }) {
       )}
     </Box>
   );
-}
-
-function StatusChip({ n, running }: { n: VpnNetwork; running: boolean }) {
-  if (running) return <Chip size="small" color="success" label={tr("Connected")} />;
-  if (n.signedIn) return <Chip size="small" label={tr("Signed in")} />;
-  if (!n.hasSetupKey) return <Chip size="small" variant="outlined" label={tr("Sign-in needed")} />;
-  return undefined;
 }
 
 function NetworkForm({

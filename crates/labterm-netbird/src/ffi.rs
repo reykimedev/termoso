@@ -15,6 +15,7 @@ type FreeFn = unsafe extern "C" fn(*mut c_char);
 type LoginBeginFn = unsafe extern "C" fn(*const c_char, *mut usize) -> *mut c_char;
 type LoginFinishFn = unsafe extern "C" fn(usize, c_int, *mut c_int) -> *mut c_char;
 type LoginCancelFn = unsafe extern "C" fn(usize);
+type StatusFn = unsafe extern "C" fn(usize, *mut c_int) -> *mut c_char;
 
 pub(crate) struct Library {
     start: StartFn,
@@ -24,6 +25,8 @@ pub(crate) struct Library {
     login_begin: LoginBeginFn,
     login_finish: LoginFinishFn,
     login_cancel: LoginCancelFn,
+    /// Missing in libraries older than the details page.
+    status: Option<StatusFn>,
 }
 
 // The functions are plain C entry points of a library that is never
@@ -85,6 +88,9 @@ unsafe fn open(path: &str) -> std::result::Result<Library, String> {
                 handle,
                 "tnb_login_cancel",
             )?),
+            status: sym(handle, "tnb_status")
+                .ok()
+                .map(|p| std::mem::transmute::<*mut c_void, StatusFn>(p)),
         })
     }
 }
@@ -172,6 +178,17 @@ impl Library {
         let out = unsafe {
             (self.login_finish)(handle, timeout_ms.min(c_int::MAX as u32) as c_int, &mut ok)
         };
+        let text = self.take(out);
+        if ok == 1 { Ok(text) } else { Err(text) }
+    }
+
+    /// A running node's state as JSON (address, peers).
+    pub(crate) fn status(&self, handle: usize) -> std::result::Result<String, String> {
+        let Some(status) = self.status else {
+            return Err("this NetBird library has no status".into());
+        };
+        let mut ok: c_int = 0;
+        let out = unsafe { status(handle, &mut ok) };
         let text = self.take(out);
         if ok == 1 { Ok(text) } else { Err(text) }
     }

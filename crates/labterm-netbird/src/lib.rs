@@ -245,6 +245,60 @@ struct StartResult {
     registered: bool,
 }
 
+/// What this process is doing with one network's peer, for badges.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NodeState {
+    /// The peer is starting (connecting to the management server).
+    Starting,
+    /// The peer is up.
+    Running,
+    /// The last start failed; the message says why. A message containing
+    /// [`SIGN_IN_NEEDED`] means the server wants a new sign-in.
+    Failed(String),
+}
+
+/// A running peer's view of its network, for the details page.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Details {
+    /// This device's address in the network.
+    #[serde(default)]
+    pub ip: String,
+    /// This device's DNS name in the network.
+    #[serde(default)]
+    pub fqdn: String,
+    /// Connected to the management server.
+    #[serde(default)]
+    pub management: bool,
+    #[serde(default)]
+    pub management_error: String,
+    /// Connected to the signal server.
+    #[serde(default)]
+    pub signal: bool,
+    /// The peers this device may reach.
+    #[serde(default)]
+    pub peers: Vec<PeerDetails>,
+}
+
+/// One peer in [`Details`].
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PeerDetails {
+    #[serde(default)]
+    pub fqdn: String,
+    #[serde(default)]
+    pub ip: String,
+    /// A WireGuard connection to it is up.
+    #[serde(default)]
+    pub connected: bool,
+    /// Traffic goes through a relay rather than directly.
+    #[serde(default)]
+    pub relayed: bool,
+    #[serde(default)]
+    pub latency_ms: u64,
+    /// Unix seconds of the last handshake; 0 = none yet.
+    #[serde(default)]
+    pub handshake: i64,
+}
+
 /// One running peer.
 struct Node {
     handle: usize,
@@ -266,6 +320,9 @@ pub struct Netbird {
     /// Running peers by network id. The async mutex also serialises starts,
     /// so two hosts of one network never start two peers.
     nodes: tokio::sync::Mutex<HashMap<Uuid, Arc<Node>>>,
+    /// Starting, running or failed peers by network id; a plain mutex so
+    /// lists can read it without awaiting.
+    states: Mutex<HashMap<Uuid, NodeState>>,
     /// Handles to stop once the last stream is gone.
     me: Mutex<Weak<Netbird>>,
 }
@@ -284,6 +341,7 @@ impl Netbird {
             idle,
             start_timeout: Duration::from_secs(45),
             nodes: tokio::sync::Mutex::new(HashMap::new()),
+            states: Mutex::new(HashMap::new()),
             me: Mutex::new(Weak::new()),
         });
         *n.me.lock().expect("netbird self") = Arc::downgrade(&n);
@@ -328,10 +386,63 @@ impl Netbird {
         self.nodes.lock().await.contains_key(&network)
     }
 
+    /// What this process is doing with `network`'s peer; `None` when it is
+    /// neither running nor starting and the last start did not fail.
+    pub fn state(&self, network: Uuid) -> Option<NodeState> {
+        self.states
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .get(&network)
+            .cloned()
+    }
+
+    fn set_state(&self, network: Uuid, state: Option<NodeState>) {
+        let mut states = self.states.lock().unwrap_or_else(|p| p.into_inner());
+        match state {
+            Some(s) => states.insert(network, s),
+            None => states.remove(&network),
+        };
+    }
+
+    /// The running peer's view of `network`: `None` when no peer runs.
+    pub async fn details(&self, network: Uuid) -> Option<Result<Details>> {
+        let handle = self.nodes.lock().await.get(&network)?.handle;
+        let path = self.library_path.clone();
+        let out = tokio::task::spawn_blocking(move || {
+            let lib = ffi::library(path.as_deref())?;
+            lib.status(handle)
+        })
+        .await;
+        Some(match out {
+            Ok(Ok(json)) => serde_json::from_str(&json)
+                .map_err(|e| CoreError::Transport(format!("netbird: bad status: {e}"))),
+            Ok(Err(e)) => Err(CoreError::Transport(format!("netbird: {e}"))),
+            Err(e) => Err(CoreError::Transport(format!("netbird: {e}"))),
+        })
+    }
+
+    /// Leave `network` now; open connections through it break. The peer
+    /// key stays, so the next connection joins again without signing in.
+    pub async fn disconnect(&self, network: Uuid) {
+        let node = {
+            let mut nodes = self.nodes.lock().await;
+            self.set_state(network, None);
+            nodes.remove(&network)
+        };
+        if let Some(n) = node {
+            self.stop_node(n).await;
+        }
+    }
+
     /// Stop every peer now (app sign-out, vault lock). Open connections
     /// through them break.
     pub async fn stop_all(&self) {
         let nodes: Vec<Arc<Node>> = self.nodes.lock().await.drain().map(|(_, n)| n).collect();
+        // Failed starts too: a locked app shows every network as off.
+        self.states
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .clear();
         for n in nodes {
             self.stop_node(n).await;
         }
@@ -390,7 +501,7 @@ impl Netbird {
         );
         let path = self.library_path.clone();
         let label = config.label.clone();
-        let started = Instant::now();
+        let t_start = Instant::now();
         tracing::info!(
             network = %config.id,
             server = %config.management_url,
@@ -398,24 +509,34 @@ impl Netbird {
             setup_key = config.setup_key.is_some(),
             "netbird: starting"
         );
-        let (handle, result) = tokio::task::spawn_blocking(move || {
+        self.set_state(config.id, Some(NodeState::Starting));
+        let started = tokio::task::spawn_blocking(move || {
             let lib = ffi::library(path.as_deref())?;
             lib.start(&options)
         })
         .await
-        .map_err(|e| CoreError::Transport(format!("netbird: {e}")))?
-        .map_err(|e| {
-            tracing::warn!(
-                network = %config.id,
-                ms = started.elapsed().as_millis(),
-                "netbird: start failed: {e}"
-            );
-            if config.setup_key.is_none() && login_refused(&e) {
-                CoreError::Transport(format!("{SIGN_IN_NEEDED} for \"{label}\": {e}"))
-            } else {
-                CoreError::Transport(format!("NetBird \"{label}\": {e}"))
+        .map_err(|e| CoreError::Transport(format!("netbird: {e}")))
+        .and_then(|r| {
+            r.map_err(|e| {
+                if config.setup_key.is_none() && login_refused(&e) {
+                    CoreError::Transport(format!("{SIGN_IN_NEEDED} for \"{label}\": {e}"))
+                } else {
+                    CoreError::Transport(format!("NetBird \"{label}\": {e}"))
+                }
+            })
+        });
+        let (handle, result) = match started {
+            Ok(v) => v,
+            Err(e) => {
+                tracing::warn!(
+                    network = %config.id,
+                    ms = t_start.elapsed().as_millis(),
+                    "netbird: start failed: {e}"
+                );
+                self.set_state(config.id, Some(NodeState::Failed(e.to_string())));
+                return Err(e);
             }
-        })?;
+        };
         let result: StartResult = serde_json::from_str(&result)
             .map_err(|e| CoreError::Transport(format!("netbird: bad start result: {e}")))?;
         let result_key = Zeroizing::new(result.private_key);
@@ -425,7 +546,7 @@ impl Netbird {
         tracing::info!(
             network = %config.id,
             registered = result.registered,
-            ms = started.elapsed().as_millis(),
+            ms = t_start.elapsed().as_millis(),
             "netbird: started"
         );
         let node = Arc::new(Node {
@@ -436,6 +557,7 @@ impl Netbird {
             rt: tokio::runtime::Handle::current(),
         });
         nodes.insert(config.id, node.clone());
+        self.set_state(config.id, Some(NodeState::Running));
         Ok(node)
     }
 
@@ -563,6 +685,7 @@ impl Netbird {
         if let Some(n) = self.nodes.lock().await.remove(&config.id) {
             self.stop_node(n).await;
         }
+        self.set_state(config.id, None);
         tracing::info!(
             network = %config.id,
             ms = started.elapsed().as_millis(),
@@ -654,6 +777,8 @@ impl Netbird {
                     "netbird: idle, stopping"
                 );
                 nodes.remove(&node.config.id);
+                // Under the nodes lock: a new start can't be overwritten.
+                self.set_state(node.config.id, None);
                 drop(nodes);
                 self.stop_node(node).await;
             }

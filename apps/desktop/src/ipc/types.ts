@@ -3088,6 +3088,45 @@ export interface VpnNetwork {
 }
 
 /** What the network editor saves; `setupKey: null` keeps the stored key. */
+/** A network's state on this device (`vpn_states`): one model for the
+ *  networks page, the details page and host badges. */
+export interface VpnState {
+  state: "off" | "connecting" | "connected" | "needs_sign_in" | "error" | "unavailable";
+  error?: string;
+}
+
+/** One peer this device sees in a joined network. */
+export interface VpnPeer {
+  fqdn: string;
+  ip: string;
+  connected: boolean;
+  relayed: boolean;
+  latencyMs: number;
+  /** Unix seconds of the last handshake; 0 = none yet. */
+  handshake: number;
+}
+
+/** A host that connects through a network. */
+export interface VpnHost {
+  id: Uuid;
+  label: string;
+  address: string;
+}
+
+/** What the network details page shows (`vpn_details`). */
+export interface VpnDetails {
+  network: VpnNetwork;
+  state: VpnState;
+  /** This device's address and DNS name in the network; empty while not joined. */
+  ip: string;
+  fqdn: string;
+  managementConnected: boolean;
+  signalConnected: boolean;
+  liveError: string | null;
+  peers: VpnPeer[];
+  hosts: VpnHost[];
+}
+
 export interface VpnNetworkForm {
   label: string;
   provider?: string;

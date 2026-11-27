@@ -1096,6 +1096,29 @@ impl LabtermApp {
         RUNTIME.block_on(crate::netbird::is_running(&transport_id))
     }
 
+    /// This device's state of a network (off, connecting, connected, ...).
+    /// Cheap: fine to call for every host row.
+    pub fn transport_state(&self, transport_id: String) -> Result<crate::TransportState> {
+        crate::netbird::state(&self.store, &transport_id)
+    }
+
+    /// Everything the network details page shows: state, this device's
+    /// address, the peers it sees and the hosts that use the network.
+    pub fn transport_details(&self, transport_id: String) -> Result<crate::TransportDetails> {
+        RUNTIME.block_on(crate::netbird::details(&self.store, &transport_id))
+    }
+
+    /// Leave a network now; the next connection through it joins again.
+    pub fn transport_disconnect(&self, transport_id: String) -> Result<()> {
+        RUNTIME.block_on(crate::netbird::disconnect(&transport_id))
+    }
+
+    /// Leave a network and forget this device's peer key: the next
+    /// connection asks to sign in again.
+    pub fn transport_sign_out(&self, transport_id: String) -> Result<()> {
+        RUNTIME.block_on(crate::netbird::sign_out(&self.store, &transport_id))
+    }
+
     /// Give up a sign-in in progress.
     pub fn transport_sign_in_cancel(&self, transport_id: String) {
         crate::netbird::sign_in_cancel(&transport_id);
