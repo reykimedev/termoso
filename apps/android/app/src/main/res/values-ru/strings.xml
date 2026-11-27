@@ -2029,6 +2029,10 @@
     <string name="vpn_hosts_using">Хосты в этой сети</string>
     <string name="vpn_no_hosts_using">Ни один хост или группа пока не использует эту сеть. Выберите её в настройках хоста или группы.</string>
     <string name="vpn_peers">Узлы (%1$d)</string>
+    <string name="vpn_routes">Маршруты (%1$d)</string>
+    <string name="vpn_no_routes">Маршрутов нет: доступны только адреса самих узлов.</string>
+    <string name="vpn_exit_node">Выходной узел (%1$s)</string>
+    <string name="vpn_route_through">через %1$s</string>
     <string name="vpn_no_peers">Этому устройству не доступен ни один узел в этой сети.</string>
     <string name="vpn_peer_idle">неактивен</string>
     <string name="vpn_peer_relayed">через ретранслятор</string>

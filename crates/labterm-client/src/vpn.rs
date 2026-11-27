@@ -66,11 +66,27 @@ pub fn set_device_name(name: &str) {
     }
 }
 
-fn device_name() -> String {
-    DEVICE_NAME
+/// The peer name in the network: "Labterm", the network's vault and the
+/// device, so Labterm peers stand out in the NetBird dashboard. NetBird takes
+/// it on registration only.
+fn device_name(store: &Store, vault_id: Uuid) -> String {
+    let device = DEVICE_NAME
         .lock()
         .unwrap_or_else(|p| p.into_inner())
-        .clone()
+        .clone();
+    let vault = store.vault(vault_id).map(|v| v.name).unwrap_or_default();
+    peer_name(&vault, &device)
+}
+
+fn peer_name(vault: &str, device: &str) -> String {
+    let device = device
+        .strip_prefix("Labterm")
+        .map_or(device, str::trim_start);
+    ["Labterm", vault.trim(), device]
+        .into_iter()
+        .filter(|p| !p.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 struct StoreKeys(Arc<Store>);
@@ -308,6 +324,7 @@ pub async fn sign_in_begin(
     return_url: Option<&str>,
 ) -> Result<String> {
     let c = network(store, network_id)?;
+    let name = device_name(store, store.require::<Transport>(network_id)?.vault_id);
     let account = account
         .map(|a| a.trim().to_owned())
         .filter(|a| !a.is_empty());
@@ -315,7 +332,7 @@ pub async fn sign_in_begin(
     let pending = NETBIRD
         .sign_in(
             &c,
-            &device_name(),
+            &name,
             account.as_deref(),
             return_url,
             &StoreKeys(store.clone()),
@@ -366,8 +383,9 @@ pub fn sign_in_cancel(network_id: Uuid) {
 /// no connection uses it for a while.
 pub async fn connect(store: &Arc<Store>, network_id: Uuid) -> Result<()> {
     let c = network(store, network_id)?;
+    let name = device_name(store, store.require::<Transport>(network_id)?.vault_id);
     NETBIRD
-        .connect(&c, &device_name(), &StoreKeys(store.clone()))
+        .connect(&c, &name, &StoreKeys(store.clone()))
         .await
         .inspect_err(|e| tracing::warn!(network = %network_id, "netbird: connect failed: {e}"))?;
     Ok(())
@@ -383,8 +401,10 @@ pub fn dialer(
     store: &Arc<Store>,
     resolved: Option<&ResolvedHost>,
 ) -> Option<Arc<dyn TransportDial>> {
-    let config = config(store, resolved?.transport.as_ref()?)?;
-    Some(NETBIRD.dialer(config, device_name(), Arc::new(StoreKeys(store.clone()))))
+    let entity = resolved?.transport.as_ref()?;
+    let config = config(store, entity)?;
+    let name = device_name(store, entity.vault_id);
+    Some(NETBIRD.dialer(config, name, Arc::new(StoreKeys(store.clone()))))
 }
 
 /// Sign-out: stop every peer and forget this device's peer keys.
@@ -407,6 +427,16 @@ pub async fn stop_all() {
 mod tests {
     use super::*;
     use labterm_core::labterm_crypto::keys::SymmetricKey;
+
+    #[test]
+    fn peer_names_start_with_labterm() {
+        assert_eq!(
+            peer_name("Ops", "Google Pixel 9"),
+            "Labterm Ops Google Pixel 9"
+        );
+        assert_eq!(peer_name("", "mikes-mac"), "Labterm mikes-mac");
+        assert_eq!(peer_name("Personal", "Labterm"), "Labterm Personal");
+    }
 
     #[tokio::test]
     async fn deleting_a_network_forgets_its_peer_keys() {

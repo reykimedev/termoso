@@ -3096,6 +3096,8 @@ export interface VpnPeer {
   latencyMs: number;
   /** Unix seconds of the last handshake; 0 = none yet. */
   handshake: number;
+  /** Networks reached through this peer ("0.0.0.0/0" = exit node). */
+  routes: string[];
 }
 
 /** A host that connects through a network. */

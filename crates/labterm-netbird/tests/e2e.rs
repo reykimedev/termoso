@@ -224,3 +224,110 @@ async fn sign_in_checks_the_account() {
     assert!(nb.has_peer(&net, keys.as_ref()));
     nb.stop_all().await;
 }
+
+/// The management API, with the setup's token.
+fn api(method: &str, path: &str, body: Option<serde_json::Value>) -> serde_json::Value {
+    let mut cmd = std::process::Command::new("curl");
+    cmd.args(["-sf", "-X", method])
+        .arg("-H")
+        .arg(format!("Authorization: Token {}", env("NB_E2E_PAT")))
+        .args(["-H", "content-type: application/json"]);
+    if let Some(b) = body {
+        cmd.arg("-d").arg(b.to_string());
+    }
+    let out = cmd
+        .arg(format!("{}{path}", env("NB_E2E_MANAGEMENT")))
+        .output()
+        .expect("curl");
+    assert!(out.status.success(), "{method} {path} failed");
+    serde_json::from_slice(&out.stdout).unwrap_or(serde_json::Value::Null)
+}
+
+/// A route through the `routers` group to everyone (the "All" group).
+/// `auto_apply` false is an exit node the user has to pick in NetBird's own app.
+fn add_route(network: &str, auto_apply: bool) -> String {
+    let all = api("GET", "/api/groups", None)
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|g| g["name"] == "All")
+        .expect("All group")["id"]
+        .clone();
+    let route = api(
+        "POST",
+        "/api/routes",
+        Some(serde_json::json!({
+            "description": "e2e", "network_id": "e2e", "enabled": true,
+            "peer_groups": [env("NB_E2E_ROUTERS")], "network": network,
+            "metric": 9999, "masquerade": true, "groups": [all],
+            "keep_route": false, "skip_auto_apply": !auto_apply,
+        })),
+    );
+    route["id"].as_str().unwrap().to_owned()
+}
+
+async fn dial_at(
+    nb: &Arc<Netbird>,
+    keys: &Arc<MemKeys>,
+    net: NetworkConfig,
+    addr: &str,
+) -> Result<labterm_core::transport::BoxStream, String> {
+    let (host, port) = addr.rsplit_once(':').unwrap();
+    nb.dialer(net, "labterm-e2e-routes", keys.clone())
+        .dial(host, port.parse().unwrap())
+        .await
+        .map_err(|e| e.to_string())
+}
+
+async fn echo_at(nb: &Arc<Netbird>, keys: &Arc<MemKeys>, net: NetworkConfig, addr: &str) {
+    let mut s = dial_at(nb, keys, net, addr)
+        .await
+        .expect("dial through the routing peer");
+    s.write_all(b"lan bytes").await.unwrap();
+    let mut buf = [0u8; 9];
+    tokio::time::timeout(Duration::from_secs(20), s.read_exact(&mut buf))
+        .await
+        .expect("echo timed out")
+        .unwrap();
+    assert_eq!(&buf, b"lan bytes");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a NetBird server; run tests/e2e.sh"]
+async fn lan_addresses_through_routes() {
+    let lib = Some(env("NB_E2E_LIB"));
+    let lan = env("NB_E2E_LAN");
+    let (lan_ip, _) = lan.rsplit_once(':').unwrap();
+    let keys = Arc::new(MemKeys::default());
+    let nb = Netbird::with_options(lib, Duration::from_secs(2));
+    let id = Uuid::new_v4();
+    let net = network(id, Some(env("NB_E2E_SETUP_KEY")));
+
+    // No route: the LAN address isn't reachable.
+    assert!(dial_at(&nb, &keys, net.clone(), &lan).await.is_err());
+    nb.stop_all().await;
+
+    // A network route to one LAN address; the details page shows it.
+    let lan_route = format!("{lan_ip}/32");
+    let route = add_route(&lan_route, true);
+    echo_at(&nb, &keys, net.clone(), &lan).await;
+    let details = nb.details(id).await.expect("running").expect("status");
+    assert!(
+        details.peers.iter().any(|p| p.routes.contains(&lan_route)),
+        "route missing: {details:?}"
+    );
+    nb.stop_all().await;
+    api("DELETE", &format!("/api/routes/{route}"), None);
+
+    // An exit node (default route), auto-applied.
+    let route = add_route("0.0.0.0/0", true);
+    echo_at(&nb, &keys, net.clone(), &lan).await;
+    nb.stop_all().await;
+    api("DELETE", &format!("/api/routes/{route}"), None);
+
+    // Not auto-applied: the app can't pick exit nodes, so it stays unused.
+    let route = add_route("0.0.0.0/0", false);
+    assert!(dial_at(&nb, &keys, net.clone(), &lan).await.is_err());
+    nb.stop_all().await;
+    api("DELETE", &format!("/api/routes/{route}"), None);
+}

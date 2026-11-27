@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -220,6 +221,29 @@ fun VpnNetworkScreen(
             }
 
             if (joined) {
+                val routes = d.peers.flatMap { p -> p.routes.map { it to p.fqdn.ifEmpty { p.ip } } }
+                SectionLabel(stringResource(R.string.vpn_routes, routes.size))
+                SectionCard {
+                    if (routes.isEmpty()) {
+                        Text(
+                            stringResource(R.string.vpn_no_routes),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(16.dp),
+                        )
+                    }
+                    routes.forEachIndexed { i, (network, via) ->
+                        if (i > 0) RowDivider()
+                        ListRow(
+                            title = if (network == "0.0.0.0/0" || network == "::/0") {
+                                stringResource(R.string.vpn_exit_node, network)
+                            } else network,
+                            subtitle = stringResource(R.string.vpn_route_through, via),
+                            leading = { IconTile(Icons.Filled.Public) },
+                        )
+                    }
+                }
+
                 SectionLabel(stringResource(R.string.vpn_peers, d.peers.size))
                 SectionCard {
                     if (d.peers.isEmpty()) {

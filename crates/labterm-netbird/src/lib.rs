@@ -297,6 +297,10 @@ pub struct PeerDetails {
     /// Unix seconds of the last handshake; 0 = none yet.
     #[serde(default)]
     pub handshake: i64,
+    /// Networks reached through this peer: a routing peer's LAN routes, or
+    /// "0.0.0.0/0" for an exit node.
+    #[serde(default)]
+    pub routes: Vec<String>,
 }
 
 /// One running peer.

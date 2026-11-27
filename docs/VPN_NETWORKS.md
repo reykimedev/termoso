@@ -36,11 +36,45 @@ never grants network access by itself:
 2. Pick the network for a host or a group. Android: long-press → **Tunnel**.
    Desktop and web: the host's or group's settings → **VPN network**. Hosts in
    a group use the group's choice unless they set their own. The address is
-   the host's NetBird IP or DNS name (`host.netbird.cloud`, or your own domain).
+   the host's NetBird IP or DNS name (`host.netbird.cloud`, or your own domain),
+   or a plain LAN address that a NetBird route reaches (see below).
 3. The first connection to such a host asks you to **sign in**: the app opens
    the sign-in page of the identity provider your NetBird server uses (for
    example Authentik) in the browser. Afterwards the device is a peer of your
    NetBird user.
+
+## LAN addresses: routes and exit nodes
+
+A host doesn't need NetBird on it. Its normal address (say `192.0.2.10`)
+works when the network has a route that covers it:
+
+- **Network routes** (NetBird dashboard: Network Routes, or Networks with
+  resources): a routing peer forwards a LAN range, such as `192.0.2.0/24`,
+  into its network. The route's distribution groups must include your peer.
+- **Exit nodes** (a route for `0.0.0.0/0`): every address that nothing else
+  covers goes through the exit node. Labterm can't pick an exit node itself,
+  so leave "auto apply" on for the route in the dashboard (NetBird's
+  default). With it off, the app ignores the route.
+
+Only the SSH connections of hosts set to the network go through it, even
+with an exit node; nothing else on the device does. The details page lists
+the routes the device uses and the peer each one goes through.
+
+## Peer names and groups
+
+The device joins as "Labterm", the network's vault and the device name, for
+example "Labterm Ops Google Pixel 9" (on desktop, the computer's hostname).
+NetBird takes the name when the peer registers. A peer that joined earlier
+keeps its name, which you can change in the dashboard.
+
+The app can't put its peer in a NetBird group; the server decides, so access
+stays with NetBird's policies:
+
+- Signed in (SSO): turn on JWT group sync in NetBird, and your identity
+  provider's groups (for example an Authentik group `labterm`) become the
+  peer's groups.
+- Setup key (personal vaults): give the key auto-assigned groups in the
+  dashboard.
 
 ## Status and details
 
@@ -56,6 +90,8 @@ clicking) one opens its details:
   signs in as, and whether the management and signal servers are reachable.
 - **Hosts using this network:** the hosts of the vault that connect through
   it, by their own choice or their group's.
+- **Routes:** the LAN ranges and exit nodes this device reaches, and the
+  routing peer for each. Only shown while connected.
 - **Peers:** the peers this device may reach, with direct or relayed and the
   latency. Only shown while connected.
 - **Actions:** connect, disconnect, sign in (again) and sign out. Signing out
@@ -100,7 +136,8 @@ Authentik guide; nothing app specific is needed.
   through a network, so the Go runtime only starts when it is needed.
 - It runs in netstack mode: WireGuard and TCP/IP in userspace, nothing changes
   on the phone's network. Inbound connections are blocked and the peer never
-  routes for other peers.
+  routes for other peers. Routes of other peers only add WireGuard allowed
+  addresses inside the app; no system route changes.
 - The peer starts when the first host of that network connects and stops two
   minutes after its last connection closed. Connections of the same network
   share one peer.
@@ -131,4 +168,6 @@ Authentik guide; nothing app specific is needed.
 peer and the library, and runs the crate's end-to-end tests on loopback (CI
 job `netbird`): joining with a setup key, and signing in at the server's
 built-in identity provider (`tests/sso-login.py` plays the browser), signing
-in again with the same peer.
+in again with the same peer. A NetBird client in userspace mode acts as a
+routing peer, so the tests also reach a "LAN" address (this machine's own)
+through a network route and through an exit node.

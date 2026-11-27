@@ -1989,6 +1989,10 @@
     <string name="vpn_hosts_using">Hosts using this network</string>
     <string name="vpn_no_hosts_using">No host or group uses this network yet. Pick it in a host\'s or group\'s settings.</string>
     <string name="vpn_peers">Peers (%1$d)</string>
+    <string name="vpn_routes">Routes (%1$d)</string>
+    <string name="vpn_no_routes">No routes: only the peers\' own addresses are reachable.</string>
+    <string name="vpn_exit_node">Exit node (%1$s)</string>
+    <string name="vpn_route_through">through %1$s</string>
     <string name="vpn_no_peers">This device may not reach any peer in this network.</string>
     <string name="vpn_peer_idle">idle</string>
     <string name="vpn_peer_relayed">relayed</string>
