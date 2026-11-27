@@ -27,7 +27,7 @@ default = ["fido2"]
 # FIDO2 security keys in the keychain (needs USB HID; off on Android).
 fido2 = ["labterm-core/fido2"]
 # OpenPubkey (opkssh) certificates: per-key OpenID sign-in before connecting.
-oidc-cert = ["dep:labterm-oidc-cert"]
+oidc-cert = ["dep:labterm-oidc-cert", "dep:tracing"]
 # VPN networks: the embedded NetBird client that dials hosts set to use one.
 vpn = ["dep:labterm-netbird", "dep:tracing"]
 

@@ -346,6 +346,23 @@ impl SshClient {
                 opts.target.host
             )));
         }
+        let started = Instant::now();
+        let via = if let Some(g) = &opts.gateway {
+            format!("gateway {}", g.gateway_id)
+        } else if let Some(t) = &opts.transport {
+            t.label()
+        } else if opts
+            .proxy_command
+            .as_deref()
+            .is_some_and(|c| !c.trim().is_empty())
+        {
+            "ProxyCommand".to_string()
+        } else if let Some(p) = &opts.proxy {
+            format!("{} proxy {}:{}", p.kind.label(), p.host, p.port)
+        } else {
+            "tcp".to_string()
+        };
+        tracing::info!(target = %opts.target.display(), %via, "ssh: connecting");
         let stream = tokio::time::timeout(opts.timeout, async {
             if let Some(g) = &opts.gateway {
                 opts.report(ConnectPhase::Connecting {
@@ -387,10 +404,17 @@ impl SshClient {
                 }
                 None => {
                     opts.report(ConnectPhase::Resolving);
+                    let resolving = Instant::now();
                     let addrs = opts.ip_version.filter(
                         tokio::net::lookup_host((opts.target.host.as_str(), opts.target.port))
                             .await?
                             .collect(),
+                    );
+                    tracing::debug!(
+                        host = %opts.target.host,
+                        addrs = addrs.len(),
+                        ms = resolving.elapsed().as_millis(),
+                        "ssh: resolved"
                     );
                     let Some(first) = addrs.first() else {
                         return Err(CoreError::Ssh(format!(
@@ -406,7 +430,10 @@ impl SshClient {
                     for addr in &addrs {
                         match TcpStream::connect(addr).await {
                             Ok(s) => return Ok(proxy::ProxyStream::Tcp(s)),
-                            Err(e) => last = Some(e),
+                            Err(e) => {
+                                tracing::debug!(%addr, "ssh: tcp connect failed: {e}");
+                                last = Some(e);
+                            }
                         }
                     }
                     Err(last
@@ -416,9 +443,22 @@ impl SshClient {
             }
         })
         .await
-        .map_err(|_| {
-            CoreError::Ssh(format!("timed out connecting to {}", opts.target.display()))
-        })??;
+        .map_err(|_| CoreError::Ssh(format!("timed out connecting to {}", opts.target.display())))
+        .and_then(|r| r)
+        .inspect_err(|e| {
+            tracing::warn!(
+                target = %opts.target.display(),
+                %via,
+                ms = started.elapsed().as_millis(),
+                "ssh: could not reach the host: {e}"
+            );
+        })?;
+        tracing::info!(
+            target = %opts.target.display(),
+            %via,
+            ms = started.elapsed().as_millis(),
+            "ssh: transport open"
+        );
         Self::connect_stream(stream, opts).await
     }
 
@@ -462,6 +502,8 @@ impl SshClient {
         let server_id: peek::ServerId = Default::default();
         let stream = peek::IdPeek::new(stream, server_id.clone());
         opts.report(ConnectPhase::Handshake);
+        let started = Instant::now();
+        let target = opts.target.display();
         if let Some(p) = &opts.progress {
             // The host-key check is the only part of the handshake the user
             // can see (and may be asked about), so surface it as its own step.
@@ -484,14 +526,41 @@ impl SshClient {
                 "handshake with {} timed out",
                 opts.target.display()
             ))
-        })??;
+        })
+        .and_then(|r| r)
+        .inspect_err(|e| {
+            tracing::warn!(
+                %target,
+                ms = started.elapsed().as_millis(),
+                "ssh: handshake failed: {e}"
+            );
+        })?;
+        let handshake_ms = started.elapsed().as_millis();
+        tracing::info!(%target, ms = handshake_ms, "ssh: handshake done");
 
-        auth::authenticate(&mut handle, &opts).await?;
+        auth::authenticate(&mut handle, &opts)
+            .await
+            .inspect_err(|e| {
+                tracing::warn!(
+                    %target,
+                    ms = started.elapsed().as_millis() - handshake_ms,
+                    "ssh: authentication failed: {e}"
+                );
+            })?;
         opts.report(ConnectPhase::Authenticated);
 
         let banner = banner.lock().unwrap_or_else(|p| p.into_inner()).clone();
         let server_id = server_id.lock().unwrap_or_else(|p| p.into_inner()).clone();
         let algorithms = algorithms.lock().unwrap_or_else(|p| p.into_inner()).clone();
+        tracing::info!(
+            %target,
+            server = server_id.as_deref().unwrap_or(""),
+            kex = algorithms.as_ref().map_or("", |a| a.kex.as_str()),
+            cipher = algorithms.as_ref().map_or("", |a| a.cipher.as_str()),
+            handshake_ms,
+            auth_ms = started.elapsed().as_millis() - handshake_ms,
+            "ssh: authenticated"
+        );
         Ok(Self {
             handle,
             target: opts.target,

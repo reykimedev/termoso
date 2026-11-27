@@ -99,25 +99,124 @@ pub(crate) static RUNTIME: LazyLock<tokio::runtime::Runtime> = LazyLock::new(|| 
 /// Idempotent. Never logs secrets: the core masks them.
 #[uniffi::export]
 pub fn init_logging(verbose: bool) {
+    init_logging_with_files(verbose, None);
+}
+
+/// Target of the lines the app's own code hands over with [`log_line`].
+const APP_TARGET: &str = "app";
+
+/// Like [`init_logging`], and with a `log_dir` also into one redacted file
+/// per launch there (the last ten are kept), for the in-app debug log
+/// viewer ([`debug_log_files`], [`debug_log_read`]). Verbose adds debug
+/// lines from Labterm's own crates, with timings for sync, VPN, opkssh and
+/// SSH connects.
+#[uniffi::export]
+pub fn init_logging_with_files(verbose: bool, log_dir: Option<String>) {
+    use tracing_subscriber::filter::{EnvFilter, filter_fn};
     use tracing_subscriber::prelude::*;
     let level = if verbose {
         tracing::Level::DEBUG
     } else {
         tracing::Level::INFO
     };
-    let filter = tracing_subscriber::filter::LevelFilter::from_level(level);
+    // Lines from Kotlin / Swift already went to the platform log.
+    let platform_filter = filter_fn(move |m| m.target() != APP_TARGET && *m.level() <= level);
     #[cfg(target_os = "android")]
     let layer = tracing_android::layer("labterm").ok();
     #[cfg(target_os = "ios")]
     let layer = Some(tracing_oslog::OsLogger::new("dev.labdex.labterm", "core"));
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     let layer = Some(tracing_subscriber::fmt::layer().with_target(false));
-    if let Some(layer) = layer {
-        let _ = tracing_subscriber::registry()
-            .with(filter)
-            .with(layer)
-            .try_init();
+    let platform = layer.map(|l| l.with_filter(platform_filter));
+
+    let directives = if verbose {
+        "info,labterm_core=debug,labterm_client=debug,labterm_netbird=debug,labterm_mobile=debug,app=debug"
+    } else {
+        "info"
+    };
+    let file = log_dir
+        .and_then(|d| match labterm_core::debuglog::FileWriter::open(d) {
+            Ok(w) => Some(w),
+            Err(e) => {
+                eprintln!("labterm: debug log files off: {e}");
+                None
+            }
+        })
+        .map(|w| {
+            tracing_subscriber::fmt::layer()
+                .with_ansi(false)
+                .with_writer(std::sync::Mutex::new(w))
+                .with_filter(EnvFilter::new(directives))
+        });
+    let started = file.is_some();
+    if tracing_subscriber::registry()
+        .with(platform)
+        .with(file)
+        .try_init()
+        .is_ok()
+        && started
+    {
+        tracing::info!(
+            version = env!("CARGO_PKG_VERSION"),
+            os = std::env::consts::OS,
+            arch = std::env::consts::ARCH,
+            verbose,
+            "labterm: debug log started"
+        );
     }
+}
+
+/// A line from the app's own code (Kotlin, Swift) for the debug log file,
+/// so one file shows the whole story. `level` is `error`, `warn`, `info` or
+/// `debug`; `tag` names the part of the app. Redacted like every line.
+#[uniffi::export]
+pub fn log_line(level: String, tag: String, message: String) {
+    match level.as_str() {
+        "error" | "e" => tracing::error!(target: APP_TARGET, %tag, "{message}"),
+        "warn" | "w" => tracing::warn!(target: APP_TARGET, %tag, "{message}"),
+        "info" | "i" => tracing::info!(target: APP_TARGET, %tag, "{message}"),
+        _ => tracing::debug!(target: APP_TARGET, %tag, "{message}"),
+    }
+}
+
+/// One debug log file for the viewer's picker.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct DebugLogFile {
+    /// File name; what [`debug_log_read`] takes.
+    pub name: String,
+    pub size: u64,
+    /// Last write, Unix seconds.
+    pub modified: i64,
+    /// The file this launch writes.
+    pub current: bool,
+}
+
+/// The debug log files, newest first; empty when files are off.
+#[uniffi::export]
+pub fn debug_log_files() -> Result<Vec<DebugLogFile>> {
+    Ok(labterm_core::debuglog::list()?
+        .into_iter()
+        .map(|f| DebugLogFile {
+            name: f.name,
+            size: f.size,
+            modified: f.modified,
+            current: f.current,
+        })
+        .collect())
+}
+
+/// The end of one debug log file (the last 2 MiB), redacted, one entry per
+/// line.
+#[uniffi::export]
+pub fn debug_log_read(name: String) -> Result<Vec<String>> {
+    Ok(labterm_core::debuglog::read(&name)?)
+}
+
+/// Mask keys, tokens and passwords in `line`, the same way the log files
+/// are masked (for lines the app shows from elsewhere, like logcat).
+#[uniffi::export]
+pub fn debug_log_redact(line: String) -> String {
+    labterm_core::debuglog::redact(&line)
 }
 
 /// Crate version (`CARGO_PKG_VERSION`).

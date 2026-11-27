@@ -26,7 +26,7 @@ use std::pin::Pin;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, Weak};
 use std::task::{Context, Poll};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use labterm_core::error::{CoreError, Result};
 use labterm_core::model::{Entity, Transport};
@@ -390,6 +390,14 @@ impl Netbird {
         );
         let path = self.library_path.clone();
         let label = config.label.clone();
+        let started = Instant::now();
+        tracing::info!(
+            network = %config.id,
+            server = %config.management_url,
+            saved_peer = saved.is_some(),
+            setup_key = config.setup_key.is_some(),
+            "netbird: starting"
+        );
         let (handle, result) = tokio::task::spawn_blocking(move || {
             let lib = ffi::library(path.as_deref())?;
             lib.start(&options)
@@ -397,6 +405,11 @@ impl Netbird {
         .await
         .map_err(|e| CoreError::Transport(format!("netbird: {e}")))?
         .map_err(|e| {
+            tracing::warn!(
+                network = %config.id,
+                ms = started.elapsed().as_millis(),
+                "netbird: start failed: {e}"
+            );
             if config.setup_key.is_none() && login_refused(&e) {
                 CoreError::Transport(format!("{SIGN_IN_NEEDED} for \"{label}\": {e}"))
             } else {
@@ -412,6 +425,7 @@ impl Netbird {
         tracing::info!(
             network = %config.id,
             registered = result.registered,
+            ms = started.elapsed().as_millis(),
             "netbird: started"
         );
         let node = Arc::new(Node {
@@ -460,13 +474,28 @@ impl Netbird {
         );
         let path = self.library_path.clone();
         let label = config.label.clone();
+        let started = Instant::now();
+        tracing::info!(
+            network = %config.id,
+            server = %config.management_url,
+            saved_peer = saved.is_some(),
+            account = account.is_some_and(|a| !a.trim().is_empty()),
+            "netbird: sign-in starting"
+        );
         let (handle, out) = tokio::task::spawn_blocking(move || {
             let lib = ffi::library(path.as_deref())?;
             lib.login_begin(&options)
         })
         .await
         .map_err(|e| CoreError::Transport(format!("netbird: {e}")))?
-        .map_err(|e| CoreError::Transport(format!("NetBird \"{label}\": {e}")))?;
+        .map_err(|e| {
+            tracing::warn!(
+                network = %config.id,
+                ms = started.elapsed().as_millis(),
+                "netbird: sign-in could not start: {e}"
+            );
+            CoreError::Transport(format!("NetBird \"{label}\": {e}"))
+        })?;
         #[derive(Deserialize)]
         struct Begin {
             auth_url: String,
@@ -485,7 +514,12 @@ impl Netbird {
                 config.label
             )));
         }
-        tracing::info!(network = %config.id, timings = %begin.timings, "netbird: sign-in started");
+        tracing::info!(
+            network = %config.id,
+            ms = started.elapsed().as_millis(),
+            timings = %begin.timings,
+            "netbird: sign-in started, waiting for the browser"
+        );
         Ok(SignIn {
             auth_url: begin.auth_url,
             handle,
@@ -504,6 +538,7 @@ impl Netbird {
         let path = self.library_path.clone();
         let handle = sign_in.handle;
         let ms = timeout.as_millis().min(u128::from(u32::MAX)) as u32;
+        let started = Instant::now();
         let out = Zeroizing::new(
             tokio::task::spawn_blocking(move || {
                 let lib = ffi::library(path.as_deref())?;
@@ -511,7 +546,14 @@ impl Netbird {
             })
             .await
             .map_err(|e| CoreError::Transport(format!("netbird: {e}")))?
-            .map_err(|e| CoreError::Transport(format!("NetBird \"{}\": {e}", config.label)))?,
+            .map_err(|e| {
+                tracing::warn!(
+                    network = %config.id,
+                    ms = started.elapsed().as_millis(),
+                    "netbird: sign-in did not finish: {e}"
+                );
+                CoreError::Transport(format!("NetBird \"{}\": {e}", config.label))
+            })?,
         );
         let result: LoginResult = serde_json::from_str(&out)
             .map_err(|e| CoreError::Transport(format!("netbird: bad sign-in result: {e}")))?;
@@ -521,7 +563,12 @@ impl Netbird {
         if let Some(n) = self.nodes.lock().await.remove(&config.id) {
             self.stop_node(n).await;
         }
-        tracing::info!(network = %config.id, timings = %result.timings, "netbird: signed in");
+        tracing::info!(
+            network = %config.id,
+            ms = started.elapsed().as_millis(),
+            timings = %result.timings,
+            "netbird: signed in"
+        );
         Ok(SignedIn {
             email: result.email.filter(|e| !e.is_empty()),
         })
@@ -529,6 +576,7 @@ impl Netbird {
 
     /// Make a waiting [`Self::finish_sign_in`] return with an error.
     pub fn cancel_sign_in(&self, handle: SignInHandle) {
+        tracing::info!("netbird: sign-in cancelled");
         if let Ok(lib) = ffi::library(self.library_path.as_deref()) {
             lib.login_cancel(handle.0);
         }
@@ -536,7 +584,9 @@ impl Netbird {
 
     async fn dial(&self, d: &Dialer, host: &str, port: u16) -> Result<BoxStream> {
         let config = &d.config;
+        let started = Instant::now();
         let node = self.node(config, &d.device_name, d.keys.as_ref()).await?;
+        let peer_ms = started.elapsed().as_millis();
         node.streams.fetch_add(1, Ordering::SeqCst);
         node.epoch.fetch_add(1, Ordering::SeqCst);
         let guard = StreamGuard {
@@ -553,11 +603,27 @@ impl Netbird {
         .await
         .map_err(|e| CoreError::Transport(format!("netbird: {e}")))?
         .map_err(|e| {
+            tracing::warn!(
+                network = %config.id,
+                %host,
+                port,
+                peer_ms,
+                ms = started.elapsed().as_millis(),
+                "netbird: dial failed: {e}"
+            );
             CoreError::Transport(format!(
                 "{host}:{port} via NetBird \"{}\": {e}",
                 config.label
             ))
         })?;
+        tracing::info!(
+            network = %config.id,
+            %host,
+            port,
+            peer_ms,
+            ms = started.elapsed().as_millis(),
+            "netbird: dialed"
+        );
         let std = std::os::unix::net::UnixStream::from(fd);
         std.set_nonblocking(true)?;
         let inner = tokio::net::UnixStream::from_std(std)?;
@@ -582,6 +648,11 @@ impl Netbird {
                     .get(&node.config.id)
                     .is_some_and(|n| Arc::ptr_eq(n, &node));
             if still_idle {
+                tracing::info!(
+                    network = %node.config.id,
+                    idle_s = idle.as_secs(),
+                    "netbird: idle, stopping"
+                );
                 nodes.remove(&node.config.id);
                 drop(nodes);
                 self.stop_node(node).await;

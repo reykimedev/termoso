@@ -9,6 +9,7 @@ import * as backup from "./backend/backup";
 import { call, normalizeServer } from "./backend/api";
 import { config } from "./backend/config";
 import * as db from "./backend/db";
+import * as debuglog from "./backend/debuglog";
 import * as files from "./backend/files";
 import * as history from "./backend/history";
 import { asDesktopError, fail } from "./backend/errors";
@@ -125,6 +126,8 @@ const commands: Record<string, Handler> = {
     platform: "web",
   }),
   app_quit: () => lockNow(),
+  debug_log_files: () => debuglog.files(),
+  debug_log_read: (a) => debuglog.read(String(a.name ?? "")),
   launch_files: () => [],
   launch_links: () => [],
   deep_links_register: () => null,
@@ -372,6 +375,11 @@ const commands: Record<string, Handler> = {
 };
 
 /** Writes the user made: queue them for the next push to the Labterm server. */
+// Too frequent to be worth a debug log line each.
+const QUIET =
+  /^(vault_activity|terminal_write|terminal_resize|terminal_attach|sessions_list|debug_log_files|debug_log_read|history_record_command|prompt_answer|plugin:)/;
+const ms = (t: number) => Math.round(performance.now() - t);
+
 const WRITE =
   /(_save|_delete|_duplicate|_move|_generate|_import|_rename|_set_|_remember_|_forget|_pin$|_unpin$|_to_vault$|^backup_restore$|^key_create_opkssh$|^tag_|^tags_merge)/;
 
@@ -386,10 +394,14 @@ mockIPC(
         if (/_list$|^list_|s_list$/.test(cmd)) return [];
         return null;
       }
+      const t = performance.now();
       const out = await h(a);
+      if (!QUIET.test(cmd)) debuglog.log("DEBUG", "ipc", `${cmd} in ${ms(t)} ms`);
       if (WRITE.test(cmd) && st.isUnlocked() && st.s().account) account.schedulePush();
       return out;
     } catch (e) {
+      // Only the command's name and the error: arguments can hold secrets.
+      debuglog.warn("ipc", `${cmd} failed: ${debuglog.errorText(e)}`);
       throw asDesktopError(e);
     }
   },

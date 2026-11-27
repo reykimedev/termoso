@@ -1,6 +1,7 @@
 // The Labterm server's REST API (`/api/v1`), as a native client uses it. Self-hosted servers must
 // list Hatch's origin in LABTERM_CORS_ORIGINS; the browser refuses the calls otherwise.
 import { fail } from "./errors";
+import * as debuglog from "./debuglog";
 
 export interface ApiErrorBody {
   code?: string;
@@ -34,6 +35,9 @@ export async function call<T>(
   token?: string | null,
 ): Promise<T> {
   let res: Response;
+  const t = performance.now();
+  // The path without its query: queries can carry codes and tokens.
+  const what = `${method} /api/v1/${path.split("?")[0]}`;
   try {
     res = await fetch(`${server}/api/v1/${path}`, {
       method,
@@ -44,12 +48,17 @@ export async function call<T>(
       body: body !== undefined ? JSON.stringify(body) : undefined,
       credentials: "omit",
     });
-  } catch {
+  } catch (e) {
+    debuglog.warn(
+      "api",
+      `${what} failed after ${Math.round(performance.now() - t)} ms: ${String(e)}`,
+    );
     fail(
       "network",
       `Cannot reach ${server}. If it is your own server, add this page's origin (${location.origin}) to LABTERM_CORS_ORIGINS.`,
     );
   }
+  debuglog.log("DEBUG", "api", `${what}: ${res.status} in ${Math.round(performance.now() - t)} ms`);
   if (res.status === 204) return undefined as T;
   const text = await res.text();
   const json = text ? (JSON.parse(text) as unknown) : undefined;

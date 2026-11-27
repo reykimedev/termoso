@@ -2909,5 +2909,10 @@
   "VPN network": "VPN-сеть",
   "VPN Networks": "VPN-сети",
   "Without one, this device signs in instead.": "Без него это устройство входит через учётную запись.",
-  "This app cannot join VPN networks here yet. Hosts set to use one connect from the desktop app on Linux and macOS, and from Android.": "Здесь приложение пока не умеет входить в VPN-сети. Хосты с VPN-сетью подключаются из приложения для Linux и macOS, а также из Android."
+  "This app cannot join VPN networks here yet. Hosts set to use one connect from the desktop app on Linux and macOS, and from Android.": "Здесь приложение пока не умеет входить в VPN-сети. Хосты с VPN-сетью подключаются из приложения для Linux и macOS, а также из Android.",
+  "Debug log": "Журнал отладки",
+  "What Labterm logged in this and earlier launches, with timings for sync, VPN networks, OpenID keys, updates and SSH connects. Secrets are removed before anything is written.": "Что Labterm записал в этом и прошлых запусках, с замерами времени для синхронизации, VPN-сетей, ключей OpenID, обновлений и SSH-подключений. Секреты удаляются до записи.",
+  "Log file": "Файл журнала",
+  "Nothing logged here yet.": "Здесь пока ничего не записано.",
+  "This launch · {size}": "Этот запуск · {size}"
 }

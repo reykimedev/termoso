@@ -68,6 +68,8 @@ base64 = { workspace = true }
 bytes = { workspace = true }
 url = { workspace = true }
 hex = "0.4"
+# Debug log redaction (already in the tree through aws-lc / bindgen).
+regex-lite = "0.1"
 sha2 = { workspace = true }
 hmac = "0.12"
 quick-xml = "0.42"

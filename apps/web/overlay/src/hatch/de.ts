@@ -143,4 +143,16 @@ export const de: Readonly<Record<string, string>> = {
   SFTP: "SFTP",
   "Port forwarding": "Portweiterleitung",
   "Running snippets on several hosts": "Snippets auf mehreren Hosts ausführen",
+
+  // debug log (Settings → About)
+  "Debug log": "Debug-Protokoll",
+  "What Labterm logged in this and earlier launches, with timings for sync, VPN networks, OpenID keys, updates and SSH connects. Secrets are removed before anything is written.":
+    "Was Labterm in diesem und früheren Starts protokolliert hat, mit Zeiten für Synchronisation, VPN-Netzwerke, OpenID-Schlüssel, Updates und SSH-Verbindungen. Geheimnisse werden entfernt, bevor etwas geschrieben wird.",
+  "Log file": "Protokolldatei",
+  "This launch · {size}": "Dieser Start · {size}",
+  "Nothing logged here yet.": "Hier wurde noch nichts protokolliert.",
+  Show: "Anzeigen",
+  Refresh: "Aktualisieren",
+  Copy: "Kopieren",
+  Copied: "Kopiert",
 };

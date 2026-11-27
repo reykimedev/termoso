@@ -298,7 +298,16 @@ list; the source of truth is
 | `LABTERM_START_OVER_DELAY_SECS` | `86400` | waiting period of the *Start over* account reset |
 
 Client-side settings live in the apps. Desktop honours `LABTERM_PROFILE_DIR`
-(profile location) and `LABTERM_LOG` (stderr filter).
+(profile location) and `LABTERM_LOG` (stderr filter, default `warn`; when set it
+also filters the debug log files).
+
+The apps keep a debug log of their own: one file per launch (the last ten, at
+most 4 MiB each, in the profile's `debug-logs`), with timings for sync, API
+calls, VPN networks, opkssh sign-ins, updates and SSH connects. Keys, tokens,
+passwords and OAuth parameters are removed before a line is written. Read them
+under Settings → About → Debug log on desktop and iOS, and Settings → Debug log
+on Android debug builds (which also show live logcat). Labterm Web keeps only
+the current tab's log, in memory.
 
 ## Local development
 

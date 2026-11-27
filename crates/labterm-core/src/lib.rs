@@ -37,6 +37,7 @@ pub mod api;
 pub mod autocomplete;
 pub mod ca;
 pub mod cloud;
+pub mod debuglog;
 pub mod error;
 pub mod extsecret;
 pub mod fido2;

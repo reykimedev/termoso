@@ -9,7 +9,9 @@ import android.os.Bundle
 import androidx.browser.customtabs.CustomTabsIntent
 import dev.labdex.labterm.data.AppContainer
 import dev.labdex.labterm.core.UrlOpener
-import dev.labdex.labterm.core.initLogging
+import dev.labdex.labterm.core.initLoggingWithFiles
+import dev.labdex.labterm.data.AppLog
+import dev.labdex.labterm.data.DebugLog
 import dev.labdex.labterm.core.setUrlOpener
 import java.lang.ref.WeakReference
 
@@ -19,7 +21,25 @@ class LabtermApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        initLogging(verbose = BuildConfig.DEBUG)
+        // Debug builds also keep one log file per launch for the in-app viewer.
+        initLoggingWithFiles(
+            verbose = BuildConfig.DEBUG,
+            logDir = if (DebugLog.enabled) DebugLog.dir(this).path else null,
+        )
+        if (DebugLog.enabled) {
+            AppLog.i(
+                "Labterm",
+                "start: ${BuildConfig.APPLICATION_ID} ${BuildConfig.VERSION_NAME} build ${BuildConfig.DEBUG_BUILD}, " +
+                    "Android ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT}), " +
+                    "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}",
+            )
+            // A crash lands in the file before the process dies, so the next launch can show it.
+            val previous = Thread.getDefaultUncaughtExceptionHandler()
+            Thread.setDefaultUncaughtExceptionHandler { thread, error ->
+                AppLog.e("Labterm", "crash on thread ${thread.name}", error)
+                previous?.uncaughtException(thread, error)
+            }
+        }
         Strings.init(this)
         container = AppContainer(this)
         setUrlOpener(BrowserOpener(this))

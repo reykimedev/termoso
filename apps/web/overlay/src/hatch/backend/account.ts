@@ -19,6 +19,7 @@ import {
 } from "./state";
 
 import { LABTERM_VERSION as APP_VERSION } from "../build";
+import * as debuglog from "./debuglog";
 
 interface Session {
   token: string;
@@ -603,11 +604,18 @@ export function syncNow(): Promise<void> {
     if (!s().account) return;
     setStatus({ state: "syncing" });
     const changedVaults = new Set<Uuid>();
+    const t = performance.now();
     try {
       const p = await push(changedVaults);
+      const pushMs = Math.round(performance.now() - t);
       const pulled = await pull(changedVaults);
       // A second push sends what lost a conflict on the first.
       if (p.conflicts) await push(changedVaults);
+      debuglog.info(
+        "sync",
+        `pass done in ${Math.round(performance.now() - t)} ms (push ${pushMs} ms): ` +
+          `pushed ${p.pushed}, pulled ${pulled}, conflicts ${p.conflicts}`,
+      );
       setStatus({
         state: "idle",
         lastSyncAt: new Date().toISOString(),
@@ -619,6 +627,10 @@ export function syncNow(): Promise<void> {
     } catch (e) {
       const offline =
         e && typeof e === "object" && "kind" in e && (e as { kind: string }).kind === "network";
+      debuglog.warn(
+        "sync",
+        `pass failed after ${Math.round(performance.now() - t)} ms: ${debuglog.errorText(e)}`,
+      );
       setStatus({
         state: offline ? "offline" : "error",
         lastError: (e as { message?: string }).message ?? String(e),

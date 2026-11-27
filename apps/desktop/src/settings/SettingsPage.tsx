@@ -42,6 +42,7 @@ import * as ipc from "@/ipc/commands";
 import { useAppInfo, useSaveSettings, useSettings } from "@/ipc/hooks";
 import { useUpdatesEnabled } from "@/update/store";
 import { UpdatesCard } from "@/update/UpdatesCard";
+import { DebugLogCard } from "./DebugLogCard";
 import { FontPicker, FontPreview } from "./FontPicker";
 import { KeyboardPage } from "./KeyboardPage";
 import { SecurityPage } from "./SecurityPage";
@@ -982,6 +983,8 @@ function About() {
           }
         />
       </SectionCard>
+
+      <DebugLogCard />
 
       <SectionCard title={tr("Privacy")}>
         <Typography variant="body2" color="text.secondary">
