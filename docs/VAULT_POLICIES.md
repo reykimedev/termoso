@@ -165,20 +165,26 @@ their old copy (tidiness, not protection).
 ### Server
 
 - Tables: `collections` (id, vault, encrypted name, key_version, rotation_owed), `collection_keys`
-  (collection, user, version, authenticated envelope), `collection_log` (signed entries).
-- `GET /sync/pull` returns a collection's rows only to members holding its key, with a cursor per
+  (collection, user, version, granting manager, authenticated envelope), `collection_log` (signed
+  entries) and `collection_members` (the replayed log, for the pull filter and push rules).
+- Routes: `GET|POST /vaults/{id}/collections`, `GET|POST /collections/{id}/log` (append signed
+  entries and key envelopes), `GET /collections/{id}/keys`, `POST /collections/{id}/sync/push`
+  and `POST /collections/sync/pull`. The server replays the log on every append and refuses
+  entries that aren't the sender's own, members outside the vault, and keys that aren't the
+  account's registered key, so its member list matches what clients verify.
+- Collection rows never appear in `/sync/pull` or `/sync/push`, and the vault routes can't update
+  or delete them. `/collections/sync/pull` returns them only to members, with a cursor per
   collection so a member added later gets the rows below their vault cursor (R9).
-- Push rules (R7): creates with a `collection_id` need edit on that collection; updates and
-  **deletes** of collection rows need edit on it; **moving** a row between collections, or out to
-  the vault-wide part, is a delete plus a create, allowed only to someone who manages both sides,
-  and moving out is audited.
+- Push rules (R7): creates, updates and **deletes** of collection rows need edit on that
+  collection and its current key version; **moving** a row between collections, or in from or out
+  to the vault-wide part, is a delete plus a create, allowed only to someone who manages both
+  sides, and moving out is audited.
 - The server learns which collections exist, who is in them and how many items each holds. Names
   are encrypted with `CK`.
 
 ### Older clients
 
-- Clients send a feature flag (`collections`) on sync; the server sends collection rows only to
-  clients that send it. Older clients don't see restricted items, which fails safe.
+- Collection rows have their own routes, so older clients never see them, which fails safe.
 - A vault with at least one collection is marked `format = 2`.
 - Decision record: [Collection keys inside team vaults](decisions/0001-collection-keys.md).
 
