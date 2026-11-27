@@ -51,6 +51,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.labdex.labterm.R
+import dev.labdex.labterm.ui.components.ItemActionsSheet
+import dev.labdex.labterm.ui.components.ItemMoreButton
+import dev.labdex.labterm.ui.components.SheetAction
+import dev.labdex.labterm.ui.components.SheetSection
+import dev.labdex.labterm.ui.components.itemClicks
 import dev.labdex.labterm.data.ForwardManager
 import dev.labdex.labterm.data.PendingPrompt
 import dev.labdex.labterm.data.Tunnel
@@ -230,7 +235,7 @@ private fun RuleCard(
 
     Box {
         SectionCard(
-            modifier = Modifier.combinedClickable(onClick = onEdit, onLongClick = { menu = true }),
+            modifier = Modifier.itemClicks(onClick = onEdit, onMenu = { menu = true }),
         ) {
             Row(
                 Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
@@ -270,19 +275,25 @@ private fun RuleCard(
                     onCheckedChange = { on -> pending = on; onToggle(on) },
                     enabled = !rule.hostMissing,
                 )
+                ItemMoreButton({ menu = true })
             }
         }
-        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-            DropdownMenuItem(text = { Text(stringResource(R.string.edit)) }, leadingIcon = { Icon(Icons.Filled.Edit, null) }, onClick = { menu = false; onEdit() })
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.duplicate)) },
-                leadingIcon = { Icon(Icons.Filled.ContentCopy, null) },
-                onClick = { menu = false; onDuplicate() },
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) },
-                leadingIcon = { Icon(Icons.Filled.Delete, null, tint = MaterialTheme.colorScheme.error) },
-                onClick = { menu = false; onDelete() },
+        if (menu) {
+            ItemActionsSheet(
+                title = rule.label.ifBlank { kindTitle(rule.kind) },
+                subtitle = rule.route,
+                leading = { IconTile(kindIcon(rule.kind)) },
+                sections = listOf(
+                    SheetSection(
+                        stringResource(R.string.port_forwarding_3),
+                        listOf(
+                            SheetAction(Icons.Filled.Edit, stringResource(R.string.edit), onClick = onEdit),
+                            SheetAction(Icons.Filled.ContentCopy, stringResource(R.string.duplicate), onClick = onDuplicate),
+                        ),
+                    ),
+                    SheetSection(null, listOf(SheetAction(Icons.Filled.Delete, stringResource(R.string.delete), danger = true, onClick = onDelete))),
+                ),
+                onClose = { menu = false },
             )
         }
     }

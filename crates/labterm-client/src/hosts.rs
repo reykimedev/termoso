@@ -62,7 +62,71 @@ pub struct HostCard {
     pub last_connected: Option<OffsetDateTime>,
     /// Provider the host was imported from (`Host::cloud_instance_type`).
     pub cloud_provider: Option<String>,
+    /// VPN network the host is reached through, own or inherited.
+    #[serde(default)]
+    pub vpn: Option<HostVpn>,
+    /// How the host connects, for the small badges on host rows.
+    #[serde(default)]
+    pub badges: HostBadges,
     pub dirty: bool,
+}
+
+/// Connection facts shown as badges on host rows. Computed with the
+/// member's personal overlay applied, so they describe what a connect from
+/// this device would actually use.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct HostBadges {
+    /// `opkssh` | `ssh_id` | `certificate` | `key` | `password`, or `None`
+    /// when nothing is stored (asked on connect).
+    pub auth: Option<String>,
+    /// A personal overlay supplies this member's own credentials.
+    pub overlay: bool,
+    /// A personal overlay exists but is paused (address or route changed).
+    pub overlay_paused: bool,
+    /// Reached through jump hosts.
+    pub jump: bool,
+    /// Reached through a gateway (API bridge).
+    pub gateway: bool,
+    /// Reached through a SOCKS/HTTP proxy.
+    pub proxy: bool,
+    /// SSH hosts only: whether a server key is pinned for `address:port` in
+    /// any unlocked vault. `Some(false)` means the first connect has to
+    /// confirm the key. A changed key only shows up when connecting.
+    pub host_key_trusted: Option<bool>,
+}
+
+fn auth_kind(r: &labterm_core::model::ResolvedHost) -> Option<String> {
+    let kind = if r.ssh.oidc_key_id.is_some() {
+        "opkssh"
+    } else if r.identity.as_ref().is_some_and(|i| i.data.ssh_id) {
+        "ssh_id"
+    } else if r.certificate.is_some() {
+        "certificate"
+    } else if r.key.is_some() {
+        "key"
+    } else if r
+        .identity
+        .as_ref()
+        .is_some_and(|i| i.data.password.as_deref().is_some_and(|p| !p.is_empty()))
+    {
+        "password"
+    } else {
+        return None;
+    };
+    Some(kind.to_owned())
+}
+
+/// The VPN network on a host card, for the badge on host rows.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct HostVpn {
+    pub id: Uuid,
+    pub label: String,
+    /// `Transport::provider` (`netbird`, later `tailscale`); clients name it.
+    pub provider: String,
+    /// Comes from a group or tag, not from the host's own settings.
+    pub inherited: bool,
 }
 
 /// Flat editor model. `None` for optional fields means "inherit / unset".
@@ -769,6 +833,12 @@ fn last_connections(store: &Store) -> Result<HashMap<Uuid, OffsetDateTime>> {
 pub fn cards(store: &Store, vault_id: Option<Uuid>) -> Result<Vec<HostCard>> {
     let hosts: Vec<Entity<Host>> = store.list(vault_id)?;
     let recent = last_connections(store)?;
+    // One read of the pins for all rows; `host_id` gives their key.
+    let pinned: HashSet<String> = store
+        .list::<labterm_core::model::KnownHost>(None)?
+        .into_iter()
+        .map(|k| k.data.hostname.to_ascii_lowercase())
+        .collect();
     let mut out = Vec::with_capacity(hosts.len());
     for h in hosts {
         let r = store.resolve_host(h.id)?;
@@ -821,6 +891,32 @@ pub fn cards(store: &Store, vault_id: Option<Uuid>) -> Result<Vec<HostCard>> {
         } else {
             "ssh"
         };
+        let own_transport = match h.data.ssh_config_id {
+            Some(c) => store.get::<SshConfig>(c)?.and_then(|e| e.data.transport_id),
+            None => None,
+        };
+        let vpn = r.transport.as_ref().map(|t| HostVpn {
+            id: t.id,
+            label: t.data.label.clone(),
+            provider: t.data.provider.clone(),
+            inherited: own_transport != Some(t.id),
+        });
+        let mut connect = r.clone();
+        store.apply_overlays(&mut connect)?;
+        let badges = HostBadges {
+            auth: if protocol == "ssh" {
+                auth_kind(&connect)
+            } else {
+                None
+            },
+            overlay: connect.overlay_id.is_some(),
+            overlay_paused: connect.overlay_id.is_none() && connect.paused_overlay_id.is_some(),
+            jump: protocol == "ssh" && !connect.chain.is_empty(),
+            gateway: protocol == "ssh" && connect.gateway_id.is_some(),
+            proxy: connect.proxy.is_some(),
+            host_key_trusted: (protocol == "ssh")
+                .then(|| pinned.contains(&labterm_core::hostkey::host_id(&h.data.address, port))),
+        };
         out.push(HostCard {
             id: h.id,
             vault_id: h.vault_id,
@@ -845,6 +941,8 @@ pub fn cards(store: &Store, vault_id: Option<Uuid>) -> Result<Vec<HostCard>> {
             updated_at: h.updated_at,
             last_connected: recent.get(&h.id).copied(),
             cloud_provider: h.data.cloud_instance_type.clone(),
+            vpn,
+            badges,
             dirty: h.dirty,
         });
     }
@@ -2795,6 +2893,23 @@ mod tests {
         );
         let r = s.resolve_host(card.id).unwrap();
         assert_eq!(r.transport.map(|t| t.id), Some(net.id));
+        let badge = |s: &Store| {
+            cards(s, Some(vault))
+                .unwrap()
+                .into_iter()
+                .find(|c| c.id == card.id)
+                .unwrap()
+                .vpn
+        };
+        assert_eq!(
+            badge(&s),
+            Some(HostVpn {
+                id: net.id,
+                label: "home".into(),
+                provider: "netbird".into(),
+                inherited: true,
+            })
+        );
 
         // Editing the host elsewhere keeps the choice; deleting the network
         // makes hosts connect directly again.
@@ -2803,12 +2918,46 @@ mod tests {
         f.label = "renamed".into();
         save(&s, &f).unwrap();
         assert_eq!(form(&s, card.id).unwrap().transport_id, Some(net.id));
+        assert_eq!(badge(&s).map(|v| v.inherited), Some(false));
         crate::transports::delete(&s, net.id).unwrap();
         assert_eq!(form(&s, card.id).unwrap().transport_id, None);
         assert!(s.resolve_host(card.id).unwrap().transport.is_none());
+        assert_eq!(badge(&s), None);
 
         // An id that is no network of this vault is refused.
         assert!(set_transport(&s, card.id, Some(Uuid::new_v4())).is_err());
+    }
+
+    #[test]
+    fn host_cards_carry_connection_badges() {
+        use labterm_core::model::KnownHost;
+        let s = store();
+        let vault = s.local_vault().unwrap().id;
+        let card = save(&s, &new_form(vault)).unwrap();
+        let badges = |s: &Store| {
+            cards(s, Some(vault))
+                .unwrap()
+                .into_iter()
+                .find(|c| c.id == card.id)
+                .unwrap()
+                .badges
+        };
+        let b = badges(&s);
+        assert_eq!(b.auth.as_deref(), Some("password"));
+        assert_eq!(b.host_key_trusted, Some(false));
+        assert!(!b.jump && !b.gateway && !b.proxy && !b.overlay);
+
+        s.insert(
+            vault,
+            &KnownHost {
+                hostname: "[10.0.0.1]:2222".into(),
+                key_type: "ssh-ed25519".into(),
+                public_key: "AAAA".into(),
+                fingerprint: "SHA256:example".into(),
+            },
+        )
+        .unwrap();
+        assert_eq!(badges(&s).host_key_trusted, Some(true));
     }
 
     #[test]

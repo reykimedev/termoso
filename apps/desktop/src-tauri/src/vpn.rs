@@ -141,7 +141,7 @@ mod client {
             ..Default::default()
         }
     }
-    pub fn delete(store: &Store, id: Uuid) -> Result<()> {
+    pub async fn delete(store: &Store, id: Uuid) -> Result<()> {
         labterm_client::transports::delete(store, id)
     }
     pub fn needs_sign_in(_: &Arc<Store>, _: &ResolvedHost) -> Option<Entity<Transport>> {
@@ -399,7 +399,8 @@ pub async fn vpn_network_save(
 /// Delete a network and what this device kept for it.
 #[tauri::command]
 pub async fn vpn_network_delete(state: State<'_, AppState>, id: Uuid) -> Result<()> {
-    client::delete(&*state.store()?, id)
+    let store = state.store()?;
+    client::delete(&store, id).await
 }
 
 /// Sign in to a network in the system browser as `account` (`None` =

@@ -138,7 +138,7 @@ function mergeSsh(into: SshConfig, from: SshConfig) {
 const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
 /** A host's tags: its `tag_ids` plus `tag_host` links, deduplicated. */
-function hostTagIds(host: Ent<Host>): Uuid[] {
+export function hostTagIds(host: Ent<Host>): Uuid[] {
   const ids = new Set(host.data.tag_ids ?? []);
   for (const l of list<{ host_id: Uuid; tag_id: Uuid }>("tag_host", host.vaultId))
     if (l.data.host_id === host.id) ids.add(l.data.tag_id);
@@ -151,7 +151,13 @@ function hostTagIds(host: Ent<Host>): Uuid[] {
  * wins, then the label (A before Z, ignoring case), then the id. Same as labterm-core's
  * `Store::defaults_layers`.
  */
-function defaultsLayers(vaultId: Uuid, groupId: Uuid | null, tagIds: Uuid[]) {
+/** The tag or group a layer of `defaultsLayers().ssh` comes from. */
+export interface LayerSource {
+  kind: "tag" | "group";
+  id: Uuid;
+}
+
+export function defaultsLayers(vaultId: Uuid, groupId: Uuid | null, tagIds: Uuid[]) {
   const wanted = new Set(tagIds);
   const tags = list<Tag>("tag", vaultId)
     .filter((t) => wanted.has(t.id) && t.data.ssh_config_id)
@@ -163,24 +169,31 @@ function defaultsLayers(vaultId: Uuid, groupId: Uuid | null, tagIds: Uuid[]) {
     );
   const groups = list<Group>("group", vaultId);
   const groupPath: string[] = [];
-  const chain: Uuid[] = [];
+  const chain: { config: Uuid; source: LayerSource }[] = [];
   let cursor = groupId;
   for (let hops = 0; cursor && hops < 64; hops++) {
     const g = groups.find((x) => x.id === cursor);
     if (!g) break;
     groupPath.push(g.data.label);
-    if (g.data.ssh_config_id) chain.push(g.data.ssh_config_id);
+    if (g.data.ssh_config_id)
+      chain.push({ config: g.data.ssh_config_id, source: { kind: "group", id: g.id } });
     cursor = g.data.parent_id ?? null;
   }
+  const layers = [
+    ...tags
+      .flatMap((t): { config: Uuid; source: LayerSource }[] =>
+        t.data.ssh_config_id
+          ? [{ config: t.data.ssh_config_id, source: { kind: "tag", id: t.id } }]
+          : [],
+      )
+      .reverse(),
+    ...chain.reverse(),
+  ];
   return {
     groupPath: groupPath.reverse(),
-    ssh: [
-      ...tags
-        .map((t) => t.data.ssh_config_id)
-        .filter((c): c is Uuid => !!c)
-        .reverse(),
-      ...chain.reverse(),
-    ],
+    ssh: layers.map((l) => l.config),
+    /** Which tag or group each entry of `ssh` belongs to, same order. */
+    sources: layers.map((l) => l.source),
     tags: tags.map((t) => t.data.label),
   };
 }

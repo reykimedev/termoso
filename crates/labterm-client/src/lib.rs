@@ -15,6 +15,7 @@ pub mod keychain;
 #[cfg(feature = "oidc-cert")]
 pub mod oidc;
 pub mod overlays;
+pub mod policy_view;
 pub mod snippets;
 pub mod transports;
 pub mod trust;

@@ -87,6 +87,9 @@ import dev.labdex.labterm.ui.components.ListRow
 import dev.labdex.labterm.ui.components.PickerRow
 import dev.labdex.labterm.ui.components.RowDivider
 import dev.labdex.labterm.ui.components.SectionCard
+import dev.labdex.labterm.ui.components.HostAvatar
+import dev.labdex.labterm.ui.components.IconPickerSheet
+import dev.labdex.labterm.ui.components.IconCatalog
 import dev.labdex.labterm.ui.components.SectionLabel
 import dev.labdex.labterm.ui.components.SegmentedLabel
 import dev.labdex.labterm.ui.components.SwitchRow
@@ -318,6 +321,7 @@ private fun HostForm(
     modifier: Modifier,
 ) {
     var groupPicker by remember { mutableStateOf(false) }
+    var iconPicker by remember { mutableStateOf(false) }
     var tagPicker by remember { mutableStateOf(false) }
     var more by remember { mutableStateOf(hasAdvanced(draft)) }
     val inherited = state.inherited
@@ -346,6 +350,13 @@ private fun HostForm(
                     keyboard = KeyboardType.Uri,
                 )
             }
+            RowDivider()
+            ChevronRow(
+                title = stringResource(R.string.icon),
+                leading = { HostAvatar(draft.osName, icon = draft.icon) },
+                badge = draft.icon?.let { IconCatalog.picked(it)?.title ?: stringResource(R.string.icon_custom) } ?: stringResource(R.string.icon_automatic),
+                modifier = Modifier.clickable { iconPicker = true },
+            )
             RowDivider()
             ChevronRow(
                 title = stringResource(R.string.group),
@@ -553,7 +564,7 @@ private fun HostForm(
 
         if (draft.ssh || draft.telnet != null || draft.webdav != null) {
             Spacer(Modifier.height(12.dp))
-            SectionCard { ConnectionSection(state, draft, vm) }
+            SectionCard { ConnectionSection(state, draft, vm, rememberVpnNetworks(repo, draft.vaultId)) }
         }
 
         Row(
@@ -634,6 +645,14 @@ private fun HostForm(
         Spacer(Modifier.height(32.dp))
     }
 
+    if (iconPicker) {
+        IconPickerSheet(
+            selected = draft.icon,
+            automaticLabel = stringResource(R.string.icon_automatic),
+            onPick = { id -> vm.update { it.copy(icon = id) }; iconPicker = false },
+            onDismiss = { iconPicker = false },
+        )
+    }
     if (groupPicker) {
         GroupPickerDialog(
             title = stringResource(R.string.group),

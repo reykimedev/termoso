@@ -29,7 +29,7 @@ async fn main() {
             tracing::warn!(
                 "HATCH_RELAY_TICKET_KEY_FILE is not set: using a fresh ticket key, which only works with one replica"
             );
-            ed25519_dalek::SigningKey::generate(&mut rand_core::OsRng)
+            labterm_relay::fresh_ticket_key()
         }
     };
     let verifier = Verifier::discover(

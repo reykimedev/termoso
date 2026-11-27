@@ -60,6 +60,7 @@ import { goToSettings, goToSettingsWith, useSettingsIntent } from "@/app/navigat
 import { vaultHint, vaultIcon } from "@/app/vault";
 import { PersonAvatar, initialsOf } from "./PersonAvatar";
 import { AclSection } from "./AclSection";
+import { PolicyViewer } from "@/policy/PolicyViewer";
 import { SecurityRow } from "./TeamPage";
 import { VAULT_ROLES, vaultRoleHint, vaultRoleLabel, can } from "./roles";
 import { tr, trn } from "@/i18n";
@@ -339,6 +340,7 @@ function VaultDetails({
   const [name, setName] = useState(v.name);
   const [menu, setMenu] = useState<HTMLElement | null>(null);
   const [confirm, setConfirm] = useState<"rotate" | "delete" | null>(null);
+  const [overview, setOverview] = useState(false);
 
   const op = useMutation({
     mutationFn: async (job: () => Promise<string | null>) => job(),
@@ -560,6 +562,22 @@ function VaultDetails({
         </SectionCard>
       )}
 
+      {v.unlocked && (
+        <SectionCard
+          title={tr("Access overview")}
+          description={tr(
+            "How each host logs in, which VPN network and jump hosts it uses, who can see it, and setups worth a second look.",
+          )}
+          action={
+            <Button size="small" onClick={() => setOverview(true)}>
+              {tr("Open")}
+            </Button>
+          }
+        >
+          {null}
+        </SectionCard>
+      )}
+      {overview && <PolicyViewer vault={v} team={aclTeam} onClose={() => setOverview(false)} />}
       {isTeam && aclTeam && <AclSection vault={v} team={aclTeam} />}
       {isTeam && (
         <SectionCard title={tr("Encryption")}>

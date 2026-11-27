@@ -4,9 +4,6 @@ import dev.labdex.labterm.ui.keychain.AddKeyToHostFlow
 import dev.labdex.labterm.ui.keychain.HostOidcKeyDialog
 import dev.labdex.labterm.ui.netbird.TunnelDialog
 import dev.labdex.labterm.ui.keychain.SetupOpksshForHostFlow
-import dev.labdex.labterm.ui.components.distroVector
-import dev.labdex.labterm.ui.components.IconCatalog
-import androidx.compose.ui.graphics.Color
 import dev.labdex.labterm.plural
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -43,7 +40,6 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
@@ -95,9 +91,6 @@ import dev.labdex.labterm.R
 import dev.labdex.labterm.data.VaultRepository
 import dev.labdex.labterm.ui.components.EmptyState
 import dev.labdex.labterm.ui.components.HostAvatar
-import dev.labdex.labterm.ui.components.CustomIconTile
-import dev.labdex.labterm.ui.components.IconTile
-import dev.labdex.labterm.ui.components.rememberCustomIcon
 import dev.labdex.labterm.ui.components.ListRow
 import dev.labdex.labterm.ui.components.RowDivider
 import dev.labdex.labterm.ui.components.SectionCard
@@ -107,7 +100,9 @@ import dev.labdex.labterm.ui.shell.ShellViewModel
 import dev.labdex.labterm.ui.vault.VaultPickerTitle
 import dev.labdex.labterm.ui.vault.vaultLabel
 import dev.labdex.labterm.core.GroupItem
-import dev.labdex.labterm.core.TagItem
+import dev.labdex.labterm.core.VaultKind
+import dev.labdex.labterm.ui.components.ItemMoreButton
+import dev.labdex.labterm.ui.components.itemClicks
 import dev.labdex.labterm.core.HostItem
 import dev.labdex.labterm.core.Transport
 import dev.labdex.labterm.core.VaultInfo
@@ -132,10 +127,16 @@ fun HostsScreen(
     onS3: (String) -> Unit = {},
     onOpenSftp: (String) -> Unit,
     onOpenTerminal: () -> Unit,
+    /** The VPN network status page, from a host's VPN badge. */
+    onOpenVpn: (String) -> Unit = {},
     onForward: (String) -> Unit,
+    /** Opens the Tags page (toolbar button). */
+    onOpenTags: () -> Unit = {},
+    /** Show all hosts with this tag label instead of a group level. */
+    tag: String? = null,
 ) {
-    val vm: HostsViewModel = viewModel(key = "hosts/${groupId ?: "root"}") {
-        HostsViewModel(shell.repo, shell.selectedVaultId, groupId)
+    val vm: HostsViewModel = viewModel(key = "hosts/${groupId ?: "root"}/${tag ?: ""}") {
+        HostsViewModel(shell.repo, shell.selectedVaultId, groupId, tag)
     }
     val state by vm.state.collectAsStateWithLifecycle()
     val vaults by shell.vaults.collectAsStateWithLifecycle()
@@ -147,6 +148,10 @@ fun HostsScreen(
     val presence = rememberVaultPresence(shell, vault)
     val viewersByHost = remember(presence) { viewersByHost(presence) }
     val online = remember(viewersByHost) { viewersByHost.values.flatten().sortedBy { it.since } }
+    val vpnStates = rememberVpnStates(shell.repo, state.hosts)
+    val teamVault = vault?.kind == VaultKind.TEAM
+    val forwardsByHost = rememberActiveForwards(shell, selectedVaultId)
+    val badges = HostRowBadges(vpnStates, teamVault, forwardsByHost)
 
     LaunchedEffect(state.error) {
         state.error?.let { shell.notify(it); vm.errorShown() }
@@ -209,8 +214,8 @@ fun HostsScreen(
                             Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.search))
                         }
                     }
-                    if (!searching) {
-                        IconButton(onClick = { dialog = HostsDialog.Tags }) {
+                    if (!searching && tag == null) {
+                        IconButton(onClick = onOpenTags) {
                             Icon(Icons.Outlined.Sell, contentDescription = stringResource(R.string.tags))
                         }
                     }
@@ -223,6 +228,11 @@ fun HostsScreen(
                         actions = actions,
                     )
                     // Vault root: the vault itself is the title and switches vaults, like Termius.
+                    tag != null -> TopAppBar(
+                        title = { Text("# $tag") },
+                        navigationIcon = navigationIcon,
+                        actions = actions,
+                    )
                     groupId == null -> CenterAlignedTopAppBar(
                         title = { VaultPickerTitle(vaults, selectedVaultId, shell::selectVault) },
                         navigationIcon = navigationIcon,
@@ -317,6 +327,7 @@ fun HostsScreen(
                 padding = padding,
                 onOpenGroup = onOpenGroup,
                 onGroupLongPress = { dialog = HostsDialog.GroupMenu(it) },
+                badges = badges,
                 onHostTap = { host ->
                     if (state.selecting) vm.toggle(host.id) else onConnect(host.id)
                 },
@@ -324,6 +335,7 @@ fun HostsScreen(
                     if (state.selecting) vm.toggle(host.id) else dialog = HostsDialog.HostMenu(host)
                 },
                 onHostMenu = { dialog = HostsDialog.HostMenu(it) },
+                onOpenVpn = onOpenVpn,
             )
         }
     }
@@ -333,6 +345,7 @@ fun HostsScreen(
         is HostsDialog.HostMenu -> HostActionsSheet(
             shell = shell,
             host = d.host,
+            badges = badges,
             canCopyToVault = otherVaults.isNotEmpty(),
             onConnect = { transport -> if (transport == Transport.AUTO) onConnect(d.host.id) else onConnectWith(d.host.id, transport) },
             onSftp = { onSftp(d.host.id) },
@@ -346,6 +359,7 @@ fun HostsScreen(
             onOpksshSetup = { dialog = HostsDialog.OpksshSetup(d.host) },
             onOidcKey = { dialog = HostsDialog.OidcKey(d.host) },
             onTunnel = { dialog = HostsDialog.HostTunnel(d.host) },
+            onOpenVpn = onOpenVpn,
             onDuplicate = { vm.duplicate(listOf(d.host.id)) },
             onMove = { dialog = HostsDialog.Move(listOf(d.host.id)) },
             onMoveVault = { dialog = HostsDialog.MoveVault(listOf(d.host.id)) },
@@ -360,7 +374,7 @@ fun HostsScreen(
         is HostsDialog.HostTunnel -> TunnelDialog(
             repo = shell.repo,
             vaultId = d.host.vaultId,
-            title = stringResource(R.string.tunnel),
+            title = stringResource(R.string.vpn_network),
             forGroup = false,
             load = { shell.repo.read { hostTransport(d.host.id) } },
             save = { t -> shell.repo.write { setHostTransport(d.host.id, t) } },
@@ -370,7 +384,7 @@ fun HostsScreen(
         is HostsDialog.GroupTunnel -> TunnelDialog(
             repo = shell.repo,
             vaultId = d.group.vaultId,
-            title = stringResource(R.string.tunnel) + " · " + d.group.label,
+            title = stringResource(R.string.vpn_network) + " · " + d.group.label,
             forGroup = true,
             load = { shell.repo.read { groupTransport(d.group.id) } },
             save = { t -> shell.repo.write { setGroupTransport(d.group.id, t) } },
@@ -408,12 +422,30 @@ fun HostsScreen(
             onConfirm = { vm.createGroup(it); dialog = null },
             onDismiss = { dialog = null },
         )
-        is HostsDialog.GroupMenu -> GroupMenuDialog(
+        is HostsDialog.GroupMenu -> GroupActionsSheet(
+            repo = shell.repo,
             group = d.group,
-            onSettings = { dialog = HostsDialog.Settings(DefaultsTarget.Group(d.group.id)) },
+            onOpen = { onOpenGroup(d.group.id) },
+            onEdit = { dialog = HostsDialog.Settings(DefaultsTarget.Group(d.group.id)) },
+            onVpn = { dialog = HostsDialog.GroupTunnel(d.group) },
+            onOpenVpn = onOpenVpn,
             onRename = { dialog = HostsDialog.RenameGroup(d.group) },
-            onTunnel = { dialog = HostsDialog.GroupTunnel(d.group) },
-            onDelete = { vm.deleteGroup(d.group); dialog = null },
+            onDuplicate = { vm.duplicateGroup(d.group) },
+            onMove = { dialog = HostsDialog.MoveGroup(d.group) },
+            onDelete = { dialog = HostsDialog.DeleteGroup(d.group) },
+            // Actions set the next dialog before this runs; keep it.
+            onClose = { if (dialog == d) dialog = null },
+        )
+        is HostsDialog.DeleteGroup -> DeleteGroupDialog(
+            group = d.group,
+            onConfirm = { all -> vm.deleteGroup(d.group, all); dialog = null },
+            onDismiss = { dialog = null },
+        )
+        is HostsDialog.MoveGroup -> GroupPickerDialog(
+            title = stringResource(R.string.move_to),
+            groups = parentCandidates(state.allGroups, d.group.id),
+            current = d.group.parentId,
+            onPick = { vm.moveGroup(d.group, it); dialog = null },
             onDismiss = { dialog = null },
         )
         is HostsDialog.RenameGroup -> NameDialog(
@@ -427,17 +459,6 @@ fun HostsScreen(
             target = d.target,
             onDismiss = { dialog = null },
         )
-        HostsDialog.Tags -> {
-            var tags by remember { mutableStateOf<List<TagItem>>(emptyList()) }
-            LaunchedEffect(selectedVaultId) {
-                tags = runCatching { shell.repo.read { tags(selectedVaultId) } }.getOrDefault(emptyList())
-            }
-            TagsDialog(
-                tags = tags,
-                onSettings = { t -> dialog = HostsDialog.Settings(DefaultsTarget.Tag(t.id)) },
-                onDismiss = { dialog = null },
-            )
-        }
         HostsDialog.QuickImport -> QuickImportSheet(parse = vm::parseImport, onImport = { items -> dialog = null; vm.importHosts(items) }, onDismiss = { dialog = null })
         HostsDialog.Discover -> DiscoverSheet(onPick = { t -> dialog = null; onNewHostFrom(t) }, onDismiss = { dialog = null })
         HostsDialog.Online -> {
@@ -471,8 +492,9 @@ private sealed interface HostsDialog {
     data object NewGroup : HostsDialog
     data class GroupMenu(val group: GroupItem) : HostsDialog
     data class RenameGroup(val group: GroupItem) : HostsDialog
+    data class DeleteGroup(val group: GroupItem) : HostsDialog
+    data class MoveGroup(val group: GroupItem) : HostsDialog
     data class Settings(val target: DefaultsTarget) : HostsDialog
-    data object Tags : HostsDialog
     data object Online : HostsDialog
     data object Discover : HostsDialog
     data object QuickImport : HostsDialog
@@ -491,9 +513,11 @@ private fun HostList(
     padding: PaddingValues,
     onOpenGroup: (String) -> Unit,
     onGroupLongPress: (GroupItem) -> Unit,
+    badges: HostRowBadges,
     onHostTap: (HostItem) -> Unit,
     onHostLongPress: (HostItem) -> Unit,
     onHostMenu: (HostItem) -> Unit,
+    onOpenVpn: (String) -> Unit,
 ) {
     val groups = state.visibleGroups
     val hosts = state.visibleHosts
@@ -510,20 +534,11 @@ private fun HostList(
                         ListRow(
                             title = g.label,
                             subtitle = groupSubtitle(g),
-                            leading = {
-                                val picked = remember(g.icon) { IconCatalog.picked(g.icon) }
-                                val custom = rememberCustomIcon(g.icon)
-                                when {
-                                    picked != null -> IconTile(distroVector(picked), tint = Color.White, container = picked.color)
-                                    custom != null -> CustomIconTile(custom)
-                                    else -> IconTile(Icons.Filled.Folder)
-                                }
-                            },
-                            modifier = Modifier.combinedClickable(
-                                onClick = { onOpenGroup(g.id) },
-                                onLongClick = { onGroupLongPress(g) },
-                            ),
-                        )
+                            leading = { GroupTile(g) },
+                            modifier = Modifier.itemClicks(onClick = { onOpenGroup(g.id) }, onMenu = { onGroupLongPress(g) }),
+                        ) {
+                            if (!state.selecting) ItemMoreButton({ onGroupLongPress(g) }, stringResource(R.string.group_actions))
+                        }
                     }
                 }
             }
@@ -557,6 +572,8 @@ private fun HostList(
                                     color = MaterialTheme.colorScheme.primary,
                                 )
                             }
+                            HostFactIcons(badges.facts(h))
+                            h.vpn?.let { VpnBadge(it, badges.vpn(it), onClick = { onOpenVpn(it.id) }) }
                             viewersByHost[h.id]?.let { PresenceStack(repo, it) }
                             openByHost[h.id]?.let { OpenSessionsBadge(it, onClick = { onHostMenu(h) }) }
                             if (!state.selecting) {
@@ -607,7 +624,7 @@ private fun OpenSessionsBadge(count: Int, onClick: () -> Unit) {
     }
 }
 
-private fun groupSubtitle(g: GroupItem): String? {
+fun groupSubtitle(g: GroupItem): String? {
     val parts = buildList {
         if (g.hostCount > 0u) add(plural(R.plurals.n_hosts, g.hostCount.toInt(), g.hostCount.toInt()))
         if (g.groupCount > 0u) add(plural(R.plurals.n_groups, g.groupCount.toInt(), g.groupCount.toInt()))
@@ -758,7 +775,7 @@ fun ConfirmDialog(title: String, text: String, confirm: String, onConfirm: () ->
 }
 
 @Composable
-private fun NameDialog(title: String, initial: String, onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
+fun NameDialog(title: String, initial: String, onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
     var value by remember { mutableStateOf(initial) }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -774,39 +791,6 @@ private fun NameDialog(title: String, initial: String, onConfirm: (String) -> Un
         },
         confirmButton = {
             TextButton(onClick = { onConfirm(value) }, enabled = value.isNotBlank()) { Text(stringResource(R.string.save)) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
-    )
-}
-
-@Composable
-private fun GroupMenuDialog(
-    group: GroupItem,
-    onSettings: () -> Unit,
-    onRename: () -> Unit,
-    onTunnel: () -> Unit,
-    onDelete: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(group.label) },
-        text = {
-            Column {
-                Text(
-                    stringResource(R.string.deleting_a_group_moves_its_hosts_and_sub),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        },
-        confirmButton = {
-            Row {
-                TextButton(onClick = onSettings) { Text(stringResource(R.string.settings)) }
-                TextButton(onClick = onRename) { Text(stringResource(R.string.rename)) }
-                TextButton(onClick = onTunnel) { Text(stringResource(R.string.tunnel)) }
-                TextButton(onClick = onDelete) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
-            }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )

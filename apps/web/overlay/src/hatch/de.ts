@@ -144,6 +144,86 @@ export const de: Readonly<Record<string, string>> = {
   "Port forwarding": "Portweiterleitung",
   "Running snippets on several hosts": "Snippets auf mehreren Hosts ausführen",
 
+  // access overview (policy viewer)
+  "OpenID (opkssh)": "OpenID (opkssh)",
+  Certificate: "Zertifikat",
+  Key: "Schlüssel",
+  Password: "Passwort",
+  "Asks when connecting": "Fragt beim Verbinden",
+  "Other hosts in its group use a VPN network; this one connects without one.":
+    "Andere Hosts seiner Gruppe nutzen ein VPN-Netzwerk; dieser verbindet ohne.",
+  "Logs in with a password while the rest of the vault uses keys.":
+    "Meldet sich mit einem Passwort an, während der Rest des Tresors Schlüssel nutzt.",
+  "Logs in with a password, but the team allows keys only.":
+    "Meldet sich mit einem Passwort an, aber das Team erlaubt nur Schlüssel.",
+  "A jump host is in another vault or was deleted, so connections fail.":
+    "Ein Jump-Host liegt in einem anderen Tresor oder wurde gelöscht, darum schlagen Verbindungen fehl.",
+  "The team requires a jump host, and this host has none.":
+    "Das Team verlangt einen Jump-Host, und dieser Host hat keinen.",
+  "Your own credentials replace the team's login on this device.":
+    "Deine eigenen Zugangsdaten ersetzen auf diesem Gerät die Anmeldung des Teams.",
+  "Its settings can't be read: {detail}":
+    "Seine Einstellungen können nicht gelesen werden: {detail}",
+  Hidden: "Verborgen",
+  "Connect only": "Nur verbinden",
+  Read: "Lesen",
+  Edit: "Bearbeiten",
+  "not set": "nicht gesetzt",
+  "set on the host": "am Host gesetzt",
+  "from group {label}": "aus Gruppe {label}",
+  "from tag {label}": "aus Tag {label}",
+  "from your credentials {label}": "aus deinen Zugangsdaten {label}",
+  "Edit host": "Host bearbeiten",
+  "Edit group {label}": "Gruppe {label} bearbeiten",
+  "Edit tag {label}": "Tag {label} bearbeiten",
+  "Edit my credentials": "Meine Zugangsdaten bearbeiten",
+  "Fix: {problem}": "Beheben: {problem}",
+  "This vault is locked": "Dieser Tresor ist gesperrt",
+  "Unlock it to see how its hosts connect.":
+    "Entsperre ihn, um zu sehen, wie seine Hosts verbinden.",
+  "No hosts in this vault": "Keine Hosts in diesem Tresor",
+  "Hosts you add show up here with their login, network and jump hosts.":
+    "Hosts, die du hinzufügst, erscheinen hier mit Anmeldung, Netzwerk und Jump-Hosts.",
+  "Nothing matches": "Keine Treffer",
+  "Try another search.": "Versuche eine andere Suche.",
+  "Access overview": "Zugriffsübersicht",
+  "{vault} · hosts: {count} · need a look: {risks}":
+    "{vault} · Hosts: {count} · zu prüfen: {risks}",
+  "{vault} · hosts: {count}": "{vault} · Hosts: {count}",
+  "All hosts": "Alle Hosts",
+  "Needs a look": "Zu prüfen",
+  "Search hosts": "Hosts suchen",
+  "Worked out on this device from the decrypted vault. Access rules live on the server, which blocks changes below Edit; every member's device can still decrypt all items of this vault.":
+    "Auf diesem Gerät aus dem entschlüsselten Tresor berechnet. Zugriffsregeln liegen auf dem Server, der Änderungen unterhalb von «Bearbeiten» blockiert; das Gerät jedes Mitglieds kann trotzdem alle Einträge dieses Tresors entschlüsseln.",
+  "Worked out on this device. Only you can see the items of this vault.":
+    "Auf diesem Gerät berechnet. Nur du siehst die Einträge dieses Tresors.",
+  "Direct, no VPN network": "Direkt, ohne VPN-Netzwerk",
+  None: "Keine",
+  "(outside this vault)": "(ausserhalb dieses Tresors)",
+  Login: "Anmeldung",
+  "VPN network": "VPN-Netzwerk",
+  "Jump hosts": "Jump-Hosts",
+  "Actions for {label}": "Aktionen für {label}",
+  Fix: "Beheben",
+  "How it connects": "Wie er verbindet",
+  Proxy: "Proxy",
+  "Your login": "Deine Anmeldung",
+  "“{label}” is paused: the host's address or route changed":
+    "«{label}» ist pausiert: Adresse oder Route des Hosts hat sich geändert",
+  "“{label}” is used on this device": "«{label}» wird auf diesem Gerät verwendet",
+  "Who can see this host": "Wer diesen Host sieht",
+  "Only people who manage access see the rules on hosts and groups; this shows vault roles.":
+    "Nur wer den Zugriff verwaltet, sieht die Regeln auf Hosts und Gruppen; hier stehen die Tresorrollen.",
+  "Team admin, never limited": "Team-Admin, nie eingeschränkt",
+  "Vault role": "Tresorrolle",
+  "Rule on this host": "Regel auf diesem Host",
+  "Rule on a group above": "Regel auf einer übergeordneten Gruppe",
+  "IdP groups may change this: {groups}": "IdP-Gruppen können das ändern: {groups}",
+  "Members of IdP group {group}": "Mitglieder der IdP-Gruppe {group}",
+  "How each host logs in, which VPN network and jump hosts it uses, who can see it, and setups worth a second look.":
+    "Wie sich jeder Host anmeldet, welches VPN-Netzwerk und welche Jump-Hosts er nutzt, wer ihn sieht und welche Einstellungen eine Prüfung wert sind.",
+  Open: "Öffnen",
+
   // debug log (Settings → About)
   "Debug log": "Debug-Protokoll",
   "What Labterm logged in this and earlier launches, with timings for sync, VPN networks, OpenID keys, updates and SSH connects. Secrets are removed before anything is written.":

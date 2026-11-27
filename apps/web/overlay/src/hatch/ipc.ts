@@ -17,6 +17,7 @@ import * as m from "./backend/model";
 import * as oidc from "./backend/oidc";
 import * as opkssh from "./backend/opkssh";
 import * as overlays from "./backend/overlays";
+import * as policyview from "./backend/policyview";
 import * as vpn from "./backend/vpn";
 import { defaultSettings } from "./backend/settings";
 import * as snippets from "./backend/snippets";
@@ -201,6 +202,12 @@ const commands: Record<string, Handler> = {
   account_sso_start: notInBrowser("Single sign-on to Labterm"),
   teams_list: () => [],
   acl_me: () => null,
+  // access overview (policy viewer): worked out here, plus who is in a team vault
+  vault_policy: (a) => policyview.vaultPolicy(a.vaultId),
+  account_vault_members: async (a) =>
+    (await account.authed<{ members: unknown[] }>("GET", `vaults/${a.vaultId}/members`)).members,
+  team_members: async (a) =>
+    (await account.authed<{ members: unknown[] }>("GET", `teams/${a.teamId}/members`)).members,
   user_avatar: () => null,
 
   // hosts, groups, tags

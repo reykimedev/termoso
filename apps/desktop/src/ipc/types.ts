@@ -369,6 +369,8 @@ export interface TeamMember {
   display_name: string | null;
   avatar?: string | null;
   role: TeamRole;
+  /** Fine-grained role (0.9.0+ servers); access rules on roles match its id. */
+  role_ref?: { id: Uuid; slug: string; name: string } | null;
   joined_at: string;
   /** Second factor enrolled; only admins and the member themself see it. */
   mfa_enabled?: boolean | null;
