@@ -28,7 +28,7 @@ pipes WebSocket to TCP. Its decision records are in `docs/web/decisions/`.
   needs a decision record first.
 - Relay changes keep deny by default: new inputs are validated and size-limited, every
   connection is logged without content, and the always-denied ranges stay.
-- UI text in English and German (Swiss spelling, no ß) through the desktop's i18n.
+- UI text in English only, through the desktop's `tr()` helpers. No other languages or locale files.
 - Example data only: `example.com` names and `192.0.2.0/24` addresses, in code, tests, docs and screenshots.
 - Security paths (`apps/web/overlay/src/loader/`, `apps/web/patches/`, `apps/web/tools/`,
   `crates/labterm-relay/`, `crates/labterm-relay-proto/`, `.github/workflows/`): say so in the

@@ -41,6 +41,7 @@ class LabtermApplication : Application() {
             }
         }
         Strings.init(this)
+        AppLanguage.clearLegacyChoice(this)
         container = AppContainer(this)
         setUrlOpener(BrowserOpener(this))
     }

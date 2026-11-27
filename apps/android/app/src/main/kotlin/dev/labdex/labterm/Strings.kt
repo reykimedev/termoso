@@ -11,18 +11,13 @@ import androidx.annotation.StringRes
  */
 object Strings {
     private lateinit var app: Application
-    private var cached: Pair<String, Context>? = null
 
     fun init(application: Application) {
         app = application
     }
 
     val context: Context
-        get() {
-            val tag = AppLanguage.current(app)
-            cached?.let { (t, ctx) -> if (t == tag) return ctx }
-            return AppLanguage.wrap(app).also { cached = tag to it }
-        }
+        get() = app
 }
 
 fun str(@StringRes id: Int, vararg args: Any?): String = Strings.context.getString(id, *args)

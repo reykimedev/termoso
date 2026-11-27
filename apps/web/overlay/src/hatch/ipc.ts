@@ -41,11 +41,11 @@ type Handler = (a: Args) => unknown;
 
 const MIN_PASSWORD = 8;
 
-/** Theme and language survive the lock, so the lock screen looks like the app. Not secret. */
+/** The theme survives the lock, so the lock screen looks like the app. Not secret. */
 const UI_KEY = "hatch.ui";
 function rememberUi(s: Record<string, unknown>) {
   try {
-    localStorage.setItem(UI_KEY, JSON.stringify({ theme: s.theme, language: s.language }));
+    localStorage.setItem(UI_KEY, JSON.stringify({ theme: s.theme }));
   } catch {
     /* private mode */
   }
