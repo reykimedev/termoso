@@ -70,19 +70,39 @@ async fn vault_access(state: &AppState, auth: &Auth, vault_id: Uuid) -> ApiResul
     Ok(a)
 }
 
-/// `(mode, manager)` of a member.
+/// `(mode, manager)` of a member. Someone suspended for leaving the vault
+/// isn't one, whatever the log says.
 async fn membership<'e, E: PgExecutor<'e>>(
     db: E,
     collection_id: Uuid,
     user_id: Uuid,
 ) -> ApiResult<Option<(String, bool)>> {
     Ok(sqlx::query_as(
-        "SELECT mode, manager FROM collection_members WHERE collection_id = $1 AND user_id = $2",
+        "SELECT mode, manager FROM collection_members m
+         WHERE collection_id = $1 AND user_id = $2
+           AND NOT EXISTS (SELECT 1 FROM collection_suspensions s
+                           WHERE s.collection_id = m.collection_id AND s.user_id = m.user_id)",
     )
     .bind(collection_id)
     .bind(user_id)
     .fetch_optional(db)
     .await?)
+}
+
+/// The person left the vault while in this group (see migration 0044).
+async fn suspended<'e, E: PgExecutor<'e>>(
+    db: E,
+    collection_id: Uuid,
+    user_id: Uuid,
+) -> ApiResult<bool> {
+    let row: Option<(i32,)> = sqlx::query_as(
+        "SELECT 1 FROM collection_suspensions WHERE collection_id = $1 AND user_id = $2",
+    )
+    .bind(collection_id)
+    .bind(user_id)
+    .fetch_optional(db)
+    .await?;
+    Ok(row.is_some())
 }
 
 fn scope(c: &Collection) -> KeyScope {
@@ -191,9 +211,22 @@ async fn save_state(
         .execute(&mut **tx)
         .await?;
     }
+    // A suspension ends once the log no longer names the person.
+    sqlx::query(
+        "DELETE FROM collection_suspensions s WHERE s.collection_id = $1
+            AND NOT EXISTS (SELECT 1 FROM collection_members m
+                            WHERE m.collection_id = s.collection_id AND m.user_id = s.user_id)",
+    )
+    .bind(c.id)
+    .execute(&mut **tx)
+    .await?;
     let version = i32::try_from(state.version())
         .map_err(|_| Error::bad_request("Key version out of range"))?;
-    sqlx::query("UPDATE collections SET key_version = $2, rotation_owed = $3 WHERE id = $1")
+    sqlx::query(
+        "UPDATE collections SET key_version = $2,
+            rotation_owed = $3 OR EXISTS (SELECT 1 FROM collection_suspensions WHERE collection_id = $1)
+         WHERE id = $1",
+    )
         .bind(c.id)
         .bind(version)
         .bind(state.rotation_owed())
@@ -202,7 +235,8 @@ async fn save_state(
     // Keys of members who left, and of older versions, are gone for good.
     sqlx::query(
         "DELETE FROM collection_keys k WHERE k.collection_id = $1 AND (k.version < $2
-            OR NOT EXISTS (SELECT 1 FROM collection_members m WHERE m.collection_id = k.collection_id AND m.user_id = k.user_id))",
+            OR NOT EXISTS (SELECT 1 FROM collection_members m WHERE m.collection_id = k.collection_id AND m.user_id = k.user_id)
+            OR EXISTS (SELECT 1 FROM collection_suspensions s WHERE s.collection_id = k.collection_id AND s.user_id = k.user_id))",
     )
     .bind(c.id)
     .bind(version)
@@ -228,7 +262,9 @@ async fn store_grants(
         if i64::from(g.version) != state.version() as i64 {
             return Err(Error::bad_request("Keys must be for the current version"));
         }
-        if state.member(&g.user_id.to_string()).is_none() {
+        if state.member(&g.user_id.to_string()).is_none()
+            || suspended(&mut **tx, c.id, g.user_id).await?
+        {
             return Err(Error::bad_request("Keys go only to members"));
         }
         sqlx::query(
@@ -372,6 +408,8 @@ pub async fn list(
         "SELECT c.id, c.name, c.key_version, c.rotation_owed, c.created_by, c.created_at, m.mode, m.manager
          FROM collections c
          LEFT JOIN collection_members m ON m.collection_id = c.id AND m.user_id = $2
+              AND NOT EXISTS (SELECT 1 FROM collection_suspensions s
+                              WHERE s.collection_id = c.id AND s.user_id = $2)
          WHERE c.vault_id = $1 ORDER BY c.created_at, c.id",
     )
     .bind(vault_id)
@@ -437,6 +475,13 @@ pub async fn append_log(
     let mut tx = state.db.begin().await?;
     let c = load(&mut *tx, id, true).await?;
     let a = vault_access(&state, &auth, c.vault_id).await?;
+    // A manager who left the vault and came back is still named in the log,
+    // but can't act on the group until another manager takes them in again.
+    if suspended(&mut *tx, id, auth.user_id()).await? {
+        return Err(Error::forbidden(
+            "You left this vault; a group manager has to add you again",
+        ));
+    }
     let stored: Vec<(serde_json::Value,)> =
         sqlx::query_as("SELECT entry FROM collection_log WHERE collection_id = $1 ORDER BY seq")
             .bind(id)
@@ -459,6 +504,19 @@ pub async fn append_log(
             .bind(v)
             .execute(&mut *tx)
             .await?;
+    }
+    // A manager adding someone afresh (only possible after removing them
+    // from the log) lifts their suspension.
+    for e in &all[first_new..] {
+        if let LogBody::AddMember { user_id, .. } = &e.body {
+            sqlx::query(
+                "DELETE FROM collection_suspensions WHERE collection_id = $1 AND user_id = $2",
+            )
+            .bind(id)
+            .bind(user_uuid(user_id)?)
+            .execute(&mut *tx)
+            .await?;
+        }
     }
     save_state(&mut tx, &c, &log).await?;
     store_grants(&mut tx, &c, &log, &auth, &req.keys).await?;

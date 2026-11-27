@@ -76,6 +76,9 @@ struct VaultDump {
 struct EntityDump {
     id: Uuid,
     kind: String,
+    /// The restricted group it was in. Backups from before groups have none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    collection_id: Option<Uuid>,
     #[serde(with = "labterm_proto::timestamp::serde")]
     updated_at: OffsetDateTime,
     data: serde_json::Value,
@@ -127,9 +130,11 @@ fn dump_vault(store: &Store, vault_id: Uuid) -> Result<VaultDump> {
             include_deleted: false,
         };
         for e in store.list_any(&filter)? {
+            let collection_id = store.row(e.id)?.and_then(|r| r.collection_id);
             entities.push(EntityDump {
                 id: e.id,
                 kind: (*kind).to_string(),
+                collection_id,
                 updated_at: e.updated_at,
                 data: e.data,
             });
@@ -400,7 +405,29 @@ pub fn restore(
             report.skipped += 1;
             continue;
         }
-        match store.put_raw(target_vault_id, &e.kind, e.id, &e.data) {
+        // An item from a restricted group goes back only into that group, and
+        // only when we still hold its key: never vault-wide, where everyone
+        // in the vault could read it.
+        let written = match e.collection_id {
+            None => store.put_raw(target_vault_id, &e.kind, e.id, &e.data),
+            Some(c) => {
+                let open = target_vault_id == dump.id
+                    && store
+                        .collections(target_vault_id)?
+                        .iter()
+                        .any(|i| i.id == c && i.unlocked);
+                if !open {
+                    report.skipped += 1;
+                    report.warnings.push(format!(
+                        "{} {}: belongs to a restricted group that isn't open here, left out",
+                        e.kind, e.id
+                    ));
+                    continue;
+                }
+                store.put_raw_in_collection(target_vault_id, c, &e.kind, e.id, &e.data)
+            }
+        };
+        match written {
             Ok(()) if existing.is_some() => report.replaced += 1,
             Ok(()) => report.added += 1,
             Err(err) => report.warnings.push(format!("{} {}: {err}", e.kind, e.id)),
@@ -463,6 +490,96 @@ mod tests {
             },
         )
         .unwrap()
+    }
+
+    /// A signed-in store with one team vault.
+    fn team_store() -> (Store, Uuid) {
+        use labterm_core::store::{LocalVaultKind, StoredAccount};
+        use labterm_crypto::keys::KeyPair;
+        let s = Store::open_in_memory(SymmetricKey::generate()).unwrap();
+        let key = KeyPair::generate();
+        let acc = StoredAccount {
+            server_url: "https://t.example.com".into(),
+            user_id: Uuid::new_v4(),
+            email: "a@example.com".into(),
+            display_name: None,
+            avatar: None,
+            is_admin: false,
+            device_id: Uuid::new_v4(),
+            public_key: key.public_b64(),
+            key_version: 1,
+            history_cursor: 0,
+            logs_cursor: 0,
+            signed_in_at: OffsetDateTime::now_utc(),
+        };
+        s.save_account(&acc, "tok", &key).unwrap();
+        let vault = Uuid::new_v4();
+        s.upsert_vault(
+            vault,
+            LocalVaultKind::Team,
+            "Team",
+            Some(Uuid::new_v4()),
+            labterm_proto::vault::VaultRole::Manager,
+            Some(&SymmetricKey::generate()),
+            1,
+        )
+        .unwrap();
+        (s, vault)
+    }
+
+    #[test]
+    fn restricted_group_items_never_come_back_vault_wide() {
+        let (s, vault) = team_store();
+        let coll = s.create_collection(vault).unwrap().id;
+        let secret = Uuid::new_v4();
+        s.put_in_collection(
+            vault,
+            coll,
+            secret,
+            &Host {
+                label: "db".into(),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let open = s
+            .insert(
+                vault,
+                &Host {
+                    label: "web".into(),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        let payload = collect(&s, &[vault]).unwrap();
+        let dumped = &payload.vaults[0].entities;
+        assert_eq!(
+            dumped
+                .iter()
+                .find(|e| e.id == secret)
+                .unwrap()
+                .collection_id,
+            Some(coll)
+        );
+        assert_eq!(
+            dumped.iter().find(|e| e.id == open).unwrap().collection_id,
+            None
+        );
+        let preview = remember(payload).preview_id;
+
+        // Back into the same vault: the item lands in its group again.
+        s.delete(secret).unwrap();
+        let r = restore(&s, preview, 0, vault).unwrap();
+        assert_eq!(r.skipped, 0, "{:?}", r.warnings);
+        assert_eq!(s.row(secret).unwrap().unwrap().collection_id, Some(coll));
+
+        // Into another vault (or where the group isn't open) it stays out.
+        let (other, other_vault) = team_store();
+        let r = restore(&other, preview, 0, other_vault).unwrap();
+        assert_eq!(r.skipped, 1);
+        assert!(other.row(secret).unwrap().is_none());
+        assert!(other.row(open).unwrap().is_some());
+        discard(preview);
     }
 
     #[test]

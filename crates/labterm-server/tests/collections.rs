@@ -767,3 +767,180 @@ async fn signing_keys_need_a_proof_and_reach_vault_members() {
         .json(Method::POST, &path, Some(x.owner.token()), Some(&req))
         .await;
 }
+
+async fn append(
+    s: &TestServer,
+    u: &User,
+    c: &Coll,
+    entries: &[LogEntry],
+    keys: Vec<KeyGrant>,
+) -> StatusCode {
+    s.call(
+        Method::POST,
+        &format!("/collections/{}/log", c.id),
+        Some(u.token()),
+        Some(&AppendLogRequest {
+            entries: entries.iter().map(json).collect(),
+            keys,
+            name: None,
+        }),
+    )
+    .await
+    .status()
+}
+
+fn grant(x: &Setup, c: &Coll, to: &User, version: u64) -> KeyGrant {
+    KeyGrant {
+        user_id: to.id(),
+        version: version as i32,
+        envelope: seal_scoped_key(
+            &x.owner.keypair,
+            to.keypair.public(),
+            &c.scope,
+            version,
+            &c.key,
+        )
+        .unwrap(),
+    }
+}
+
+#[tokio::test]
+async fn leaving_the_vault_ends_group_membership_until_a_manager_adds_them_again() {
+    let Some(s) = server().await else { return };
+    let x = setup(s).await;
+    let mut c = create(s, &x).await;
+    let vid = x.vault.id;
+    let owner = x.owner.id().to_string();
+    let h = Uuid::new_v4();
+    assert!(matches!(
+        cpush(s, &x.owner, c.id, changes(host(&c, vid, h, None, "db"))).await,
+        PushResult::Ok { .. }
+    ));
+
+    // Bob joins the group (as a manager, the worst case) and gets the key.
+    let add = c
+        .log
+        .append(
+            &owner,
+            &signer(&x.owner),
+            LogBody::AddMember {
+                user_id: x.bob.id().to_string(),
+                identity: *signer(&x.bob).identity(),
+                mode: Mode::Edit,
+            },
+        )
+        .unwrap();
+    let mgr = c
+        .log
+        .append(
+            &owner,
+            &signer(&x.owner),
+            LogBody::AddManager {
+                user_id: x.bob.id().to_string(),
+            },
+        )
+        .unwrap();
+    assert!(
+        append(s, &x.owner, &c, &[add, mgr], vec![grant(&x, &c, &x.bob, 1)])
+            .await
+            .is_success()
+    );
+    assert_eq!(cpull(s, &x.bob, c.id).await.entities.len(), 1);
+
+    // Bob leaves the vault and a vault manager adds him back.
+    s.expect_status(
+        Method::DELETE,
+        &format!("/vaults/{vid}/members/{}", x.bob.id()),
+        Some(x.owner.token()),
+        NOBODY,
+        StatusCode::NO_CONTENT,
+    )
+    .await;
+    s.expect_status(
+        Method::PUT,
+        &format!("/vaults/{vid}/members/{}", x.bob.id()),
+        Some(x.owner.token()),
+        Some(&upsert(&x.vault_key, &x.bob, VaultRole::Editor)),
+        StatusCode::NO_CONTENT,
+    )
+    .await;
+
+    // Back in the vault, but not in the group: no rows, no keys, no log
+    // writes, and the owner can't just hand him the key again.
+    assert!(cpull(s, &x.bob, c.id).await.entities.is_empty());
+    let keys: MyCollectionKeys = s
+        .json(
+            Method::GET,
+            &format!("/collections/{}/keys", c.id),
+            Some(x.bob.token()),
+            NOBODY,
+        )
+        .await;
+    assert!(keys.keys.is_empty());
+    let list: CollectionList = s
+        .json(
+            Method::GET,
+            &format!("/vaults/{vid}/collections"),
+            Some(x.bob.token()),
+            NOBODY,
+        )
+        .await;
+    assert!(!list.collections[0].member && !list.collections[0].manager);
+    assert!(list.collections[0].rotation_owed);
+    let mut forged = c.log.clone();
+    let by_bob = forged
+        .append(
+            &x.bob.id().to_string(),
+            &signer(&x.bob),
+            LogBody::RemoveMember {
+                user_id: owner.clone(),
+            },
+        )
+        .unwrap();
+    assert_eq!(
+        append(s, &x.bob, &c, &[by_bob], vec![]).await,
+        StatusCode::FORBIDDEN
+    );
+    assert_eq!(
+        append(s, &x.owner, &c, &[], vec![grant(&x, &c, &x.bob, 1)]).await,
+        StatusCode::BAD_REQUEST
+    );
+
+    // A manager takes him out of the log and in again: membership is back.
+    let out = c
+        .log
+        .append(
+            &owner,
+            &signer(&x.owner),
+            LogBody::RemoveMember {
+                user_id: x.bob.id().to_string(),
+            },
+        )
+        .unwrap();
+    let again = c
+        .log
+        .append(
+            &owner,
+            &signer(&x.owner),
+            LogBody::AddMember {
+                user_id: x.bob.id().to_string(),
+                identity: *signer(&x.bob).identity(),
+                mode: Mode::Read,
+            },
+        )
+        .unwrap();
+    assert!(
+        append(s, &x.owner, &c, &[out, again], vec![])
+            .await
+            .is_success()
+    );
+    let list: CollectionList = s
+        .json(
+            Method::GET,
+            &format!("/vaults/{vid}/collections"),
+            Some(x.bob.token()),
+            NOBODY,
+        )
+        .await;
+    assert!(list.collections[0].member && !list.collections[0].manager);
+}

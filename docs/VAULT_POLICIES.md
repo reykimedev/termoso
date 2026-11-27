@@ -178,6 +178,13 @@ their old copy (tidiness, not protection).
   the account's registered box key and published signing key, so its member list matches what
   clients verify. A published signing key can't be replaced; it's cleared only when the account
   key itself changes (start over).
+- Leaving the vault ends group membership. The signed log still names the person, so the server
+  suspends them: no rows, no keys, no log writes or key grants, and the group owes a rotation.
+  Being added back to the vault doesn't lift it; only a manager removing them from the log and
+  adding them again does.
+- Backups record each item's group. A restore puts it back only into that group in the same vault,
+  and only while the group's key is held; otherwise the item is left out, never restored
+  vault-wide.
 - Collection rows never appear in `/sync/pull` or `/sync/push`, and the vault routes can't update
   or delete them. `/collections/sync/pull` returns them only to members, with a cursor per
   collection so a member added later gets the rows below their vault cursor (R9).

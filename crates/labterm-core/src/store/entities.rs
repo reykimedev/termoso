@@ -224,20 +224,20 @@ impl Store {
         self.put_raw(row.vault_id, T::KIND, id, data)
     }
 
-    /// Insert/update an entity whose payload is arbitrary JSON.
-    pub fn put_raw<T: serde::Serialize>(
+    /// The checks every raw write goes through: a known kind, no
+    /// personal-only kind in a team vault, and no NetBird setup key in a team
+    /// vault (dropped silently, so a backup or a copy still goes in).
+    pub(super) fn checked_raw(
         &self,
         vault_id: Uuid,
         kind: &str,
-        id: Uuid,
-        data: &T,
-    ) -> Result<()> {
+        mut data: serde_json::Value,
+    ) -> Result<serde_json::Value> {
         if !is_known_kind(kind) {
             return Err(CoreError::Invalid(format!("unknown entity kind {kind}")));
         }
-        if labterm_proto::entities::is_personal_only_kind(kind)
-            && self.vault(vault_id)?.kind == super::LocalVaultKind::Team
-        {
+        let team = self.vault(vault_id)?.kind == super::LocalVaultKind::Team;
+        if labterm_proto::entities::is_personal_only_kind(kind) && team {
             return Err(CoreError::Invalid(format!(
                 "a {kind} belongs in your personal or local vault, not a team vault"
             )));
@@ -247,15 +247,23 @@ impl Store {
         // editors refuse one; this also covers a backup restored or an
         // entity copied into a team vault.
         if kind == <crate::model::Transport as crate::model::Payload>::KIND
-            && self.vault(vault_id)?.kind == super::LocalVaultKind::Team
+            && team
+            && let Some(o) = data.as_object_mut()
         {
-            let mut v = serde_json::to_value(data)?;
-            if v.as_object_mut()
-                .is_some_and(|o| o.remove("setup_key").is_some())
-            {
-                return self.put_raw(vault_id, kind, id, &v);
-            }
+            o.remove("setup_key");
         }
+        Ok(data)
+    }
+
+    /// Insert/update an entity whose payload is arbitrary JSON.
+    pub fn put_raw<T: serde::Serialize>(
+        &self,
+        vault_id: Uuid,
+        kind: &str,
+        id: Uuid,
+        data: &T,
+    ) -> Result<()> {
+        let data = self.checked_raw(vault_id, kind, serde_json::to_value(data)?)?;
         // An update stays in the row's collection; a new row starts
         // vault-wide unless `put_in_collection` placed it.
         let collection_id = match self.row(id)? {
@@ -267,7 +275,7 @@ impl Store {
             }
             _ => None,
         };
-        self.write_row(vault_id, collection_id, kind, id, data)
+        self.write_row(vault_id, collection_id, kind, id, &data)
     }
 
     pub(super) fn write_row<T: serde::Serialize>(
