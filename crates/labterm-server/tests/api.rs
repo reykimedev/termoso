@@ -445,6 +445,7 @@ async fn sync_push_pull_conflicts_and_tombstones() {
             "/sync/push",
             Some(u.token()),
             Some(&PushRequest {
+                protocol: labterm_proto::sync::SYNC_PROTOCOL,
                 changes: vec![change(None, "one")],
                 deletes: vec![],
             }),
@@ -467,6 +468,7 @@ async fn sync_push_pull_conflicts_and_tombstones() {
             "/sync/push",
             Some(u.token()),
             Some(&PushRequest {
+                protocol: labterm_proto::sync::SYNC_PROTOCOL,
                 changes: vec![change(None, "dup")],
                 deletes: vec![],
             }),
@@ -485,6 +487,7 @@ async fn sync_push_pull_conflicts_and_tombstones() {
             "/sync/push",
             Some(u.token()),
             Some(&PushRequest {
+                protocol: labterm_proto::sync::SYNC_PROTOCOL,
                 changes: vec![change(Some(1), "two")],
                 deletes: vec![],
             }),
@@ -508,6 +511,7 @@ async fn sync_push_pull_conflicts_and_tombstones() {
             "/sync/push",
             Some(u.token()),
             Some(&PushRequest {
+                protocol: labterm_proto::sync::SYNC_PROTOCOL,
                 changes: vec![change(Some(1), "stale")],
                 deletes: vec![],
             }),
@@ -525,17 +529,18 @@ async fn sync_push_pull_conflicts_and_tombstones() {
     .unwrap();
     assert_eq!(plain, r#"{"label":"two"}"#);
 
-    // Unknown kind and unknown vault are per-item errors, not request failures.
+    // Malformed kind and unknown vault are per-item errors, not request failures.
     let r: PushResponse = s
         .json(
             Method::POST,
             "/sync/push",
             Some(u.token()),
             Some(&PushRequest {
+                protocol: labterm_proto::sync::SYNC_PROTOCOL,
                 changes: vec![
                     EntityChange {
                         secret_rotated_at: None,
-                        kind: "spaceship".into(),
+                        kind: "Space Ship!".into(),
                         ..change(None, "x")
                     },
                     EntityChange {
@@ -549,8 +554,48 @@ async fn sync_push_pull_conflicts_and_tombstones() {
             }),
         )
         .await;
-    assert!(matches!(&r.results[0], PushResult::Error { code, .. } if code == "unknown_kind"));
+    assert!(matches!(&r.results[0], PushResult::Error { code, .. } if code == "invalid_kind"));
     assert!(matches!(&r.results[1], PushResult::Error { code, .. } if code == "forbidden"));
+
+    // A kind this server has never heard of syncs: payloads are opaque.
+    let new_id = Uuid::new_v4();
+    let r: PushResponse = s
+        .json(
+            Method::POST,
+            "/sync/push",
+            Some(u.token()),
+            Some(&PushRequest {
+                protocol: labterm_proto::sync::SYNC_PROTOCOL,
+                changes: vec![EntityChange {
+                    id: new_id,
+                    kind: "spaceship".into(),
+                    base_version: None,
+                    data: u.encrypt_entity(key, "spaceship", new_id, r#"{"label":"x"}"#),
+                    ..change(None, "x")
+                }],
+                deletes: vec![],
+            }),
+        )
+        .await;
+    assert!(
+        matches!(&r.results[0], PushResult::Ok { .. }),
+        "{:?}",
+        r.results
+    );
+
+    // Clients that send no protocol (too old) are told to update.
+    for path in ["/sync/push", "/sync/pull"] {
+        let body = s
+            .expect_status(
+                Method::POST,
+                path,
+                Some(u.token()),
+                Some(&serde_json::json!({ "changes": [], "deletes": [], "cursors": {} })),
+                StatusCode::UPGRADE_REQUIRED,
+            )
+            .await;
+        assert_eq!(body["code"], "client_update_required", "{path}: {body}");
+    }
 
     // Pull from 0 returns the live entity; pull from the last seq is empty.
     let p: PullResponse = s
@@ -559,6 +604,7 @@ async fn sync_push_pull_conflicts_and_tombstones() {
             "/sync/pull",
             Some(u.token()),
             Some(&PullRequest {
+                protocol: labterm_proto::sync::SYNC_PROTOCOL,
                 cursors: cursors(&[(vault_id, 0)]),
                 limit: None,
             }),
@@ -574,6 +620,7 @@ async fn sync_push_pull_conflicts_and_tombstones() {
             "/sync/pull",
             Some(u.token()),
             Some(&PullRequest {
+                protocol: labterm_proto::sync::SYNC_PROTOCOL,
                 cursors: p.cursors,
                 limit: None,
             }),
@@ -588,6 +635,7 @@ async fn sync_push_pull_conflicts_and_tombstones() {
             "/sync/push",
             Some(u.token()),
             Some(&PushRequest {
+                protocol: labterm_proto::sync::SYNC_PROTOCOL,
                 changes: vec![],
                 deletes: vec![EntityDelete {
                     id: host_id,
@@ -607,6 +655,7 @@ async fn sync_push_pull_conflicts_and_tombstones() {
             "/sync/pull",
             Some(u.token()),
             Some(&PullRequest {
+                protocol: labterm_proto::sync::SYNC_PROTOCOL,
                 cursors: cursors(&[(vault_id, *s2)]),
                 limit: None,
             }),
@@ -624,6 +673,7 @@ async fn sync_push_pull_conflicts_and_tombstones() {
             "/sync/push",
             Some(u.token()),
             Some(&PushRequest {
+                protocol: labterm_proto::sync::SYNC_PROTOCOL,
                 changes: ids
                     .iter()
                     .map(|id| EntityChange {
@@ -652,6 +702,7 @@ async fn sync_push_pull_conflicts_and_tombstones() {
                 "/sync/pull",
                 Some(u.token()),
                 Some(&PullRequest {
+                    protocol: labterm_proto::sync::SYNC_PROTOCOL,
                     cursors: cur,
                     limit: Some(3),
                 }),
@@ -718,6 +769,7 @@ async fn teams_vaults_invites_and_sharing() {
             "/sync/push",
             Some(bob.token()),
             Some(&PushRequest {
+                protocol: labterm_proto::sync::SYNC_PROTOCOL,
                 changes: vec![EntityChange {
                     secret_rotated_at: None,
                     id: host_id,
@@ -831,6 +883,7 @@ async fn teams_vaults_invites_and_sharing() {
             "/sync/push",
             Some(bob.token()),
             Some(&PushRequest {
+                protocol: labterm_proto::sync::SYNC_PROTOCOL,
                 changes: vec![EntityChange {
                     secret_rotated_at: None,
                     id: host_id,
@@ -856,6 +909,7 @@ async fn teams_vaults_invites_and_sharing() {
             "/sync/pull",
             Some(owner.token()),
             Some(&PullRequest {
+                protocol: labterm_proto::sync::SYNC_PROTOCOL,
                 cursors: cursors(&[(vault.id, 0)]),
                 limit: None,
             }),
@@ -1168,6 +1222,7 @@ async fn websocket_notifies_on_push_and_revocation() {
             "/sync/push",
             Some(u.token()),
             Some(&PushRequest {
+                protocol: labterm_proto::sync::SYNC_PROTOCOL,
                 changes: vec![EntityChange {
                     secret_rotated_at: None,
                     id,

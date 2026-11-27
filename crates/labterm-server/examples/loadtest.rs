@@ -317,6 +317,7 @@ async fn run_user(api: Arc<Api>, mut user: VirtualUser, o: &Options, deadline: I
                 "/sync/push",
                 Some(&user.token),
                 Some(&PushRequest {
+                    protocol: labterm_proto::sync::SYNC_PROTOCOL,
                     changes,
                     deletes: vec![],
                 }),
@@ -331,6 +332,7 @@ async fn run_user(api: Arc<Api>, mut user: VirtualUser, o: &Options, deadline: I
                 "/sync/pull",
                 Some(&user.token),
                 Some(&PullRequest {
+                    protocol: labterm_proto::sync::SYNC_PROTOCOL,
                     cursors,
                     limit: None,
                 }),
