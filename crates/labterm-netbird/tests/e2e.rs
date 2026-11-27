@@ -50,6 +50,7 @@ fn network(id: Uuid, setup_key: Option<String>) -> NetworkConfig {
             provider: "netbird".into(),
             management_url: Some(env("NB_E2E_MANAGEMENT")),
             setup_key,
+            direct_first: false,
         },
     })
     .unwrap()
@@ -358,7 +359,7 @@ async fn names_resolve_through_nameserver_groups() {
             "name": "home", "description": "e2e", "enabled": true,
             "nameservers": [{"ip": env("NB_E2E_TARGET"), "ns_type": "udp", "port": 5353}],
             "groups": [all], "primary": false, "domains": ["home.example.com"],
-            "search_domains_enabled": false,
+            "search_domains_enabled": true,
         })),
     )["id"]
         .as_str()
@@ -376,6 +377,12 @@ async fn names_resolve_through_nameserver_groups() {
         &format!("lan.home.example.com:{lan_port}"),
     )
     .await;
+    // Short names: the group's domain is a search domain, and so is the
+    // peer domain.
+    echo_at(&nb, &keys, net.clone(), "peer:2222").await;
+    let short = env("NB_E2E_TARGET_NAME");
+    let short = short.split('.').next().unwrap();
+    echo_at(&nb, &keys, net.clone(), &format!("{short}:2222")).await;
     // The group's server says no: the dial fails instead of going elsewhere.
     assert!(
         dial_at(&nb, &keys, net.clone(), "nope.home.example.com:2222")

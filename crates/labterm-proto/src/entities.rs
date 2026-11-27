@@ -657,6 +657,11 @@ pub mod payload {
             /// reach SSH. Optional so a sign-in can replace it later.
             #[serde(default, skip_serializing_if = "Option::is_none")]
             pub setup_key: Option<String>,
+            /// Try a host's LAN address directly first (the device is on
+            /// the host's network, at home) and use the network only when
+            /// that doesn't answer.
+            #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+            pub direct_first: bool,
         }
     }
 

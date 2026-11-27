@@ -2088,6 +2088,8 @@
     <string name="vpn_no_routes">Маршрутов нет: доступны только адреса самих узлов.</string>
     <string name="vpn_exit_node">Выходной узел (%1$s)</string>
     <string name="vpn_route_through">через %1$s</string>
+    <string name="vpn_direct_first">Подключаться напрямую в локальной сети хоста</string>
+    <string name="vpn_direct_first_hint">Дома: если локальный адрес хоста отвечает уже доверенным ключом хоста, подключаться без сети.</string>
     <string name="vpn_no_peers">Этому устройству не доступен ни один узел в этой сети.</string>
     <string name="vpn_peer_idle">неактивен</string>
     <string name="vpn_peer_relayed">через ретранслятор</string>

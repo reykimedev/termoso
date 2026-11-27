@@ -2968,6 +2968,7 @@ mod tests {
                 provider: "netbird".into(),
                 management_url: None,
                 setup_key: Some("example-setup-key".into()),
+                direct_first: false,
             },
         )
         .unwrap();

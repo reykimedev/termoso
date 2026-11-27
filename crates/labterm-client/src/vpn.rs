@@ -452,6 +452,7 @@ mod tests {
             provider: String::new(),
             management_url: Some("https://netbird.example.com".into()),
             setup_key: None,
+            direct_first: false,
         };
         let gone = transports::save(&store, vault, None, net("gone")).unwrap();
         let kept = transports::save(&store, vault, None, net("kept")).unwrap();

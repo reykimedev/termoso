@@ -40,6 +40,8 @@ pub struct VpnNetwork {
     pub signed_in: bool,
     /// The account this device signs in as (kept on this device only).
     pub account: Option<String>,
+    /// Try a host's LAN address directly first.
+    pub direct_first: bool,
 }
 
 /// A network's state on this device, for the details page and host badges:
@@ -105,6 +107,8 @@ pub struct VpnNetworkForm {
     pub management_url: Option<String>,
     #[serde(default)]
     pub setup_key: Option<String>,
+    #[serde(default)]
+    pub direct_first: bool,
 }
 
 #[cfg(unix)]
@@ -236,6 +240,7 @@ fn to_network(store: &Arc<Store>, e: Entity<Transport>) -> VpnNetwork {
         team: s.team,
         signed_in: s.signed_in,
         account: s.account,
+        direct_first: e.data.direct_first,
     }
 }
 
@@ -397,6 +402,7 @@ pub async fn vpn_network_save(
                 .unwrap_or_else(|| labterm_proto::entities::TRANSPORT_NETBIRD.to_owned()),
             management_url: network.management_url,
             setup_key: network.setup_key,
+            direct_first: network.direct_first,
         },
     )?;
     Ok(to_network(&store, saved))
