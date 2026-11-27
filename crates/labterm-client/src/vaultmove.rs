@@ -529,6 +529,10 @@ impl<'a> Transfer<'a> {
         let Some(id) = id else {
             return Ok(None);
         };
+        // "None" on purpose (`EXPLICIT_NONE`) means the same in every vault.
+        if id.is_nil() {
+            return Ok(Some(id));
+        }
         if let Some(done) = self.done.get(&id) {
             return Ok(*done);
         }

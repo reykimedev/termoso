@@ -729,6 +729,9 @@ impl Store {
                 merge_ssh(&mut ssh, &c.data);
             }
         }
+        // A layer that says "none" on purpose stopped the lower layers;
+        // nobody past this point needs the marker.
+        ssh.clear_explicit_none();
         let mut username = None;
         for iid in identities.iter().rev() {
             if let Some(i) = self.get_in::<Identity>(*iid, vault)?

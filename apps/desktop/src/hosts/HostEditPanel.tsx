@@ -84,6 +84,7 @@ import { tr, trn, msg } from "@/i18n";
 import { requirePerm } from "@/team/perms";
 import { LocalCopiesSection } from "./LocalCopiesSection";
 import { inheritedSource } from "./inheritedSource";
+import { inheritItems } from "./inheritItems";
 
 const IP_VERSIONS: { value: IpVersion; label: string }[] = [
   { value: "auto", label: msg("Auto") },
@@ -510,13 +511,11 @@ function HostEditor({
           else set("proxyId", v === "" ? null : v);
         }}
       >
-        <MenuItem value="">
-          <em>
-            {inh?.proxyId && proxyName(inh.proxyId)
-              ? tr("Inherited — {name}", { name: proxyName(inh.proxyId) ?? "" })
-              : tr("None")}
-          </em>
-        </MenuItem>
+        {inheritItems({
+          inherited: inh?.proxyId ? (proxyName(inh.proxyId) ?? "…") : null,
+          value: form.proxyId,
+          noneLabel: tr("None"),
+        })}
         {(proxies.data ?? []).map((p) => (
           <MenuItem key={p.id} value={p.id}>
             {p.data.kind.toUpperCase()}
@@ -850,13 +849,11 @@ function HostEditor({
                         else set("hostChainId", v === "" ? null : v);
                       }}
                     >
-                      <MenuItem value="">
-                        <em>
-                          {inh?.hostChainId && chainName(inh.hostChainId)
-                            ? tr("Inherited — {name}", { name: chainName(inh.hostChainId) ?? "" })
-                            : tr("Direct connection")}
-                        </em>
-                      </MenuItem>
+                      {inheritItems({
+                        inherited: inh?.hostChainId ? (chainName(inh.hostChainId) ?? "…") : null,
+                        value: form.hostChainId,
+                        noneLabel: tr("Direct connection"),
+                      })}
                       {(chains.data ?? []).map((c) => (
                         <MenuItem key={c.id} value={c.id}>
                           {c.data.label}

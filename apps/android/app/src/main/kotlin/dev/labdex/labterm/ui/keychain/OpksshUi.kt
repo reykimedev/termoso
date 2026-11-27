@@ -52,6 +52,7 @@ import dev.labdex.labterm.core.KeyExport
 import dev.labdex.labterm.core.KeyItem
 import dev.labdex.labterm.core.OidcKeyChoice
 import dev.labdex.labterm.core.OidcProviderItem
+import dev.labdex.labterm.ui.hosts.NONE_ID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -361,6 +362,7 @@ fun HostOidcKeyDialog(repo: VaultRepository, host: HostItem, onNotify: (String) 
                     CircularProgressIndicator(Modifier.size(20.dp))
                 } else {
                     ChoiceRow(stringResource(R.string.openid_none_inherit), choice == null) { choice = null }
+                    ChoiceRow(stringResource(R.string.openid_none_explicit), choice == NONE_ID) { choice = NONE_ID }
                     list.forEach { k -> ChoiceRow(k.label, choice == k.id) { choice = k.id } }
                     if (list.isEmpty()) Text(stringResource(R.string.openid_no_keys), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }

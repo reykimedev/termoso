@@ -1830,6 +1830,7 @@
     <string name="tag_settings_hint">Hosts with this tag use these when neither the host nor its groups set them. When several tags set the same thing, the higher priority wins, then the name in A to Z order.</string>
     <string name="defaults_use_shared_identity">Credentials come from a shared identity. Change it on the desktop app.</string>
     <string name="inherited_value">Inherited: %1$s</string>
+    <string name="inherited_nothing">Inherited (nothing set)</string>
     <string name="settings_saved">Settings saved</string>
     <string name="settings_for">Settings for %1$s</string>
     <string name="tag_has_settings">has settings</string>
@@ -1968,6 +1969,7 @@
     <string name="openid_key_for_host">OpenID key</string>
     <string name="openid_key_for_host_hint">Tried before the host\u2019s credentials, which stay as the fallback. Hosts without one use their group\u2019s.</string>
     <string name="openid_none_inherit">None (use the group\u2019s)</string>
+    <string name="openid_none_explicit">None, not even the group\u2019s</string>
     <string name="openid_key_for_host_saved">OpenID key saved</string>
 
     <!-- NetBird networks and the host/group tunnel choice -->

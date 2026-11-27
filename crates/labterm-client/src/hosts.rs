@@ -1355,7 +1355,9 @@ fn inline_identity_of(
 /// webdav_config and their hidden identities.
 /// The OpenID key of host or group settings: an opkssh key of that vault.
 fn check_oidc_key(store: &Store, vault_id: Uuid, id: Option<Uuid>) -> Result<()> {
-    let Some(id) = id else { return Ok(()) };
+    let Some(id) = id.filter(|i| !i.is_nil()) else {
+        return Ok(());
+    };
     match store.get_in::<SshKey>(id, vault_id)? {
         Some(k) if k.data.is_opkssh() => Ok(()),
         _ => Err(ClientError::invalid(
@@ -1979,7 +1981,7 @@ fn require_same_vault<T: labterm_core::model::Payload>(
     vault_id: Uuid,
     what: &str,
 ) -> Result<()> {
-    if let Some(id) = id {
+    if let Some(id) = id.filter(|i| !i.is_nil()) {
         let e = store.require::<T>(id)?;
         if e.vault_id != vault_id {
             return Err(ClientError::invalid(format!(
@@ -2420,6 +2422,8 @@ fn keep_if_in_vault<T: labterm_core::model::Payload>(
     vault_id: Uuid,
 ) -> Result<Option<Uuid>> {
     Ok(match id {
+        // "None" on purpose is valid in every vault.
+        Some(id) if id.is_nil() => Some(id),
         Some(id) => store
             .get::<T>(id)?
             .filter(|e| e.vault_id == vault_id)
@@ -3072,6 +3076,142 @@ mod tests {
 
         // An id that is no network of this vault is refused.
         assert!(set_transport(&s, card.id, Some(Uuid::new_v4())).is_err());
+    }
+
+    #[test]
+    fn explicit_none_overrides_what_the_group_sets() {
+        use labterm_core::model::Transport;
+        use labterm_proto::entities::EXPLICIT_NONE;
+        let s = store();
+        let vault = s.local_vault().unwrap().id;
+        let net = crate::transports::save(
+            &s,
+            vault,
+            None,
+            Transport {
+                label: "home".into(),
+                provider: "netbird".into(),
+                management_url: None,
+                setup_key: Some("example-setup-key".into()),
+                direct_first: false,
+                idle_secs: None,
+            },
+        )
+        .unwrap();
+        let proxy = s
+            .insert(
+                vault,
+                &Proxy {
+                    kind: "socks5".into(),
+                    host: "proxy.example.com".into(),
+                    port: 1080,
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        let jump = save(&s, &new_form(vault)).unwrap();
+        let chain = s
+            .insert(
+                vault,
+                &HostChain {
+                    label: "via jump".into(),
+                    host_ids: vec![jump.id],
+                },
+            )
+            .unwrap();
+        let g = save_group(&s, vault, None, "dc1", None).unwrap();
+        let mut gf = group_form(&s, g.id).unwrap();
+        gf.defaults.transport_id = Some(net.id);
+        gf.defaults.proxy_id = Some(proxy);
+        gf.defaults.host_chain_id = Some(chain);
+        save_group_form(&s, &gf).unwrap();
+
+        // A sub-group says "none" for the network only.
+        let sub = save_group(&s, vault, None, "lan", Some(g.id)).unwrap();
+        let mut sf = group_form(&s, sub.id).unwrap();
+        sf.defaults.transport_id = Some(EXPLICIT_NONE);
+        save_group_form(&s, &sf).unwrap();
+        assert_eq!(
+            group_form(&s, sub.id).unwrap().defaults.transport_id,
+            Some(EXPLICIT_NONE)
+        );
+        let inh = inherited(&s, Some(sub.id)).unwrap();
+        assert_eq!(inh.transport_id, None);
+        assert_eq!(inh.proxy_id, Some(proxy));
+
+        let mut f = new_form(vault);
+        f.group_id = Some(g.id);
+        f.proxy_id = Some(EXPLICIT_NONE);
+        f.host_chain_id = Some(EXPLICIT_NONE);
+        let card = save(&s, &f).unwrap();
+        let r = s.resolve_host(card.id).unwrap();
+        assert!(r.proxy.is_none() && r.chain.is_empty());
+        assert_eq!(r.ssh.proxy_id, None);
+        assert_eq!(r.ssh.host_chain_id, None);
+        // The network still comes from the group.
+        assert_eq!(r.transport.map(|t| t.id), Some(net.id));
+        let back = form(&s, card.id).unwrap();
+        assert_eq!(back.proxy_id, Some(EXPLICIT_NONE));
+        assert_eq!(back.host_chain_id, Some(EXPLICIT_NONE));
+
+        set_transport(&s, card.id, Some(EXPLICIT_NONE)).unwrap();
+        let r = s.resolve_host(card.id).unwrap();
+        assert!(r.transport.is_none());
+        let vpn = cards(&s, Some(vault))
+            .unwrap()
+            .into_iter()
+            .find(|c| c.id == card.id)
+            .unwrap()
+            .vpn;
+        assert_eq!(vpn, None);
+
+        // Moving the host under the sub-group keeps its own choices.
+        move_hosts(&s, &[card.id], Some(sub.id)).unwrap();
+        let r = s.resolve_host(card.id).unwrap();
+        assert!(r.transport.is_none() && r.proxy.is_none() && r.chain.is_empty());
+
+        // Back to "inherit": the group's values apply again.
+        let mut f = form(&s, card.id).unwrap();
+        f.group_id = Some(g.id);
+        f.proxy_id = None;
+        f.host_chain_id = None;
+        f.transport_id = None;
+        save(&s, &f).unwrap();
+        let r = s.resolve_host(card.id).unwrap();
+        assert_eq!(r.proxy.map(|p| p.id), Some(proxy));
+        assert_eq!(r.chain.len(), 1);
+        assert_eq!(r.transport.map(|t| t.id), Some(net.id));
+    }
+
+    #[test]
+    fn explicit_none_survives_copy_to_another_vault() {
+        use labterm_proto::entities::EXPLICIT_NONE;
+        let s = store();
+        let vault = s.local_vault().unwrap().id;
+        let other = Uuid::new_v4();
+        s.upsert_vault(
+            other,
+            labterm_core::store::LocalVaultKind::Personal,
+            "other",
+            None,
+            labterm_proto::vault::VaultRole::Manager,
+            Some(&SymmetricKey::generate()),
+            1,
+        )
+        .unwrap();
+        let mut f = new_form(vault);
+        f.proxy_id = Some(EXPLICIT_NONE);
+        f.host_chain_id = Some(EXPLICIT_NONE);
+        f.transport_id = Some(EXPLICIT_NONE);
+        f.oidc_key_id = Some(EXPLICIT_NONE);
+        let card = save(&s, &f).unwrap();
+        let ids = copy_to_vault(&s, &[card.id], other, CopyCredentials::Shared).unwrap();
+        let back = form(&s, ids[0]).unwrap();
+        assert_eq!(back.proxy_id, Some(EXPLICIT_NONE));
+        assert_eq!(back.host_chain_id, Some(EXPLICIT_NONE));
+        assert_eq!(back.transport_id, Some(EXPLICIT_NONE));
+        assert_eq!(back.oidc_key_id, Some(EXPLICIT_NONE));
+        assert!(s.resolve_host(ids[0]).unwrap().ssh.oidc_key_id.is_none());
     }
 
     #[test]

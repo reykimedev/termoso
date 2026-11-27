@@ -3,6 +3,7 @@ import { Field } from "@/components/ui";
 import { useSshKeys } from "@/ipc/hooks";
 import type { Uuid } from "@/ipc/types";
 import { tr } from "@/i18n";
+import { inheritItems } from "./inheritItems";
 
 /** OpenID (opkssh) key a host or group tries before its credentials. */
 export function OidcKeyField({
@@ -13,13 +14,13 @@ export function OidcKeyField({
 }: {
   vaultId: Uuid;
   value: Uuid | null;
-  /** The key the group chain names, shown as the empty choice. */
+  /** The key the group chain or tags name, shown on the "inherit" entry. */
   inherited: Uuid | null;
   onChange: (id: Uuid | null) => void;
 }) {
   const keys = useSshKeys(vaultId);
   const opkssh = (keys.data ?? []).filter((k) => k.opkssh);
-  const inheritedLabel = inherited ? opkssh.find((k) => k.id === inherited)?.label : undefined;
+  const inheritedLabel = inherited ? (opkssh.find((k) => k.id === inherited)?.label ?? "…") : null;
   if (opkssh.length === 0 && value === null) return null;
   return (
     <Field
@@ -31,11 +32,7 @@ export function OidcKeyField({
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value === "" ? null : e.target.value)}
       >
-        <MenuItem value="">
-          <em>
-            {inheritedLabel ? tr("Inherited — {name}", { name: inheritedLabel }) : tr("None")}
-          </em>
-        </MenuItem>
+        {inheritItems({ inherited: inheritedLabel, value, noneLabel: tr("None") })}
         {opkssh.map((k) => (
           <MenuItem key={k.id} value={k.id}>
             {k.label}

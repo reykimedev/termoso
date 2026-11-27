@@ -115,6 +115,8 @@ pub(crate) fn effective_ssh(v: &VaultState, h: &Host) -> Option<SshConfig> {
         }
         group = g.parent_id;
     }
+    // A host that says "none" on purpose stopped its groups' values.
+    merged.clear_explicit_none();
     Some(merged)
 }
 
