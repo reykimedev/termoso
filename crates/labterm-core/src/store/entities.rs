@@ -478,7 +478,19 @@ impl Store {
             .collect()
     }
 
-    /// Rows with local changes to push, oldest first.
+    /// Rows of a collection with local changes to push, oldest first.
+    pub fn dirty_collection_rows(&self, collection_id: Uuid) -> Result<Vec<EntityRow>> {
+        let conn = self.conn();
+        let mut st = conn.prepare(&format!(
+            "{SELECT} WHERE collection_id = ?1 AND dirty = 1 ORDER BY updated_at ASC"
+        ))?;
+        let rows = st.query_map(params![collection_id.to_string()], row_from)?;
+        rows.map(|r| r.map_err(CoreError::from).and_then(into_row))
+            .collect()
+    }
+
+    /// Vault-wide rows with local changes to push, oldest first. Collection
+    /// rows go through [`Store::dirty_collection_rows`].
     pub fn dirty_rows(&self, vault_id: Uuid) -> Result<Vec<EntityRow>> {
         let conn = self.conn();
         let mut st = conn.prepare(&format!(
@@ -508,6 +520,13 @@ impl Store {
     /// Overwrite the local row with the server copy (clears dirty). Tombstones
     /// are removed outright.
     pub fn apply_remote(&self, e: &SyncEntity) -> Result<()> {
+        self.apply_remote_in(e, None)
+    }
+
+    /// [`Store::apply_remote`] for a row of `collection` (`None` = the
+    /// vault-wide part). The collection is bound into the row's AAD, so a
+    /// row filed under the wrong one doesn't decrypt.
+    pub fn apply_remote_in(&self, e: &SyncEntity, collection: Option<Uuid>) -> Result<()> {
         let conn = self.conn();
         if e.deleted {
             conn.execute(
@@ -517,13 +536,13 @@ impl Store {
             return Ok(());
         }
         conn.execute(
-            "INSERT INTO entities (id, kind, vault_id, version, seq, deleted, key_version, data, updated_at, dirty)
-             VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8, 0)
+            "INSERT INTO entities (id, kind, vault_id, version, seq, deleted, key_version, data, updated_at, dirty, collection_id)
+             VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8, 0, ?9)
              ON CONFLICT(id) DO UPDATE SET
                kind = excluded.kind, vault_id = excluded.vault_id, version = excluded.version,
                seq = excluded.seq, deleted = 0, key_version = excluded.key_version,
                data = excluded.data, updated_at = excluded.updated_at, dirty = 0,
-               collection_id = NULL",
+               collection_id = excluded.collection_id",
             params![
                 e.id.to_string(),
                 e.kind,
@@ -533,6 +552,7 @@ impl Store {
                 e.key_version,
                 e.data,
                 labterm_proto::timestamp::to_rfc3339(e.updated_at),
+                collection.map(|c| c.to_string()),
             ],
         )?;
         Ok(())
@@ -550,11 +570,11 @@ impl Store {
 
     /// Number of dirty rows across synced vaults.
     pub fn pending_changes(&self) -> Result<u64> {
-        let n: i64 = self.conn().query_row(
-            "SELECT COUNT(*) FROM entities WHERE dirty = 1 AND collection_id IS NULL",
-            [],
-            |r| r.get(0),
-        )?;
+        let n: i64 =
+            self.conn()
+                .query_row("SELECT COUNT(*) FROM entities WHERE dirty = 1", [], |r| {
+                    r.get(0)
+                })?;
         Ok(n as u64)
     }
 

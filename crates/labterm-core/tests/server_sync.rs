@@ -964,3 +964,87 @@ async fn realtime_loop_stops_on_cancel() {
     assert_eq!(a.api.devices().await.unwrap().len(), 1);
     let _ = s;
 }
+
+// ───────────────────────────── collections ─────────────────────────────
+
+#[tokio::test]
+async fn restricted_group_rows_sync_only_through_collections() {
+    use labterm_proto::team::CreateTeamRequest;
+    use labterm_proto::vault::{CreateVaultRequest, VaultMemberUpsert, VaultRole};
+
+    let s = server_or_skip!();
+    let email = unique_email("coll");
+    let (a, _) = register(s, &email, PASSWORD).await;
+    let me = a.store.account().unwrap().unwrap();
+    let pair = a.store.account_secrets().unwrap().private_key;
+    let team = a
+        .api
+        .create_team(&CreateTeamRequest { name: "Ops".into() })
+        .await
+        .unwrap();
+    let vault = a
+        .api
+        .create_team_vault(
+            team.id,
+            &CreateVaultRequest {
+                name: "Shared".into(),
+                members: vec![VaultMemberUpsert {
+                    user_id: me.user_id,
+                    role: VaultRole::Manager,
+                    sealed_key: seal_vault_key_self(&pair, &SymmetricKey::generate()).unwrap(),
+                }],
+            },
+        )
+        .await
+        .unwrap()
+        .id;
+    account::refresh_vaults(&a.api, &a.store).await.unwrap();
+    let ea = engine(&a, SyncOptions::default());
+
+    let coll = ea.create_collection(vault, "Prod").await.unwrap();
+    let id = Uuid::new_v4();
+    a.store
+        .put_in_collection(vault, coll, id, &host("db1"))
+        .unwrap();
+    let r = ea.sync_once().await.unwrap();
+    assert!(r.errors.is_empty(), "{r:?}");
+    assert_eq!(a.store.pending_changes().unwrap(), 0);
+
+    // The vault sync routes never carry collection rows.
+    let pulled = a
+        .api
+        .sync_pull(&labterm_proto::sync::PullRequest {
+            cursors: [(vault, 0)].into(),
+            limit: None,
+            protocol: labterm_proto::sync::SYNC_PROTOCOL,
+        })
+        .await
+        .unwrap();
+    assert!(
+        pulled.entities.iter().all(|e| e.id != id),
+        "leaked to vault pull"
+    );
+
+    // A second device of the same account gets the group, its key and the row.
+    let b = login(s, &email, PASSWORD).await;
+    account::refresh_vaults(&b.api, &b.store).await.unwrap();
+    let eb = engine(&b, SyncOptions::default());
+    let r = eb.sync_once().await.unwrap();
+    assert!(r.errors.is_empty(), "{r:?}");
+    let got = b.store.collections(vault).unwrap();
+    assert_eq!(got.len(), 1);
+    assert_eq!(got[0].id, coll);
+    assert_eq!(b.store.get::<Host>(id).unwrap().unwrap().data.label, "db1");
+
+    // An edit on B reaches A through the collection routes.
+    let mut edit = host("db1");
+    edit.label = "db1-renamed".into();
+    b.store.update(id, &edit).unwrap();
+    let r = eb.sync_once().await.unwrap();
+    assert_eq!(r.pushed, 1, "{r:?}");
+    ea.sync_once().await.unwrap();
+    assert_eq!(
+        a.store.get::<Host>(id).unwrap().unwrap().data.label,
+        "db1-renamed"
+    );
+}
