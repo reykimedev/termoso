@@ -41,6 +41,16 @@ export interface VaultStatus {
 
 export type VaultEvent = { type: "locked" } | { type: "unlocked" };
 
+/** One debug log file (one per launch), newest first. */
+export interface DebugLogFile {
+  name: string;
+  size: number;
+  /** Last write, Unix seconds. */
+  modified: number;
+  /** The file this launch writes. */
+  current: boolean;
+}
+
 export interface AppInfo {
   version: string;
   /** Full commit hash the binary was built from (desktop only, like the next three). */

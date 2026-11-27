@@ -136,6 +136,12 @@ struct SettingsView: View {
             LabeledContent("Version", value: appVersion)
             LabeledContent("Core", value: container.coreVersion)
                 .accessibilityIdentifier("settings.coreVersion")
+            NavigationLink {
+                DebugLogView()
+            } label: {
+                Label("Debug log", systemImage: "ladybug")
+            }
+            .accessibilityIdentifier("settings.debugLog")
             Link(destination: URL(string: "https://github.com/reykimedev/termoso")!) {
                 Label("Source code", systemImage: "chevron.left.forwardslash.chevron.right")
             }

@@ -15,6 +15,7 @@ import type {
   AiCommandResponse,
   AiStatus,
   AppInfo,
+  DebugLogFile,
   AuditFilter,
   AuditPage,
   AuditVerification,
@@ -191,6 +192,8 @@ import type {
 
 export const appInfo = () => invoke<AppInfo>("app_info");
 export const appQuit = () => invoke<null>("app_quit");
+export const debugLogFiles = () => invoke<DebugLogFile[]>("debug_log_files");
+export const debugLogRead = (name: string) => invoke<string[]>("debug_log_read", { name });
 
 export const settingsGet = () => invoke<Settings>("settings_get");
 

@@ -14,6 +14,7 @@ import { resolveToConnect } from "./overlays";
 import * as vpn from "./vpn";
 import { type Uuid, changed, isUnlocked, require, s } from "./state";
 import { loadWasm, w } from "./wasm";
+import * as debuglog from "./debuglog";
 
 interface OutputChannel {
   onmessage?: (msg: ArrayBuffer | number[]) => void;
@@ -305,8 +306,14 @@ export async function connectFailed(id: Uuid, targetStr: string, e: unknown): Pr
 async function run(id: Uuid, sess: Sess, target: Target, cols: number, rows: number) {
   const relayHost = new URL(config().relayUrl).host;
   sessionEvent({ type: "progress", id, hop: null, phase: { kind: "connecting", via: relayHost } });
+  const t0 = performance.now();
+  const since = () => Math.round(performance.now() - t0);
   const { plan, targetStr, prompt, options } = await prepare(id, target);
   sess.info.target = targetStr();
+  debuglog.info(
+    "ssh",
+    `connecting to ${targetStr()} via relay ${relayHost} (prepared in ${since()} ms)`,
+  );
 
   const onEvent = (e: {
     type: string;
@@ -324,6 +331,10 @@ async function run(id: Uuid, sess: Sess, target: Target, cols: number, rows: num
         if (e.data) out(sess, e.data);
         break;
       case "progress":
+        debuglog.info(
+          "ssh",
+          `${targetStr()}: ${e.phase ?? "?"}${e.method ? ` (${e.method})` : ""} at ${since()} ms`,
+        );
         if (e.phase === "auth")
           sessionEvent({
             type: "progress",
@@ -361,6 +372,7 @@ async function run(id: Uuid, sess: Sess, target: Target, cols: number, rows: num
       prompt,
     );
   } catch (e) {
+    debuglog.warn("ssh", `${targetStr()}: failed after ${since()} ms: ${debuglog.errorText(e)}`);
     const entry = { host_id: plan.hostId, label: plan.label, target: targetStr(), protocol: "ssh" };
     try {
       return await connectFailed(id, targetStr(), e);
@@ -369,6 +381,7 @@ async function run(id: Uuid, sess: Sess, target: Target, cols: number, rows: num
       throw err;
     }
   }
+  debuglog.info("ssh", `${targetStr()}: connected in ${since()} ms`);
   if (sess.closed) {
     sess.ssh.close();
     return;
