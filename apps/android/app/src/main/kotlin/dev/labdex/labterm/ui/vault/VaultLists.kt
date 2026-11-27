@@ -1,6 +1,5 @@
 package dev.labdex.labterm.ui.vault
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -12,6 +11,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -143,7 +144,7 @@ fun KnownHostsScreen(shell: ShellViewModel, onBack: () -> Unit) {
 
 /** Past connections of the selected vault, newest first. */
 @Composable
-fun HistoryScreen(shell: ShellViewModel, onBack: () -> Unit, onOpenHost: (String) -> Unit) {
+fun HistoryScreen(shell: ShellViewModel, onBack: () -> Unit, onOpenHost: (String) -> Unit, onConnect: (String) -> Unit = {}) {
     val revision by shell.repo.revision.collectAsStateWithLifecycle()
     val vaults by shell.vaults.collectAsStateWithLifecycle()
     val selectedId by shell.selectedVaultId.collectAsStateWithLifecycle()
@@ -151,7 +152,10 @@ fun HistoryScreen(shell: ShellViewModel, onBack: () -> Unit, onOpenHost: (String
     val scope = rememberCoroutineScope()
     var items by remember { mutableStateOf<List<HistoryItem>>(emptyList()) }
     var confirmClear by remember { mutableStateOf(false) }
-    LaunchedEffect(revision, vault) {
+    var historyMenu by remember { mutableStateOf<HistoryItem?>(null) }
+    val context = LocalContext.current
+    var reload by remember { mutableStateOf(0) }
+    LaunchedEffect(revision, vault, reload) {
         val v = vault ?: return@LaunchedEffect
         runCatching { shell.repo.read { history(200u) } }
             .onSuccess { items = it.filter { h -> h.belongsTo(v) } }
@@ -187,13 +191,49 @@ fun HistoryScreen(shell: ShellViewModel, onBack: () -> Unit, onOpenHost: (String
                             title = h.label.ifBlank { h.target },
                             subtitle = historySubtitle(h),
                             leading = { IconTile(Icons.Filled.History) },
-                            modifier = if (hostId != null) Modifier.clickable { onOpenHost(hostId) } else Modifier,
+                            modifier = Modifier.itemClicks(onClick = { if (hostId != null) onOpenHost(hostId) else historyMenu = h }, onMenu = { historyMenu = h }),
                             titleColor = if (h.error != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
-                        )
+                        ) {
+                            ItemMoreButton({ historyMenu = h })
+                        }
                     }
                 }
             }
         }
+    }
+    historyMenu?.let { h ->
+        val hostId = h.hostId
+        ItemActionsSheet(
+            title = h.label.ifBlank { h.target },
+            subtitle = historySubtitle(h),
+            leading = { IconTile(Icons.Filled.History) },
+            sections = listOf(
+                SheetSection(
+                    stringResource(R.string.history),
+                    listOfNotNull(
+                        hostId?.let { SheetAction(Icons.Filled.PlayArrow, stringResource(R.string.connect_again)) { onConnect(it) } },
+                        hostId?.let { SheetAction(Icons.Filled.Dns, stringResource(R.string.open_host)) { onOpenHost(it) } },
+                        SheetAction(Icons.Filled.ContentCopy, stringResource(R.string.copy_target)) {
+                            copyToClipboard(context, h.target)
+                            shell.notify(str(R.string.copied, h.target))
+                        },
+                    ),
+                ),
+                SheetSection(
+                    null,
+                    listOf(
+                        SheetAction(Icons.Filled.Delete, stringResource(R.string.remove_entry), danger = true) {
+                            scope.launch {
+                                runCatching { shell.repo.write { deleteHistoryEntry(h.id) } }
+                                    .onSuccess { reload++ }
+                                    .onFailure { shell.notify(it.userMessage()) }
+                            }
+                        },
+                    ),
+                ),
+            ),
+            onClose = { if (historyMenu == h) historyMenu = null },
+        )
     }
     if (confirmClear) {
         ConfirmDialog(

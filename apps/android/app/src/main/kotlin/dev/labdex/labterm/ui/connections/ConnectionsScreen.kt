@@ -64,6 +64,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.shape.RoundedCornerShape
 import dev.labdex.labterm.ui.terminal.TerminalPreview
 import dev.labdex.labterm.R
+import dev.labdex.labterm.ui.components.ItemActionsSheet
+import dev.labdex.labterm.ui.components.ItemMoreButton
+import dev.labdex.labterm.ui.components.SheetAction
+import dev.labdex.labterm.ui.components.SheetSection
 import dev.labdex.labterm.data.Tunnel
 import dev.labdex.labterm.core.PfRuleItem
 import dev.labdex.labterm.core.PfKind
@@ -271,12 +275,23 @@ fun ConnectionsScreen(
                                     onLongClick = { menu = true },
                                 ),
                             )
-                            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                                MenuItem(Icons.Filled.Delete, stringResource(R.string.delete), destructive = true) {
-                                    menu = false
-                                    workspaces?.delete(ws.id)
-                                }
-                            }
+                            if (menu) ItemActionsSheet(
+                                title = ws.name,
+                                subtitle = pluralStringResource(R.plurals.n_tabs, ws.targets.size, ws.targets.size),
+                                leading = { IconTile(Icons.Filled.Dashboard) },
+                                sections = listOf(
+                                    SheetSection(
+                                        stringResource(R.string.workspaces),
+                                        listOf(
+                                            SheetAction(Icons.AutoMirrored.Filled.OpenInNew, stringResource(R.string.open_)) {
+                                                scope.launch { if (shell.openWorkspace(ws.targets) > 0) onOpenTerminal() }
+                                            },
+                                        ),
+                                    ),
+                                    SheetSection(null, listOf(SheetAction(Icons.Filled.Delete, stringResource(R.string.delete), danger = true) { workspaces?.delete(ws.id) })),
+                                ),
+                                onClose = { menu = false },
+                            )
                         }
                     }
                 }
@@ -530,26 +545,40 @@ private fun ActiveSessionRow(
         },
         trailing = {
             Box {
-                IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.session_actions)) }
-                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                    @Composable
-                    fun item(icon: ImageVector, label: String, destructive: Boolean = false, action: () -> Unit) {
-                        MenuItem(icon, label, destructive) { menu = false; action() }
-                    }
-                    item(Icons.AutoMirrored.Filled.OpenInNew, stringResource(R.string.open_), action = onOpen)
-                    if (!session.isView) item(Icons.Filled.ContentCopy, stringResource(R.string.duplicate), action = onDuplicate)
-                    if (session.reconnectable) item(Icons.Filled.Refresh, stringResource(R.string.reconnect), action = onReconnect)
-                    if (ssh) item(Icons.Filled.FolderOpen, stringResource(R.string.open_sftp), action = onSftp)
-                    if (!session.isView && session.local != null) item(Icons.Filled.FolderOpen, stringResource(R.string.open_local_files), action = onSftp)
-                    if (session.hostId != null) item(Icons.Filled.Edit, stringResource(R.string.edit_host), action = onEditHost)
-                    else if (session.quick != null) item(Icons.Filled.Add, stringResource(R.string.add_to_hosts), action = onAddHost)
-                    item(Icons.Filled.Close, stringResource(R.string.close_session), destructive = true, action = onClose)
-                    if (hostTotal > 1) {
-                        item(Icons.Filled.PowerSettingsNew, closeHostLabel(hostTotal), destructive = true) {
-                            onCloseHost(siblings.map { it.id } + session.id, sftpForHost.map { it.id })
-                        }
-                    }
-                }
+                ItemMoreButton({ menu = true }, stringResource(R.string.session_actions))
+                if (menu) ItemActionsSheet(
+                    title = session.label,
+                    subtitle = subtitle,
+                    leading = { if (session.isView) IconTile(Icons.Filled.Groups) else HostAvatar(detected ?: session.savedOsName) },
+                    sections = listOf(
+                        SheetSection(
+                            stringResource(R.string.session_actions),
+                            buildList {
+                                add(SheetAction(Icons.AutoMirrored.Filled.OpenInNew, stringResource(R.string.open_), onClick = onOpen))
+                                if (!session.isView) add(SheetAction(Icons.Filled.ContentCopy, stringResource(R.string.duplicate), onClick = onDuplicate))
+                                if (session.reconnectable) add(SheetAction(Icons.Filled.Refresh, stringResource(R.string.reconnect), onClick = onReconnect))
+                                if (ssh) add(SheetAction(Icons.Filled.FolderOpen, stringResource(R.string.open_sftp), onClick = onSftp))
+                                if (!session.isView && session.local != null) add(SheetAction(Icons.Filled.FolderOpen, stringResource(R.string.open_local_files), onClick = onSftp))
+                                if (session.hostId != null) add(SheetAction(Icons.Filled.Edit, stringResource(R.string.edit_host), onClick = onEditHost))
+                                else if (session.quick != null) add(SheetAction(Icons.Filled.Add, stringResource(R.string.add_to_hosts), onClick = onAddHost))
+                            },
+                        ),
+                        SheetSection(
+                            null,
+                            buildList {
+                                add(SheetAction(Icons.Filled.Close, stringResource(R.string.close_session), danger = true, onClick = onClose))
+                                if (hostTotal > 1) {
+                                    add(
+                                        SheetAction(Icons.Filled.PowerSettingsNew, closeHostLabel(hostTotal), danger = true) {
+                                            onCloseHost(siblings.map { it.id } + session.id, sftpForHost.map { it.id })
+                                        },
+                                    )
+                                }
+                            },
+                        ),
+                    ),
+                    onClose = { menu = false },
+                )
             }
             IconButton(onClick = onClose) { Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.close_session)) }
         },
@@ -593,34 +622,42 @@ private fun SftpRow(
     ListRow(
         title = conn.label,
         subtitle = subtitle,
-        leading = {
-            when (conn.protocol) {
-                FileProtocol.WEBDAV, FileProtocol.S3 -> IconTile(Icons.Filled.CloudQueue)
-                FileProtocol.LOCAL -> IconTile(Icons.Filled.PhoneAndroid)
-                FileProtocol.SFTP -> IconTile(Icons.Filled.FolderOpen)
-            }
-        },
+        leading = { IconTile(conn.protocol.icon()) },
         trailing = {
             Box {
-                IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.connection_actions)) }
-                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                    @Composable
-                    fun item(icon: ImageVector, label: String, destructive: Boolean = false, action: () -> Unit) {
-                        MenuItem(icon, label, destructive) { menu = false; action() }
-                    }
-                    item(Icons.AutoMirrored.Filled.OpenInNew, stringResource(R.string.open_), action = onOpen)
-                    if (conn.protocol == FileProtocol.SFTP && (conn.hostId != null || conn.quick != null)) {
-                        item(Icons.Filled.Terminal, stringResource(R.string.open_terminal), action = onTerminal)
-                    }
-                    if (conn.hostId != null) item(Icons.Filled.Edit, stringResource(R.string.edit_host), action = onEditHost)
-                    else if (conn.quick != null) item(Icons.Filled.Add, stringResource(R.string.add_to_hosts), action = onAddHost)
-                    item(Icons.Filled.Close, stringResource(R.string.close_connection), destructive = true, action = onClose)
-                    if (hostTotal > 1) {
-                        item(Icons.Filled.PowerSettingsNew, closeHostLabel(hostTotal), destructive = true) {
-                            onCloseHost(terminalsForHost.map { it.id }, sftpSiblings.map { it.id } + conn.id)
-                        }
-                    }
-                }
+                ItemMoreButton({ menu = true }, stringResource(R.string.connection_actions))
+                if (menu) ItemActionsSheet(
+                    title = conn.label,
+                    subtitle = subtitle,
+                    leading = { IconTile(conn.protocol.icon()) },
+                    sections = listOf(
+                        SheetSection(
+                            stringResource(R.string.connection_actions),
+                            buildList {
+                                add(SheetAction(Icons.AutoMirrored.Filled.OpenInNew, stringResource(R.string.open_), onClick = onOpen))
+                                if (conn.protocol == FileProtocol.SFTP && (conn.hostId != null || conn.quick != null)) {
+                                    add(SheetAction(Icons.Filled.Terminal, stringResource(R.string.open_terminal), onClick = onTerminal))
+                                }
+                                if (conn.hostId != null) add(SheetAction(Icons.Filled.Edit, stringResource(R.string.edit_host), onClick = onEditHost))
+                                else if (conn.quick != null) add(SheetAction(Icons.Filled.Add, stringResource(R.string.add_to_hosts), onClick = onAddHost))
+                            },
+                        ),
+                        SheetSection(
+                            null,
+                            buildList {
+                                add(SheetAction(Icons.Filled.Close, stringResource(R.string.close_connection), danger = true, onClick = onClose))
+                                if (hostTotal > 1) {
+                                    add(
+                                        SheetAction(Icons.Filled.PowerSettingsNew, closeHostLabel(hostTotal), danger = true) {
+                                            onCloseHost(terminalsForHost.map { it.id }, sftpSiblings.map { it.id } + conn.id)
+                                        },
+                                    )
+                                }
+                            },
+                        ),
+                    ),
+                    onClose = { menu = false },
+                )
             }
             IconButton(onClick = onClose) { Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.close_connection)) }
         },
@@ -629,14 +666,10 @@ private fun SftpRow(
     )
 }
 
-@Composable
-private fun MenuItem(icon: ImageVector, label: String, destructive: Boolean, onClick: () -> Unit) {
-    val tint = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
-    DropdownMenuItem(
-        text = { Text(label, color = tint) },
-        leadingIcon = { Icon(icon, null, tint = tint) },
-        onClick = onClick,
-    )
+private fun FileProtocol.icon(): ImageVector = when (this) {
+    FileProtocol.WEBDAV, FileProtocol.S3 -> Icons.Filled.CloudQueue
+    FileProtocol.LOCAL -> Icons.Filled.PhoneAndroid
+    FileProtocol.SFTP -> Icons.Filled.FolderOpen
 }
 
 fun historySubtitle(h: HistoryItem): String {

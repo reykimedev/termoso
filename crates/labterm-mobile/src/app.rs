@@ -1268,6 +1268,11 @@ impl LabtermApp {
             .clear_history(Some(labterm_proto::sync::HistoryKind::Connection))?)
     }
 
+    /// Forget one past connection (the history row's quick menu).
+    pub fn delete_history_entry(&self, id: String) -> Result<()> {
+        Ok(self.store.delete_history(parse_id(&id)?)?)
+    }
+
     /// Commands entered at shell prompts, newest first. Lines that carried
     /// an inline credential were never stored (see the session module).
     pub fn command_history(&self, limit: u32) -> Result<Vec<CommandHistoryItem>> {

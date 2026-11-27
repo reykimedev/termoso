@@ -1879,6 +1879,10 @@
     <string name="no_chains_yet">Цепочек пока нет</string>
     <string name="delete_chain_title">Удалить %1$s?</string>
     <string name="delete_chain_text">Хосты с этой цепочкой будут подключаться напрямую.</string>
+    <string name="connect_again">Подключиться снова</string>
+    <string name="open_host">Открыть хост</string>
+    <string name="copy_target">Копировать адрес</string>
+    <string name="remove_entry">Удалить запись</string>
     <plurals name="tag_host_count">
         <item quantity="one">%d хост</item>
         <item quantity="few">%d хоста</item>

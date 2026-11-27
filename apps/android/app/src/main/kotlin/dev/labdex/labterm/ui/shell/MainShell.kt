@@ -738,7 +738,7 @@ fun MainShell(
             composable(Routes.OIDC_PROVIDERS) { dev.labdex.labterm.ui.keychain.OidcProvidersScreen(shell = shell, onBack = { nav.popBackStack() }) }
             composable(Routes.NETBIRD) { dev.labdex.labterm.ui.netbird.NetbirdNetworksScreen(shell = shell, onBack = { nav.popBackStack() }) }
             composable(Routes.HISTORY) {
-                HistoryScreen(shell = shell, onBack = { nav.popBackStack() }, onOpenHost = { nav.navigate(Routes.hostEdit(it)) })
+                HistoryScreen(shell = shell, onBack = { nav.popBackStack() }, onOpenHost = { nav.navigate(Routes.hostEdit(it)) }, onConnect = { connectHost(it) })
             }
             composable(Routes.LOGS) {
                 SessionLogsScreen(shell = shell, onBack = { nav.popBackStack() }, onOpen = { nav.navigate(Routes.log(it)) })
