@@ -16,6 +16,18 @@ use crate::schema;
 /// Maximum number of items per push / pull page.
 pub const MAX_BATCH: usize = 500;
 
+/// Sync protocol this build speaks, sent as `protocol` in [`PushRequest`]
+/// and [`PullRequest`].
+///
+/// 1: kinds are open-ended (any [`crate::entities::is_valid_kind`] name
+/// syncs) and malformed kinds come back as `invalid_kind`. Clients that send
+/// no `protocol` are 0.
+pub const SYNC_PROTOCOL: u32 = 1;
+
+/// Oldest sync protocol the server accepts; older clients get
+/// `client_update_required` (HTTP 426) instead of a half-working sync.
+pub const MIN_SYNC_PROTOCOL: u32 = 1;
+
 schema! {
     /// Create or update one entity.
     pub struct EntityChange {
@@ -62,6 +74,9 @@ schema! {
         /// Deletes.
         #[serde(default)]
         pub deletes: Vec<EntityDelete>,
+        /// [`SYNC_PROTOCOL`] of the client; absent = 0.
+        #[serde(default)]
+        pub protocol: u32,
     }
 }
 
@@ -89,7 +104,7 @@ schema! {
         Error {
             /// Id.
             id: Uuid,
-            /// Error code (`forbidden`, `not_found`, `unknown_kind`, `payload_too_large`, `stale_key_version`).
+            /// Error code (`forbidden`, `not_found`, `invalid_kind`, `unknown_kind` from older servers, `payload_too_large`, `stale_key_version`).
             code: String,
         },
     }
@@ -112,6 +127,9 @@ schema! {
         /// Max entities to return in total (capped at [`MAX_BATCH`]).
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub limit: Option<u32>,
+        /// [`SYNC_PROTOCOL`] of the client; absent = 0.
+        #[serde(default)]
+        pub protocol: u32,
     }
 }
 

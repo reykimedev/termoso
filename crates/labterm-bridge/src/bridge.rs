@@ -193,6 +193,7 @@ impl Bridge {
             let resp = self
                 .server
                 .pull(&PullRequest {
+                    protocol: labterm_proto::sync::SYNC_PROTOCOL,
                     cursors,
                     limit: Some(1000),
                 })
@@ -281,7 +282,11 @@ impl Bridge {
                     })
                 })
                 .collect();
-            let req = PushRequest { changes, deletes };
+            let req = PushRequest {
+                protocol: labterm_proto::sync::SYNC_PROTOCOL,
+                changes,
+                deletes,
+            };
             let resp = self.server.push(&req).await?;
             let mut conflict = false;
             for r in &resp.results {

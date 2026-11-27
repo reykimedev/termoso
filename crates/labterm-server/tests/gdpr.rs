@@ -72,6 +72,7 @@ async fn export_and_scheduled_deletion() {
             "/sync/push",
             Some(owner.token()),
             Some(&PushRequest {
+                protocol: labterm_proto::sync::SYNC_PROTOCOL,
                 changes: vec![EntityChange {
                     secret_rotated_at: None,
                     id: host,

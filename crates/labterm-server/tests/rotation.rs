@@ -26,6 +26,7 @@ async fn push(s: &TestServer, u: &User, change: EntityChange) -> bool {
             "/sync/push",
             Some(u.token()),
             Some(&PushRequest {
+                protocol: labterm_proto::sync::SYNC_PROTOCOL,
                 changes: vec![change],
                 deletes: vec![],
             }),
