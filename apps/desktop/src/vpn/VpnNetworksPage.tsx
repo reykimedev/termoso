@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, Box, Button, CircularProgress, Stack, TextField } from "@mui/material";
+import { Alert, Box, Button, CircularProgress, MenuItem, Stack, TextField } from "@mui/material";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
@@ -24,8 +24,9 @@ import { useVpnStates } from "@/ipc/hooks";
 import { VpnDetailsPanel } from "./VpnDetailsPanel";
 import { VpnStateChip } from "./VpnStateChip";
 import { tr } from "@/i18n";
+import { vpnProviderName } from "@/hosts/HostBadges";
+import { networkTitle, providerCloud, VPN_PROVIDERS } from "./providers";
 
-const NETBIRD_CLOUD = "https://api.netbird.io";
 const mono = { spellCheck: false, style: { fontFamily: "monospace", fontSize: 12 } } as const;
 
 /** The vault's VPN networks with their state on this device. A click opens
@@ -111,7 +112,7 @@ function NetworksBody({ vault }: { vault: ReturnType<typeof useActiveVault> }) {
               icon={<HubOutlinedIcon />}
               title={tr("No VPN networks yet")}
               description={tr(
-                "Reach hosts through a NetBird network without installing a VPN: the app joins the network itself, only while a connection uses it. Pick the network in a host's or group's settings.",
+                "Reach hosts through a NetBird or Tailscale network without installing a VPN: the app joins the network itself, only while a connection uses it. Pick the network in a host's or group's settings.",
               )}
               action={
                 <Button variant="contained" disabled={readOnly} onClick={add}>
@@ -133,8 +134,12 @@ function NetworksBody({ vault }: { vault: ReturnType<typeof useActiveVault> }) {
                       )}
                     </IconTile>
                   }
-                  title={n.label || "NetBird"}
-                  subtitle={[n.managementUrl ?? NETBIRD_CLOUD, n.account]
+                  title={networkTitle(n)}
+                  subtitle={[
+                    vpnProviderName(n.provider),
+                    n.managementUrl ?? providerCloud(n.provider),
+                    n.account,
+                  ]
                     .filter(Boolean)
                     .join(" · ")}
                   trailing={<VpnStateChip state={states.data?.[n.id]} />}
@@ -163,7 +168,7 @@ function NetworksBody({ vault }: { vault: ReturnType<typeof useActiveVault> }) {
       </Page>
       {shown && !editing && (
         <SidePanel
-          title={shown.label || "NetBird"}
+          title={networkTitle(shown)}
           subtitle={vaultName}
           onClose={() => setShowing(null)}
         >
@@ -220,6 +225,8 @@ function NetworkForm({
   onChanged: () => void;
 }) {
   const [label, setLabel] = useState(network?.label ?? "");
+  const [provider, setProvider] = useState(network?.provider ?? "netbird");
+  const tailscale = provider === "tailscale";
   const [url, setUrl] = useState(network?.managementUrl ?? "");
   const [setupKey, setSetupKey] = useState("");
   const [account, setAccount] = useState(network?.account ?? "");
@@ -242,7 +249,7 @@ function NetworkForm({
   };
   const form = (): VpnNetworkForm => ({
     label: label.trim(),
-    provider: "netbird",
+    provider,
     managementUrl: url.trim() || null,
     setupKey: !signInOnly && setupKey.trim() ? setupKey.trim() : null,
   });
@@ -275,13 +282,28 @@ function NetworkForm({
           slotProps={{ htmlInput: { readOnly } }}
         />
         <TextField
+          select
+          value={provider}
+          onChange={(e) => setProvider(e.target.value)}
+          label={tr("Provider")}
+          slotProps={{ htmlInput: { readOnly } }}
+        >
+          {VPN_PROVIDERS.map((p) => (
+            <MenuItem key={p} value={p}>
+              {vpnProviderName(p)}
+            </MenuItem>
+          ))}
+        </TextField>
+        <TextField
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          label={tr("Management URL")}
-          placeholder={NETBIRD_CLOUD}
-          helperText={tr(
-            "Empty: NetBird's cloud. Your own server: the URL you use in the NetBird app.",
-          )}
+          label={tailscale ? tr("Control server URL") : tr("Management URL")}
+          placeholder={providerCloud(provider)}
+          helperText={
+            tailscale
+              ? tr("Empty: Tailscale. Headscale: your server's URL.")
+              : tr("Empty: NetBird's cloud. Your own server: the URL you use in the NetBird app.")
+          }
           slotProps={{ htmlInput: { readOnly, ...mono } }}
         />
         {signInOnly ? (
@@ -294,7 +316,7 @@ function NetworkForm({
           <TextField
             value={setupKey}
             onChange={(e) => setSetupKey(e.target.value)}
-            label={tr("Setup key (optional)")}
+            label={tailscale ? tr("Auth key (optional)") : tr("Setup key (optional)")}
             type="password"
             placeholder={network?.hasSetupKey ? tr("Stored — type to replace") : ""}
             helperText={tr("Without one, this device signs in instead.")}

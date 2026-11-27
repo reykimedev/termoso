@@ -193,6 +193,9 @@ pub fn init<R: Runtime>(app: &AppHandle<R>) {
             labterm_client::vpn::set_library_path(path.to_string_lossy().into_owned());
         }
         labterm_client::vpn::set_device_name(&crate::account::device_name());
+        if let Ok(dir) = tauri::Manager::path(app).app_cache_dir() {
+            labterm_client::vpn::set_data_dir(&dir.join("vpn").to_string_lossy());
+        }
     }
     #[cfg(not(unix))]
     let _ = app;

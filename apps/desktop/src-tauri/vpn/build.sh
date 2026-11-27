@@ -29,7 +29,8 @@ export CGO_ENABLED=1
 [ "$(uname -s)" = Darwin ] && export MACOSX_DEPLOYMENT_TARGET=11.0
 
 cd "$go_dir"
-go build -buildmode=c-shared -trimpath -ldflags="-s -w" -o "$here/$lib" .
+# ts_omit_logtail: Tailscale (tsnet) without its log uploader.
+go build -buildmode=c-shared -trimpath -tags ts_omit_logtail -ldflags="-s -w" -o "$here/$lib" .
 rm -f "$here/${lib%.*}.h"
 if [ "$(uname -s)" = Darwin ]; then
   # Loaded by path; the install name only has to be relative to the app.

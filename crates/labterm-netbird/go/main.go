@@ -1,4 +1,5 @@
-// Command labterm-netbird is the embedded NetBird client of Labterm, built
+// Command labterm-netbird is the embedded VPN client of Labterm (NetBird, and
+// Tailscale through tsnet in tailscale.go), built
 // as a C shared library (`-buildmode=c-shared`) and loaded by the
 // labterm-netbird crate. It runs NetBird in userspace (netstack): no TUN
 // device, no VpnService and no other app. Each dial hands back one end of a
@@ -32,6 +33,9 @@ import (
 
 // startOptions is the JSON the Rust side passes to tnb_start.
 type startOptions struct {
+	// "netbird" (or empty) or "tailscale".
+	Provider string `json:"provider,omitempty"`
+	// Management server (NetBird) or control server (Tailscale, Headscale).
 	ManagementURL string `json:"management_url"`
 	SetupKey      string `json:"setup_key"`
 	// WireGuard private key of this device's peer from an earlier start;
@@ -40,6 +44,9 @@ type startOptions struct {
 	DeviceName string `json:"device_name"`
 	LogLevel   string `json:"log_level"`
 	TimeoutMs  int    `json:"timeout_ms"`
+	// Tailscale only: a writable app directory, and the network's id.
+	DataDir   string `json:"data_dir,omitempty"`
+	NetworkID string `json:"network_id,omitempty"`
 }
 
 type startResult struct {
@@ -48,8 +55,25 @@ type startResult struct {
 	Registered bool `json:"registered"`
 }
 
+// backend is one running network: NetBird's embed client or a tsnet node.
+type backend interface {
+	Dial(ctx context.Context, network, addr string) (net.Conn, error)
+	Stop(ctx context.Context) error
+	Status() (statusOut, error)
+}
+
+type nbNode struct{ c *embed.Client }
+
+func (b nbNode) Dial(ctx context.Context, network, addr string) (net.Conn, error) {
+	return b.c.Dial(ctx, network, addr)
+}
+
+func (b nbNode) Stop(ctx context.Context) error { return b.c.Stop(ctx) }
+
+func (b nbNode) Status() (statusOut, error) { return nbStatus(b.c) }
+
 type node struct {
-	client *embed.Client
+	client backend
 	mu     sync.Mutex
 	conns  map[net.Conn]struct{}
 }
@@ -140,7 +164,20 @@ func tnb_start(optsJSON *C.char, handle *C.uintptr_t) *C.char {
 	if err := json.Unmarshal([]byte(C.GoString(optsJSON)), &o); err != nil {
 		return cstr("bad options: " + err.Error())
 	}
-	c, res, err := start(o)
+	var c backend
+	var res startResult
+	var err error
+	if o.Provider == providerTailscale {
+		timeout := time.Duration(o.TimeoutMs) * time.Millisecond
+		if timeout <= 0 {
+			timeout = 30 * time.Second
+		}
+		c, res, err = startTailscale(o, timeout)
+	} else {
+		var nb *embed.Client
+		nb, res, err = start(o)
+		c = nbNode{nb}
+	}
 	if err != nil {
 		return cstr(err.Error())
 	}
@@ -184,7 +221,7 @@ func tnb_dial(h C.uintptr_t, host *C.char, port C.int, timeoutMs C.int, errOut *
 	addr := net.JoinHostPort(C.GoString(host), strconv.Itoa(int(port)))
 	remote, err := n.client.Dial(ctx, "tcp", addr)
 	if err != nil {
-		*errOut = cstr(fmt.Sprintf("netbird: %v", err))
+		*errOut = cstr(err.Error())
 		return -1
 	}
 	fds, err := socketpair()

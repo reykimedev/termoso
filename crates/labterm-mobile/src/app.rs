@@ -343,6 +343,7 @@ impl LabtermApp {
         let dir = PathBuf::from(profile_dir);
         std::fs::create_dir_all(&dir)?;
         let store = Arc::new(Store::open(&dir.join(DB_FILE), master)?);
+        labterm_client::vpn::set_data_dir(&dir.join("vpn").to_string_lossy());
         let presence = presence::Tracker::new(store.clone());
         Ok(Arc::new(Self {
             account: AccountRuntime::new(store.clone(), presence.clone(), dir.join("logs")),

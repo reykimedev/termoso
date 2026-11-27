@@ -15,7 +15,7 @@ trap cleanup EXIT
 
 cd "$here/go"
 version="$(go list -m -f '{{.Version}}' github.com/netbirdio/netbird)"
-go build -buildmode=c-shared -trimpath -o "$work/liblabterm_netbird.so" .
+go build -buildmode=c-shared -trimpath -tags ts_omit_logtail -o "$work/liblabterm_netbird.so" .
 go build -o "$work/e2e-peer" ./cmd/e2e-peer
 
 # The server is AGPL and not part of any app: built only for this test, from

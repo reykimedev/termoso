@@ -1,4 +1,4 @@
-//! Overlay networks (NetBird; Tailscale later) that hosts can be reached
+//! Overlay networks (NetBird and Tailscale) that hosts can be reached
 //! through, run inside the app instead of a system VPN. A network lives in a
 //! vault like a proxy; hosts and groups pick one with
 //! `SshConfig::transport_id`.
@@ -10,7 +10,7 @@
 
 use labterm_core::model::{Entity, Host, SshConfig, Transport};
 use labterm_core::store::{LocalVaultKind, Store};
-use labterm_proto::entities::TRANSPORT_NETBIRD;
+use labterm_proto::entities::{TRANSPORT_NETBIRD, TRANSPORT_TAILSCALE};
 use uuid::Uuid;
 
 use crate::error::{ClientError, Result};
@@ -36,7 +36,7 @@ pub fn normalize(mut t: Transport) -> Result<Transport> {
     if t.provider.is_empty() {
         t.provider = TRANSPORT_NETBIRD.to_owned();
     }
-    if t.provider != TRANSPORT_NETBIRD {
+    if t.provider != TRANSPORT_NETBIRD && t.provider != TRANSPORT_TAILSCALE {
         return Err(ClientError::invalid(format!(
             "unsupported network type \"{}\"",
             t.provider
@@ -58,7 +58,12 @@ pub fn normalize(mut t: Transport) -> Result<Transport> {
     }
     t.setup_key = trimmed(&t.setup_key);
     if t.label.is_empty() {
-        t.label = "NetBird".to_owned();
+        t.label = if t.provider == TRANSPORT_TAILSCALE {
+            "Tailscale"
+        } else {
+            "NetBird"
+        }
+        .to_owned();
     }
     Ok(t)
 }
@@ -82,7 +87,7 @@ pub fn save(
     let keys = setup_key_allowed(store, vault_id)?;
     if !keys && t.setup_key.is_some() {
         return Err(ClientError::invalid(
-            "a team vault can't hold a setup key: each member signs in to NetBird themselves",
+            "a team vault can't hold a setup key: each member signs in to the network themselves",
         ));
     }
     let id = match id {
@@ -193,8 +198,11 @@ mod tests {
         assert!(normalize(netbird(Some("http://netbird.example.com"), None)).is_err());
         assert!(normalize(netbird(Some("http://127.0.0.1:8088"), None)).is_ok());
         let mut ts = netbird(None, None);
-        ts.provider = "tailscale".into();
-        assert!(normalize(ts).is_err());
+        ts.provider = " Tailscale ".into();
+        assert_eq!(normalize(ts).unwrap().provider, TRANSPORT_TAILSCALE);
+        let mut other = netbird(None, None);
+        other.provider = "zerotier".into();
+        assert!(normalize(other).is_err());
     }
 
     #[test]

@@ -126,6 +126,8 @@ abstract class GoNetbirdBuild @Inject constructor(private val exec: ExecOperatio
                 environment("CC", File(bin, clang).absolutePath)
                 commandLine(
                     "go", "build", "-buildmode=c-shared", "-trimpath",
+                    // Tailscale (tsnet) without its log uploader.
+                    "-tags", "ts_omit_logtail",
                     // wlynxg/anet (NetBird's interface listing on Android) links into net internals.
                     "-ldflags=-s -w -buildid= -checklinkname=0",
                     "-o", out.absolutePath, ".",

@@ -54,6 +54,7 @@ import dev.labdex.labterm.ui.components.RowDivider
 import dev.labdex.labterm.ui.components.SectionCard
 import dev.labdex.labterm.ui.components.SectionLabel
 import dev.labdex.labterm.ui.components.SubScreen
+import dev.labdex.labterm.ui.hosts.vpnProviderName
 import dev.labdex.labterm.ui.shell.ShellViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -132,7 +133,7 @@ fun VpnNetworkScreen(
                         if (busy) CircularProgressIndicator(Modifier.padding(start = 12.dp).size(16.dp))
                     }
                     Text(
-                        "NetBird · " + (n.managementUrl ?: str(R.string.netbird_cloud)),
+                        vpnProviderName(n.provider) + " · " + serverLabel(n),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

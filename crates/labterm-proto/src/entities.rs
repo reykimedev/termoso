@@ -110,6 +110,9 @@ pub const OPKSSH_KEY_TYPE: &str = "opkssh";
 /// [`payload::Transport::provider`] of a NetBird network.
 pub const TRANSPORT_NETBIRD: &str = "netbird";
 
+/// [`payload::Transport::provider`] of a Tailscale (or Headscale) network.
+pub const TRANSPORT_TAILSCALE: &str = "tailscale";
+
 impl payload::SshKey {
     /// The private half is not in the vault; an SSH agent signs.
     pub fn is_agent_backed(&self) -> bool {
@@ -642,10 +645,10 @@ pub mod payload {
         pub struct Transport {
             /// Label.
             pub label: String,
-            /// [`super::TRANSPORT_NETBIRD`] (Tailscale later).
+            /// [`super::TRANSPORT_NETBIRD`] or [`super::TRANSPORT_TAILSCALE`].
             pub provider: String,
-            /// Management server; `None` = the provider's cloud
-            /// (`https://api.netbird.io`).
+            /// Management server (Tailscale: control server, e.g. a
+            /// Headscale); `None` = the provider's cloud.
             #[serde(default, skip_serializing_if = "Option::is_none")]
             pub management_url: Option<String>,
             /// Setup key every device of this vault joins with. Anyone who

@@ -1,18 +1,40 @@
-# VPN networks (NetBird; Tailscale planned)
+# VPN networks (NetBird and Tailscale)
 
 A host or group can be set to be reached through a [NetBird](https://netbird.io)
-network. The Android app and the desktop app on Linux and macOS then join that
+or [Tailscale](https://tailscale.com) network (Tailscale's own service or a
+self-hosted [Headscale](https://headscale.net)). The Android app and the desktop app on Linux and macOS then join that
 network by themselves, in userspace, for the connection: no system VPN, no
-`VpnService`, no TUN device and no NetBird app. Hosts that are not set to use a
+`VpnService`, no TUN device and no NetBird or Tailscale app. Hosts that are not set to use a
 network connect directly as before.
 
 | Client | Joins networks itself | Edits networks |
 |---|---|---|
 | Android | yes | yes |
 | Desktop, Linux and macOS | yes | yes |
-| Desktop, Windows | not yet: hosts are dialled directly, which works while the NetBird app runs | yes |
+| Desktop, Windows | not yet: hosts are dialled directly, which works while the NetBird or Tailscale app runs | yes |
 | Labterm Web | not yet: such hosts refuse to connect | yes |
 | iOS | not yet | no |
+
+## Tailscale
+
+Tailscale networks work like NetBird ones; only the words differ:
+
+| NetBird | Tailscale |
+|---|---|
+| Management URL (empty = NetBird cloud) | Control server URL (empty = Tailscale; Headscale: your server) |
+| Setup key (personal vaults only) | Auth key (personal vaults only) |
+| Peer key, kept on the device | The node's state (machine and node keys), kept on the device |
+| Network routes, exit nodes | Subnet routes (accepted), exit nodes (not picked yet) |
+
+- Signing in opens Tailscale's (or Headscale's) login page in the browser;
+  the device then joins as its own machine of the signed-in user. Tailscale's
+  sign-in page doesn't send the browser back to the app: switch back
+  yourself.
+- The node runs on tsnet, Tailscale's userspace library, inside the same Go
+  library as NetBird. Its logs are never uploaded to Tailscale (built with
+  `ts_omit_logtail`, and `TS_NO_LOGS_NO_SUPPORT` is set).
+- Machine names follow the peer name rule below in lower case, for example
+  `labterm-ops-google-pixel-9`.
 
 ## Who gets in
 
@@ -160,7 +182,8 @@ Authentik guide; nothing app specific is needed.
   through them.
 - Windows (the client uses a Unix socket pair and `dlopen`), iOS, and the
   browser (NetBird's wasm client over its WebSocket relay).
-- Tailscale.
+- Tailscale exit nodes: the app accepts subnet routes but doesn't pick an
+  exit node yet.
 
 ## Testing
 
@@ -168,6 +191,11 @@ Authentik guide; nothing app specific is needed.
 peer and the library, and runs the crate's end-to-end tests on loopback (CI
 job `netbird`): joining with a setup key, and signing in at the server's
 built-in identity provider (`tests/sso-login.py` plays the browser), signing
-in again with the same peer. A NetBird client in userspace mode acts as a
+in again with the same peer.
+A NetBird client in userspace mode acts as a
 routing peer, so the tests also reach a "LAN" address (this machine's own)
 through a network route and through an exit node.
+
+`tests/e2e-tailscale.sh` does the same for Tailscale against a local Headscale
+(joining with an auth key, MagicDNS names, starting again from the saved
+state, signing in through Headscale's login page).

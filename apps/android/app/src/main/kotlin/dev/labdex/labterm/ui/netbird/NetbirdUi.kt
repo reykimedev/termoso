@@ -33,6 +33,9 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -51,6 +54,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.labdex.labterm.R
+import dev.labdex.labterm.core.TransportItem
+import dev.labdex.labterm.core.TransportState
 import dev.labdex.labterm.data.VaultRepository
 import dev.labdex.labterm.data.userMessage
 import dev.labdex.labterm.service.VpnSignIns
@@ -60,17 +65,16 @@ import dev.labdex.labterm.ui.components.FormField
 import dev.labdex.labterm.ui.components.IconTile
 import dev.labdex.labterm.ui.components.ItemActionsSheet
 import dev.labdex.labterm.ui.components.ItemMoreButton
-import dev.labdex.labterm.ui.components.SheetAction
-import dev.labdex.labterm.ui.components.SheetSection
-import dev.labdex.labterm.ui.components.itemClicks
 import dev.labdex.labterm.ui.components.ListRow
 import dev.labdex.labterm.ui.components.RowDivider
 import dev.labdex.labterm.ui.components.SecretField
 import dev.labdex.labterm.ui.components.SectionCard
+import dev.labdex.labterm.ui.components.SheetAction
+import dev.labdex.labterm.ui.components.SheetSection
 import dev.labdex.labterm.ui.components.SubScreen
+import dev.labdex.labterm.ui.components.itemClicks
+import dev.labdex.labterm.ui.hosts.vpnProviderName
 import dev.labdex.labterm.ui.shell.ShellViewModel
-import dev.labdex.labterm.core.TransportItem
-import dev.labdex.labterm.core.TransportState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
@@ -79,6 +83,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private const val NETBIRD = "netbird"
+private const val TAILSCALE = "tailscale"
+
+/** The network's server, or its provider's cloud when it names none. */
+internal fun serverLabel(n: TransportItem): String =
+    n.managementUrl ?: if (n.provider == TAILSCALE) vpnProviderName(TAILSCALE) else str(R.string.netbird_cloud)
 
 /**
  * The selected vault's NetBird networks. Hosts set to use one are reached through a
@@ -159,7 +168,7 @@ fun NetbirdNetworksScreen(shell: ShellViewModel, onBack: () -> Unit, onOpenNetwo
                         val state = n.id?.let { states[it] }
                         ListRow(
                             title = n.label,
-                            subtitle = (n.managementUrl ?: str(R.string.netbird_cloud)) + " · " + (
+                            subtitle = serverLabel(n) + " · " + (
                                 state?.label() ?: str(if (n.signedIn || n.hasSetupKey) R.string.vpn_status_off else R.string.netbird_not_signed_in)
                             ),
                             leading = {
@@ -218,7 +227,7 @@ fun NetbirdNetworksScreen(shell: ShellViewModel, onBack: () -> Unit, onOpenNetwo
         val state = id?.let { states[it] }
         ItemActionsSheet(
             title = n.label,
-            subtitle = (n.managementUrl ?: str(R.string.netbird_cloud)) + (state?.let { " · " + it.label() } ?: ""),
+            subtitle = serverLabel(n) + (state?.let { " · " + it.label() } ?: ""),
             leading = { IconTile(Icons.Filled.Hub) },
             onClose = { menu = null },
             sections = listOf(
@@ -280,6 +289,8 @@ internal fun NetworkEditDialog(
     onSave: (TransportItem) -> Unit,
 ) {
     var label by remember { mutableStateOf(current.label) }
+    var provider by remember { mutableStateOf(current.provider.ifEmpty { NETBIRD }) }
+    val tailscale = provider == TAILSCALE
     var url by remember { mutableStateOf(current.managementUrl.orEmpty()) }
     var setupKey by remember { mutableStateOf("") }
     // A stored key is never shown again: leaving the field empty keeps it. Without
@@ -291,11 +302,20 @@ internal fun NetworkEditDialog(
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 FormField(label, { label = it }, stringResource(R.string.label))
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    listOf(NETBIRD, TAILSCALE).forEachIndexed { i, p ->
+                        SegmentedButton(
+                            selected = provider == p,
+                            onClick = { provider = p },
+                            shape = SegmentedButtonDefaults.itemShape(i, 2),
+                        ) { Text(vpnProviderName(p)) }
+                    }
+                }
                 FormField(
                     url,
                     { url = it },
-                    stringResource(R.string.netbird_management_url),
-                    placeholder = "https://netbird.example.com",
+                    stringResource(if (tailscale) R.string.tailscale_control_url else R.string.netbird_management_url),
+                    placeholder = if (tailscale) "https://headscale.example.com" else "https://netbird.example.com",
                 )
                 if (current.team) {
                     // A key here would let every vault member in without a NetBird account.
@@ -308,11 +328,11 @@ internal fun NetworkEditDialog(
                     SecretField(
                         setupKey,
                         { setupKey = it },
-                        stringResource(R.string.netbird_setup_key_optional),
+                        stringResource(if (tailscale) R.string.tailscale_auth_key_optional else R.string.netbird_setup_key_optional),
                         placeholder = if (current.hasSetupKey) str(R.string.netbird_setup_key_stored) else null,
                     )
                     Text(
-                        stringResource(R.string.netbird_setup_key_hint),
+                        stringResource(if (tailscale) R.string.tailscale_auth_key_hint else R.string.netbird_setup_key_hint),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -332,7 +352,7 @@ internal fun NetworkEditDialog(
                 onSave(
                     current.copy(
                         label = label.trim(),
-                        provider = NETBIRD,
+                        provider = provider,
                         managementUrl = url.trim().ifEmpty { null },
                         setupKey = if (current.team) null else setupKey.trim().ifEmpty { null },
                     ),
