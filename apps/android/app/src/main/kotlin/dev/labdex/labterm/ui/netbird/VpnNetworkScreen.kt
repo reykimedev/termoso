@@ -298,7 +298,7 @@ fun VpnNetworkScreen(
 
     if (editing) {
         d?.network?.let { n ->
-            NetworkEditDialog(
+            NetworkEditorPage(
                 n,
                 onDismiss = { editing = false },
                 onSignIn = if (n.hasSetupKey) null else ({ editing = false; signingIn = true }),

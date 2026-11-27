@@ -1,15 +1,7 @@
 import { useState } from "react";
-import {
-  Box,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { Box, TextField, Typography } from "@mui/material";
 import { Field, Loading, SectionCard } from "@/components/ui";
+import { EditDrawer } from "@/components/EditDrawer";
 import { MyCredentialsSection } from "./MyCredentialsSection";
 import { useSnackbar } from "@/components/Snackbar";
 import { useSaveTagForm, useTagForm } from "@/ipc/hooks";
@@ -29,22 +21,23 @@ const clampPriority = (raw: string) =>
  */
 export function TagSettingsDialog({ tagId, onClose }: { tagId: Uuid | null; onClose: () => void }) {
   const loaded = useTagForm(tagId);
+  if (tagId !== null && loaded.data) {
+    return <TagSettingsEditor key={loaded.data.id} initial={loaded.data} onClose={onClose} />;
+  }
   return (
-    <Dialog open={tagId !== null} onClose={onClose} maxWidth="sm" fullWidth scroll="paper">
-      {tagId !== null && loaded.data === undefined ? (
-        <DialogContent>
-          {loaded.error ? (
-            <Typography color="error">{errorMessage(loaded.error)}</Typography>
-          ) : (
-            <Loading pt={6} />
-          )}
-        </DialogContent>
+    <EditDrawer
+      open={tagId !== null}
+      title={tr("Tag")}
+      canSave={false}
+      onSave={() => undefined}
+      onClose={onClose}
+    >
+      {loaded.error ? (
+        <Typography color="error">{errorMessage(loaded.error)}</Typography>
       ) : (
-        loaded.data && (
-          <TagSettingsEditor key={loaded.data.id} initial={loaded.data} onClose={onClose} />
-        )
+        <Loading pt={6} />
       )}
-    </Dialog>
+    </EditDrawer>
   );
 }
 
@@ -58,7 +51,7 @@ function TagSettingsEditor({ initial, onClose }: { initial: TagForm; onClose: ()
     setTouched(true);
     setForm((f) => ({ ...f, ...p }));
   };
-  const canSave = form.label.trim().length > 0 && touched && !save.isPending && !readOnly;
+  const canSave = form.label.trim().length > 0 && touched && !readOnly;
   const onSave = () =>
     save.mutate(
       { ...form, label: form.label.trim() },
@@ -72,69 +65,56 @@ function TagSettingsEditor({ initial, onClose }: { initial: TagForm; onClose: ()
     );
 
   return (
-    <>
-      <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        <TagDot color={form.color} size={12} />
-        {tr("Settings for tag “{label}”", { label: initial.label })}
-      </DialogTitle>
-      <DialogContent dividers>
-        <Box
-          component="form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (canSave) onSave();
-          }}
-          sx={{ display: "flex", flexDirection: "column", gap: 2 }}
-        >
-          <SectionCard title={tr("Tag")}>
-            <Box sx={{ display: "flex", gap: 1.5 }}>
-              <Field label={tr("Name")} sx={{ flex: 1 }}>
-                <TextField
-                  required
-                  value={form.label}
-                  onChange={(e) => patch({ label: e.target.value })}
-                  error={touched && form.label.trim().length === 0}
-                />
-              </Field>
-              <Field label={tr("Priority")} sx={{ width: 120 }}>
-                <TextField
-                  type="number"
-                  value={form.priority}
-                  onChange={(e) => patch({ priority: clampPriority(e.target.value) })}
-                  slotProps={{ htmlInput: { min: -1000, max: 1000 } }}
-                />
-              </Field>
-            </Box>
-            <Typography variant="caption" color="text.secondary">
-              {tr(
-                "Hosts with this tag use these settings when neither the host nor its groups set them. When several tags set the same thing, the higher priority wins, then the name in A to Z order.",
-              )}
-            </Typography>
-          </SectionCard>
-          <SshDefaultsSections
-            vaultId={form.vaultId}
-            value={form}
-            onChange={patch}
-            inherited={null}
-            inlineLabel={tr("Set on this tag")}
-            credentialsHint={tr(
-              "A username set here is used even when a group supplies the key or password.",
-            )}
-            envHint={tr("Sent with every session to hosts with this tag.")}
-          />
-          {form.id && (
-            <MyCredentialsSection vaultId={form.vaultId} scope="tag" targetId={form.id} />
-          )}
+    <EditDrawer
+      open
+      title={
+        <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 1 }}>
+          <TagDot color={form.color} size={12} />
+          {tr("Settings for tag “{label}”", { label: initial.label })}
         </Box>
-      </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button color="inherit" onClick={onClose} disabled={save.isPending}>
-          {touched ? tr("Cancel") : tr("Close")}
-        </Button>
-        <Button variant="contained" disabled={!canSave} onClick={onSave}>
-          {save.isPending ? tr("Saving…") : tr("Save")}
-        </Button>
-      </DialogActions>
-    </>
+      }
+      canSave={canSave}
+      saving={save.isPending}
+      onSave={onSave}
+      onClose={onClose}
+    >
+      <SectionCard title={tr("Tag")}>
+        <Box sx={{ display: "flex", gap: 1.5 }}>
+          <Field label={tr("Name")} sx={{ flex: 1 }}>
+            <TextField
+              required
+              value={form.label}
+              onChange={(e) => patch({ label: e.target.value })}
+              error={touched && form.label.trim().length === 0}
+            />
+          </Field>
+          <Field label={tr("Priority")} sx={{ width: 120 }}>
+            <TextField
+              type="number"
+              value={form.priority}
+              onChange={(e) => patch({ priority: clampPriority(e.target.value) })}
+              slotProps={{ htmlInput: { min: -1000, max: 1000 } }}
+            />
+          </Field>
+        </Box>
+        <Typography variant="caption" color="text.secondary">
+          {tr(
+            "Hosts with this tag use these settings when neither the host nor its groups set them. When several tags set the same thing, the higher priority wins, then the name in A to Z order.",
+          )}
+        </Typography>
+      </SectionCard>
+      <SshDefaultsSections
+        vaultId={form.vaultId}
+        value={form}
+        onChange={patch}
+        inherited={null}
+        inlineLabel={tr("Set on this tag")}
+        credentialsHint={tr(
+          "A username set here is used even when a group supplies the key or password.",
+        )}
+        envHint={tr("Sent with every session to hosts with this tag.")}
+      />
+      {form.id && <MyCredentialsSection vaultId={form.vaultId} scope="tag" targetId={form.id} />}
+    </EditDrawer>
   );
 }

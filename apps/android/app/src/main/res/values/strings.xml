@@ -1834,7 +1834,9 @@
     <string name="settings_for">Settings for %1$s</string>
     <string name="tag_has_settings">has settings</string>
     <!-- Item quick menus, group/tag editors and host badges -->
+    <string name="vpn_edit_network">Edit VPN network</string>
     <string name="vpn_network">VPN network</string>
+    <string name="vpn_new_network">New VPN network</string>
     <string name="group_actions">Group actions</string>
     <string name="tag_actions">Tag actions</string>
     <string name="tag">Tag</string>
@@ -1922,6 +1924,9 @@
     <string name="openid_no_providers">No provider yet: add one to this vault</string>
     <string name="openid_vault_default">Vault default</string>
     <string name="openid_default">default</string>
+    <string name="openid_delete_provider_text">Keys that use this provider sign in with the vault\'s default provider afterwards.</string>
+    <string name="openid_delete_provider_title">Delete %1$s?</string>
+    <string name="openid_edit_provider">Edit provider</string>
     <string name="openid_new_provider">New provider</string>
     <string name="openid_overrides_hint">Optional overrides for this key only</string>
     <string name="openid_issuer">Issuer URL</string>
