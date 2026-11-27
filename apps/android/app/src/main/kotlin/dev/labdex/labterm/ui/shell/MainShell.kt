@@ -428,21 +428,24 @@ fun MainShell(
      * hosts skipped. A VPN network that needs a sign-in asks once and the rest
      * continue after it; hosts on the same network then share its tunnel.
      */
-    fun connectHosts(hostIds: List<String>) {
+    fun connectHosts(hostIds: List<String>, tabGroup: String? = null) {
         shell.launch {
             val vault = shell.selectedVaultId.value ?: return@launch
+            val groupId = tabGroup?.let { shell.sessions.ensureTabGroup(it) }
             var opened = 0
             for ((i, id) in hostIds.withIndex()) {
                 val signIn = runCatching { shell.repo.read { hostTransportSignIn(id, vault) } }.getOrNull()
                 if (signIn != null) {
                     val rest = hostIds.drop(i)
-                    netbirdSignIn = signIn to { connectHosts(rest) }
+                    netbirdSignIn = signIn to { connectHosts(rest, tabGroup) }
                     break
                 }
                 val terminal = runCatching { shell.repo.read { host(id) } }
                     .map { it.protocol.equals("ssh", true) || it.protocol.equals("telnet", true) }
                     .getOrDefault(false)
-                if (terminal && shell.connectHost(id) != null) {
+                val session = if (terminal) shell.connectHost(id) else null
+                if (session != null) {
+                    if (groupId != null) shell.sessions.setInTabGroup(session.id, groupId, true)
                     RecentShortcuts.record(context, shell.repo, id, vault)
                     opened++
                 }
@@ -680,7 +683,7 @@ fun MainShell(
                     onEditHost = { nav.navigate(Routes.hostEdit(it)) },
                     onConnect = { connectHost(it) },
                     onConnectWith = ::connectHost,
-                    onConnectMany = ::connectHosts,
+                    onConnectMany = { ids, group -> connectHosts(ids, group) },
                     onSftp = ::sftpHost,
                     onWebdav = ::webdavHost,
                     onS3 = ::s3Host,

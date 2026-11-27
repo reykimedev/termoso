@@ -2003,4 +2003,15 @@
         <item quantity="one">Connect %d host?</item>
         <item quantity="other">Connect %d hosts?</item>
     </plurals>
+    <string name="tab_groups">Tab groups</string>
+    <string name="tab_groups_named">Tab groups: %1$s</string>
+    <string name="new_tab_group">New tab group</string>
+    <string name="this_session">This session</string>
+    <string name="all_sessions">All sessions</string>
+    <string name="host_groups">Host groups</string>
+    <string name="send_to_target">Send to: %1$s</string>
+    <plurals name="send_to_n_sessions">
+        <item quantity="one">Send to %d session</item>
+        <item quantity="other">Send to %d sessions</item>
+    </plurals>
 </resources>

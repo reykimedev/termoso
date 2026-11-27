@@ -125,7 +125,7 @@ struct HostsView: View {
         ) {
             Button("Cancel", role: .cancel) { confirmConnect = nil }
             Button("Connect all") {
-                confirmConnect?.hosts.forEach { sessions.connect(host: $0) }
+                if let c = confirmConnect { c.hosts.forEach { sessions.connect(host: $0, tabGroup: c.label) } }
                 confirmConnect = nil
             }
         } message: {
@@ -149,7 +149,7 @@ struct HostsView: View {
         } else if hosts.count > Self.connectAllConfirmAbove {
             confirmConnect = (label, hosts)
         } else {
-            hosts.forEach { sessions.connect(host: $0) }
+            hosts.forEach { sessions.connect(host: $0, tabGroup: label) }
         }
     }
 

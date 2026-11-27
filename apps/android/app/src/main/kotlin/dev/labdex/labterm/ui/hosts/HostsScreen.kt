@@ -124,8 +124,8 @@ fun HostsScreen(
     onConnect: (String) -> Unit,
     /** Connect over an explicit transport (Mosh, the Telnet section). */
     onConnectWith: (String, Transport) -> Unit,
-    /** Open a session to each of these hosts (multi-select, a group's "Connect all"). */
-    onConnectMany: (List<String>) -> Unit = {},
+    /** Open a session to each of these hosts; a group's "Connect all" names the tab group to put them in. */
+    onConnectMany: (List<String>, String?) -> Unit = { _, _ -> },
     onSftp: (String) -> Unit,
     onWebdav: (String) -> Unit,
     onS3: (String) -> Unit = {},
@@ -199,7 +199,7 @@ fun HostsScreen(
                     onConnectAll = {
                         val ids = state.visibleHosts.filter { it.id in state.selected }.map { it.id }
                         vm.clearSelection()
-                        onConnectMany(ids)
+                        onConnectMany(ids, null)
                     },
                     onForward = {
                         val id = state.selected.first()
@@ -437,7 +437,7 @@ fun HostsScreen(
             onOpen = { onOpenGroup(d.group.id) },
             onConnectAll = { ids ->
                 if (ids.size > CONNECT_ALL_CONFIRM_ABOVE) dialog = HostsDialog.ConfirmConnectAll(d.group, ids)
-                else onConnectMany(ids)
+                else onConnectMany(ids, d.group.label)
             },
             onEdit = { dialog = HostsDialog.Settings(DefaultsTarget.Group(d.group.id)) },
             onVpn = { dialog = HostsDialog.GroupTunnel(d.group) },
@@ -452,7 +452,7 @@ fun HostsScreen(
         is HostsDialog.ConfirmConnectAll -> ConfirmConnectAllDialog(
             group = d.group,
             count = d.hostIds.size,
-            onConfirm = { onConnectMany(d.hostIds); dialog = null },
+            onConfirm = { onConnectMany(d.hostIds, d.group.label); dialog = null },
             onDismiss = { dialog = null },
         )
         is HostsDialog.DeleteGroup -> DeleteGroupDialog(

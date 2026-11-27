@@ -2047,4 +2047,17 @@
         <item quantity="many">Подключить %d хостов?</item>
         <item quantity="other">Подключить %d хоста?</item>
     </plurals>
+    <string name="tab_groups">Группы вкладок</string>
+    <string name="tab_groups_named">Группы вкладок: %1$s</string>
+    <string name="new_tab_group">Новая группа вкладок</string>
+    <string name="this_session">Этот сеанс</string>
+    <string name="all_sessions">Все сеансы</string>
+    <string name="host_groups">Группы хостов</string>
+    <string name="send_to_target">Отправить в: %1$s</string>
+    <plurals name="send_to_n_sessions">
+        <item quantity="one">Отправить в %d сеанс</item>
+        <item quantity="few">Отправить в %d сеанса</item>
+        <item quantity="many">Отправить в %d сеансов</item>
+        <item quantity="other">Отправить в %d сеанса</item>
+    </plurals>
 </resources>
