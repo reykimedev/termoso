@@ -141,6 +141,8 @@ object Routes {
     const val LOG = "log/{id}"
     const val TERMINAL = "terminal"
     const val ACCOUNT = "account"
+    const val BACKUP = "backup"
+    const val MOVE_SERVER = "moveServer"
     const val TEAMS = "teams"
     const val SSH_ID = "sshId"
     const val SSH_ID_FIDO2 = "sshIdFido2"
@@ -554,6 +556,7 @@ fun MainShell(
                     account = account,
                     onAccount = { nav.navigate(Routes.ACCOUNT) },
                     onSignIn = { nav.navigate(Routes.signIn(AuthMode.SignIn)) },
+                    onBackup = { nav.navigate(Routes.BACKUP) },
                     onLock = onLock,
                     onTerminalAppearance = { nav.navigate(Routes.TERMINAL_APPEARANCE) },
                     onTerminalInput = { nav.navigate(Routes.TERMINAL_INPUT) },
@@ -572,6 +575,23 @@ fun MainShell(
                     onTeams = { nav.navigate(Routes.TEAMS) },
                     onSshId = { nav.navigate(Routes.SSH_ID) },
                     onSecurityKeys = { nav.navigate(Routes.SECURITY_KEYS) },
+                    onMoveServer = { nav.navigate(Routes.MOVE_SERVER) },
+                )
+            }
+            composable(Routes.BACKUP) {
+                dev.labdex.labterm.ui.account.BackupScreen(
+                    shell = shell,
+                    account = account,
+                    onBack = { nav.popBackStack() },
+                    onMoveServer = { nav.navigate(Routes.MOVE_SERVER) },
+                )
+            }
+            composable(Routes.MOVE_SERVER) {
+                dev.labdex.labterm.ui.account.MoveServerScreen(
+                    shell = shell,
+                    account = account,
+                    onBack = { nav.popBackStack() },
+                    onSignIn = { nav.navigate(Routes.signIn(AuthMode.SignIn)) },
                 )
             }
             composable(Routes.SSH_ID) {
@@ -663,7 +683,10 @@ fun MainShell(
                     mode = mode,
                     onBack = { nav.popBackStack() },
                     onDone = {
-                        if (!nav.popBackStack(Routes.ACCOUNT, inclusive = false)) {
+                        // Signing in during a server move returns to the move guide.
+                        if (!nav.popBackStack(Routes.MOVE_SERVER, inclusive = false) &&
+                            !nav.popBackStack(Routes.ACCOUNT, inclusive = false)
+                        ) {
                             nav.navigate(Routes.ACCOUNT) { popUpTo(Routes.SIGN_IN) { inclusive = true } }
                         }
                     },
