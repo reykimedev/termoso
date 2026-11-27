@@ -2144,6 +2144,26 @@ impl LabtermApp {
         RUNTIME.block_on(self.account.rename_team_vault(vault_id, name))
     }
 
+    /// Tile colour and icon of a vault (manager; anyone for the local vault).
+    pub fn set_vault_style(
+        &self,
+        vault_id: String,
+        color: Option<String>,
+        icon: Option<String>,
+    ) -> Result<()> {
+        RUNTIME.block_on(self.account.set_vault_style(vault_id, color, icon))
+    }
+
+    /// Tile colour and icon of a team (admins).
+    pub fn set_team_style(
+        &self,
+        team_id: String,
+        color: Option<String>,
+        icon: Option<String>,
+    ) -> Result<TeamCard> {
+        RUNTIME.block_on(self.account.set_team_style(team_id, color, icon))
+    }
+
     pub fn delete_team_vault(&self, vault_id: String) -> Result<()> {
         RUNTIME.block_on(self.account.delete_team_vault(vault_id))
     }

@@ -1899,6 +1899,7 @@
     <string name="icon_colour_hex">Hex colour (#rrggbb)</string>
     <string name="icon_custom_image">Custom image…</string>
     <string name="icon_custom_image_error">This image can\'t be used. Pick a PNG, JPEG or WebP image, or an SVG under 16 KiB.</string>
+    <string name="icon_default">Default</string>
     <string name="icon_section_generic">General</string>
     <string name="icon_section_apps">Apps and products</string>
     <string name="icon_section_systems">Operating systems</string>

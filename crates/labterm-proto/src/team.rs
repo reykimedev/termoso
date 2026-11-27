@@ -58,6 +58,12 @@ schema! {
         /// Team policies (0.9.0+; `None` from older servers).
         #[serde(default)]
         pub policies: Option<TeamPolicies>,
+        /// Tile colour (`#rrggbb`) chosen by a team admin; see [`crate::style`].
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub color: Option<String>,
+        /// Icon: a built-in id or a `custom:data:` image; see [`crate::style`].
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub icon: Option<String>,
     }
 }
 
@@ -97,6 +103,12 @@ schema! {
         /// Show members who is connected to which team-vault host.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pub presence_enabled: Option<bool>,
+        /// New tile colour (`#rrggbb`); an empty string clears it.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub color: Option<String>,
+        /// New icon (built-in id or `custom:data:` image); an empty string clears it.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub icon: Option<String>,
     }
 }
 

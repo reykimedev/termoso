@@ -62,9 +62,11 @@ import dev.labdex.labterm.ui.components.ListRow
 import dev.labdex.labterm.ui.components.RowDivider
 import dev.labdex.labterm.ui.components.SectionCard
 import dev.labdex.labterm.ui.components.SectionLabel
+import dev.labdex.labterm.ui.components.StylePickerSheet
 import dev.labdex.labterm.ui.components.SubScreen
 import dev.labdex.labterm.ui.components.SwitchRow
 import dev.labdex.labterm.ui.components.UserAvatar
+import dev.labdex.labterm.ui.components.VaultTile
 import dev.labdex.labterm.ui.shell.ShellViewModel
 import dev.labdex.labterm.ui.terminal.aiProviderLabel
 import dev.labdex.labterm.ui.terminal.aiRemainingToday
@@ -74,6 +76,7 @@ import dev.labdex.labterm.core.DeviceCard
 import dev.labdex.labterm.core.SyncState
 import dev.labdex.labterm.core.SyncStatus
 import dev.labdex.labterm.core.VaultAccess
+import dev.labdex.labterm.core.VaultInfo
 import dev.labdex.labterm.core.VaultKind
 import java.time.Instant
 import java.time.OffsetDateTime
@@ -96,6 +99,7 @@ fun AccountScreen(
     val hidden by shell.presence.hidden.collectAsStateWithLifecycle()
     val ai by shell.ai.status.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
+    var styleFor by remember { mutableStateOf<VaultInfo?>(null) }
     var devices by remember { mutableStateOf<List<DeviceCard>?>(null) }
     var devicesError by remember { mutableStateOf<String?>(null) }
     var syncing by remember { mutableStateOf(false) }
@@ -325,16 +329,25 @@ fun AccountScreen(
                             if (v.locked) stringResource(R.string.key_pending) else null,
                         ).joinToString(" · "),
                         leading = {
-                            IconTile(
-                                when (v.kind) {
-                                    VaultKind.LOCAL -> Icons.Filled.PhoneAndroid
-                                    VaultKind.PERSONAL -> Icons.Filled.Cloud
-                                    VaultKind.TEAM -> Icons.Filled.Group
-                                },
-                            )
+                            val canStyle = v.kind == VaultKind.LOCAL || (v.access == VaultAccess.MANAGE && !v.locked)
+                            VaultTile(v, modifier = if (canStyle) Modifier.clickable { styleFor = v } else Modifier)
                         },
                     )
                 }
+            }
+            styleFor?.let { v ->
+                StylePickerSheet(
+                    icon = v.icon,
+                    color = v.color,
+                    automaticLabel = stringResource(R.string.icon_default),
+                    onSave = { c, i ->
+                        scope.launch {
+                            runCatching { shell.repo.write { setVaultStyle(v.id, c, i) }; account.refresh() }
+                                .onFailure { shell.notify(it.userMessage()) }
+                        }
+                    },
+                    onDismiss = { styleFor = null },
+                )
             }
 
             SectionLabel(stringResource(R.string.devices))

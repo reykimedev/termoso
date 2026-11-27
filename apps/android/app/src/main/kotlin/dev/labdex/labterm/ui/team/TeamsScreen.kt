@@ -50,6 +50,7 @@ import dev.labdex.labterm.str
 import dev.labdex.labterm.ui.components.ChevronRow
 import dev.labdex.labterm.ui.components.EmptyState
 import dev.labdex.labterm.ui.components.IconTile
+import dev.labdex.labterm.ui.components.TeamTile
 import dev.labdex.labterm.ui.components.RowDivider
 import dev.labdex.labterm.ui.components.SectionCard
 import dev.labdex.labterm.ui.components.SubScreen
@@ -175,7 +176,7 @@ fun TeamRow(t: TeamCard, modifier: Modifier = Modifier) {
     ChevronRow(
         title = t.name,
         subtitle = "${t.myRole.label()} · ${members(t.memberCount)}",
-        leading = { IconTile(Icons.Filled.Group) },
+        leading = { TeamTile(t) },
         modifier = modifier,
     )
 }

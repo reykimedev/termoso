@@ -509,6 +509,8 @@ async fn teammates_share_recordings_by_role() {
         Some(&UpdateVaultRequest {
             name: None,
             session_logging: Some(true),
+            color: None,
+            icon: None,
         }),
         StatusCode::FORBIDDEN,
     )
@@ -520,6 +522,8 @@ async fn teammates_share_recordings_by_role() {
         Some(&UpdateVaultRequest {
             name: None,
             session_logging: Some(true),
+            color: None,
+            icon: None,
         }),
         StatusCode::FORBIDDEN,
     )
@@ -532,6 +536,8 @@ async fn teammates_share_recordings_by_role() {
             Some(&UpdateVaultRequest {
                 name: None,
                 session_logging: Some(true),
+                color: None,
+                icon: None,
             }),
         )
         .await;
@@ -675,6 +681,8 @@ async fn mandatory_recording_policy_and_team_export() {
         Some(&UpdateVaultRequest {
             name: None,
             session_logging: Some(false),
+            color: None,
+            icon: None,
         }),
         StatusCode::FORBIDDEN,
     )

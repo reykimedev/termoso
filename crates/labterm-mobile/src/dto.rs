@@ -56,6 +56,12 @@ pub struct VaultInfo {
     /// The team's first vault: can be renamed but not deleted.
     #[uniffi(default = false)]
     pub is_default: bool,
+    /// Tile colour (`#rrggbb`) set by a manager (or on this device for the local vault).
+    #[uniffi(default = None)]
+    pub color: Option<String>,
+    /// Built-in icon id or `custom:data:` image.
+    #[uniffi(default = None)]
+    pub icon: Option<String>,
 }
 
 impl From<LocalVault> for VaultInfo {
@@ -76,6 +82,8 @@ impl From<LocalVault> for VaultInfo {
             },
             locked: !v.unlocked,
             is_default: v.is_default,
+            color: v.color,
+            icon: v.icon,
         }
     }
 }

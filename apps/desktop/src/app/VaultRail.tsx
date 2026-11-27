@@ -26,13 +26,13 @@ import {
   vaultName,
 } from "./vault";
 import { tr } from "@/i18n";
+import { StyleGlyph } from "@/team/VaultTile";
 
 export const RAIL_WIDTH = 60;
 
 /** The vault's own colour when it has one (set in the vault's settings), else a stable pick. */
 function tileColor(v: LocalVault): string {
-  const own = (v as LocalVault & { color?: string | null }).color;
-  if (own) return own;
+  if (v.color) return v.color;
   let h = 0;
   for (const c of v.id) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   return TAG_COLORS[h % TAG_COLORS.length] ?? TAG_COLORS[0];
@@ -88,7 +88,12 @@ export function RailTile({
       }}
     >
       {vault.unlocked ? (
-        initials(vaultName(vault))
+        // The vault's own icon when set, else its initials.
+        <StyleGlyph
+          icon={vault.icon}
+          fallback={initials(vaultName(vault))}
+          sx={{ fontSize: size * 0.55 }}
+        />
       ) : (
         <LockRoundedIcon sx={{ fontSize: size * 0.45 }} />
       )}
