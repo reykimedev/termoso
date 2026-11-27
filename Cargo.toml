@@ -97,7 +97,7 @@ figment = { version = "0.10", features = ["env", "toml"] }
 lettre = { version = "0.11", default-features = false, features = ["tokio1-rustls-tls", "smtp-transport", "builder", "hostname", "pool"] }
 metrics = "0.24"
 # Labterm Web relay (crates/labterm-relay): no default TLS, rustls with ring, no C toolchain.
-ed25519-dalek = { version = "2", features = ["rand_core"] }
+ed25519-dalek = { version = "3", features = ["rand_core"] }
 ipnet = { version = "2", features = ["serde"] }
 jsonwebtoken = { version = "11", default-features = false, features = ["rust_crypto", "use_pem"] }
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls-no-provider"] }
