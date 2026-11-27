@@ -12,6 +12,7 @@ import * as policy from "./policy";
 import { type Resolved, type SshKey, pins } from "./model";
 import { resolveToConnect } from "./overlays";
 import * as vpn from "./vpn";
+import * as webauthn from "./webauthn";
 import { type Uuid, changed, isUnlocked, require, s } from "./state";
 import { loadWasm, w } from "./wasm";
 import * as debuglog from "./debuglog";
@@ -245,6 +246,14 @@ export async function prepare(id: Uuid, target: Target) {
       });
       return Array.isArray(a?.answers) ? a.answers : null;
     }
+    if (kind === "webauthn")
+      return webauthn.sign(data as unknown as Parameters<typeof webauthn.sign>[0], async () => {
+        const a = await ask(id, targetStr(), {
+          kind: "security_key",
+          key_label: typeof data.label === "string" ? data.label : "",
+        });
+        return a?.kind === "confirm";
+      });
     return null;
   };
 
@@ -341,6 +350,13 @@ async function run(id: Uuid, sess: Sess, target: Target, cols: number, rows: num
             id,
             hop: null,
             phase: { kind: "auth", method: e.method },
+          });
+        else if (e.phase === "security_key_touch")
+          sessionEvent({
+            type: "progress",
+            id,
+            hop: null,
+            phase: { kind: "security_key_touch", key: e.method ?? "" },
           });
         else if (e.phase === "handshake" || e.phase === "host_key")
           sessionEvent({ type: "progress", id, hop: null, phase: { kind: e.phase } });

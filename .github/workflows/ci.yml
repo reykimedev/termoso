@@ -141,6 +141,12 @@ jobs:
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - run: cargo clippy --workspace --all-targets --locked
+      # PRs have no Windows runner; this compiles the webauthn.dll FFI for Windows
+      # (pure Rust, no linking) so it cannot break unnoticed until a release.
+      - name: clippy labterm-winhello for Windows
+        run: |
+          rustup target add x86_64-pc-windows-gnu
+          cargo clippy -p labterm-winhello --target x86_64-pc-windows-gnu --locked -- -D warnings
 
   test:
     name: tests (postgres + redis + rustfs + mailpit)

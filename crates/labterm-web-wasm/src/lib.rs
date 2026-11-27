@@ -13,6 +13,8 @@ mod lock;
 mod opk;
 mod sftp;
 mod transport;
+mod webauthn;
+mod webauthn_sig;
 
 // Linked for its exports: labterm-wasm's OPAQUE, key and entity functions end up in this module.
 use labterm_wasm as _;
@@ -88,6 +90,13 @@ enum AuthMethod {
         #[serde(default)]
         slot: String,
     },
+}
+
+fn with_label(label: &Option<String>, message: String) -> String {
+    match label {
+        Some(l) => format!("{l}: {message}"),
+        None => message,
+    }
 }
 
 /// What `connect` rejects with, as a plain object for the UI.
@@ -314,37 +323,89 @@ async fn establish(
                             .unwrap_or(message),
                     })
                 })?;
-                let key = Arc::new(key);
-                match certificate.as_deref().map(keys::certificate).transpose() {
-                    Err(message) => return Err(reject(ConnectError::Key { message })),
-                    Ok(Some(cert)) => {
-                        emit(
-                            on_event,
-                            &Event::Progress {
-                                phase: "auth",
-                                method: Some("publickey (certificate)"),
-                            },
-                        );
-                        (
-                            "publickey (certificate)",
-                            handle
-                                .authenticate_openssh_cert(&o.username, key, cert)
-                                .await,
-                        )
+                if webauthn::is_security_key(&key) {
+                    let name = "publickey (security key)";
+                    if let Some(message) = webauthn::unusable(&key) {
+                        return Err(reject(ConnectError::Key {
+                            message: with_label(label, message),
+                        }));
                     }
-                    Ok(None) => {
-                        emit(
-                            on_event,
-                            &Event::Progress {
-                                phase: "auth",
-                                method: Some("publickey"),
-                            },
-                        );
-                        let k = PrivateKeyWithHashAlg::new(key, rsa_hash);
-                        (
-                            "publickey",
-                            handle.authenticate_publickey(&o.username, k).await,
+                    if certificate.is_some() {
+                        return Err(reject(ConnectError::Key {
+                            message: with_label(
+                                label,
+                                "certificates on security keys are not supported in the browser yet"
+                                    .into(),
+                            ),
+                        }));
+                    }
+                    // The page does the WebAuthn call; without it there is no way to sign.
+                    let Some(mut signer) = prompt.and_then(|f| {
+                        webauthn::BrowserSigner::new(
+                            &key,
+                            f.clone(),
+                            label.clone().unwrap_or_default(),
                         )
+                    }) else {
+                        continue;
+                    };
+                    emit(
+                        on_event,
+                        &Event::Progress {
+                            phase: "security_key_touch",
+                            // The key's label, for "touch your security key (label)".
+                            method: Some(label.as_deref().unwrap_or("security key")),
+                        },
+                    );
+                    let r = handle
+                        .authenticate_publickey_with(
+                            &o.username,
+                            key.public_key().clone(),
+                            None,
+                            &mut signer,
+                        )
+                        .await;
+                    match r {
+                        Ok(r) => (name, Ok(r)),
+                        Err(webauthn::SignError(message)) => {
+                            return Err(reject(ConnectError::Key {
+                                message: with_label(label, message),
+                            }));
+                        }
+                    }
+                } else {
+                    let key = Arc::new(key);
+                    match certificate.as_deref().map(keys::certificate).transpose() {
+                        Err(message) => return Err(reject(ConnectError::Key { message })),
+                        Ok(Some(cert)) => {
+                            emit(
+                                on_event,
+                                &Event::Progress {
+                                    phase: "auth",
+                                    method: Some("publickey (certificate)"),
+                                },
+                            );
+                            (
+                                "publickey (certificate)",
+                                handle
+                                    .authenticate_openssh_cert(&o.username, key, cert)
+                                    .await,
+                            )
+                        }
+                        Ok(None) => {
+                            emit(
+                                on_event,
+                                &Event::Progress {
+                                    phase: "auth",
+                                    method: Some("publickey"),
+                                },
+                            );
+                            let k = PrivateKeyWithHashAlg::new(key, rsa_hash);
+                            (
+                                "publickey",
+                                handle.authenticate_publickey(&o.username, k).await,
+                            )
+                        }
                     }
                 }
             }
@@ -540,7 +601,7 @@ fn data_event(f: &Function, data: &[u8], stderr: bool) {
 }
 
 /// Calls `prompt(kind, data)`; `None` when the user cancelled or the answer was null.
-async fn ask(f: &Function, kind: &str, data: &JsValue) -> Option<JsValue> {
+pub(crate) async fn ask(f: &Function, kind: &str, data: &JsValue) -> Option<JsValue> {
     let p = f.call2(&JsValue::NULL, &kind.into(), data).ok()?;
     let p = p.dyn_into::<js_sys::Promise>().ok()?;
     let v = wasm_bindgen_futures::JsFuture::from(p).await.ok()?;
