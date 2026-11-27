@@ -306,68 +306,84 @@ gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD --env desktop-dev -R $R
 then put the `labterm-updater-dev.key.pub` contents into
 `plugins.updater.pubkey` in `channels/dev.json`.
 
-## Google Play (Devel)
+## Google Play (testing track)
 
-Labterm Debug (`dev.labdex.labterm.debug`) can also ship through Google Play's
-**internal testing** track. Testers then get each Devel build as a normal Play
-update, with no Play Protect scan per sideloaded APK. The GitHub devel releases
-and their feed stay as they are.
+Labterm (`dev.labdex.labterm`, the same app as the stable release) ships every
+Devel build to a Google Play **testing track**. Beta testers opt in once and
+get each build as a normal Play update, with no Play Protect scan per
+sideloaded APK. The GitHub devel releases (Labterm Debug APK and its feed)
+stay as they are.
 
-- **Build.** The `devel` build type (`:app:bundleDevel`) is the debug build
-  without `debuggable`, without the in-app updater and without
-  `REQUEST_INSTALL_PACKAGES`, which Play refuses. Same app id, name, Rust
-  profile and key as the sideloaded APK.
-- **Version code.** Devel builds (APK and bundle) use `1000000 + <build>`, so
-  every build is newer than the last and than the `MMmmpp` codes debug builds
-  had before.
-- **Upload.** `devel.yml`'s `play` job uploads the bundle with
-  `scripts/play-upload.py` (standard library and `openssl` only) using
-  `PLAY_SERVICE_ACCOUNT_JSON` from the environment **`google-play`** (main
-  only). The repository variable `PLAY_TRACK` turns it on (`internal`); unset,
-  no bundle is built and the job is skipped. Without the secret the job leaves a
-  notice and passes. `PLAY_RELEASE_STATUS=draft` is only needed while Play
-  still treats the app as a draft.
-- **Signing.** Play App Signing with the existing debug key (alias
-  `termoso-debug`) as the app signing key, uploaded once with Play's PEPK tool.
-  Play then delivers builds signed with the same key as the GitHub APK, so a
-  sideloaded install updates in place from Play, keeps its data, and the App
-  Links fingerprint does not change. The bundle is uploaded signed with the
-  same key.
+- **Build.** `devel.yml`'s `play-bundle` job builds the release variant as an
+  AAB (`:app:bundleRelease`, arm64-v8a and armeabi-v7a) without a key. The
+  release build has no in-app updater and no `REQUEST_INSTALL_PACKAGES`, both
+  of which Play refuses.
+- **Version.** Code `100000000 + <build>`, name `X.Y.(Z+1)-dev.<build>` (like
+  Labterm Dev on the desktop). The code sits above every stable release, so
+  testers always have the newest build. Someone who leaves the testing
+  programme keeps their last devel build until they reinstall from Play.
+- **Upload.** The `play` job signs the bundle with the upload key and uploads
+  it with `scripts/play-upload.py` (standard library and `openssl` only). Its
+  secrets live in the environment **`google-play`** (main only). The
+  repository variable `PLAY_TRACK` turns both jobs on; unset, they are skipped.
+  Without the secrets the `play` job leaves a notice and passes.
+  `PLAY_RELEASE_STATUS=draft` is only needed while Play still treats the app as
+  a draft.
+- **Signing.** Play App Signing with the existing **release key** (alias
+  `labterm`) as the app signing key, uploaded once with Play's PEPK tool, so
+  Play builds carry the same signature as the GitHub release APKs: an APK
+  install updates from Play in place, and the App Links fingerprint stays the
+  same. A separate **upload key** (alias `upload`) signs what CI uploads; the
+  release key itself stays in the tag-only `release` environment. A lost or
+  leaked upload key can be reset in Play Console.
 
-One-time setup:
+| Secret (`google-play`)          | Purpose                                                 |
+| ------------------------------- | ------------------------------------------------------- |
+| `PLAY_SERVICE_ACCOUNT_JSON`     | service account key for the Google Play Developer API   |
+| `PLAY_UPLOAD_KEYSTORE_BASE64`   | upload keystore, `base64 -w0 labterm-upload.jks`        |
+| `PLAY_UPLOAD_KEYSTORE_PASSWORD` | its store password (alias `upload`, same key password)  |
 
-1. Check the debug key is RSA 2048 or larger (Play's minimum):
-   `keytool -list -v -keystore labterm-debug.jks -alias termoso-debug | grep -i algorithm`.
-2. Play Console: **Create app** "Labterm Debug" (app, free). Under
+One-time setup (in this order: the API only works on an app that already has
+a release, so the first one goes up by hand, before the secrets exist):
+
+1. Make the upload key:
+   `keytool -genkeypair -keystore labterm-upload.jks -alias upload -keyalg RSA -keysize 4096 -validity 10950`
+   and export its certificate:
+   `keytool -export -rfc -keystore labterm-upload.jks -alias upload -file upload_certificate.pem`.
+2. Play Console: **Create app** "Labterm" (app, free). Under
    **Test and release → App integrity → App signing**, choose to use your own
-   key, **Export and upload a key from Java keystore**, and follow the PEPK
-   steps for `labterm-debug.jks`, alias `termoso-debug`. Do this before the
-   first upload: the choice is final once a bundle is in.
-3. GitHub: set the repository variable `PLAY_TRACK=internal`, then run Devel
-   by hand (or merge anything). Its run has the artifact `devel-play-bundle`.
-4. Play Console: **Internal testing → Create new release**, upload that
-   `labterm-devel.aab`, roll it out. Fill in what Play asks for under
-   **App content** first. Add testers (an email list) and share the opt-in link.
-5. Google Cloud: in any project, enable the **Google Play Android Developer
+   key, **Export and upload a key from Java keystore**, run the PEPK step on
+   `labterm-release.jks` (alias `labterm`), and register `upload_certificate.pem`
+   as the upload key. Do this before the first upload: the app signing key
+   cannot be changed afterwards.
+3. GitHub: `gh variable set PLAY_TRACK -R reykimedev/termoso --body alpha`, then
+   run Devel. Its `play` job only leaves a notice (no secrets yet); take the
+   `devel-play-bundle` artifact, sign it
+   (`jarsigner -keystore labterm-upload.jks labterm-unsigned.aab upload`), and
+   upload it under **Closed testing**. Fill in what Play asks for under
+   **App content**, add testers (an email list or a Google Group) and roll it
+   out.
+4. Google Cloud: in any project, enable the **Google Play Android Developer
    API**, create a service account (no project roles) and a JSON key for it.
-6. Play Console: **Users and permissions → Invite new users**, the service
-   account's email, app permission on Labterm Debug: **Release apps to testing
+5. Play Console: **Users and permissions → Invite new users**, the service
+   account's email, app permission on Labterm: **Release apps to testing
    tracks**.
-7. GitHub: environment `google-play` limited to `main`, with the secret
-   `PLAY_SERVICE_ACCOUNT_JSON`:
+6. GitHub: the environment and its secrets. From the next Devel run on, every
+   build goes to the track by itself.
 
    ```bash
    R=reykimedev/termoso
    gh api -X PUT repos/$R/environments/google-play --input - <<<'{"deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true}}'
    gh api -X POST repos/$R/environments/google-play/deployment-branch-policies -f name=main -f type=branch
    gh secret set PLAY_SERVICE_ACCOUNT_JSON --env google-play -R $R < service-account.json
-   gh variable set PLAY_TRACK -R $R --body internal
+   base64 -w0 labterm-upload.jks | gh secret set PLAY_UPLOAD_KEYSTORE_BASE64 --env google-play -R $R
+   gh secret set PLAY_UPLOAD_KEYSTORE_PASSWORD --env google-play -R $R
    ```
 
-From then on every Devel run puts its build on the internal track. Stable
-Labterm (`dev.labdex.labterm`) on Play is a later step; a personal developer
-account needs a closed test with at least 12 testers for 14 days before
-production.
+`alpha` is Play's default closed testing track. A personal developer account
+needs a closed test with at least 12 testers opted in for 14 days before it can
+publish to production, so this track also covers that. `internal` works too
+(up to 100 testers, no review) but does not count toward it.
 
 ## Verifying a download
 
