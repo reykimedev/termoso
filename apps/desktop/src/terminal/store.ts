@@ -44,7 +44,7 @@ import { downloadDir } from "@tauri-apps/api/path";
 import { keys } from "@/ipc/hooks";
 import { createStore, omit, useStore } from "@/lib/store";
 import { dismissControlHint, viewerJoined } from "./multiplayer";
-import { commandForEvent, tabDigit } from "@/app/shortcuts";
+import { commandForEvent, tabDigit, vaultDigit } from "@/app/shortcuts";
 import { primaryKey } from "@/app/keymap";
 import { terminalFontStack } from "./fonts";
 import {
@@ -600,7 +600,7 @@ function beep() {
 
 /** Keys bound to app commands (see app/commands.ts) that xterm must not turn into input. */
 function isAppShortcut(ev: KeyboardEvent): boolean {
-  return tabDigit(ev) !== null || commandForEvent(ev) !== null;
+  return tabDigit(ev) !== null || vaultDigit(ev) !== null || commandForEvent(ev) !== null;
 }
 
 function createRuntime(paneId: Uuid): Runtime {

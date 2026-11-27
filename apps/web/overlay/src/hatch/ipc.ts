@@ -19,6 +19,7 @@ import * as m from "./backend/model";
 import * as oidc from "./backend/oidc";
 import * as opkssh from "./backend/opkssh";
 import * as overlays from "./backend/overlays";
+import * as pins from "./backend/pins";
 import * as policyview from "./backend/policyview";
 import * as vpn from "./backend/vpn";
 import * as webauthn from "./backend/webauthn";
@@ -28,6 +29,7 @@ import * as st from "./backend/state";
 import * as sftp from "./backend/sftp";
 import * as term from "./backend/terminal";
 import * as copy from "./backend/vaultcopy";
+import * as vaultmove from "./backend/vaultmove";
 import { LABTERM_VERSION } from "./build";
 import { integrity } from "./integrity";
 import { tr } from "@/i18n";
@@ -233,7 +235,16 @@ const commands: Record<string, Handler> = {
   host_duplicate: (a) => m.hostDuplicate(a.id),
   hosts_move: (a) => m.hostsMove(a.ids, a.groupId ?? null),
   hosts_copy_to_vault: (a) =>
-    copy.hostsCopyToVault(a.ids, a.vaultId, !!a.moveHosts, a.withCredentials),
+    vaultmove
+      .transfer({
+        hostIds: a.ids as string[],
+        vaultId: a.vaultId as string,
+        mode: a.moveHosts ? "move" : "copy",
+        withCredentials: (a.withCredentials as boolean | null | undefined) ?? true,
+      })
+      .hosts.map((p) => p.to),
+  vault_transfer_plan: (a) => vaultmove.transferPlan(a.request),
+  vault_transfer: (a) => vaultmove.transfer(a.request),
   host_inherited: (a) => m.inherited(a.groupId ?? null, a.vaultId ?? null, a.tagIds ?? []),
   groups_list: (a) => m.groupNodes(a.vaultId ?? null),
   group_save: (a) => m.groupSave(a as Parameters<typeof m.groupSave>[0]),
@@ -260,6 +271,12 @@ const commands: Record<string, Handler> = {
   identity_copy_to_vault: (a) => copy.identityCopyToVault(a.id, a.vaultId, !!a.moveIdentity),
   identity_delete: (a) => {
     st.remove(a.id);
+    return null;
+  },
+  vault_pins: () => pins.pinned(),
+  vault_pin_toggle: (a) => pins.toggle(a.vaultId),
+  vault_pins_reorder: (a) => {
+    pins.reorder(a.vaultIds ?? []);
     return null;
   },
   overlays_list: () => overlays.overlayCards(),
@@ -294,6 +311,8 @@ const commands: Record<string, Handler> = {
   vpn_connect: notInBrowser("Joining VPN networks"),
   vpn_test_host: notInBrowser("Joining VPN networks"),
   vpn_running: () => [],
+  // The browser joins no network: nothing in use, nothing stops.
+  vpn_activity: () => ({ networks: [], stops: [], seq: 0 }),
   vpn_states: (a) => vpn.states(a.ids ?? []),
   vpn_details: (a) => vpn.details(a.id),
   vpn_disconnect: () => null,

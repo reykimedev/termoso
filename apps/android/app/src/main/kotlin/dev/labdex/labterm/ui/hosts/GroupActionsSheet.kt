@@ -87,6 +87,9 @@ fun GroupActionsSheet(
     onRename: () -> Unit,
     onDuplicate: () -> Unit,
     onMove: () -> Unit,
+    /** Null hides the entries (no other vault to write to). */
+    onMoveVault: (() -> Unit)? = null,
+    onCopyVault: (() -> Unit)? = null,
     onDelete: () -> Unit,
     onClose: () -> Unit,
     onOpenVpn: (String) -> Unit = {},
@@ -121,7 +124,7 @@ fun GroupActionsSheet(
         sections = listOf(
             SheetSection(
                 stringResource(R.string.group),
-                listOf(
+                listOfNotNull(
                     SheetAction(
                         Icons.Filled.PlayArrow,
                         if (connectIds.isEmpty()) stringResource(R.string.connect_all)
@@ -135,6 +138,12 @@ fun GroupActionsSheet(
                     SheetAction(Icons.Filled.DriveFileRenameOutline, stringResource(R.string.rename), onClick = onRename),
                     SheetAction(Icons.Filled.ContentCopy, stringResource(R.string.duplicate), onClick = onDuplicate),
                     SheetAction(Icons.AutoMirrored.Filled.DriveFileMove, stringResource(R.string.move_to_group), onClick = onMove),
+                    onMoveVault?.let {
+                        SheetAction(Icons.AutoMirrored.Filled.DriveFileMove, stringResource(R.string.move_to_vault), onClick = it)
+                    },
+                    onCopyVault?.let {
+                        SheetAction(Icons.Filled.ContentCopy, stringResource(R.string.copy_to_vault), onClick = it)
+                    },
                 ),
             ),
             SheetSection(

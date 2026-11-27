@@ -2689,23 +2689,20 @@ pub fn move_hosts(store: &Store, ids: &[Uuid], group_id: Option<Uuid>) -> Result
 }
 
 /// Copy hosts into another vault (top level of that vault). Returns new ids.
+/// See [`crate::vaultmove`], which also moves whole groups.
 pub fn copy_to_vault(
     store: &Store,
     ids: &[Uuid],
     vault_id: Uuid,
     creds: CopyCredentials,
 ) -> Result<Vec<Uuid>> {
-    let vault = store.vault(vault_id)?;
-    if !vault.unlocked {
-        return Err(ClientError::invalid("target vault is locked"));
-    }
-    if !vault.role.can_write() {
-        return Err(ClientError::invalid("you can only view this vault"));
-    }
-    let mut copied_keys = HashMap::new();
-    ids.iter()
-        .map(|id| copy_host_with(store, *id, vault_id, None, None, creds, &mut copied_keys))
-        .collect()
+    transfer(
+        store,
+        ids,
+        vault_id,
+        creds,
+        crate::vaultmove::TransferMode::Copy,
+    )
 }
 
 /// Move hosts into another vault: copy, then delete the originals.
@@ -2715,11 +2712,34 @@ pub fn move_to_vault(
     vault_id: Uuid,
     creds: CopyCredentials,
 ) -> Result<Vec<Uuid>> {
-    let new_ids = copy_to_vault(store, ids, vault_id, creds)?;
-    for id in ids {
-        delete(store, *id)?;
-    }
-    Ok(new_ids)
+    transfer(
+        store,
+        ids,
+        vault_id,
+        creds,
+        crate::vaultmove::TransferMode::Move,
+    )
+}
+
+fn transfer(
+    store: &Store,
+    ids: &[Uuid],
+    vault_id: Uuid,
+    creds: CopyCredentials,
+    mode: crate::vaultmove::TransferMode,
+) -> Result<Vec<Uuid>> {
+    let out = crate::vaultmove::apply(
+        store,
+        &crate::vaultmove::TransferRequest {
+            host_ids: ids.to_vec(),
+            group_ids: Vec::new(),
+            vault_id,
+            group_id: None,
+            mode,
+            with_credentials: creds == CopyCredentials::Shared,
+        },
+    )?;
+    Ok(out.hosts.into_iter().map(|p| p.to).collect())
 }
 
 /// Deep-copy a group (SSH defaults, sub-groups and hosts) next to the original.
@@ -3002,6 +3022,7 @@ mod tests {
                 management_url: None,
                 setup_key: Some("example-setup-key".into()),
                 direct_first: false,
+                idle_secs: None,
             },
         )
         .unwrap();

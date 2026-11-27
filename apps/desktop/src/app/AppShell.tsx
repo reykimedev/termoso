@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Box } from "@mui/material";
 import { useQueryClient } from "@tanstack/react-query";
 import { Sidebar } from "./Sidebar";
+import { VaultRail } from "./VaultRail";
 import { TopBar } from "./TopBar";
 import { HostsPage } from "@/hosts/HostsPage";
 import { SettingsDialog } from "@/settings/SettingsPage";
@@ -162,6 +163,7 @@ function UnlockedShell() {
     >
       <TopBar />
       <Box sx={{ flex: 1, minHeight: 0, display: "flex" }}>
+        {(home || sftp) && <VaultRail />}
         {(home || sftp) && <Sidebar />}
         <Box
           sx={{

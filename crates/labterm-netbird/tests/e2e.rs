@@ -51,6 +51,7 @@ fn network(id: Uuid, setup_key: Option<String>) -> NetworkConfig {
             management_url: Some(env("NB_E2E_MANAGEMENT")),
             setup_key,
             direct_first: false,
+            idle_secs: None,
         },
     })
     .unwrap()

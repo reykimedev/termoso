@@ -24,7 +24,7 @@ use crate::routes::bridges;
 use crate::routes::vaults::{self, Access};
 use crate::state::AppState;
 
-type Row = (
+pub(crate) type Row = (
     Uuid,
     String,
     Uuid,
@@ -38,7 +38,7 @@ type Row = (
     Option<OffsetDateTime>,
 );
 
-fn to_entity(r: Row) -> SyncEntity {
+pub(crate) fn to_entity(r: Row) -> SyncEntity {
     let (
         id,
         kind,
@@ -67,22 +67,30 @@ fn to_entity(r: Row) -> SyncEntity {
     }
 }
 
-const SELECT: &str = "SELECT id, kind, vault_id, version, seq, deleted, key_version, data, updated_at, updated_by_device, secret_rotated_at FROM entities";
+pub(crate) const SELECT: &str = "SELECT id, kind, vault_id, version, seq, deleted, key_version, data, updated_at, updated_by_device, secret_rotated_at FROM entities";
 
-async fn fetch_entity(
+/// A row with its collection (`None` = vault-wide), locked for update.
+pub(crate) async fn fetch_entity_in(
     tx: &mut Transaction<'_, Postgres>,
     id: Uuid,
-) -> ApiResult<Option<SyncEntity>> {
-    let row: Option<Row> =
-        sqlx::query_as(AssertSqlSafe(format!("{SELECT} WHERE id = $1 FOR UPDATE")))
+) -> ApiResult<Option<(SyncEntity, Option<Uuid>)>> {
+    let row: Option<(Uuid, Option<Uuid>)> =
+        sqlx::query_as("SELECT id, collection_id FROM entities WHERE id = $1 FOR UPDATE")
             .bind(id)
             .fetch_optional(&mut **tx)
             .await?;
-    Ok(row.map(to_entity))
+    let Some((_, collection)) = row else {
+        return Ok(None);
+    };
+    let row: Row = sqlx::query_as(AssertSqlSafe(format!("{SELECT} WHERE id = $1")))
+        .bind(id)
+        .fetch_one(&mut **tx)
+        .await?;
+    Ok(Some((to_entity(row), collection)))
 }
 
 /// Lock the vault row and bump its seq.
-async fn next_seq(tx: &mut Transaction<'_, Postgres>, vault_id: Uuid) -> ApiResult<i64> {
+pub(crate) async fn next_seq(tx: &mut Transaction<'_, Postgres>, vault_id: Uuid) -> ApiResult<i64> {
     let (seq,): (i64,) = sqlx::query_as(
         "UPDATE vaults SET seq = seq + 1, updated_at = now() WHERE id = $1 RETURNING seq",
     )
@@ -137,7 +145,7 @@ impl AuditBatch {
     }
 }
 
-fn err(id: Uuid, code: &str) -> PushResult {
+pub(crate) fn err(id: Uuid, code: &str) -> PushResult {
     PushResult::Error {
         id,
         code: code.to_string(),
@@ -146,7 +154,7 @@ fn err(id: Uuid, code: &str) -> PushResult {
 
 /// Refuse clients older than [`MIN_SYNC_PROTOCOL`]: they would drop or
 /// mishandle item kinds they do not know, so they are told to update.
-fn check_protocol(protocol: u32) -> ApiResult<()> {
+pub(crate) fn check_protocol(protocol: u32) -> ApiResult<()> {
     if protocol >= MIN_SYNC_PROTOCOL {
         return Ok(());
     }
@@ -244,7 +252,15 @@ pub async fn push(
             results.push(err(c.id, "forbidden"));
             continue;
         }
-        let existing = fetch_entity(&mut tx, c.id).await?;
+        let existing = match fetch_entity_in(&mut tx, c.id).await? {
+            // Rows of a collection only change through its own routes.
+            Some((_, Some(_))) => {
+                results.push(err(c.id, "forbidden"));
+                continue;
+            }
+            Some((e, None)) => Some(e),
+            None => None,
+        };
         match (&existing, c.base_version) {
             (Some(e), _) if e.vault_id != c.vault_id => {
                 results.push(err(c.id, "forbidden"));
@@ -313,9 +329,16 @@ pub async fn push(
     }
 
     for d in &req.deletes {
-        let Some(e) = fetch_entity(&mut tx, d.id).await? else {
-            results.push(err(d.id, "not_found"));
-            continue;
+        let e = match fetch_entity_in(&mut tx, d.id).await? {
+            None => {
+                results.push(err(d.id, "not_found"));
+                continue;
+            }
+            Some((_, Some(_))) => {
+                results.push(err(d.id, "forbidden"));
+                continue;
+            }
+            Some((e, None)) => e,
         };
         let a = match access.get(&e.vault_id) {
             Some(a) => a.clone(),
@@ -434,7 +457,7 @@ pub async fn pull(
             continue;
         }
         let rows: Vec<Row> = sqlx::query_as(AssertSqlSafe(format!(
-            "{SELECT} WHERE vault_id = $1 AND seq > $2 ORDER BY seq LIMIT $3"
+            "{SELECT} WHERE vault_id = $1 AND seq > $2 AND collection_id IS NULL ORDER BY seq LIMIT $3"
         )))
         .bind(vault_id)
         .bind(since)

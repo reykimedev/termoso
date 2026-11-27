@@ -45,6 +45,7 @@ import dev.labdex.labterm.ui.components.SheetAction
 import dev.labdex.labterm.ui.components.SheetSection
 import dev.labdex.labterm.ui.components.SubScreen
 import dev.labdex.labterm.ui.components.itemClicks
+import dev.labdex.labterm.ui.components.rememberWritableVaults
 import dev.labdex.labterm.ui.hosts.ConfirmDialog
 import dev.labdex.labterm.ui.shell.ShellViewModel
 import kotlinx.coroutines.launch
@@ -159,10 +160,12 @@ fun OidcProvidersPage(repo: VaultRepository, vaultId: String, onNotify: (String)
             onClose = { if (menu == p) menu = null },
         )
     }
+    val newItemVaults = rememberWritableVaults(repo)
     editing?.let { p ->
         val id = p.id
         ProviderEditorPage(
             p,
+            vaults = newItemVaults,
             onDismiss = { editing = null },
             onDelete = if (id == null) null else ({ editing = null; confirmDelete = p }),
         ) { saved ->

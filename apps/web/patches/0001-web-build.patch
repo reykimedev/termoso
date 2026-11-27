@@ -1,5 +1,5 @@
 diff --git a/apps/desktop/index.html b/apps/desktop/index.html
-index ab13500..8150484 100644
+index 2e98867..9c7c030 100644
 --- a/apps/desktop/index.html
 +++ b/apps/desktop/index.html
 @@ -10,6 +10,6 @@
@@ -11,10 +11,10 @@ index ab13500..8150484 100644
    </body>
  </html>
 diff --git a/apps/desktop/src/app/AppShell.tsx b/apps/desktop/src/app/AppShell.tsx
-index 1dd5fac..dce26c0 100644
+index 2c07ec0..ee37c3b 100644
 --- a/apps/desktop/src/app/AppShell.tsx
 +++ b/apps/desktop/src/app/AppShell.tsx
-@@ -45,6 +45,7 @@ import { applyShortcutOverrides } from "./shortcuts";
+@@ -49,6 +49,7 @@ import { applyShortcutOverrides } from "./shortcuts";
  import { CommandPalette } from "./CommandPalette";
  import { startDeepLinks } from "./deepLinks";
  import { startNotifications } from "./notifications";
@@ -22,7 +22,7 @@ index 1dd5fac..dce26c0 100644
  import { startTray } from "./tray";
  import { tr } from "@/i18n";
  import { usePermsSync } from "@/team/perms";
-@@ -113,6 +114,7 @@ function UnlockedShell() {
+@@ -118,6 +119,7 @@ function UnlockedShell() {
    const serial = isSerialTab(activeTabId);
    const account = useAccount();
    const settings = useSettings();
@@ -30,16 +30,18 @@ index 1dd5fac..dce26c0 100644
  
    useSyncNotices();
    useCloudSyncEvents();
-@@ -158,7 +160,7 @@ function UnlockedShell() {
+@@ -163,8 +165,8 @@ function UnlockedShell() {
      >
        <TopBar />
        <Box sx={{ flex: 1, minHeight: 0, display: "flex" }}>
+-        {(home || sftp) && <VaultRail />}
 -        {(home || sftp) && <Sidebar />}
++        {(home || sftp) && !phone && <VaultRail />}
 +        {(home || sftp) && !phone && <Sidebar />}
          <Box
            sx={{
              flex: 1,
-@@ -213,6 +215,8 @@ function UnlockedShell() {
+@@ -224,6 +226,8 @@ function UnlockedShell() {
            </Box>
          </Box>
        </Box>
@@ -49,7 +51,7 @@ index 1dd5fac..dce26c0 100644
        <PaneLayer />
        <DockPreviewLayer />
 diff --git a/apps/desktop/src/app/TopBar.tsx b/apps/desktop/src/app/TopBar.tsx
-index 78f1d26..434a9a4 100644
+index 25864ab..1410c5d 100644
 --- a/apps/desktop/src/app/TopBar.tsx
 +++ b/apps/desktop/src/app/TopBar.tsx
 @@ -1,4 +1,5 @@
@@ -58,24 +60,24 @@ index 78f1d26..434a9a4 100644
  import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
  import AddRoundedIcon from "@mui/icons-material/AddRounded";
  import AddBoxRoundedIcon from "@mui/icons-material/AddBoxRounded";
-@@ -68,7 +69,7 @@ import { AppMenuButton } from "./AppMenu";
- import { TeamBlock } from "./TeamBlock";
+@@ -78,7 +79,7 @@ import { TeamBlock } from "./TeamBlock";
  import { WindowControls } from "./WindowControls";
- import { VaultMenu, useActiveVault } from "./vault";
+ import { useActiveVault, vaultName } from "./vault";
+ import { RailTile } from "./VaultRail";
 -import { IS_MAC, MAC_TRAFFIC_LIGHTS_WIDTH } from "@/lib/platform";
 +import { IS_MAC, IS_WEB, MAC_TRAFFIC_LIGHTS_WIDTH } from "@/lib/platform";
  import { withHint } from "./shortcuts";
  import { useEffect, useState } from "react";
  import { tr, trn } from "@/i18n";
-@@ -131,6 +132,7 @@ export function TopBar() {
+@@ -139,6 +140,7 @@ export function TopBar() {
+   );
+   const [newWorkspaceOver, mountNewWorkspaceDrop] = useHostDropNewWorkspace();
    const vault = useActiveVault();
-   const [vaultMenu, setVaultMenu] = useState<HTMLElement | null>(null);
-   const multiVault = vault.vaults.length > 1;
 +  const phone = usePhone();
  
    return (
      <Box
-@@ -143,7 +145,7 @@ export function TopBar() {
+@@ -151,7 +153,7 @@ export function TopBar() {
          bgcolor: "surface.lowest",
          borderBottom: 1,
          borderColor: "border.light",
@@ -84,10 +86,10 @@ index 78f1d26..434a9a4 100644
          userSelect: "none",
        }}
      >
-@@ -185,12 +187,12 @@ export function TopBar() {
+@@ -170,12 +172,12 @@ export function TopBar() {
          }
+         label={vault.data ? vaultName(vault.data) : tr("Vaults")}
        />
-       <VaultMenu anchor={vaultMenu} onClose={() => setVaultMenu(null)} />
 -      <TopTab
 +      {!phone && <TopTab
          active={activeTabId === SFTP_TAB}
@@ -99,7 +101,7 @@ index 78f1d26..434a9a4 100644
        {tabs.length > 0 && <Divider orientation="vertical" flexItem sx={{ my: 1.25, mx: 0.5 }} />}
        <Box
          data-tauri-drag-region
-@@ -278,12 +280,14 @@ export function TopBar() {
+@@ -263,12 +265,14 @@ export function TopBar() {
            </Tooltip>
          </Box>
        </Box>
@@ -121,7 +123,7 @@ index 78f1d26..434a9a4 100644
    );
  }
 diff --git a/apps/desktop/src/app/WindowControls.tsx b/apps/desktop/src/app/WindowControls.tsx
-index c040919..e83669a 100644
+index c040919..ed6a8ad 100644
 --- a/apps/desktop/src/app/WindowControls.tsx
 +++ b/apps/desktop/src/app/WindowControls.tsx
 @@ -6,11 +6,17 @@ import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
@@ -143,7 +145,7 @@ index c040919..e83669a 100644
  
    useEffect(() => {
 diff --git a/apps/desktop/src/components/ui.tsx b/apps/desktop/src/components/ui.tsx
-index 6bfa803..c7f13f8 100644
+index 6bfa803..dcea692 100644
 --- a/apps/desktop/src/components/ui.tsx
 +++ b/apps/desktop/src/components/ui.tsx
 @@ -38,6 +38,7 @@ import {
@@ -171,10 +173,10 @@ index 6bfa803..c7f13f8 100644
      >
        <Box
 diff --git a/apps/desktop/src/hosts/HostsPage.tsx b/apps/desktop/src/hosts/HostsPage.tsx
-index 6c61a9e..8be735f 100644
+index f593605..c35963c 100644
 --- a/apps/desktop/src/hosts/HostsPage.tsx
 +++ b/apps/desktop/src/hosts/HostsPage.tsx
-@@ -132,7 +132,7 @@ import { TeamSteps } from "@/team/TeamSteps";
+@@ -135,7 +135,7 @@ import { TeamSteps } from "@/team/TeamSteps";
  import { TagChip, tagColorMap } from "./TagChip";
  import { connectActions } from "./ConnectSplit";
  import { useHostDnd } from "./dnd";
@@ -183,7 +185,7 @@ index 6c61a9e..8be735f 100644
  import {
    hostLink,
    looksLikeTarget,
-@@ -1071,16 +1071,21 @@ export function HostsPage() {
+@@ -1104,16 +1104,21 @@ export function HostsPage() {
                })),
              ]}
            />
@@ -216,7 +218,7 @@ index 6c61a9e..8be735f 100644
          </Toolbar>
  
 diff --git a/apps/desktop/src/lib/platform.ts b/apps/desktop/src/lib/platform.ts
-index a24b6bc..94f00ed 100644
+index a24b6bc..b9a54d7 100644
 --- a/apps/desktop/src/lib/platform.ts
 +++ b/apps/desktop/src/lib/platform.ts
 @@ -6,3 +6,6 @@ export const IS_MAC: boolean =
@@ -227,7 +229,7 @@ index a24b6bc..94f00ed 100644
 +/** The browser build (Hatch): no Tauri, SSH in wasm through the relay. */
 +export const IS_WEB: boolean = import.meta.env.VITE_LABTERM_WEB === "1";
 diff --git a/apps/desktop/src/prompts/PromptHost.tsx b/apps/desktop/src/prompts/PromptHost.tsx
-index e93d4f3..ceb552f 100644
+index 6ce1df4..c3827a7 100644
 --- a/apps/desktop/src/prompts/PromptHost.tsx
 +++ b/apps/desktop/src/prompts/PromptHost.tsx
 @@ -20,6 +20,7 @@ import { useTerminal } from "@/terminal/store";

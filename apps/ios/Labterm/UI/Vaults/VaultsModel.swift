@@ -10,6 +10,8 @@ final class VaultsModel {
     let repository: VaultRepository
 
     private(set) var vaults: [VaultInfo] = []
+    /// Pinned vault ids, first pin first.
+    private(set) var pins: [String] = []
     private(set) var hosts: [HostItem] = []
     private(set) var groups: [GroupItem] = []
     private(set) var tags: [TagItem] = []
@@ -23,6 +25,26 @@ final class VaultsModel {
         self.repository = repository
     }
 
+    /// Pinned vaults first, in pin order, then the rest.
+    var pinnedVaults: [VaultInfo] {
+        pins.compactMap { id in vaults.first { $0.id == id } }
+    }
+
+    var unpinnedVaults: [VaultInfo] {
+        vaults.filter { !pins.contains($0.id) }
+    }
+
+    func isPinned(_ id: String) -> Bool { pins.contains(id) }
+
+    func togglePin(_ id: String) {
+        do {
+            try repository.toggleVaultPin(vaultId: id)
+            pins = try repository.vaultPins()
+        } catch {
+            self.error = userMessage(for: error)
+        }
+    }
+
     var selectedVault: VaultInfo? {
         vaults.first { $0.id == selectedVaultId }
     }
@@ -30,6 +52,7 @@ final class VaultsModel {
     func reload() {
         do {
             vaults = try repository.vaults()
+            pins = (try? repository.vaultPins()) ?? pins
             if selectedVaultId == nil || !vaults.contains(where: { $0.id == selectedVaultId }) {
                 selectedVaultId = vaults.first { $0.kind == .local }?.id ?? vaults.first?.id
             }
@@ -114,6 +137,20 @@ final class VaultsModel {
     }
 
     /// The hosts "Connect all" opens for a group; empty when it has none or on error.
+    /// Vaults hosts and groups can move or be copied into: unlocked, writable, not the current one.
+    var transferTargets: [VaultInfo] {
+        vaults.filter { $0.id != selectedVaultId && !$0.locked && $0.access != .view }
+    }
+
+    func transferPlan(_ r: TransferRequestState, withCredentials: Bool) throws -> TransferPlanCard {
+        try repository.vaultTransferPlan(hostIds: r.hostIds, groupIds: r.groupIds, vaultId: r.targetId, move: r.move, withCredentials: withCredentials)
+    }
+
+    func transfer(_ r: TransferRequestState, withCredentials: Bool) throws {
+        _ = try repository.vaultTransfer(hostIds: r.hostIds, groupIds: r.groupIds, vaultId: r.targetId, move: r.move, withCredentials: withCredentials)
+        reloadAddressBook()
+    }
+
     func connectAllHosts(inGroup id: String) -> [HostItem] {
         (try? repository.groupConnectAll(groupId: id)) ?? []
     }

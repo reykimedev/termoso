@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   Box,
   Button,
@@ -16,6 +16,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useSnackbar } from "@/components/Snackbar";
 import { MyCredentialsSection } from "./MyCredentialsSection";
 import { Field, Loading, SectionCard, SidePanel, ToolIconButton } from "@/components/ui";
+import { NewItemVaultField } from "./NewItemVaultField";
 import {
   useDeleteGroup,
   useDuplicateGroup,
@@ -51,7 +52,7 @@ interface Props {
 
 /** Group Details: name, parent, and the SSH defaults every host inside inherits. */
 export function GroupPanel({
-  vaultId,
+  vaultId: activeVault,
   groupId,
   initialParentId,
   onClose,
@@ -59,6 +60,10 @@ export function GroupPanel({
   onDuplicated,
 }: Props) {
   const loaded = useGroupForm(groupId);
+  // A new group may go into another vault; its parent belongs to the active one.
+  const [newVault, setNewVault] = useState(activeVault);
+  const vaultId = groupId === null ? newVault : activeVault;
+  const parentId = vaultId === activeVault ? initialParentId : null;
   if (groupId !== null && loaded.data === undefined) {
     return (
       <SidePanel title={tr("Group details")} onClose={onClose} width={sizes.panel}>
@@ -72,9 +77,13 @@ export function GroupPanel({
   }
   return (
     <GroupEditor
+      key={vaultId}
       vaultId={vaultId}
       groupId={groupId}
-      initial={loaded.data ?? emptyGroupForm(vaultId, initialParentId)}
+      vaultField={
+        groupId === null ? <NewItemVaultField value={vaultId} onChange={setNewVault} /> : null
+      }
+      initial={loaded.data ?? emptyGroupForm(vaultId, parentId)}
       onClose={onClose}
       onDeleted={onDeleted}
       onDuplicated={onDuplicated}
@@ -119,7 +128,8 @@ function GroupEditor({
   onClose,
   onDeleted,
   onDuplicated,
-}: Omit<Props, "initialParentId"> & { initial: GroupForm }) {
+  vaultField,
+}: Omit<Props, "initialParentId"> & { initial: GroupForm; vaultField?: ReactNode }) {
   const snackbar = useSnackbar();
   const groups = useGroups(vaultId);
   const save = useSaveGroupForm();
@@ -222,6 +232,7 @@ function GroupEditor({
         sx={{ display: "contents" }}
       >
         <SectionCard title={tr("Group")}>
+          {vaultField}
           <Field label={tr("Name")}>
             <Box sx={{ display: "flex", gap: 1.5, alignItems: "center" }}>
               <IconPicker
