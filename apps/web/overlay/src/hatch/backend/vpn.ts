@@ -11,6 +11,7 @@ export interface Transport {
   provider: string;
   management_url?: string | null;
   setup_key?: string | null;
+  direct_first?: boolean;
   [k: string]: unknown;
 }
 
@@ -19,6 +20,7 @@ interface Form {
   provider?: string;
   managementUrl: string | null;
   setupKey: string | null;
+  directFirst?: boolean;
 }
 
 const NETBIRD = "netbird";
@@ -41,6 +43,7 @@ function card(e: Ent<Transport>) {
     team,
     signedIn: false,
     account: null,
+    directFirst: e.data.direct_first ?? false,
   };
 }
 
@@ -86,6 +89,7 @@ export function save(vaultId: Uuid, id: Uuid | null, f: Form) {
     provider,
     management_url: url || null,
     setup_key: keys ? setupKey : null,
+    direct_first: f.directFirst ?? prev?.data.direct_first ?? false,
   };
   return card(put<Transport>("transport", vaultId, prev?.id ?? null, data));
 }
@@ -147,5 +151,6 @@ export function details(id: Uuid) {
     liveError: null,
     peers: [],
     hosts: hostsUsing(t),
+    dns: [],
   };
 }

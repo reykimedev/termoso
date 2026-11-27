@@ -40,6 +40,8 @@ pub struct VpnNetwork {
     pub signed_in: bool,
     /// The account this device signs in as (kept on this device only).
     pub account: Option<String>,
+    /// Try a host's LAN address directly first.
+    pub direct_first: bool,
 }
 
 /// A network's state on this device, for the details page and host badges:
@@ -92,6 +94,42 @@ pub struct VpnDetails {
     pub live_error: Option<String>,
     pub peers: Vec<VpnPeer>,
     pub hosts: Vec<VpnHost>,
+    /// NetBird's nameserver groups as this device applied them.
+    pub dns: Vec<VpnDnsGroup>,
+}
+
+/// One nameserver group on the details page.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VpnDnsGroup {
+    /// Match domains; empty = primary (every other name).
+    pub domains: Vec<String>,
+    pub servers: Vec<String>,
+    /// Reachable through the network, so Labterm asks it itself.
+    pub tunnel: bool,
+}
+
+/// The connection test's result for one host (`vpn_test_host`).
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VpnHostTest {
+    pub network: String,
+    /// Time to get the network up; 0 = it was running.
+    pub start_ms: u64,
+    pub network_error: Option<String>,
+    /// The name that resolved, and how: `address`, `nameserver`, `netbird`
+    /// or `tailscale`.
+    pub name: String,
+    pub via: String,
+    pub server: String,
+    pub remote: String,
+    pub connect_ms: u64,
+    pub banner: String,
+    pub error: Option<String>,
+    /// The peer the connection goes through, and the route when the address
+    /// isn't the peer's own.
+    pub peer: Option<VpnPeer>,
+    pub route: Option<String>,
 }
 
 /// What the editor sends. `setupKey: null` keeps the stored key.
@@ -105,6 +143,8 @@ pub struct VpnNetworkForm {
     pub management_url: Option<String>,
     #[serde(default)]
     pub setup_key: Option<String>,
+    #[serde(default)]
+    pub direct_first: bool,
 }
 
 #[cfg(unix)]
@@ -237,6 +277,7 @@ fn to_network(store: &Arc<Store>, e: Entity<Transport>) -> VpnNetwork {
         team: s.team,
         signed_in: s.signed_in,
         account: s.account,
+        direct_first: e.data.direct_first,
     }
 }
 
@@ -311,6 +352,7 @@ async fn details(store: &Arc<Store>, id: Uuid) -> Result<VpnDetails> {
         live_error: None,
         peers: Vec::new(),
         hosts,
+        dns: Vec::new(),
     };
     #[cfg(unix)]
     {
@@ -321,22 +363,32 @@ async fn details(store: &Arc<Store>, id: Uuid) -> Result<VpnDetails> {
             out.fqdn = live.fqdn;
             out.management_connected = live.management;
             out.signal_connected = live.signal;
-            out.peers = live
-                .peers
+            out.peers = live.peers.into_iter().map(peer_dto).collect();
+            out.dns = live
+                .dns
                 .into_iter()
-                .map(|p| VpnPeer {
-                    fqdn: p.fqdn,
-                    ip: p.ip,
-                    connected: p.connected,
-                    relayed: p.relayed,
-                    latency_ms: p.latency_ms,
-                    handshake: p.handshake,
-                    routes: p.routes,
+                .map(|g| VpnDnsGroup {
+                    domains: g.domains,
+                    servers: g.servers,
+                    tunnel: g.tunnel,
                 })
                 .collect();
         }
     }
     Ok(out)
+}
+
+#[cfg(unix)]
+fn peer_dto(p: client::PeerDetails) -> VpnPeer {
+    VpnPeer {
+        fqdn: p.fqdn,
+        ip: p.ip,
+        connected: p.connected,
+        relayed: p.relayed,
+        latency_ms: p.latency_ms,
+        handshake: p.handshake,
+        routes: p.routes,
+    }
 }
 
 /// Vault locked or app sent away: stop every network; the next connection
@@ -400,6 +452,7 @@ pub async fn vpn_network_save(
                 .unwrap_or_else(|| labterm_proto::entities::TRANSPORT_NETBIRD.to_owned()),
             management_url: network.management_url,
             setup_key: network.setup_key,
+            direct_first: network.direct_first,
         },
     )?;
     Ok(to_network(&store, saved))
@@ -467,6 +520,43 @@ pub async fn vpn_states(
 #[tauri::command]
 pub async fn vpn_details(state: State<'_, AppState>, id: Uuid) -> Result<VpnDetails> {
     details(&state.store()?, id).await
+}
+
+/// The connection test for a host that uses a VPN network: join, dial,
+/// read the SSH banner, hang up. No login.
+#[tauri::command]
+pub async fn vpn_test_host(state: State<'_, AppState>, host_id: Uuid) -> Result<VpnHostTest> {
+    let store = state.store()?;
+    #[cfg(unix)]
+    {
+        let label = store
+            .resolve_host(host_id)?
+            .transport
+            .map(|t| t.data.label)
+            .unwrap_or_default();
+        let t = client::test_host(&store, host_id).await?;
+        Ok(VpnHostTest {
+            network: label,
+            start_ms: t.start_ms,
+            network_error: t.network_error,
+            name: t.name,
+            via: t.via,
+            server: t.server,
+            remote: t.remote,
+            connect_ms: t.connect_ms,
+            banner: t.banner,
+            error: t.error,
+            peer: t.peer.map(peer_dto),
+            route: t.route,
+        })
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (store, host_id);
+        Err(crate::error::DesktopError::invalid(
+            "VPN networks are not available on Windows yet",
+        ))
+    }
 }
 
 /// Leave a network now; the next connection through it joins again.

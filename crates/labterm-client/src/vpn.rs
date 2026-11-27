@@ -16,7 +16,7 @@ use labterm_core::store::Store;
 use labterm_core::transport::TransportDial;
 use labterm_netbird::{Netbird, NetworkConfig, NodeState, PeerKeys, SIGN_IN_NEEDED, SignIn};
 
-pub use labterm_netbird::{Details, PeerDetails};
+pub use labterm_netbird::{Details, DnsGroup, HostTest, PeerDetails};
 use uuid::Uuid;
 use zeroize::Zeroizing;
 
@@ -418,6 +418,32 @@ pub async fn connect(store: &Arc<Store>, network_id: Uuid) -> Result<()> {
     Ok(())
 }
 
+/// The connection test for a host set to use a network: joins the
+/// network, dials the host's address and port through it like an SSH
+/// connection would, reads the SSH banner and hangs up (no login, nothing
+/// sent). The host's own settings decide the network; a host that uses
+/// none is refused.
+pub async fn test_host(store: &Arc<Store>, host_id: Uuid) -> Result<labterm_netbird::HostTest> {
+    let resolved = store.resolve_host(host_id)?;
+    let Some(entity) = resolved.transport.clone() else {
+        return Err(crate::error::ClientError::invalid(
+            "this host doesn't connect through a VPN network",
+        ));
+    };
+    let c = network(store, entity.id)?;
+    let name = device_name(store, entity.vault_id);
+    let address = resolved.host.data.address.trim().to_owned();
+    Ok(NETBIRD
+        .test_host(
+            &c,
+            &name,
+            &StoreKeys(store.clone()),
+            &address,
+            resolved.port(),
+        )
+        .await)
+}
+
 /// Whether this app has joined the network right now.
 pub async fn is_running(network_id: Uuid) -> bool {
     NETBIRD.is_running(network_id).await
@@ -474,6 +500,7 @@ mod tests {
             provider: String::new(),
             management_url: Some("https://netbird.example.com".into()),
             setup_key: None,
+            direct_first: false,
         };
         let gone = transports::save(&store, vault, None, net("gone")).unwrap();
         let kept = transports::save(&store, vault, None, net("kept")).unwrap();

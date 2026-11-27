@@ -49,6 +49,9 @@ pub struct HostCard {
     pub os_name: Option<String>,
     /// User-chosen icon id; takes precedence over `os_name`.
     pub icon: Option<String>,
+    /// User-chosen colour (`#rrggbb`) for the icon tile.
+    #[serde(default)]
+    pub color: Option<String>,
     /// `auto` | `4` | `6`.
     pub ip_version: String,
     pub notes: String,
@@ -175,6 +178,9 @@ pub struct HostForm {
     /// User-chosen icon id (`None` = follow detection).
     #[serde(default)]
     pub icon: Option<String>,
+    /// User-chosen colour (`#rrggbb`); `None` keeps the icon's own colour.
+    #[serde(default)]
+    pub color: Option<String>,
     /// `auto` (default) | `4` | `6`.
     #[serde(default = "default_ip_version")]
     pub ip_version: String,
@@ -474,6 +480,20 @@ fn clean_icon(icon: &Option<String>) -> Result<Option<String>> {
     Ok(Some(value.to_string()))
 }
 
+/// Host and group colours are stored as `#rrggbb` so every client can parse
+/// them (Android's `Color.parseColor` has no `#rgb`).
+fn clean_color(color: Option<String>) -> Result<Option<String>> {
+    let Some(c) = normalize_tag_color(color)? else {
+        return Ok(None);
+    };
+    let hex = &c[1..];
+    if hex.len() == 3 {
+        let long: String = hex.chars().flat_map(|ch| [ch, ch]).collect();
+        return Ok(Some(format!("#{long}")));
+    }
+    Ok(Some(c))
+}
+
 /// Empty / whitespace scheme ids mean "follow the app setting".
 fn clean_scheme(scheme: &Option<String>) -> Option<String> {
     scheme
@@ -682,6 +702,9 @@ pub struct GroupNode {
     pub has_config: bool,
     /// User-chosen icon id (`None` = default folder).
     pub icon: Option<String>,
+    /// User-chosen colour (`#rrggbb`; `None` = theme colour).
+    #[serde(default)]
+    pub color: Option<String>,
 }
 
 /// Editor model for a group: name, parent and the SSH defaults hosts inherit.
@@ -695,6 +718,9 @@ pub struct GroupForm {
     /// User-chosen icon id (`None` = default folder).
     #[serde(default)]
     pub icon: Option<String>,
+    /// User-chosen colour (`#rrggbb`; `None` = theme colour).
+    #[serde(default)]
+    pub color: Option<String>,
     #[serde(flatten)]
     pub defaults: SshDefaultsForm,
 }
@@ -938,6 +964,7 @@ pub fn cards(store: &Store, vault_id: Option<Uuid>) -> Result<Vec<HostCard>> {
             tags: r.tags,
             os_name: h.data.os_name.clone(),
             icon: h.data.icon.clone(),
+            color: h.data.color.clone(),
             ip_version: ip_version_of(&h.data.ip_version),
             notes: h.data.notes.clone(),
             sort_order: h.data.sort_order,
@@ -983,6 +1010,7 @@ pub fn groups(store: &Store, vault_id: Option<Uuid>) -> Result<Vec<GroupNode>> {
                 .count(),
             has_config: g.data.ssh_config_id.is_some(),
             icon: g.data.icon.clone(),
+            color: g.data.color.clone(),
             id: g.id,
             vault_id: g.vault_id,
             label: g.data.label.clone(),
@@ -1074,7 +1102,7 @@ fn normalize_tag_color(color: Option<String>) -> Result<Option<String>> {
     }
     let hex = c.strip_prefix('#').unwrap_or(&c);
     if !matches!(hex.len(), 3 | 6) || !hex.chars().all(|ch| ch.is_ascii_hexdigit()) {
-        return Err(ClientError::invalid("tag colour must be a hex value"));
+        return Err(ClientError::invalid("colour must be a hex value"));
     }
     Ok(Some(format!("#{hex}")))
 }
@@ -1283,6 +1311,7 @@ pub fn form(store: &Store, id: Uuid) -> Result<HostForm> {
         os_name: host.data.os_name,
         mac_address: host.data.mac_address,
         icon: host.data.icon,
+        color: host.data.color,
         ip_version: ip_version_of(&host.data.ip_version),
         agent_forwarding: ssh.as_ref().is_some_and(|s| s.agent_forwarding),
         forward_x11: ssh.as_ref().is_some_and(|s| s.forward_x11),
@@ -1690,6 +1719,7 @@ pub fn save(store: &Store, f: &HostForm) -> Result<HostCard> {
         .filter(|s| !s.is_empty())
         .map(str::to_string);
     host.icon = clean_icon(&f.icon)?;
+    host.color = clean_color(f.color.clone())?;
     host.backspace = clean_scheme(&f.backspace);
     host.ip_version = match f.ip_version.as_str() {
         "4" | "6" => f.ip_version.clone(),
@@ -2055,6 +2085,7 @@ pub fn group_form(store: &Store, id: Uuid) -> Result<GroupForm> {
         label: g.data.label,
         parent_id: g.data.parent_id,
         icon: g.data.icon,
+        color: g.data.color,
         defaults: load_defaults(store, g.data.ssh_config_id)?,
     })
 }
@@ -2229,6 +2260,7 @@ pub fn save_group_form(store: &Store, f: &GroupForm) -> Result<GroupNode> {
     data.label = label.to_string();
     data.parent_id = f.parent_id;
     data.icon = clean_icon(&f.icon)?;
+    data.color = clean_color(f.color.clone())?;
     data.ssh_config_id = ssh_config_id;
     let gid = match &existing {
         Some(e) => {
@@ -2768,6 +2800,7 @@ mod tests {
             notes: String::new(),
             os_name: None,
             icon: None,
+            color: None,
             ip_version: "auto".into(),
             agent_forwarding: false,
             forward_x11: false,
@@ -2968,6 +3001,7 @@ mod tests {
                 provider: "netbird".into(),
                 management_url: None,
                 setup_key: Some("example-setup-key".into()),
+                direct_first: false,
             },
         )
         .unwrap();
@@ -3568,6 +3602,39 @@ mod tests {
     }
 
     #[test]
+    fn host_and_group_colors_are_normalized_and_validated() {
+        let s = store();
+        let vault = s.local_vault().unwrap().id;
+        let mut f = new_form(vault);
+        f.color = Some(" #ABC ".into());
+        let card = save(&s, &f).unwrap();
+        assert_eq!(card.color.as_deref(), Some("#aabbcc"));
+        assert_eq!(form(&s, card.id).unwrap().color.as_deref(), Some("#aabbcc"));
+
+        let mut f = form(&s, card.id).unwrap();
+        f.color = Some("1e88e5".into());
+        assert_eq!(save(&s, &f).unwrap().color.as_deref(), Some("#1e88e5"));
+        f.color = Some("red".into());
+        assert!(save(&s, &f).is_err());
+        f.color = Some("url(https://example.com/x)".into());
+        assert!(save(&s, &f).is_err());
+        f.color = Some(String::new());
+        assert_eq!(save(&s, &f).unwrap().color, None);
+
+        let g = save_group(&s, vault, None, "servers", None).unwrap();
+        let mut gf = group_form(&s, g.id).unwrap();
+        gf.color = Some("#43A047".into());
+        let g = save_group_form(&s, &gf).unwrap();
+        assert_eq!(g.color.as_deref(), Some("#43a047"));
+        assert_eq!(
+            duplicate_group(&s, g.id).unwrap().color.as_deref(),
+            Some("#43a047")
+        );
+        gf.color = Some("#12".into());
+        assert!(save_group_form(&s, &gf).is_err());
+    }
+
+    #[test]
     fn custom_icons_round_trip_and_reject_invalid_values() {
         let s = store();
         let vault = s.local_vault().unwrap().id;
@@ -3615,6 +3682,7 @@ mod tests {
                 label: "dc1".into(),
                 parent_id: None,
                 icon: None,
+                color: None,
                 defaults: SshDefaultsForm {
                     port: Some(2200),
                     username: "ops".into(),
@@ -3691,6 +3759,7 @@ mod tests {
                 label: "dc1".into(),
                 parent_id: None,
                 icon: None,
+                color: None,
                 defaults: SshDefaultsForm {
                     port: Some(2200),
                     ..Default::default()

@@ -3,6 +3,8 @@ package main
 import (
 	"net/netip"
 	"testing"
+
+	mgmProto "github.com/netbirdio/netbird/shared/management/proto"
 )
 
 func TestPickServers(t *testing.T) {
@@ -71,6 +73,30 @@ func TestTunnelPrefixes(t *testing.T) {
 	for i := range want {
 		if got[i].String() != want[i] {
 			t.Errorf("got %v, want %v", got, want)
+		}
+	}
+}
+
+func TestSearchList(t *testing.T) {
+	cfg := &mgmProto.DNSConfig{
+		CustomZones: []*mgmProto.CustomZone{
+			{Domain: "netbird.example."},
+			{Domain: "zone.example.com.", SearchDomainDisabled: true},
+			{Domain: "lab.example.com."},
+		},
+		NameServerGroups: []*mgmProto.NameServerGroup{
+			{Domains: []string{"home.example.com"}, SearchDomainsEnabled: true},
+			{Domains: []string{"office.example.com"}},
+		},
+	}
+	got := searchList("netbird.example", cfg)
+	want := []string{"netbird.example", "lab.example.com", "home.example.com"}
+	if len(got) != len(want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("got %v, want %v", got, want)
 		}
 	}
 }

@@ -9,6 +9,7 @@
 //! [`SshClient::connect_via`] through it.
 
 mod auth;
+mod direct;
 mod handler;
 mod peek;
 pub mod proxy;
@@ -373,6 +374,14 @@ impl SshClient {
                     .map(|s| proxy::ProxyStream::Ws(Box::new(s)));
             }
             if let Some(t) = &opts.transport {
+                if t.direct_first() {
+                    opts.report(ConnectPhase::Connecting {
+                        via: "LAN".to_string(),
+                    });
+                    if let Some(s) = direct::try_lan(&opts).await {
+                        return Ok(proxy::ProxyStream::Tcp(s));
+                    }
+                }
                 opts.report(ConnectPhase::Connecting { via: t.label() });
                 return t
                     .dial(&opts.target.host, opts.target.port)

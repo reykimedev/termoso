@@ -143,7 +143,7 @@ fun HostActionsSheet(
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 24.dp),
         ) {
-            ItemSheetHeader(host.label.ifBlank { host.address }, hostSubtitle(host)) { HostAvatar(host.osName, icon = host.icon) }
+            ItemSheetHeader(host.label.ifBlank { host.address }, hostSubtitle(host)) { HostAvatar(host.osName, icon = host.icon, color = host.color) }
             val vpn = host.vpn
             HostFactChips(vpn, vpn?.let { badges.vpn(it) }, badges.facts(host), onVpn = vpn?.let { v -> then { onOpenVpn(v.id) } })
 

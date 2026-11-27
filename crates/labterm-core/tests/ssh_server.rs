@@ -1042,11 +1042,15 @@ async fn unknown_host_key_is_rejected_by_strict_prompt() {
 struct LoopbackTransport {
     port: u16,
     dialled: std::sync::Mutex<Vec<(String, u16)>>,
+    direct_first: bool,
 }
 
 impl labterm_core::transport::TransportDial for LoopbackTransport {
     fn label(&self) -> String {
         "test network".into()
+    }
+    fn direct_first(&self) -> bool {
+        self.direct_first
     }
     fn dial<'a>(
         &'a self,
@@ -1074,6 +1078,7 @@ async fn transport_dials_the_host_and_host_key_is_checked_by_its_name() {
     let transport = Arc::new(LoopbackTransport {
         port: h.port,
         dialled: Default::default(),
+        direct_first: false,
     });
     let target = || SshTarget {
         host: "nb-host.example.com".into(),
@@ -1111,6 +1116,55 @@ async fn transport_dials_the_host_and_host_key_is_checked_by_its_name() {
             ("nb-host.example.com".to_string(), 22)
         ]
     );
+}
+
+/// "Direct at home": a LAN address (loopback here) that answers with the
+/// trusted host key is used directly; an unknown key there, or a name that
+/// isn't on the LAN, goes through the network.
+#[tokio::test]
+async fn direct_first_uses_the_lan_only_with_the_trusted_key() {
+    let h = start().await;
+    let transport = Arc::new(LoopbackTransport {
+        port: h.port,
+        dialled: Default::default(),
+        direct_first: true,
+    });
+    let opts = |host: &str, port: u16| {
+        let target = SshTarget {
+            host: host.into(),
+            port,
+            username: USER.into(),
+        };
+        let mut o = ConnectOptions::new(target, h.kh.clone(), Arc::new(StrictPrompt));
+        o.timeout = Duration::from_secs(10);
+        o.transport = Some(transport.clone());
+        o.auth
+            .push(AuthMethod::Password(Zeroizing::new(PASSWORD.into())));
+        o
+    };
+
+    // Not trusted yet: the LAN answers, but the network is used (and the
+    // strict prompt refuses the unknown key there).
+    let err = SshClient::connect(opts("127.0.0.1", h.port))
+        .await
+        .err()
+        .unwrap();
+    assert!(matches!(err, CoreError::HostKeyRejected { .. }), "{err:?}");
+    assert_eq!(transport.dialled.lock().unwrap().len(), 1);
+
+    // Trusted: straight to the LAN address, the network stays off.
+    h.kh.trust("127.0.0.1", h.port, &h.host_key).unwrap();
+    let c = SshClient::connect(opts("127.0.0.1", h.port)).await.unwrap();
+    let out = c.exec("whoami", None).await.unwrap();
+    assert_eq!(out.exit_code, Some(0));
+    assert_eq!(transport.dialled.lock().unwrap().len(), 1);
+
+    // A name that doesn't resolve to a LAN address: the network.
+    h.kh.trust("nb-host.example.com", 22, &h.host_key).unwrap();
+    SshClient::connect(opts("nb-host.example.com", 22))
+        .await
+        .unwrap();
+    assert_eq!(transport.dialled.lock().unwrap().len(), 2);
 }
 
 /// Prompt standing in for the UI's changed-key dialog: records what it was

@@ -40,13 +40,22 @@ fun distroVector(icon: DistroIcon): ImageVector = vectorCache.getOrPut(icon.id) 
 /**
  * Host tile: the icon the user picked (`Host.icon`: a built-in id from
  * [IconCatalog] or a `custom:data:` image, see [CustomIcon]) or, failing that, the brand-coloured distro glyph when the OS is known, and a
- * neutral terminal tile otherwise; green check while selected.
+ * neutral terminal tile otherwise; green check while selected. [color]
+ * (`Host.color`, see [TileColors]) replaces the tile's background.
  */
 @Composable
-fun HostAvatar(osName: String?, modifier: Modifier = Modifier, selected: Boolean = false, size: Int = 40, icon: String? = null) {
+fun HostAvatar(
+    osName: String?,
+    modifier: Modifier = Modifier,
+    selected: Boolean = false,
+    size: Int = 40,
+    icon: String? = null,
+    color: String? = null,
+) {
+    val tile = remember(color) { TileColors.parse(color) }
     val custom = rememberCustomIcon(icon)
     if (custom != null && !selected) {
-        CustomIconTile(custom, modifier = modifier, size = size)
+        CustomIconTile(custom, modifier = modifier, size = size, container = tile)
         return
     }
     val icon = remember(osName, icon) { IconCatalog.picked(icon) ?: DistroIcons.forOs(osName) }
@@ -57,6 +66,7 @@ fun HostAvatar(osName: String?, modifier: Modifier = Modifier, selected: Boolean
             .background(
                 when {
                     selected -> MaterialTheme.colorScheme.primary
+                    tile != null -> tile
                     icon != null -> icon.color
                     else -> MaterialTheme.colorScheme.surfaceContainerHighest
                 },
@@ -73,7 +83,7 @@ fun HostAvatar(osName: String?, modifier: Modifier = Modifier, selected: Boolean
             else -> Icon(
                 Icons.Filled.Terminal,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurface,
+                tint = if (tile != null) Color.White else MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.size((size * 0.55).dp),
             )
         }

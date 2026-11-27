@@ -82,19 +82,20 @@ fun LabtermRoot(container: AppContainer, vault: VaultState) {
         }
     }
 
+    // Try the Keystore first and prompt only when it asks for the user: one
+    // successful prompt opens the vault within the auth window. (Prompting
+    // up front on every retry showed the system prompt twice on launch.)
     LaunchedEffect(attempt, manualLock) {
         if (vault !is VaultState.Locked || manualLock) return@LaunchedEffect
-        if (needAuth && !prompt()) return@LaunchedEffect
-        runCatching { container.unlock() }
+        var result = runCatching { container.unlock() }
+        if (result.exceptionOrNull() is UserNotAuthenticatedException) {
+            needAuth = true
+            if (!prompt()) return@LaunchedEffect
+            result = runCatching { container.unlock() }
+        }
+        result
             .onSuccess { needAuth = false }
-            .onFailure {
-                if (it is UserNotAuthenticatedException) {
-                    needAuth = true
-                    if (prompt()) attempt++
-                } else {
-                    error = it.userMessage()
-                }
-            }
+            .onFailure { error = it.userMessage() }
     }
     LaunchedEffect(gated) {
         if (gated && !container.appPin.isSet && prompt()) container.ungate()

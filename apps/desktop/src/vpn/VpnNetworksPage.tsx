@@ -1,6 +1,17 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, Box, Button, CircularProgress, MenuItem, Stack, TextField } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Button,
+  CircularProgress,
+  FormControlLabel,
+  FormHelperText,
+  MenuItem,
+  Stack,
+  Switch,
+  TextField,
+} from "@mui/material";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
@@ -229,6 +240,7 @@ function NetworkForm({
   const tailscale = provider === "tailscale";
   const [url, setUrl] = useState(network?.managementUrl ?? "");
   const [setupKey, setSetupKey] = useState("");
+  const [directFirst, setDirectFirst] = useState(network?.directFirst ?? false);
   const [account, setAccount] = useState(network?.account ?? "");
   const [busy, setBusy] = useState<"save" | "delete" | "signIn" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -252,6 +264,7 @@ function NetworkForm({
     provider,
     managementUrl: url.trim() || null,
     setupKey: !signInOnly && setupKey.trim() ? setupKey.trim() : null,
+    directFirst,
   });
   const save = async () => {
     if (await run("save", () => ipc.vpnNetworkSave(vaultId, network?.id ?? null, form()))) onDone();
@@ -323,6 +336,23 @@ function NetworkForm({
             slotProps={{ htmlInput: { readOnly } }}
           />
         )}
+        <Box>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={directFirst}
+                disabled={readOnly}
+                onChange={(e) => setDirectFirst(e.target.checked)}
+              />
+            }
+            label={tr("Connect directly on the host's LAN")}
+          />
+          <FormHelperText>
+            {tr(
+              "At home: when the host's LAN address answers with the host key you already trust, connect without the network.",
+            )}
+          </FormHelperText>
+        </Box>
         {error && (
           <Alert severity="error" variant="outlined">
             {error}

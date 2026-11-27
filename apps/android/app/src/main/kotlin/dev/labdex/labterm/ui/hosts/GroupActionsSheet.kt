@@ -45,21 +45,27 @@ import dev.labdex.labterm.ui.components.IconTile
 import dev.labdex.labterm.ui.components.ItemActionsSheet
 import dev.labdex.labterm.ui.components.SheetAction
 import dev.labdex.labterm.ui.components.SheetSection
+import dev.labdex.labterm.ui.components.TileColors
 import dev.labdex.labterm.ui.components.distroVector
 import dev.labdex.labterm.ui.components.rememberCustomIcon
 
-/** A group's tile: its picked icon, a custom one, or the folder. */
+/** A group's tile: its picked icon, a custom one, or the folder, on its colour. */
 @Composable
-fun GroupTile(g: GroupItem) = GroupIconTile(g.icon)
+fun GroupTile(g: GroupItem) = GroupIconTile(g.icon, g.color)
 
-/** The tile for a group icon id; `null` (or an unknown id) is the folder. */
+/**
+ * The tile for a group icon id; `null` (or an unknown id) is the folder.
+ * [color] (`#rrggbb`) replaces the background.
+ */
 @Composable
-fun GroupIconTile(icon: String?) {
+fun GroupIconTile(icon: String?, color: String? = null) {
     val picked = remember(icon) { IconCatalog.picked(icon) }
     val custom = rememberCustomIcon(icon)
+    val tile = remember(color) { TileColors.parse(color) }
     when {
-        picked != null -> IconTile(distroVector(picked), tint = Color.White, container = picked.color)
-        custom != null -> CustomIconTile(custom)
+        picked != null -> IconTile(distroVector(picked), tint = Color.White, container = tile ?: picked.color)
+        custom != null -> CustomIconTile(custom, container = tile)
+        tile != null -> IconTile(Icons.Filled.Folder, tint = Color.White, container = tile)
         else -> IconTile(Icons.Filled.Folder)
     }
 }

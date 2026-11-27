@@ -191,6 +191,10 @@ pub mod payload {
             /// `None` shows the default folder.
             #[serde(default, skip_serializing_if = "Option::is_none")]
             pub icon: Option<String>,
+            /// Colour chosen by the user (`#rrggbb`); tints the group's icon.
+            /// `None` keeps the theme colour.
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            pub color: Option<String>,
             /// Id of the group in the system that created it through an API
             /// bridge (CMDB, cloud inventory); lets the bridge find it again.
             #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -240,6 +244,10 @@ pub mod payload {
             /// overrides the detected `os_name` for display.
             #[serde(default, skip_serializing_if = "Option::is_none")]
             pub icon: Option<String>,
+            /// Colour chosen by the user (`#rrggbb`); tints the host's icon.
+            /// `None` keeps the icon's own colour.
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            pub color: Option<String>,
             /// Preferred IP version: `auto`, `4`, `6`.
             #[serde(default)]
             pub ip_version: String,
@@ -657,6 +665,11 @@ pub mod payload {
             /// reach SSH. Optional so a sign-in can replace it later.
             #[serde(default, skip_serializing_if = "Option::is_none")]
             pub setup_key: Option<String>,
+            /// Try a host's LAN address directly first (the device is on
+            /// the host's network, at home) and use the network only when
+            /// that doesn't answer.
+            #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+            pub direct_first: bool,
         }
     }
 

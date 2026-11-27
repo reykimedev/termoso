@@ -72,6 +72,7 @@ import dev.labdex.labterm.ui.components.SectionCard
 import dev.labdex.labterm.ui.components.SheetAction
 import dev.labdex.labterm.ui.components.SheetSection
 import dev.labdex.labterm.ui.components.SubScreen
+import dev.labdex.labterm.ui.components.SwitchRow
 import dev.labdex.labterm.ui.components.itemClicks
 import dev.labdex.labterm.ui.hosts.vpnProviderName
 import dev.labdex.labterm.ui.shell.ShellViewModel
@@ -136,6 +137,7 @@ fun NetbirdNetworksScreen(shell: ShellViewModel, onBack: () -> Unit, onOpenNetwo
             team = signInOnly,
             signedIn = false,
             account = null,
+            directFirst = false,
         )
     }
 
@@ -293,6 +295,7 @@ internal fun NetworkEditDialog(
     val tailscale = provider == TAILSCALE
     var url by remember { mutableStateOf(current.managementUrl.orEmpty()) }
     var setupKey by remember { mutableStateOf("") }
+    var directFirst by remember { mutableStateOf(current.directFirst) }
     // A stored key is never shown again: leaving the field empty keeps it. Without
     // a key, each user joins by signing in.
     val valid = label.isNotBlank()
@@ -337,6 +340,12 @@ internal fun NetworkEditDialog(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                SwitchRow(
+                    title = stringResource(R.string.vpn_direct_first),
+                    subtitle = stringResource(R.string.vpn_direct_first_hint),
+                    checked = directFirst,
+                    onCheckedChange = { directFirst = it },
+                )
                 if (onSignIn != null) {
                     TextButton(onClick = onSignIn) {
                         Text(stringResource(if (current.signedIn) R.string.netbird_sign_in_again else R.string.netbird_sign_in))
@@ -355,6 +364,7 @@ internal fun NetworkEditDialog(
                         provider = provider,
                         managementUrl = url.trim().ifEmpty { null },
                         setupKey = if (current.team) null else setupKey.trim().ifEmpty { null },
+                        directFirst = directFirst,
                     ),
                 )
             }) { Text(stringResource(R.string.save)) }

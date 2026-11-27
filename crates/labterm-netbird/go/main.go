@@ -68,10 +68,13 @@ type nbNode struct {
 }
 
 func (b nbNode) Dial(ctx context.Context, network, addr string) (net.Conn, error) {
-	return nbDial(ctx, b, network, addr)
+	return nbDial(ctx, b, network, addr, nil)
 }
 
-func (b nbNode) Stop(ctx context.Context) error { return b.c.Stop(ctx) }
+func (b nbNode) Stop(ctx context.Context) error {
+	dropSearchCache(b.c)
+	return b.c.Stop(ctx)
+}
 
 func (b nbNode) Status() (statusOut, error) { return nbStatus(b.c) }
 

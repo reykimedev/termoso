@@ -798,6 +798,7 @@ impl LabtermApp {
                 label: String::new(),
                 parent_id: None,
                 icon: None,
+                color: None,
                 defaults: hosts::SshDefaultsForm::default(),
             },
         };
@@ -807,6 +808,7 @@ impl LabtermApp {
             .icon
             .map(|i| i.trim().to_string())
             .filter(|i| !i.is_empty());
+        form.color = draft.color;
         draft.defaults.apply(&mut form.defaults)?;
         Ok(hosts::save_group_form(&self.store, &form)?.into())
     }
@@ -1131,6 +1133,12 @@ impl LabtermApp {
     /// address, the peers it sees and the hosts that use the network.
     pub fn transport_details(&self, transport_id: String) -> Result<crate::TransportDetails> {
         RUNTIME.block_on(crate::netbird::details(&self.store, &transport_id))
+    }
+
+    /// The connection test for a host that uses a VPN network: join, look
+    /// the name up, dial, read the SSH banner. No login.
+    pub fn transport_test_host(&self, host_id: String) -> Result<crate::TransportHostTest> {
+        RUNTIME.block_on(crate::netbird::test_host(&self.store, &host_id))
     }
 
     /// Leave a network now; the next connection through it joins again.

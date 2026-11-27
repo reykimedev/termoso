@@ -82,6 +82,7 @@ import type {
   OidcKeyOptions,
   OidcProvider,
   VpnDetails,
+  VpnHostTest,
   VpnNetwork,
   VpnNetworkForm,
   VpnState,
@@ -513,6 +514,8 @@ export const vpnRunning = (ids: Uuid[]) => invoke<Uuid[]>("vpn_running", { ids }
 /** Each network's state on this device, by id. */
 export const vpnStates = (ids: Uuid[]) => invoke<Record<Uuid, VpnState>>("vpn_states", { ids });
 export const vpnDetails = (id: Uuid) => invoke<VpnDetails>("vpn_details", { id });
+/** Connection test for a host that uses a VPN network: join, look up, dial, read the SSH banner. */
+export const vpnTestHost = (hostId: Uuid) => invoke<VpnHostTest>("vpn_test_host", { hostId });
 /** Leave a network now; the next connection joins again. */
 export const vpnDisconnect = (id: Uuid) => invoke<null>("vpn_disconnect", { id });
 /** Leave and forget this device's peer key: the next connection signs in again. */

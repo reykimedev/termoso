@@ -176,6 +176,7 @@ mod tests {
             provider: String::new(),
             management_url: url.map(Into::into),
             setup_key: key.map(Into::into),
+            direct_first: false,
         }
     }
 
