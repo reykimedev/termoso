@@ -9,6 +9,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod backup;
 pub mod error;
 pub mod hosts;
 pub mod keychain;
