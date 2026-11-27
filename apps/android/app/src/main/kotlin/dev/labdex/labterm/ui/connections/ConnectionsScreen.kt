@@ -3,6 +3,8 @@ package dev.labdex.labterm.ui.connections
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.runtime.saveable.rememberSaveable
+import dev.labdex.labterm.ui.vault.VaultBar
 import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Dashboard
@@ -161,6 +163,12 @@ fun ConnectionsScreen(
     var topMenu by remember { mutableStateOf(false) }
     var confirmCloseAll by remember { mutableStateOf(false) }
     val open = sessions.size + sftp.size
+    val vaultPins by shell.vaultPins.collectAsStateWithLifecycle()
+    // The vault bar filters open sessions here (null = all); it does not switch the vault.
+    var vaultFilter by rememberSaveable { mutableStateOf<String?>(null) }
+    val shownSessions = vaultFilter?.let { v -> sessions.filter { it.vaultId == v } } ?: sessions
+    val shownSftp = vaultFilter?.let { v -> sftp.filter { it.vaultId == v } } ?: sftp
+    val shownOpen = shownSessions.size + shownSftp.size
 
     fun join(link: String) {
         scope.launch {
@@ -193,6 +201,7 @@ fun ConnectionsScreen(
 
     Scaffold(
         topBar = {
+            Column {
             TopAppBar(
                 title = { Text(stringResource(R.string.connections)) },
                 actions = {
@@ -210,6 +219,15 @@ fun ConnectionsScreen(
                     }
                 },
             )
+            VaultBar(
+                vaults = vaults,
+                selectedId = vaultFilter,
+                pinned = vaultPins,
+                onPick = { vaultFilter = if (vaultFilter == it) null else it },
+                onTogglePin = shell::toggleVaultPin,
+                onAll = { vaultFilter = null },
+            )
+            }
         },
     ) { padding ->
         Column(
@@ -297,11 +315,11 @@ fun ConnectionsScreen(
                 }
             }
 
-            if (sessions.isNotEmpty() || sftp.isNotEmpty()) {
-                SectionLabel(if (open == 1) stringResource(R.string.active_session) else stringResource(R.string.active_sessions, open))
+            if (shownSessions.isNotEmpty() || shownSftp.isNotEmpty()) {
+                SectionLabel(if (shownOpen == 1) stringResource(R.string.active_session) else stringResource(R.string.active_sessions, shownOpen))
                 SectionCard {
                     // The session to resume (last active, with the thumbnail) leads the list.
-                    val ordered = sessions.sortedByDescending { it.id == activeSessionId }
+                    val ordered = shownSessions.sortedByDescending { it.id == activeSessionId }
                     ordered.forEachIndexed { i, s ->
                         if (i > 0) RowDivider()
                         ActiveSessionRow(
@@ -337,8 +355,8 @@ fun ConnectionsScreen(
                             },
                         )
                     }
-                    sftp.forEachIndexed { i, c ->
-                        if (i > 0 || sessions.isNotEmpty()) RowDivider()
+                    shownSftp.forEachIndexed { i, c ->
+                        if (i > 0 || shownSessions.isNotEmpty()) RowDivider()
                         SftpRow(
                             conn = c,
                             terminalsForHost = c.hostId?.let { id -> sessions.filter { it.hostId == id } } ?: emptyList(),

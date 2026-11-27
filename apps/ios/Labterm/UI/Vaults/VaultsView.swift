@@ -11,6 +11,7 @@ struct VaultsView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
+                    VaultBar(model: model)
                     vaultCard
                     CardSection("Address book") {
                         NavigationLink {
@@ -114,14 +115,14 @@ struct VaultsView: View {
                 if !model.pinnedVaults.isEmpty {
                     Section("Pinned") {
                         ForEach(model.pinnedVaults, id: \.id) { vault in
-                            Label(vault.name, systemImage: vaultIcon(vault))
+                            Label(vaultDisplayName(vault), systemImage: vaultIcon(vault))
                                 .tag(Optional(vault.id))
                         }
                     }
                 }
                 Section(model.pinnedVaults.isEmpty ? "" : "All vaults") {
                     ForEach(model.unpinnedVaults, id: \.id) { vault in
-                        Label(vault.name, systemImage: vaultIcon(vault))
+                        Label(vaultDisplayName(vault), systemImage: vaultIcon(vault))
                             .tag(Optional(vault.id))
                     }
                 }
