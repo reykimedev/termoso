@@ -190,7 +190,7 @@ jobs:
 
       # The embedded VPN client (crates/labterm-netbird/go), bundled next to the app.
       # No Windows build of it yet.
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         if: runner.os != 'Windows'
         with:
           go-version-file: crates/labterm-netbird/go/go.mod
@@ -343,7 +343,7 @@ jobs:
         with:
           packages: platform-tools platforms;android-36 build-tools;36.0.0 ndk;27.2.12479018
       # The embedded NetBird client (crates/labterm-netbird/go) is a Go library in the APK.
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version-file: crates/labterm-netbird/go/go.mod
           cache-dependency-path: crates/labterm-netbird/go/go.sum

@@ -35,6 +35,9 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: chacha20poly1305
         update-types: ["version-update:semver-major"]
+      # sha1 0.11 is on digest 0.11; labterm-awslc-rsa uses it with sha2 0.10's Digest.
+      - dependency-name: sha1
+        update-types: ["version-update:semver-major"]
     labels: [area:deps, area:rust]
 
   - package-ecosystem: npm
