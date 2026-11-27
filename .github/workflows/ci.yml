@@ -404,7 +404,7 @@ jobs:
       - run: cargo clippy -p labterm-core -p labterm-desktop --all-targets --locked
       - run: cargo test -p labterm-core --locked
       # The embedded VPN client goes into Contents/Frameworks (tauri.macos.conf.json).
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version-file: crates/labterm-netbird/go/go.mod
           cache-dependency-path: crates/labterm-netbird/go/go.sum
@@ -549,7 +549,7 @@ jobs:
         with:
           packages: platform-tools platforms;android-36 build-tools;36.0.0 ndk;27.2.12479018
       # The embedded NetBird client (crates/labterm-netbird/go) is a Go library in the APK.
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version-file: crates/labterm-netbird/go/go.mod
           cache-dependency-path: crates/labterm-netbird/go/go.sum
@@ -581,7 +581,7 @@ jobs:
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
           key: netbird
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version-file: crates/labterm-netbird/go/go.mod
           cache-dependency-path: crates/labterm-netbird/go/go.sum
@@ -624,7 +624,7 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libudev-dev
       # Pinned: the 2026-11-01 nightly fails on zvariant_utils (E0391 async-drop cycle);
       # move the date forward once rustc is fixed.
-      - uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # master
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # master
         with:
           toolchain: ${{ env.FUZZ_TOOLCHAIN }}
           components: rust-src
