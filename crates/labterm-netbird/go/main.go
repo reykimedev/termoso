@@ -68,7 +68,7 @@ type nbNode struct {
 }
 
 func (b nbNode) Dial(ctx context.Context, network, addr string) (net.Conn, error) {
-	return nbDial(ctx, b, network, addr)
+	return nbDial(ctx, b, network, addr, nil)
 }
 
 func (b nbNode) Stop(ctx context.Context) error {

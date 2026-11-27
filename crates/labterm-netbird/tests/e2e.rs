@@ -383,6 +383,46 @@ async fn names_resolve_through_nameserver_groups() {
     let short = env("NB_E2E_TARGET_NAME");
     let short = short.split('.').next().unwrap();
     echo_at(&nb, &keys, net.clone(), &format!("{short}:2222")).await;
+    // The connection test sees the same path: the group's server, the route
+    // and its routing peer. The echo server sends no SSH banner.
+    let t = nb
+        .test_host(
+            &net,
+            "labterm-e2e",
+            keys.as_ref(),
+            "lan.home.example.com",
+            lan_port.parse().unwrap(),
+        )
+        .await;
+    assert_eq!(t.network_error, None, "{t:?}");
+    assert_eq!(t.via, "nameserver", "{t:?}");
+    assert_eq!(t.server, format!("{}:5353", env("NB_E2E_TARGET")), "{t:?}");
+    assert_eq!(t.remote, lan, "{t:?}");
+    let peers = nb
+        .details(net.id)
+        .await
+        .expect("running")
+        .expect("status")
+        .peers;
+    assert_eq!(
+        t.route.as_deref(),
+        Some(format!("{lan_ip}/32").as_str()),
+        "{t:?} {peers:?}"
+    );
+    assert!(
+        t.error
+            .as_deref()
+            .is_some_and(|e| e.contains("no SSH banner")),
+        "{t:?}"
+    );
+    let details = nb.details(net.id).await.expect("running").expect("status");
+    assert!(
+        details
+            .dns
+            .iter()
+            .any(|g| g.domains == ["home.example.com"] && g.tunnel),
+        "dns: {details:?}"
+    );
     // The group's server says no: the dial fails instead of going elsewhere.
     assert!(
         dial_at(&nb, &keys, net.clone(), "nope.home.example.com:2222")

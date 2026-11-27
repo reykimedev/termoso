@@ -3167,6 +3167,35 @@ export interface VpnDetails {
   liveError: string | null;
   peers: VpnPeer[];
   hosts: VpnHost[];
+  /** NetBird's nameserver groups as this device applied them. */
+  dns: VpnDnsGroup[];
+}
+
+/** One nameserver group on the details page. */
+export interface VpnDnsGroup {
+  /** Match domains; empty = primary (every other name). */
+  domains: string[];
+  servers: string[];
+  /** Reachable through the network, so Labterm asks it itself. */
+  tunnel: boolean;
+}
+
+/** The connection test's result for one host (`vpn_test_host`). */
+export interface VpnHostTest {
+  network: string;
+  /** Time to get the network up; 0 = it was running. */
+  startMs: number;
+  networkError: string | null;
+  name: string;
+  /** `address`, `nameserver`, `netbird` or `tailscale`. */
+  via: string;
+  server: string;
+  remote: string;
+  connectMs: number;
+  banner: string;
+  error: string | null;
+  peer: VpnPeer | null;
+  route: string | null;
 }
 
 export interface VpnNetworkForm {
