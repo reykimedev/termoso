@@ -36,7 +36,8 @@ CREATE TABLE IF NOT EXISTS entities (
     key_version INTEGER NOT NULL,
     data        TEXT NOT NULL,                -- envelope, AAD termoso/v1/entity/<kind>/<id>
     updated_at  TEXT NOT NULL,
-    dirty       INTEGER NOT NULL DEFAULT 0
+    dirty       INTEGER NOT NULL DEFAULT 0,
+    collection_id TEXT                        -- restricted group (collection key); NULL = vault key
 );
 CREATE INDEX IF NOT EXISTS entities_vault_kind ON entities (vault_id, kind);
 CREATE INDEX IF NOT EXISTS entities_dirty ON entities (dirty) WHERE dirty = 1;
@@ -112,3 +113,21 @@ CREATE TABLE IF NOT EXISTS file_cache (
     PRIMARY KEY (host_id, path)
 );
 CREATE INDEX IF NOT EXISTS file_cache_lru ON file_cache(host_id, last_used);
+
+-- Collections (restricted groups) of team vaults, with their own keys. `pin`
+-- holds what this device trusts, wrapped with the master key: the creator's
+-- identity (trust anchor) and the last verified log head. `log` keeps the
+-- signed membership log so it can be re-verified offline.
+CREATE TABLE IF NOT EXISTS collections (
+    id           TEXT PRIMARY KEY,
+    vault_id     TEXT NOT NULL REFERENCES vaults(id) ON DELETE CASCADE,
+    pin          TEXT NOT NULL,               -- envelope, AAD termoso/v1/local/collection-pin/<id>
+    log          TEXT NOT NULL                -- JSON array of signed log entries
+);
+
+CREATE TABLE IF NOT EXISTS collection_keys (
+    collection_id TEXT NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+    version       INTEGER NOT NULL,
+    wrapped_key   TEXT NOT NULL,              -- collection key wrapped with the master key
+    PRIMARY KEY (collection_id, version)
+);

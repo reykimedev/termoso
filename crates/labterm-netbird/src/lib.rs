@@ -331,6 +331,133 @@ pub struct Details {
     /// The peers this device may reach.
     #[serde(default)]
     pub peers: Vec<PeerDetails>,
+    /// NetBird's nameserver groups as this device applied them.
+    #[serde(default)]
+    pub dns: Vec<DnsGroup>,
+}
+
+/// One nameserver group in [`Details`].
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DnsGroup {
+    /// Match domains; empty = primary (every other name).
+    #[serde(default)]
+    pub domains: Vec<String>,
+    /// `ip:port` of each server.
+    #[serde(default)]
+    pub servers: Vec<String>,
+    /// A server is reachable through the network, so Labterm asks it
+    /// through the tunnel; otherwise the provider's resolver does.
+    #[serde(default)]
+    pub tunnel: bool,
+}
+
+/// What the connection test found for one host (see [`Netbird::test_host`]).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HostTest {
+    /// Time to get the network up (0 when it was running).
+    #[serde(default)]
+    pub start_ms: u64,
+    /// The network didn't come up: why. The other fields stay empty.
+    #[serde(default)]
+    pub network_error: Option<String>,
+    /// The name that resolved (a short name with its search domain).
+    #[serde(default)]
+    pub name: String,
+    /// How: `address`, `nameserver`, `netbird` or `tailscale`.
+    #[serde(default)]
+    pub via: String,
+    /// The nameserver that answered (`via = nameserver`).
+    #[serde(default)]
+    pub server: String,
+    /// Where the connection went (`ip:port`).
+    #[serde(default)]
+    pub remote: String,
+    #[serde(default)]
+    pub connect_ms: u64,
+    /// The server's SSH identification line.
+    #[serde(default)]
+    pub banner: String,
+    /// The dial or the banner failed: why.
+    #[serde(default)]
+    pub error: Option<String>,
+    /// The peer the connection goes through (the host itself, or the
+    /// routing peer / exit node of `route`).
+    #[serde(default)]
+    pub peer: Option<PeerDetails>,
+    /// The route that covers the address, when it isn't a peer's own.
+    #[serde(default)]
+    pub route: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct ProbeJson {
+    #[serde(default)]
+    name: String,
+    #[serde(default)]
+    via: String,
+    #[serde(default)]
+    server: String,
+    #[serde(default)]
+    remote: String,
+    #[serde(default)]
+    connect_ms: u64,
+    #[serde(default)]
+    banner: String,
+    #[serde(default)]
+    error: String,
+}
+
+/// Whether `cidr` ("192.0.2.0/24") contains `ip`.
+fn cidr_contains(cidr: &str, ip: std::net::IpAddr) -> Option<u8> {
+    let (net, bits) = cidr.split_once('/')?;
+    let net: std::net::IpAddr = net.parse().ok()?;
+    let bits: u8 = bits.parse().ok()?;
+    let ok = match (net, ip) {
+        (std::net::IpAddr::V4(n), std::net::IpAddr::V4(a)) if bits <= 32 => {
+            let mask = if bits == 0 {
+                0
+            } else {
+                u32::MAX << (32 - bits)
+            };
+            u32::from(n) & mask == u32::from(a) & mask
+        }
+        (std::net::IpAddr::V6(n), std::net::IpAddr::V6(a)) if bits <= 128 => {
+            let mask = if bits == 0 {
+                0
+            } else {
+                u128::MAX << (128 - bits)
+            };
+            u128::from(n) & mask == u128::from(a) & mask
+        }
+        _ => false,
+    };
+    ok.then_some(bits)
+}
+
+/// The peer `remote` goes through: the peer with that address, else the
+/// connected peer with the most specific route covering it.
+fn path_to(peers: &[PeerDetails], remote: &str) -> (Option<PeerDetails>, Option<String>) {
+    let Ok(addr) = remote.parse::<std::net::SocketAddr>() else {
+        return (None, None);
+    };
+    let ip = addr.ip();
+    if let Some(p) = peers.iter().find(|p| p.ip.parse() == Ok(ip)) {
+        return (Some(p.clone()), None);
+    }
+    let mut best: Option<(u8, &PeerDetails, &String)> = None;
+    for p in peers.iter().filter(|p| p.connected) {
+        for r in &p.routes {
+            if let Some(bits) = cidr_contains(r, ip)
+                && best.is_none_or(|(b, _, _)| bits > b)
+            {
+                best = Some((bits, p, r));
+            }
+        }
+    }
+    match best {
+        Some((_, p, r)) => (Some(p.clone()), Some(r.clone())),
+        None => (None, None),
+    }
 }
 
 /// One peer in [`Details`].
@@ -437,6 +564,81 @@ impl Netbird {
             self.clone().released(node);
         }
         Ok(())
+    }
+
+    /// The connection test: bring the network up, dial `host:port` through
+    /// it the way an SSH connection would, read the server's SSH banner and
+    /// hang up. Nothing is sent to the host, and no credential is used.
+    pub async fn test_host(
+        self: &Arc<Self>,
+        config: &NetworkConfig,
+        device_name: &str,
+        keys: &dyn PeerKeys,
+        host: &str,
+        port: u16,
+    ) -> HostTest {
+        let started = Instant::now();
+        let running = self.is_running(config.id).await;
+        let node = match self.node(config, device_name, keys).await {
+            Ok(n) => n,
+            Err(e) => {
+                return HostTest {
+                    network_error: Some(e.to_string()),
+                    ..Default::default()
+                };
+            }
+        };
+        let start_ms = if running {
+            0
+        } else {
+            started.elapsed().as_millis() as u64
+        };
+        // The probe counts as a connection, so the idle timer can't stop the
+        // network under it; dropping the guard starts the timer as usual.
+        node.streams.fetch_add(1, Ordering::SeqCst);
+        node.epoch.fetch_add(1, Ordering::SeqCst);
+        let _guard = StreamGuard {
+            netbird: self.me.lock().expect("netbird self").clone(),
+            node: node.clone(),
+        };
+        let path = self.library_path.clone();
+        let handle = node.handle;
+        let host_owned = host.to_string();
+        let probe = tokio::task::spawn_blocking(move || {
+            let lib = ffi::library(path.as_deref())?;
+            lib.probe(handle, &host_owned, port, 20_000)
+        })
+        .await
+        .map_err(|e| e.to_string())
+        .and_then(|r| r)
+        .and_then(|json| serde_json::from_str::<ProbeJson>(&json).map_err(|e| e.to_string()));
+        let p = match probe {
+            Ok(p) => p,
+            Err(e) => {
+                return HostTest {
+                    start_ms,
+                    error: Some(e),
+                    ..Default::default()
+                };
+            }
+        };
+        let (peer, route) = match self.details(config.id).await {
+            Some(Ok(d)) => path_to(&d.peers, &p.remote),
+            _ => (None, None),
+        };
+        HostTest {
+            start_ms,
+            network_error: None,
+            name: p.name,
+            via: p.via,
+            server: p.server,
+            remote: p.remote,
+            connect_ms: p.connect_ms,
+            banner: p.banner,
+            error: (!p.error.is_empty()).then_some(p.error),
+            peer,
+            route,
+        }
     }
 
     /// Whether a peer for `network` is running.
@@ -933,6 +1135,30 @@ impl AsyncWrite for Tracked {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn path_to_picks_the_peer_or_its_most_specific_route() {
+        let peer = |ip: &str, routes: &[&str]| PeerDetails {
+            ip: ip.into(),
+            connected: true,
+            routes: routes.iter().map(|r| r.to_string()).collect(),
+            ..Default::default()
+        };
+        let peers = [
+            peer("100.64.0.2", &["0.0.0.0/0"]),
+            peer("100.64.0.3", &["192.0.2.0/24"]),
+        ];
+        let (p, r) = path_to(&peers, "100.64.0.3:22");
+        assert_eq!(p.unwrap().ip, "100.64.0.3");
+        assert_eq!(r, None);
+        let (p, r) = path_to(&peers, "192.0.2.10:22");
+        assert_eq!(p.unwrap().ip, "100.64.0.3");
+        assert_eq!(r.as_deref(), Some("192.0.2.0/24"));
+        let (p, r) = path_to(&peers, "198.51.100.1:22");
+        assert_eq!(p.unwrap().ip, "100.64.0.2");
+        assert_eq!(r.as_deref(), Some("0.0.0.0/0"));
+        assert_eq!(path_to(&peers, "nonsense"), (None, None));
+    }
     use super::*;
 
     #[test]

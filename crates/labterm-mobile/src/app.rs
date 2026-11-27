@@ -1135,6 +1135,12 @@ impl LabtermApp {
         RUNTIME.block_on(crate::netbird::details(&self.store, &transport_id))
     }
 
+    /// The connection test for a host that uses a VPN network: join, look
+    /// the name up, dial, read the SSH banner. No login.
+    pub fn transport_test_host(&self, host_id: String) -> Result<crate::TransportHostTest> {
+        RUNTIME.block_on(crate::netbird::test_host(&self.store, &host_id))
+    }
+
     /// Leave a network now; the next connection through it joins again.
     pub fn transport_disconnect(&self, transport_id: String) -> Result<()> {
         RUNTIME.block_on(crate::netbird::disconnect(&transport_id))

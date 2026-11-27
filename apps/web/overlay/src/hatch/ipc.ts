@@ -296,6 +296,7 @@ const commands: Record<string, Handler> = {
   vpn_sign_in: notInBrowser("Joining VPN networks"),
   vpn_sign_in_cancel: () => null,
   vpn_connect: notInBrowser("Joining VPN networks"),
+  vpn_test_host: notInBrowser("Joining VPN networks"),
   vpn_running: () => [],
   vpn_states: (a) => vpn.states(a.ids ?? []),
   vpn_details: (a) => vpn.details(a.id),
