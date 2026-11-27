@@ -94,6 +94,8 @@ struct Stored {
     user_name: String,
     key: Key,
     resident: bool,
+    /// `hmac-secret` CredRandom, when the credential was made with it.
+    cred_random: Option<[u8; 32]>,
 }
 
 /// Knobs and observable state of the token.
@@ -314,7 +316,10 @@ impl State {
                 int(1),
                 Value::Array(vec![text("FIDO_2_0"), text("FIDO_2_1")]),
             ),
-            (int(2), Value::Array(vec![text("credProtect")])),
+            (
+                int(2),
+                Value::Array(vec![text("credProtect"), text("hmac-secret")]),
+            ),
             (int(3), bytes(&[0x42; 16])),
             (int(4), map(options)),
             (int(5), int(1200)),
@@ -499,6 +504,11 @@ impl State {
             .and_then(|o| o.field_text("rk"))
             .and_then(Value::as_bool)
             .unwrap_or(false);
+        let hmac_secret = p
+            .field(6)
+            .and_then(|e| e.field_text("hmac-secret"))
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
 
         let verified = self.check_pin_auth(
             p.field(8),
@@ -538,7 +548,16 @@ impl State {
         if verified {
             flags |= 0x04;
         }
-        let auth_data = self.auth_data(&rp_id, flags, Some((&id, &key)));
+        if hmac_secret {
+            flags |= 0x80;
+        }
+        let mut auth_data = self.auth_data(&rp_id, flags, Some((&id, &key)));
+        let cred_random = hmac_secret.then(|| {
+            auth_data.extend(encode(&map(vec![(text("hmac-secret"), Value::Bool(true))])));
+            let mut r = [0u8; 32];
+            rand_core::RngCore::fill_bytes(&mut rand_core::OsRng, &mut r);
+            r
+        });
         self.creds.insert(
             id,
             Stored {
@@ -547,6 +566,7 @@ impl State {
                 user_name,
                 key,
                 resident,
+                cred_random,
             },
         );
         Ok(Some(map(vec![
@@ -607,7 +627,38 @@ impl State {
         if verified {
             flags |= 0x04;
         }
-        let auth_data = self.auth_data(&rp_id, flags, None);
+        // hmac-secret: decrypt the salt, HMAC it with the credential's
+        // CredRandom, return it encrypted under the same shared secret.
+        let hmac_out = match p.field(4).and_then(|e| e.field_text("hmac-secret")) {
+            Some(ext) => {
+                let protocol = ext.field(4).and_then(as_u64).unwrap_or(1);
+                let peer = ext.field(1).ok_or(STATUS_MISSING_PARAMETER)?;
+                let secret = self.shared_secret(protocol, peer)?;
+                let salt_enc =
+                    as_bytes(ext.field(2), "saltEnc").map_err(|_| STATUS_MISSING_PARAMETER)?;
+                let salt_auth =
+                    as_bytes(ext.field(3), "saltAuth").map_err(|_| STATUS_MISSING_PARAMETER)?;
+                if secret.authenticate(&salt_enc) != salt_auth {
+                    return Err(STATUS_INVALID_PARAMETER);
+                }
+                let salt = secret
+                    .decrypt(&salt_enc)
+                    .map_err(|_| STATUS_INVALID_PARAMETER)?;
+                let cred_random = self.creds[&id]
+                    .cred_random
+                    .ok_or(STATUS_INVALID_PARAMETER)?;
+                let out = ctap::authenticate(2, &cred_random, &salt);
+                Some(secret.encrypt(&out))
+            }
+            None => None,
+        };
+        if hmac_out.is_some() {
+            flags |= 0x80;
+        }
+        let mut auth_data = self.auth_data(&rp_id, flags, None);
+        if let Some(out) = &hmac_out {
+            auth_data.extend(encode(&map(vec![(text("hmac-secret"), bytes(out))])));
+        }
         let cred = &self.creds[&id];
         let mut msg = auth_data.clone();
         msg.extend_from_slice(&client_data_hash);
@@ -967,6 +1018,20 @@ pub trait CtapAny {
     ) -> crate::error::Result<Vec<crate::keys::KeyMaterial>>;
     /// [`ctap::Authenticator::info`].
     fn info(&self) -> &ctap::Info;
+    /// [`ctap::Authenticator::hmac_secret_credential`].
+    fn hmac_secret_credential(
+        &mut self,
+        rp_id: &str,
+        user_name: &str,
+        pin: Option<&str>,
+    ) -> crate::error::Result<Vec<u8>>;
+    /// [`ctap::Authenticator::hmac_secret`].
+    fn hmac_secret(
+        &mut self,
+        rp_id: &str,
+        credentials: &[&[u8]],
+        salt: &[u8; 32],
+    ) -> crate::error::Result<(Vec<u8>, zeroize::Zeroizing<Vec<u8>>)>;
 }
 
 impl<T: CtapTransport> CtapAny for ctap::Authenticator<T> {
@@ -996,6 +1061,31 @@ impl<T: CtapTransport> CtapAny for ctap::Authenticator<T> {
 
     fn info(&self) -> &ctap::Info {
         ctap::Authenticator::info(self)
+    }
+
+    fn hmac_secret_credential(
+        &mut self,
+        rp_id: &str,
+        user_name: &str,
+        pin: Option<&str>,
+    ) -> crate::error::Result<Vec<u8>> {
+        Ok(ctap::Authenticator::hmac_secret_credential(
+            self, rp_id, user_name, pin,
+        )?)
+    }
+
+    fn hmac_secret(
+        &mut self,
+        rp_id: &str,
+        credentials: &[&[u8]],
+        salt: &[u8; 32],
+    ) -> crate::error::Result<(Vec<u8>, zeroize::Zeroizing<Vec<u8>>)> {
+        Ok(ctap::Authenticator::hmac_secret(
+            self,
+            rp_id,
+            credentials,
+            salt,
+        )?)
     }
 }
 
@@ -1155,6 +1245,66 @@ mod tests {
         assert_eq!(
             loaded[0].public_key,
             m.public_key.replace(" test@soft", " labterm")
+        );
+    }
+
+    fn hmac_round_trip(config: Config, wire: Wire) {
+        let token = SoftToken::new(config);
+        let backend = SoftBackend::new(token.clone(), wire);
+        let (id, other) = backend
+            .with(|a| {
+                let id = a.hmac_secret_credential("labterm", "vault", Some("123456"))?;
+                let other = a.hmac_secret_credential("labterm", "vault", Some("123456"))?;
+                Ok((id, other))
+            })
+            .unwrap();
+        assert_eq!(token.credential_count(), 2);
+        let salt = [7u8; 32];
+        let first = backend
+            .with(|a| a.hmac_secret("labterm", &[&id], &salt))
+            .unwrap();
+        let again = backend
+            .with(|a| a.hmac_secret("labterm", &[&id], &salt))
+            .unwrap();
+        assert_eq!(first.0, id);
+        assert_eq!(first.1.len(), 32);
+        assert_eq!(
+            first.1, again.1,
+            "same credential and salt give the same secret"
+        );
+        let other_salt = backend
+            .with(|a| a.hmac_secret("labterm", &[&id], &[8u8; 32]))
+            .unwrap();
+        assert_ne!(first.1, other_salt.1);
+        let other_cred = backend
+            .with(|a| a.hmac_secret("labterm", &[&other], &salt))
+            .unwrap();
+        assert_ne!(first.1, other_cred.1);
+        // Another relying party does not see the credential.
+        assert!(
+            backend
+                .with(|a| a.hmac_secret("evil", &[&id], &salt))
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn hmac_secret_is_stable_per_credential_and_salt() {
+        hmac_round_trip(Config::default(), Wire::Direct);
+        hmac_round_trip(Config::default(), Wire::Hid);
+        hmac_round_trip(Config::default(), Wire::Nfc);
+    }
+
+    #[test]
+    fn hmac_secret_with_pin_protocol_1() {
+        hmac_round_trip(
+            Config {
+                pin_protocols: vec![1],
+                pin_uv_auth_token: false,
+                cred_mgmt: false,
+                ..Config::default()
+            },
+            Wire::Direct,
         );
     }
 

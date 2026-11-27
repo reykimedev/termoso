@@ -230,10 +230,22 @@ impl AppState {
         )?)
     }
 
+    /// Security key factors in enrolment order.
+    pub fn security_key_challenges(&self) -> Result<Vec<factors::FactorChallenge>> {
+        if !factors::any(&self.profile_dir) {
+            return Ok(Vec::new());
+        }
+        Ok(factors::challenges(
+            &self.profile_dir,
+            factors::FactorKind::SecurityKey,
+        )?)
+    }
+
     /// Prove the person at the keyboard may change how the vault is
     /// protected: the current master password when one is set, otherwise a
-    /// fresh Windows Hello unlock of an enrolled factor. Nothing to prove
-    /// while the vault is not protected at all.
+    /// fresh confirmation with an enrolled factor (Windows Hello where it
+    /// works, else a touch of an enrolled security key). Nothing to prove
+    /// while the vault is not protected at all. Blocking.
     pub fn verify_owner(&self, password: Option<&str>) -> Result<()> {
         let store = self.store()?;
         if self.password_protected() {
@@ -245,20 +257,68 @@ impl AppState {
         if !factors::any(&self.profile_dir) {
             return Ok(());
         }
-        let Some(hello) = self.hello_challenges()?.into_iter().next() else {
-            return Err(DesktopError::invalid(
-                "confirm with an enrolled unlock method first",
-            ));
-        };
-        let name = String::from_utf8_lossy(&hello.credential).into_owned();
-        let secret = Zeroizing::new(crate::hello::sign(&name, &hello.salt)?);
-        let master = factors::unlock(&self.profile_dir, PROFILE_NAME, &hello.id, &secret)?;
+        let (id, secret) = self.confirm_with_factor()?;
+        let master = factors::unlock(&self.profile_dir, PROFILE_NAME, &id, &secret)?;
         if master.key.as_bytes() != store.master_key().as_bytes() {
             return Err(DesktopError::invalid(
                 "unlock method does not match this vault",
             ));
         }
         Ok(())
+    }
+
+    /// The id and secret of one enrolled factor the owner just confirmed.
+    fn confirm_with_factor(&self) -> Result<(String, Zeroizing<Vec<u8>>)> {
+        if crate::hello::available()
+            && let Some(hello) = self.hello_challenges()?.into_iter().next()
+        {
+            let name = String::from_utf8_lossy(&hello.credential).into_owned();
+            let secret = Zeroizing::new(crate::hello::sign(&name, &hello.salt)?);
+            return Ok((hello.id, secret));
+        }
+        let keys = self.security_key_challenges()?;
+        if !keys.is_empty() && crate::security_key::supported() {
+            for key in keys {
+                if let Some(secret) = crate::security_key::secret(&key)? {
+                    return Ok((key.id, secret));
+                }
+            }
+            return Err(DesktopError::new(
+                "fido2_wrong_device",
+                "this security key is not enrolled for Labterm",
+            ));
+        }
+        Err(DesktopError::invalid(
+            "confirm with an enrolled unlock method first",
+        ))
+    }
+
+    /// Enroll a FIDO2 security key as an unlock factor: two touches, and
+    /// `pin` when the key has one (only needed here, never to unlock).
+    pub fn add_security_key_factor(
+        &self,
+        password: Option<&str>,
+        name: &str,
+        pin: Option<&str>,
+    ) -> Result<factors::FactorInfo> {
+        let store = self.store()?;
+        self.verify_owner(password)?;
+        let enrolled = crate::security_key::enroll(pin, factors::new_salt())?;
+        let info = factors::add(
+            &self.profile_dir,
+            PROFILE_NAME,
+            store.master_key(),
+            factors::FactorKind::SecurityKey,
+            name,
+            &enrolled.salt,
+            &enrolled.credential,
+            Some(crate::security_key::RP_ID),
+            &enrolled.secret,
+        )?;
+        if !self.password_protected() {
+            *self.master_source.lock().expect("master source poisoned") = MasterKeySource::Factor;
+        }
+        Ok(info)
     }
 
     /// Enroll Windows Hello as an unlock factor (prompts Hello once).
