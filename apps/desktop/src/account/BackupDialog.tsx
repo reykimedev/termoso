@@ -28,7 +28,7 @@ import {
   type RestoreReport,
   type Uuid,
 } from "@/ipc/types";
-import { vaultHint, vaultIcon } from "@/app/vault";
+import { vaultHint, vaultIcon, vaultName } from "@/app/vault";
 import { sizes } from "@/theme/theme";
 import { invalidateAll } from "./SignIn";
 import { tr, trn, trx, msg } from "@/i18n";
@@ -169,7 +169,7 @@ function VaultPick({
           tile={<IconTile size={sizes.tileSmall}>{vaultIcon(vault)}</IconTile>}
         />
       }
-      title={vault.name}
+      title={vaultName(vault)}
       subtitle={vaultHint(vault)}
     />
   );

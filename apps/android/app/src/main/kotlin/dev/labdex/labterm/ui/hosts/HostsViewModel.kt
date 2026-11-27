@@ -178,15 +178,6 @@ class HostsViewModel(
         repo.write { moveHosts(ids, targetGroup) }
     }
 
-    fun copy(ids: List<String>, vaultId: String, withCredentials: Boolean) = mutate {
-        repo.write { copyHostsToVault(ids, vaultId, withCredentials) }
-    }
-
-    fun moveToVault(ids: List<String>, vaultId: String, withCredentials: Boolean) = mutate {
-        repo.perms.require(currentVault, "entities.move")
-        repo.write { moveHostsToVault(ids, vaultId, withCredentials) }
-    }
-
     fun duplicateSelected() = duplicate(_state.value.selected.toList())
 
     fun createGroup(label: String) = mutate {

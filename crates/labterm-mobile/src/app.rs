@@ -1129,6 +1129,23 @@ impl LabtermApp {
         crate::netbird::state(&self.store, &transport_id)
     }
 
+    /// The networks in use on this device (connecting, connected, failed),
+    /// for the status strip. Cheap: fine to call every second.
+    pub fn transport_active(&self) -> Vec<crate::TransportActive> {
+        crate::netbird::active(&self.store)
+    }
+
+    /// Networks that stopped by themselves after `seq`, for a notice. Keep
+    /// the last `seq` shown; start from [`Self::transport_idle_stop_seq`].
+    pub fn transport_idle_stops_since(&self, seq: u64) -> Vec<crate::TransportIdleStop> {
+        crate::netbird::idle_stops_since(seq)
+    }
+
+    /// The newest idle stop's sequence number (0 = none yet).
+    pub fn transport_idle_stop_seq(&self) -> u64 {
+        labterm_client::vpn::idle_stop_seq()
+    }
+
     /// Everything the network details page shows: state, this device's
     /// address, the peers it sees and the hosts that use the network.
     pub fn transport_details(&self, transport_id: String) -> Result<crate::TransportDetails> {

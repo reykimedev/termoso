@@ -22,6 +22,7 @@ pub mod policy_view;
 pub mod snippets;
 pub mod transports;
 pub mod trust;
+pub mod vaultmove;
 #[cfg(feature = "vpn")]
 pub mod vpn;
 

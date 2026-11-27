@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Move / copy hosts and groups to another vault (ui/hosts/VaultTransferDialog.kt). Own file to keep strings.xml merges quiet. -->
+<resources>
+    <string name="transfer_action_breaks">Stays here and still points at moved hosts</string>
+    <string name="transfer_action_copy">Copied along</string>
+    <string name="transfer_action_leave_out">Left out</string>
+    <string name="transfer_action_move_along">Moves along</string>
+    <string name="transfer_action_remove">Your personal overlay is removed</string>
+    <string name="transfer_action_reuse">Already there, reused</string>
+    <string name="transfer_action_rewrite">Your personal overlay follows</string>
+    <string name="transfer_action_unlink">Unlinked: set it up in the target vault</string>
+    <string name="transfer_blocked_connect_only">Your access lets you connect, not move or copy it.</string>
+    <string name="transfer_blocked_hidden">The selection holds hosts that are hidden from you.</string>
+    <string name="transfer_blocked_mixed_vaults">The selection comes from more than one vault.</string>
+    <string name="transfer_blocked_nothing">Nothing to move.</string>
+    <string name="transfer_blocked_restricted">Items in a restricted group can\'t change vaults yet.</string>
+    <string name="transfer_blocked_same_vault">Already in this vault.</string>
+    <string name="transfer_blocked_source_read_only">Moving needs edit rights in this vault. Copy instead.</string>
+    <string name="transfer_blocked_target_group">The target group is in another vault.</string>
+    <string name="transfer_blocked_target_locked">The target vault is locked.</string>
+    <string name="transfer_blocked_target_read_only">You can only view the target vault.</string>
+    <string name="transfer_copied_to">Copied to %1$s</string>
+    <string name="transfer_copy_title">Copy to vault</string>
+    <string name="transfer_kind_color_scheme">Color scheme</string>
+    <string name="transfer_kind_identity">Identity</string>
+    <string name="transfer_kind_jump_hosts">Jump hosts</string>
+    <string name="transfer_kind_key">Key</string>
+    <string name="transfer_kind_overlay">Personal overlay</string>
+    <string name="transfer_kind_port_forwarding">Port forwarding</string>
+    <string name="transfer_kind_port_knocking">Port knocking</string>
+    <string name="transfer_kind_proxy">Proxy</string>
+    <string name="transfer_kind_snippet">Snippet</string>
+    <string name="transfer_kind_tag">Tag</string>
+    <string name="transfer_kind_vpn">VPN network</string>
+    <string name="transfer_leave_logins_out">Leave logins out (everyone uses their own)</string>
+    <string name="transfer_logins_go_along">Logins go along (passwords, identities, keys)</string>
+    <string name="transfer_move_title">Move to vault</string>
+    <string name="transfer_moved_to">Moved to %1$s</string>
+    <string name="transfer_next">Next</string>
+    <string name="transfer_no_other_vaults">No other vault you can write to.</string>
+    <string name="transfer_originals_removed">the originals are removed here</string>
+    <string name="transfer_summary">Groups: %1$d · hosts: %2$d</string>
+</resources>

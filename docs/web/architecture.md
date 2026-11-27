@@ -46,4 +46,4 @@ The relay's endpoints, configuration and audit log are in [Relay](relay.md).
 6. Done: Labterm integration: account, device approval, vault, known hosts, idle lock.
 7. opkssh in the browser: OIDC with PKCE and the certificate are done; the non-extractable
    WebCrypto key is still open ([0006](decisions/0006-opkssh-from-the-fork.md)).
-8. v0.1.0: e2e at desktop and phone sizes, both languages, accessibility pass, first signed release.
+8. v0.1.0: e2e at desktop and phone sizes, accessibility pass, first signed release.

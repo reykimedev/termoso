@@ -704,6 +704,11 @@ pub mod payload {
             /// that doesn't answer.
             #[serde(default, skip_serializing_if = "std::ops::Not::not")]
             pub direct_first: bool,
+            /// Seconds the network stays up after its last connection
+            /// closed; `None` = the app's default (2 minutes), `0` = until
+            /// the user disconnects it.
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            pub idle_secs: Option<u32>,
         }
     }
 

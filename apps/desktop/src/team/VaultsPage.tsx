@@ -57,7 +57,7 @@ import {
   type VaultRole,
 } from "@/ipc/types";
 import { goToSettings, goToSettingsWith, useSettingsIntent } from "@/app/navigation";
-import { vaultHint, vaultIcon } from "@/app/vault";
+import { vaultHint, vaultIcon, vaultName } from "@/app/vault";
 import { PersonAvatar, initialsOf } from "./PersonAvatar";
 import { AclSection } from "./AclSection";
 import { PolicyViewer } from "@/policy/PolicyViewer";
@@ -285,7 +285,7 @@ function VaultRow({
   return (
     <ListRow
       icon={vaultIcon(v)}
-      title={v.name}
+      title={vaultName(v)}
       selected={selected}
       onClick={onClick}
       hint={
@@ -418,7 +418,7 @@ function VaultDetails({
           />
         ) : (
           <Typography variant="subtitle2" noWrap sx={{ flex: 1 }}>
-            {v.name}
+            {vaultName(v)}
           </Typography>
         )}
       </SectionCard>

@@ -457,6 +457,7 @@
     <string name="add_tag">Add tag</string>
     <string name="done">Done</string>
     <string name="hosts">Hosts</string>
+    <string name="tools">Tools</string>
     <string name="search">Search</string>
     <string name="add">Add</string>
     <string name="new_group">New group</string>
@@ -1201,9 +1202,10 @@
     <string name="vault_hint_personal">Synced to your devices, end-to-end encrypted</string>
     <string name="vault_hint_local">Only on this device</string>
     <string name="all_vaults">All vaults</string>
+    <string name="vault_bar_all">All</string>
     <string name="known_hosts_shared_by_all_vaults">Shared by all vaults</string>
-    <string name="local_vault">Local vault</string>
-    <string name="personal_vault">Personal vault</string>
+    <string name="local_vault">Local</string>
+    <string name="personal_vault">Personal</string>
     <string name="welcome_to_labterm">Welcome to Labterm</string>
     <string name="free_open_source_ssh_client_end_to_end">Free, open-source SSH client. End-to-end encrypted sync, teams and live sharing — no telemetry.</string>
     <string name="create_a_free_account">Create a free account</string>
@@ -1217,10 +1219,6 @@
     <string name="after_5_minutes">After 5 minutes</string>
     <string name="after_15_minutes">After 15 minutes</string>
     <string name="after_1_hour">After 1 hour</string>
-    <string name="language">Language</string>
-    <string name="system_default">System default</string>
-    <string name="language_english" translatable="false">English</string>
-    <string name="language_russian" translatable="false">Русский</string>
     <string name="last_connected">Last connected</string>
     <string name="recently_updated">Recently updated</string>
     <string name="date">Date</string>
@@ -2065,6 +2063,17 @@
     <string name="vpn_route_through">through %1$s</string>
     <string name="vpn_direct_first">Connect directly on the host\'s LAN</string>
     <string name="vpn_direct_first_hint">At home: when the host\'s LAN address answers with the host key you already trust, connect without the network.</string>
+    <string name="vpn_idle">Stay connected when unused</string>
+    <string name="vpn_idle_hint">After the last connection closes. Longer keeps reconnects instant; shorter saves battery.</string>
+    <string name="vpn_idle_default">2 minutes (default)</string>
+    <string name="vpn_idle_forever">Until I disconnect</string>
+    <string name="vpn_idle_30s">30 seconds</string>
+    <string name="vpn_idle_10min">10 minutes</string>
+    <string name="vpn_idle_1h">1 hour</string>
+    <string name="vpn_idle_seconds">%1$d s</string>
+    <string name="vpn_idle_minutes">%1$d min</string>
+    <string name="vpn_idle_stopped">%1$s disconnected after being unused</string>
+    <string name="vpn_strip_stops_in">disconnects in %1$s unless a connection uses it</string>
     <string name="vpn_test">Test</string>
     <string name="vpn_test_title">Test %1$s</string>
     <string name="vpn_test_again">Test again</string>

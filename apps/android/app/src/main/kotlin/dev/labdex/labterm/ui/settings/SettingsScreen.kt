@@ -44,7 +44,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import dev.labdex.labterm.AppLanguage
 import dev.labdex.labterm.BuildConfig
 import dev.labdex.labterm.data.AppPin
 import dev.labdex.labterm.ui.security.PinSetupDialog
@@ -87,12 +86,6 @@ private val lockDelays = listOf(
     3600u to R.string.after_1_hour,
 )
 
-private val languages = listOf(
-    AppLanguage.SYSTEM to R.string.system_default,
-    "en" to R.string.language_english,
-    "ru" to R.string.language_russian,
-)
-
 private const val SOURCE_URL = "https://github.com/termoso/termoso"
 
 /** Settings tab: account/sync, appearance, terminal, security (app lock), about. */
@@ -118,8 +111,6 @@ fun SettingsScreen(
         scope.launch { shell.repo.updateSettings(transform) }
     }
     var themePicker by remember { mutableStateOf(false) }
-    var languagePicker by remember { mutableStateOf(false) }
-    val language = remember { AppLanguage.current(context) }
     var delayPicker by remember { mutableStateOf(false) }
     var termTypePicker by remember { mutableStateOf(false) }
     var scrollbackPicker by remember { mutableStateOf(false) }
@@ -239,12 +230,6 @@ fun SettingsScreen(
                     title = stringResource(R.string.app_theme),
                     badge = themes.firstOrNull { it.first == settings.appTheme }?.let { stringResource(it.second) } ?: settings.appTheme,
                     modifier = Modifier.clickable { themePicker = true },
-                )
-                RowDivider()
-                ChevronRow(
-                    title = stringResource(R.string.language),
-                    badge = stringResource((languages.firstOrNull { it.first == language } ?: languages.first()).second),
-                    modifier = Modifier.clickable { languagePicker = true },
                 )
                 if (supportsDynamicColor) {
                     RowDivider()
@@ -489,16 +474,6 @@ fun SettingsScreen(
 
     if (themePicker) {
         ChoiceSheet(stringResource(R.string.app_theme), themes.map { it.first to stringResource(it.second) }, settings.appTheme, onPick = { set { s -> s.copy(appTheme = it) } }) { themePicker = false }
-    }
-    if (languagePicker) {
-        ChoiceSheet(
-            stringResource(R.string.language),
-            languages.map { it.first to stringResource(it.second) },
-            language,
-            onPick = { tag ->
-                if (tag != language && AppLanguage.set(context, tag)) context.findFragmentActivity()?.recreate()
-            },
-        ) { languagePicker = false }
     }
     if (delayPicker) {
         ChoiceSheet(stringResource(R.string.lock_after), lockDelays.map { it.first to stringResource(it.second) }, settings.lockAfterSeconds, onPick = { set { s -> s.copy(lockAfterSeconds = it) } }) { delayPicker = false }

@@ -12,6 +12,7 @@ pub mod break_glass;
 pub mod bridges;
 pub mod ca;
 pub mod captcha;
+pub mod collections;
 pub mod gdpr;
 pub mod history;
 pub mod idp;
@@ -348,6 +349,17 @@ pub fn router(state: AppState) -> Router {
         // sync
         .route("/sync/push", post(sync::push))
         .route("/sync/pull", post(sync::pull))
+        .route(
+            "/vaults/{id}/collections",
+            get(collections::list).post(collections::create),
+        )
+        .route(
+            "/collections/{id}/log",
+            get(collections::get_log).post(collections::append_log),
+        )
+        .route("/collections/{id}/keys", get(collections::my_keys))
+        .route("/collections/{id}/sync/push", post(collections::push))
+        .route("/collections/sync/pull", post(collections::pull))
         .route("/history/push", post(history::push))
         .route("/history/pull", get(history::pull))
         .route("/history/clear", post(history::clear))

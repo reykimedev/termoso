@@ -1,6 +1,7 @@
 import {
   Box,
   CircularProgress,
+  Divider,
   List,
   ListItemButton,
   ListItemIcon,
@@ -22,18 +23,22 @@ import CloudOffRoundedIcon from "@mui/icons-material/CloudOffRounded";
 import CloudDoneRoundedIcon from "@mui/icons-material/CloudDoneRounded";
 import CloudSyncRoundedIcon from "@mui/icons-material/CloudSyncRounded";
 import ErrorOutlineRoundedIcon from "@mui/icons-material/ErrorOutlineRounded";
-import type { ReactNode } from "react";
-import { useAccount, useAppInfo } from "@/ipc/hooks";
+import { Fragment, type ReactNode } from "react";
+import { useAccount, useAppInfo, useTeams } from "@/ipc/hooks";
 import type { AccountStatus } from "@/ipc/types";
 import { sizes } from "@/theme/theme";
 import { useTerminal } from "@/terminal/store";
 import { goToSection, goToSettings, goToSftp, isSftpTab, useNav, type Section } from "./navigation";
+import { useActiveVault, vaultAudience, vaultName } from "./vault";
 import { tr, msg } from "@/i18n";
+import { VpnStatusStrip } from "@/vpn/VpnStatusStrip";
 
 interface Item {
   id: Section | "sftp" | "settings";
   label: string;
   icon: ReactNode;
+  /** Starts a new group: a thin divider above it. */
+  group?: boolean;
 }
 
 const items: Item[] = [
@@ -48,6 +53,7 @@ const items: Item[] = [
   { id: "snippets", label: msg("Snippets"), icon: <CodeRoundedIcon fontSize="small" /> },
   {
     id: "knownHosts",
+    group: true,
     label: msg("Known Hosts"),
     icon: <VerifiedUserRoundedIcon fontSize="small" />,
   },
@@ -61,7 +67,7 @@ const items: Item[] = [
     label: msg("VPN Networks"),
     icon: <HubRoundedIcon fontSize="small" />,
   },
-  { id: "logs", label: msg("Logs"), icon: <ArticleRoundedIcon fontSize="small" /> },
+  { id: "logs", group: true, label: msg("Logs"), icon: <ArticleRoundedIcon fontSize="small" /> },
 ];
 
 export function Sidebar() {
@@ -85,22 +91,26 @@ export function Sidebar() {
       }}
     >
       <List disablePadding sx={{ flex: 1, overflowY: "auto", px: 1, pt: 1 }}>
+        <VaultHeader />
         {items.map((item) => (
-          <NavItem
-            key={item.id}
-            item={item}
-            selected={item.id === "sftp" ? sftp : !sftp && section === item.id}
-            onClick={() =>
-              item.id === "sftp"
-                ? goToSftp()
-                : item.id === "settings"
-                  ? goToSettings()
-                  : goToSection(item.id)
-            }
-          />
+          <Fragment key={item.id}>
+            {item.group && <Divider sx={{ my: 0.75, mx: 1 }} />}
+            <NavItem
+              item={item}
+              selected={item.id === "sftp" ? sftp : !sftp && section === item.id}
+              onClick={() =>
+                item.id === "sftp"
+                  ? goToSftp()
+                  : item.id === "settings"
+                    ? goToSettings()
+                    : goToSection(item.id)
+              }
+            />
+          </Fragment>
         ))}
       </List>
       <Box sx={{ px: 1, pb: 1 }}>
+        <VpnStatusStrip />
         <NavItem
           item={{
             id: "settings",
@@ -132,6 +142,25 @@ export function Sidebar() {
           </ListItemButton>
         </Tooltip>
       </Box>
+    </Box>
+  );
+}
+
+/** The vault the sections below belong to; switching happens in the rail. */
+function VaultHeader() {
+  const { data: v } = useActiveVault();
+  const { data: teams } = useTeams(v?.kind === "team");
+  if (!v) return null;
+  const team = v.team_id ? teams?.find((t) => t.id === v.team_id) : undefined;
+  return (
+    <Box sx={{ px: 1, pt: 0.5, pb: 1 }}>
+      <Typography variant="subtitle2" noWrap sx={{ fontWeight: 700 }}>
+        {vaultName(v)}
+      </Typography>
+      <Typography variant="caption" color="text.secondary" noWrap sx={{ display: "block" }}>
+        {team ? team.name : vaultAudience(v)}
+        {v.role === "viewer" ? ` · ${tr("Read-only")}` : ""}
+      </Typography>
     </Box>
   );
 }

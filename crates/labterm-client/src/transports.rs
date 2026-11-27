@@ -180,6 +180,7 @@ mod tests {
             management_url: url.map(Into::into),
             setup_key: key.map(Into::into),
             direct_first: false,
+            idle_secs: None,
         }
     }
 

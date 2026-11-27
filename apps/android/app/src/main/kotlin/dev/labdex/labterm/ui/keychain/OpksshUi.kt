@@ -34,12 +34,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import dev.labdex.labterm.R
+import dev.labdex.labterm.core.VaultInfo
 import dev.labdex.labterm.data.KeyExportBridge
 import dev.labdex.labterm.data.KeyExportState
 import dev.labdex.labterm.data.VaultRepository
 import dev.labdex.labterm.data.userMessage
 import dev.labdex.labterm.str
 import dev.labdex.labterm.ui.components.FormField
+import dev.labdex.labterm.ui.components.NewItemVaultPicker
 import dev.labdex.labterm.ui.components.SectionCard
 import dev.labdex.labterm.ui.hosts.FullScreenEditor
 import dev.labdex.labterm.ui.components.SecretField
@@ -197,10 +199,13 @@ private val POLICIES = listOf("24h", "48h", "1week", "oidc", "oidc-refreshed", "
 @Composable
 internal fun ProviderEditorPage(
     current: OidcProviderItem,
+    /** New providers: vaults to pick from (empty = keep [current]'s vault). */
+    vaults: List<VaultInfo> = emptyList(),
     onDismiss: () -> Unit,
     onDelete: (() -> Unit)?,
     onSave: (OidcProviderItem) -> Unit,
 ) {
+    var vaultId by remember { mutableStateOf(current.vaultId) }
     var label by remember { mutableStateOf(current.label) }
     var issuer by remember { mutableStateOf(current.issuer) }
     var clientId by remember { mutableStateOf(current.clientId) }
@@ -217,6 +222,7 @@ internal fun ProviderEditorPage(
         onSave = {
             onSave(
                 current.copy(
+                    vaultId = vaultId,
                     label = label.trim(),
                     issuer = issuer.trim(),
                     clientId = clientId.trim(),
@@ -233,6 +239,7 @@ internal fun ProviderEditorPage(
     ) {
         SectionCard {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (current.id == null) NewItemVaultPicker(vaults, vaultId) { vaultId = it }
                 FormField(label, { label = it }, stringResource(R.string.label))
                 FormField(issuer, { issuer = it }, stringResource(R.string.openid_issuer), placeholder = "https://auth.example.com/")
                 FormField(clientId, { clientId = it }, stringResource(R.string.openid_client_id))
