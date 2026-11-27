@@ -177,6 +177,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write # cosign keyless signing of the manifests
 
   web-images:
     name: labterm web images

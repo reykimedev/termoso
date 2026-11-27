@@ -46,7 +46,7 @@ whichever your policy requires; they do not depend on each other.
    ```sh
    cosign verify-blob SHA256SUMS.txt \
      --bundle SHA256SUMS.txt.sigstore.json \
-     --certificate-identity-regexp '^https://github.com/termoso/termoso/\.github/workflows/release\.yml@refs/tags/v' \
+     --certificate-identity-regexp '^https://github.com/reykimedev/termoso/\.github/workflows/release\.yml@refs/tags/v' \
      --certificate-oidc-issuer https://token.actions.githubusercontent.com
    sha256sum -c --ignore-missing SHA256SUMS.txt
    ```
@@ -56,7 +56,7 @@ whichever your policy requires; they do not depend on each other.
    attestation naming the workflow, commit and runner that produced it:
 
    ```sh
-   gh attestation verify Labterm_0.9.1_amd64.AppImage -R labterm/labterm
+   gh attestation verify Labterm_0.9.1_amd64.AppImage -R reykimedev/termoso
    ```
 
 3. **Updater signatures.** Desktop updates (`latest.json`, `*.sig`) are

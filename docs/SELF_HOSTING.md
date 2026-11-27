@@ -35,6 +35,16 @@ The `labterm-server` and `labterm-bridge` images are multi-architecture
 (`linux/amd64` and `linux/arm64`), so the same Compose file works on x86_64
 servers and on 64-bit ARM hosts (Raspberry Pi 4+, Ampere, Graviton).
 
+All three server images (`labterm-server`, `labterm-bridge`, `labterm-backup`)
+are signed keyless with cosign by the workflow that built them. Check a
+signature before you pin a tag or digest:
+
+```sh
+cosign verify ghcr.io/reykimedev/labterm-server:latest \
+  --certificate-identity-regexp '^https://github.com/reykimedev/termoso/' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
 Everything the server stores about vault contents is ciphertext the server
 cannot open; what it *can* read is listed in the README's
 [security model](../README.md#security-model). Losing Redis logs nobody out
