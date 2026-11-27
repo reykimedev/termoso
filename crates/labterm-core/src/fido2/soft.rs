@@ -9,7 +9,9 @@ use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
 use ciborium::Value;
+// ed25519-dalek 3 and p256 0.13 sit on different `signature` majors, so each needs its own trait.
 use ed25519_dalek::Signer as _;
+use p256::ecdsa::signature::Signer as _;
 use p256::elliptic_curve::sec1::ToEncodedPoint;
 use sha2::{Digest, Sha256};
 
