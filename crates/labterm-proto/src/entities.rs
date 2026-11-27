@@ -42,11 +42,12 @@ pub const KINDS: &[&str] = &[
     "oidc_provider",
     "transport",
     "host_overlay",
+    "vault_pin",
 ];
 
 /// Kinds that may only live in a personal (or the device-local) vault: a
 /// team vault must never hold them. Servers refuse them in team vaults.
-pub const PERSONAL_ONLY_KINDS: &[&str] = &["host_overlay"];
+pub const PERSONAL_ONLY_KINDS: &[&str] = &["host_overlay", "vault_pin"];
 
 /// Whether `kind` is one of [`PERSONAL_ONLY_KINDS`].
 pub fn is_personal_only_kind(kind: &str) -> bool {
@@ -921,6 +922,20 @@ pub mod payload {
             /// Forward X11. Never taken from the team's settings.
             #[serde(default, skip_serializing_if = "std::ops::Not::not")]
             pub forward_x11: bool,
+        }
+    }
+
+    schema! {
+        /// A vault the user pinned to the top of their vault switchers.
+        /// Lives only in the user's personal (or local) vault, so pins
+        /// follow the user across devices and a team never sees them.
+        #[derive(Default, PartialEq, Eq)]
+        pub struct VaultPin {
+            /// The pinned vault (any vault the user can open).
+            pub vault_id: Uuid,
+            /// Sort key among the user's pins; lower comes first.
+            #[serde(default)]
+            pub order: i64,
         }
     }
 

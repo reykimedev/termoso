@@ -144,6 +144,7 @@ fun HostsScreen(
     }
     val state by vm.state.collectAsStateWithLifecycle()
     val vaults by shell.vaults.collectAsStateWithLifecycle()
+    val vaultPins by shell.vaultPins.collectAsStateWithLifecycle()
     val selectedVaultId by shell.selectedVaultId.collectAsStateWithLifecycle()
     val vault = vaults.firstOrNull { it.id == selectedVaultId }
     val sessions by shell.sessions.sessions.collectAsStateWithLifecycle()
@@ -243,7 +244,7 @@ fun HostsScreen(
                         actions = actions,
                     )
                     groupId == null -> CenterAlignedTopAppBar(
-                        title = { VaultPickerTitle(vaults, selectedVaultId, shell::selectVault) },
+                        title = { VaultPickerTitle(vaults, selectedVaultId, shell::selectVault, vaultPins, shell::toggleVaultPin) },
                         navigationIcon = navigationIcon,
                         actions = actions,
                     )

@@ -6,6 +6,8 @@
 import {
   Chip,
   Divider,
+  IconButton,
+  ListSubheader,
   ListItemIcon,
   ListItemText,
   Menu,
@@ -22,8 +24,10 @@ import ComputerRoundedIcon from "@mui/icons-material/ComputerRounded";
 import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
 import LockRoundedIcon from "@mui/icons-material/LockRounded";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
+import PushPinRoundedIcon from "@mui/icons-material/PushPinRounded";
+import PushPinOutlinedIcon from "@mui/icons-material/PushPinOutlined";
 import type { LocalVault, Uuid } from "@/ipc/types";
-import { useDefaultVault, useVaults } from "@/ipc/hooks";
+import { useDefaultVault, useToggleVaultPin, useVaultPins, useVaults } from "@/ipc/hooks";
 import { createStore, useStore } from "@/lib/store";
 import { goToSettings, goToSettingsWith } from "./navigation";
 import { tr } from "@/i18n";
@@ -114,6 +118,20 @@ export function openCollaboration(v: LocalVault | null) {
 
 const ORIGIN_TOP: PopoverOrigin = { vertical: "top", horizontal: "left" };
 const ORIGIN_BOTTOM: PopoverOrigin = { vertical: "bottom", horizontal: "left" };
+const SUBHEADER = { lineHeight: "28px", fontSize: 11, bgcolor: "transparent" } as const;
+
+/** Pinned vaults first (in pin order), then the rest in their usual order. */
+export function usePinnedVaults(vaults: LocalVault[]): {
+  pinned: LocalVault[];
+  others: LocalVault[];
+  isPinned: (id: Uuid) => boolean;
+} {
+  const { data: pins = [] } = useVaultPins();
+  const byId = new Map(vaults.map((v) => [v.id, v]));
+  const pinned = pins.flatMap((id) => byId.get(id) ?? []);
+  const set = new Set(pinned.map((v) => v.id));
+  return { pinned, others: vaults.filter((v) => !set.has(v.id)), isPinned: (id) => set.has(id) };
+}
 
 /** Vault picker under the Vaults tab; one vault is active at a time, like Termius. */
 export function VaultMenu({
@@ -124,6 +142,53 @@ export function VaultMenu({
   onClose: () => void;
 }) {
   const active = useActiveVault();
+  const { pinned, others, isPinned } = usePinnedVaults(active.vaults);
+  const togglePin = useToggleVaultPin();
+  const row = (v: LocalVault) => {
+    const selected = v.id === active.data?.id;
+    const on = isPinned(v.id);
+    return (
+      <MenuItem
+        key={v.id}
+        selected={selected}
+        disabled={!v.unlocked}
+        onClick={() => {
+          selectVault(v.id);
+          onClose();
+        }}
+        sx={{ py: 0.75, "&:hover .vault-pin, & .vault-pin.on": { visibility: "visible" } }}
+      >
+        <ListItemIcon>{vaultIcon(v)}</ListItemIcon>
+        <ListItemText
+          primary={v.name}
+          secondary={vaultHint(v)}
+          slotProps={{ secondary: { sx: { fontSize: 11 } } }}
+        />
+        <IconButton
+          className={on ? "vault-pin on" : "vault-pin"}
+          size="small"
+          aria-label={on ? tr("Unpin vault") : tr("Pin vault")}
+          title={on ? tr("Unpin vault") : tr("Pin vault")}
+          aria-pressed={on}
+          onClick={(e) => {
+            e.stopPropagation();
+            togglePin.mutate(v.id);
+          }}
+          sx={{ ml: 1, visibility: "hidden", pointerEvents: "auto" }}
+        >
+          {on ? (
+            <PushPinRoundedIcon sx={{ fontSize: 16 }} />
+          ) : (
+            <PushPinOutlinedIcon sx={{ fontSize: 16 }} />
+          )}
+        </IconButton>
+        <CheckRoundedIcon
+          fontSize="small"
+          sx={{ color: "primary.main", ml: 0.5, visibility: selected ? "visible" : "hidden" }}
+        />
+      </MenuItem>
+    );
+  };
   return (
     <Menu
       open={anchor !== null}
@@ -133,32 +198,12 @@ export function VaultMenu({
       transformOrigin={ORIGIN_TOP}
       slotProps={{ paper: { sx: { minWidth: 240 } } }}
     >
-      {active.vaults.map((v) => {
-        const selected = v.id === active.data?.id;
-        return (
-          <MenuItem
-            key={v.id}
-            selected={selected}
-            disabled={!v.unlocked}
-            onClick={() => {
-              selectVault(v.id);
-              onClose();
-            }}
-            sx={{ py: 0.75 }}
-          >
-            <ListItemIcon>{vaultIcon(v)}</ListItemIcon>
-            <ListItemText
-              primary={v.name}
-              secondary={vaultHint(v)}
-              slotProps={{ secondary: { sx: { fontSize: 11 } } }}
-            />
-            <CheckRoundedIcon
-              fontSize="small"
-              sx={{ color: "primary.main", ml: 1.5, visibility: selected ? "visible" : "hidden" }}
-            />
-          </MenuItem>
-        );
-      })}
+      {pinned.length > 0 && <ListSubheader sx={SUBHEADER}>{tr("Pinned")}</ListSubheader>}
+      {pinned.map(row)}
+      {pinned.length > 0 && others.length > 0 && (
+        <ListSubheader sx={SUBHEADER}>{tr("All vaults")}</ListSubheader>
+      )}
+      {others.map(row)}
       {active.vaults.length === 0 && (
         <Typography variant="body2" color="text.secondary" sx={{ px: 2, py: 1 }}>
           {tr("No vaults yet")}

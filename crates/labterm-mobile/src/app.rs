@@ -1274,6 +1274,33 @@ impl LabtermApp {
         Ok(keychain::delete_identity(&self.store, parse_id(&id)?)?)
     }
 
+    // ---- pinned vaults (synced per user, never per team) ----------------
+
+    /// Pinned vault ids, first pin first.
+    pub fn vault_pins(&self) -> Result<Vec<String>> {
+        Ok(labterm_client::pins::pinned(&self.store)?
+            .into_iter()
+            .map(|id| id.to_string())
+            .collect())
+    }
+
+    /// Pin or unpin a vault; returns whether it is pinned now.
+    pub fn toggle_vault_pin(&self, vault_id: String) -> Result<bool> {
+        Ok(labterm_client::pins::toggle(
+            &self.store,
+            parse_id(&vault_id)?,
+        )?)
+    }
+
+    /// Reorder the pins to follow `vault_ids`.
+    pub fn reorder_vault_pins(&self, vault_ids: Vec<String>) -> Result<()> {
+        let ids = vault_ids
+            .iter()
+            .map(|id| parse_id(id))
+            .collect::<Result<Vec<_>>>()?;
+        Ok(labterm_client::pins::reorder(&self.store, &ids)?)
+    }
+
     // ---- own credentials on team hosts (personal overlays) -------------
 
     /// Every link from the member's vaults to team hosts, groups and tags.

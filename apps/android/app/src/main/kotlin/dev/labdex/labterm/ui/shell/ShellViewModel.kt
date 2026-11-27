@@ -59,6 +59,10 @@ class ShellViewModel(
             if (hide) list.filter { it.kind != VaultKind.PERSONAL } else list
         }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
+    private val _vaultPins = MutableStateFlow<List<String>>(emptyList())
+    /** Pinned vault ids, first pin first; synced per user in their personal vault. */
+    val vaultPins: StateFlow<List<String>> = _vaultPins.asStateFlow()
+
     private val _selectedVaultId = MutableStateFlow(repo.settings.value.selectedVaultId)
     val selectedVaultId: StateFlow<String?> = _selectedVaultId.asStateFlow()
 
@@ -79,6 +83,7 @@ class ShellViewModel(
     private suspend fun reload() {
         val list = runCatching { repo.read { vaults() } }.getOrNull() ?: return
         _vaults.value = list
+        runCatching { repo.read { vaultPins() } }.getOrNull()?.let { _vaultPins.value = it }
         if (list.isNotEmpty() && list.none { it.id == _selectedVaultId.value }) {
             _selectedVaultId.value = list.first().id
         }
@@ -89,6 +94,14 @@ class ShellViewModel(
         _selectedVaultId.value = id
         viewModelScope.launch {
             runCatching { repo.updateSettings { it.copy(selectedVaultId = id) } }
+        }
+    }
+
+    fun toggleVaultPin(id: String) {
+        viewModelScope.launch {
+            runCatching { repo.write { toggleVaultPin(id) } }
+                .onSuccess { _vaultPins.value = runCatching { repo.read { vaultPins() } }.getOrDefault(_vaultPins.value) }
+                .onFailure { notify(it.userMessage()) }
         }
     }
 

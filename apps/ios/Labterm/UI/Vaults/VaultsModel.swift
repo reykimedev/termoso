@@ -10,6 +10,8 @@ final class VaultsModel {
     let repository: VaultRepository
 
     private(set) var vaults: [VaultInfo] = []
+    /// Pinned vault ids, first pin first.
+    private(set) var pins: [String] = []
     private(set) var hosts: [HostItem] = []
     private(set) var groups: [GroupItem] = []
     private(set) var tags: [TagItem] = []
@@ -23,6 +25,26 @@ final class VaultsModel {
         self.repository = repository
     }
 
+    /// Pinned vaults first, in pin order, then the rest.
+    var pinnedVaults: [VaultInfo] {
+        pins.compactMap { id in vaults.first { $0.id == id } }
+    }
+
+    var unpinnedVaults: [VaultInfo] {
+        vaults.filter { !pins.contains($0.id) }
+    }
+
+    func isPinned(_ id: String) -> Bool { pins.contains(id) }
+
+    func togglePin(_ id: String) {
+        do {
+            try repository.toggleVaultPin(vaultId: id)
+            pins = try repository.vaultPins()
+        } catch {
+            self.error = userMessage(for: error)
+        }
+    }
+
     var selectedVault: VaultInfo? {
         vaults.first { $0.id == selectedVaultId }
     }
@@ -30,6 +52,7 @@ final class VaultsModel {
     func reload() {
         do {
             vaults = try repository.vaults()
+            pins = (try? repository.vaultPins()) ?? pins
             if selectedVaultId == nil || !vaults.contains(where: { $0.id == selectedVaultId }) {
                 selectedVaultId = vaults.first { $0.kind == .local }?.id ?? vaults.first?.id
             }

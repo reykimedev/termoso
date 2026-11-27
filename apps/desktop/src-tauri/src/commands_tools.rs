@@ -607,6 +607,24 @@ pub async fn identity_save(state: State<'_, AppState>, form: IdentityForm) -> Re
     keychain::save_identity(&*state.store()?, &form)
 }
 
+/// The user's pinned vaults, first pin first (synced in their personal vault).
+#[tauri::command]
+pub async fn vault_pins(state: State<'_, AppState>) -> Result<Vec<Uuid>> {
+    labterm_client::pins::pinned(&*state.store()?)
+}
+
+/// Pin or unpin a vault; returns whether it is pinned now.
+#[tauri::command]
+pub async fn vault_pin_toggle(state: State<'_, AppState>, vault_id: Uuid) -> Result<bool> {
+    labterm_client::pins::toggle(&*state.store()?, vault_id)
+}
+
+/// Reorder the pins to follow `vaultIds`.
+#[tauri::command]
+pub async fn vault_pins_reorder(state: State<'_, AppState>, vault_ids: Vec<Uuid>) -> Result<()> {
+    labterm_client::pins::reorder(&*state.store()?, &vault_ids)
+}
+
 /// The member's own credentials for team hosts (personal overlays).
 #[tauri::command]
 pub async fn overlays_list(

@@ -52,6 +52,7 @@ payloads! {
     OidcProvider => "oidc_provider",
     Transport => "transport",
     HostOverlay => "host_overlay",
+    VaultPin => "vault_pin",
 }
 
 /// Decrypted entity as handed to the UI.

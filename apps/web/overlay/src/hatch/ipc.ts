@@ -19,6 +19,7 @@ import * as m from "./backend/model";
 import * as oidc from "./backend/oidc";
 import * as opkssh from "./backend/opkssh";
 import * as overlays from "./backend/overlays";
+import * as pins from "./backend/pins";
 import * as policyview from "./backend/policyview";
 import * as vpn from "./backend/vpn";
 import { defaultSettings } from "./backend/settings";
@@ -254,6 +255,12 @@ const commands: Record<string, Handler> = {
   identity_copy_to_vault: (a) => copy.identityCopyToVault(a.id, a.vaultId, !!a.moveIdentity),
   identity_delete: (a) => {
     st.remove(a.id);
+    return null;
+  },
+  vault_pins: () => pins.pinned(),
+  vault_pin_toggle: (a) => pins.toggle(a.vaultId),
+  vault_pins_reorder: (a) => {
+    pins.reorder(a.vaultIds ?? []);
     return null;
   },
   overlays_list: () => overlays.overlayCards(),
