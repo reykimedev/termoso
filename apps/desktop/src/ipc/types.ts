@@ -2381,7 +2381,9 @@ export type PromptRequest =
   | { kind: "passphrase"; key_label: string }
   | { kind: "pin"; key_label: string; retry: boolean; retries: number | null }
   | { kind: "interactive"; name: string; instructions: string; questions: Question[] }
-  | { kind: "agent_sign"; key_label: string; fingerprint: string; process: string | null };
+  | { kind: "agent_sign"; key_label: string; fingerprint: string; process: string | null }
+  /** Labterm Web: the browser needs a click before it asks for the security key. */
+  | { kind: "security_key"; key_label: string };
 
 export type PromptEvent = { id: Uuid; session_id: Uuid; target: string } & PromptRequest;
 

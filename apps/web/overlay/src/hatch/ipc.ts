@@ -21,6 +21,7 @@ import * as opkssh from "./backend/opkssh";
 import * as overlays from "./backend/overlays";
 import * as policyview from "./backend/policyview";
 import * as vpn from "./backend/vpn";
+import * as webauthn from "./backend/webauthn";
 import { defaultSettings } from "./backend/settings";
 import * as snippets from "./backend/snippets";
 import * as st from "./backend/state";
@@ -309,6 +310,10 @@ const commands: Record<string, Handler> = {
   key_oidc_sign_out: (a) => opkssh.forget(a.id),
   key_setup_opkssh_on_host: (a) =>
     opkssh.setupOnHost(a as Parameters<typeof opkssh.setupOnHost>[0]),
+  // security keys through the browser's WebAuthn (sk-ecdsa keys for this site)
+  fido2_devices: () => webauthn.devices(),
+  fido2_generate: (a) => webauthn.generate(a.form),
+  fido2_load_resident: notInBrowser("Loading resident keys from a security key"),
   key_inspect_file: notInBrowser("Reading key files from disk"),
   key_import_file: notInBrowser("Reading key files from disk"),
   key_export_file: notInBrowser("Saving files to disk"),

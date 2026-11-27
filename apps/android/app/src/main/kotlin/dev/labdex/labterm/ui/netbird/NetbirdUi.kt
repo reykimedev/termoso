@@ -69,6 +69,7 @@ import dev.labdex.labterm.ui.components.ListRow
 import dev.labdex.labterm.ui.components.RowDivider
 import dev.labdex.labterm.ui.components.SecretField
 import dev.labdex.labterm.ui.components.SectionCard
+import dev.labdex.labterm.ui.hosts.FullScreenEditor
 import dev.labdex.labterm.ui.components.SheetAction
 import dev.labdex.labterm.ui.components.SheetSection
 import dev.labdex.labterm.ui.components.SubScreen
@@ -204,7 +205,7 @@ fun NetbirdNetworksScreen(shell: ShellViewModel, onBack: () -> Unit, onOpenNetwo
 
     editing?.let { n ->
         val id = n.id
-        NetworkEditDialog(
+        NetworkEditorPage(
             n,
             onDismiss = { editing = null },
             onSignIn = if (id == null || n.hasSetupKey) null else ({ editing = null; signingIn = n }),
@@ -282,8 +283,9 @@ fun NetbirdNetworksScreen(shell: ShellViewModel, onBack: () -> Unit, onOpenNetwo
     }
 }
 
+/** Full-screen editor of a VPN network, in the shared edit page layout. */
 @Composable
-internal fun NetworkEditDialog(
+internal fun NetworkEditorPage(
     current: TransportItem,
     onDismiss: () -> Unit,
     onSignIn: (() -> Unit)?,
@@ -299,11 +301,25 @@ internal fun NetworkEditDialog(
     // A stored key is never shown again: leaving the field empty keeps it. Without
     // a key, each user joins by signing in.
     val valid = label.isNotBlank()
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(if (current.id == null) stringResource(R.string.netbird_new_network) else current.label) },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    FullScreenEditor(
+        title = stringResource(if (current.id == null) R.string.vpn_new_network else R.string.vpn_edit_network),
+        canSave = valid,
+        onSave = {
+            onSave(
+                current.copy(
+                    label = label.trim(),
+                    provider = provider,
+                    managementUrl = url.trim().ifEmpty { null },
+                    setupKey = if (current.team) null else setupKey.trim().ifEmpty { null },
+                    directFirst = directFirst,
+                ),
+            )
+        },
+        onDismiss = onDismiss,
+        onDelete = onDelete,
+    ) {
+        SectionCard {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 FormField(label, { label = it }, stringResource(R.string.label))
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     listOf(NETBIRD, TAILSCALE).forEachIndexed { i, p ->
@@ -320,6 +336,10 @@ internal fun NetworkEditDialog(
                     stringResource(if (tailscale) R.string.tailscale_control_url else R.string.netbird_management_url),
                     placeholder = if (tailscale) "https://headscale.example.com" else "https://netbird.example.com",
                 )
+            }
+        }
+        SectionCard {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (current.team) {
                     // A key here would let every vault member in without a NetBird account.
                     Text(
@@ -340,37 +360,22 @@ internal fun NetworkEditDialog(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                SwitchRow(
-                    title = stringResource(R.string.vpn_direct_first),
-                    subtitle = stringResource(R.string.vpn_direct_first_hint),
-                    checked = directFirst,
-                    onCheckedChange = { directFirst = it },
-                )
                 if (onSignIn != null) {
                     TextButton(onClick = onSignIn) {
                         Text(stringResource(if (current.signedIn) R.string.netbird_sign_in_again else R.string.netbird_sign_in))
                     }
                 }
-                if (onDelete != null) {
-                    TextButton(onClick = onDelete) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
-                }
             }
-        },
-        confirmButton = {
-            TextButton(enabled = valid, onClick = {
-                onSave(
-                    current.copy(
-                        label = label.trim(),
-                        provider = provider,
-                        managementUrl = url.trim().ifEmpty { null },
-                        setupKey = if (current.team) null else setupKey.trim().ifEmpty { null },
-                        directFirst = directFirst,
-                    ),
-                )
-            }) { Text(stringResource(R.string.save)) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
-    )
+        }
+        SectionCard {
+            SwitchRow(
+                title = stringResource(R.string.vpn_direct_first),
+                subtitle = stringResource(R.string.vpn_direct_first_hint),
+                checked = directFirst,
+                onCheckedChange = { directFirst = it },
+            )
+        }
+    }
 }
 
 /** Opens [url] in a Custom Tab (falls back to the default browser); false when no browser exists. */

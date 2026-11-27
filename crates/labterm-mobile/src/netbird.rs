@@ -72,6 +72,7 @@ impl From<Entity<Transport>> for TransportItem {
 
 pub(crate) fn list(store: &Arc<Store>, vault_id: Option<String>) -> Result<Vec<TransportItem>> {
     let vault = parse_opt_id(&vault_id)?;
+    vpn::forget_orphans(store);
     Ok(transports::list(store, vault)?
         .into_iter()
         .map(|e| to_item(store, e))

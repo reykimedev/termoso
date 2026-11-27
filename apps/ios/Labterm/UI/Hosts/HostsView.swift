@@ -104,7 +104,7 @@ struct HostsView: View {
                 addMenu
             }
         }
-        .sheet(item: $editor) { target in
+        .fullScreenCover(item: $editor) { target in
             HostEditorView(model: model, target: target)
         }
         .sheet(item: $transfer) { request in

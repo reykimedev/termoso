@@ -243,8 +243,9 @@ pub fn init<R: Runtime>(app: &AppHandle<R>) {
 
 #[cfg(unix)]
 fn library_path<R: Runtime>(app: &AppHandle<R>) -> Option<std::path::PathBuf> {
-    // A development build may point elsewhere (vpn/build.sh
-    // prints the path).
+    // A development build may point elsewhere (vpn/build.sh prints the
+    // path). Release builds only load the library shipped with the app.
+    #[cfg(debug_assertions)]
     if let Some(p) = std::env::var_os("LABTERM_VPN_LIBRARY") {
         return Some(p.into());
     }
@@ -416,6 +417,8 @@ pub async fn vpn_networks(
     vault_id: Option<Uuid>,
 ) -> Result<Vec<VpnNetwork>> {
     let store = state.store()?;
+    #[cfg(unix)]
+    labterm_client::vpn::forget_orphans(&store);
     Ok(transports::list(&store, vault_id)?
         .into_iter()
         .map(|e| to_network(&store, e))
