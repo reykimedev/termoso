@@ -18,15 +18,13 @@ import {
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
 import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
-import ComputerRoundedIcon from "@mui/icons-material/ComputerRounded";
-import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
 import LockRoundedIcon from "@mui/icons-material/LockRounded";
-import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
 import type { LocalVault, Uuid } from "@/ipc/types";
 import { useDefaultVault, useVaults } from "@/ipc/hooks";
 import { createStore, useStore } from "@/lib/store";
 import { goToSettings, goToSettingsWith } from "./navigation";
 import { tr } from "@/i18n";
+import { vaultGlyph } from "@/team/VaultTile";
 
 const VAULT_KEY = "termoso.activeVault";
 
@@ -70,16 +68,8 @@ export function useActiveVault(): ActiveVault {
   };
 }
 
-export const vaultIcon = (v: LocalVault) =>
-  !v.unlocked ? (
-    <LockRoundedIcon fontSize="small" />
-  ) : v.kind === "team" ? (
-    <GroupsRoundedIcon fontSize="small" />
-  ) : v.kind === "personal" ? (
-    <PersonRoundedIcon fontSize="small" />
-  ) : (
-    <ComputerRoundedIcon fontSize="small" />
-  );
+/** Glyph for a vault in menus and rows: its icon in its colour, a lock while locked. */
+export const vaultIcon = (v: LocalVault) => vaultGlyph(v);
 
 export const vaultHint = (v: LocalVault) =>
   !v.unlocked

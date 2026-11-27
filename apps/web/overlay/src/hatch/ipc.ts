@@ -160,6 +160,7 @@ const commands: Record<string, Handler> = {
   vaults_list: () => account.vaultsView(),
   vault_default: () => account.vaultsView().find((v) => v.is_default) ?? account.vaultsView()[0],
   vault_session_logging_set: () => null,
+  vault_style_set: (a) => account.setVaultStyle(a.vaultId, a.color ?? null, a.icon ?? null),
 
   // settings
   settings_get: () => (st.isUnlocked() ? st.s().settings : lockedSettings()),

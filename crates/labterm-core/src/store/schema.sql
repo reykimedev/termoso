@@ -23,7 +23,9 @@ CREATE TABLE IF NOT EXISTS vaults (
     created_at  TEXT NOT NULL,
     session_logging INTEGER NOT NULL DEFAULT 0, -- team vault: record every member's sessions
     logs_cursor INTEGER NOT NULL DEFAULT 0,     -- GET /vaults/{id}/logs cursor (team vaults)
-    is_default  INTEGER NOT NULL DEFAULT 0      -- team's first vault: undeletable
+    is_default  INTEGER NOT NULL DEFAULT 0,     -- team's first vault: undeletable
+    color       TEXT,                           -- tile colour #rrggbb (schema 5)
+    icon        TEXT                            -- built-in icon id or custom:data: image (schema 5)
 );
 
 CREATE TABLE IF NOT EXISTS entities (

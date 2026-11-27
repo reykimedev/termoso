@@ -8,6 +8,7 @@ import { w, loadWasm } from "./wasm";
 import * as db from "./db";
 import * as acl from "./acl";
 import * as policy from "./policy";
+import { hostColor } from "./model";
 import {
   type Account,
   type Ent,
@@ -353,6 +354,8 @@ interface ServerVault {
   key_version: number;
   session_logging: boolean;
   is_default: boolean;
+  color?: string | null;
+  icon?: string | null;
 }
 
 export async function refreshVaults(): Promise<void> {
@@ -418,6 +421,8 @@ export async function refreshVaults(): Promise<void> {
       cursor: prev?.key_version === keyVersion ? prev.cursor : 0,
       is_default: v.kind === "personal",
       session_logging: v.session_logging,
+      color: v.color ?? null,
+      icon: v.icon ?? null,
     });
   }
   const gone = new Set([...old.keys()].filter((id) => !next.some((v) => v.id === id)));
@@ -710,5 +715,30 @@ export function vaultsView() {
     session_logging: v.session_logging,
     logs_cursor: 0,
     is_default: v.is_default,
+    color: v.color ?? null,
+    icon: v.icon ?? null,
   }));
+}
+
+/**
+ * Set a vault's tile colour and icon. Synced vaults keep them next to the name on the server
+ * (manager only, validated there); this browser's own vault keeps them here.
+ */
+export async function setVaultStyle(id: Uuid, color: string | null, icon: string | null) {
+  const v = s().vaults.find((x) => x.id === id);
+  if (!v) fail("not_found", "Vault not found");
+  if (v.kind === "local") {
+    v.color = hostColor(color);
+    v.icon = icon?.trim() ? icon.trim() : null;
+    changed();
+    return null;
+  }
+  const r = await authed<ServerVault>("PATCH", `vaults/${id}`, {
+    color: color ?? "",
+    icon: icon ?? "",
+  });
+  v.color = r.color ?? null;
+  v.icon = r.icon ?? null;
+  changed();
+  return null;
 }

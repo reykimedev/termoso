@@ -1268,6 +1268,37 @@ pub async fn vault_session_logging_set<R: Runtime>(
     Ok(())
 }
 
+/// Tile colour and icon of a vault: on the server next to the name for synced
+/// vaults (manager), on this device for the local one. `None` clears.
+#[tauri::command]
+pub async fn vault_style_set<R: Runtime>(
+    app: AppHandle<R>,
+    vault_id: Uuid,
+    color: Option<String>,
+    icon: Option<String>,
+) -> Result<()> {
+    let color =
+        labterm_proto::style::normalize_color(color.as_deref()).map_err(DesktopError::invalid)?;
+    let icon =
+        labterm_proto::style::normalize_icon(icon.as_deref()).map_err(DesktopError::invalid)?;
+    let local = {
+        let store = app.state::<AppState>().store()?;
+        let local = store.vault(vault_id)?.kind == labterm_core::store::LocalVaultKind::Local;
+        if local {
+            store.set_vault_style(vault_id, color.as_deref(), icon.as_deref())?;
+        }
+        local
+    };
+    if !local {
+        let engine = account::engine(&app)
+            .await
+            .ok_or_else(|| DesktopError::invalid("sign in to change a synced vault"))?;
+        engine.set_vault_style(vault_id, color, icon).await?;
+    }
+    let _ = app.emit(SYNC_EVENT, SyncNotice::VaultsChanged);
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn log_delete<R: Runtime>(app: AppHandle<R>, id: Uuid) -> Result<()> {
     logs::delete(&*app.state::<AppState>().store()?, id)?;
@@ -1557,6 +1588,17 @@ pub async fn team_rename<R: Runtime>(
     name: String,
 ) -> Result<Team> {
     team::rename(&app, team_id, &name).await
+}
+
+/// Tile colour and icon of a team (admins). `None` clears.
+#[tauri::command]
+pub async fn team_style_set<R: Runtime>(
+    app: AppHandle<R>,
+    team_id: Uuid,
+    color: Option<String>,
+    icon: Option<String>,
+) -> Result<Team> {
+    team::set_style(&app, team_id, color, icon).await
 }
 
 #[tauri::command]

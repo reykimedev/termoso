@@ -92,6 +92,12 @@ pub struct TeamCard {
     pub mfa_policy: String,
     /// Device-local keys must not be used for this team's hosts (client-enforced).
     pub local_keys_denied: bool,
+    /// Tile colour (`#rrggbb`) set by an admin.
+    #[uniffi(default = None)]
+    pub color: Option<String>,
+    /// Built-in icon id or `custom:data:` image set by an admin.
+    #[uniffi(default = None)]
+    pub icon: Option<String>,
 }
 
 impl From<proto::Team> for TeamCard {
@@ -112,6 +118,8 @@ impl From<proto::Team> for TeamCard {
             local_keys_denied: policies.is_some_and(|p| p.local_keys == "deny"),
             my_permissions: t.my_permissions,
             my_role_name: t.my_role_ref.map(|r| r.name),
+            color: t.color,
+            icon: t.icon,
         }
     }
 }
@@ -560,6 +568,8 @@ impl AccountRuntime {
                     multiplayer_enabled,
                     require_mfa,
                     presence_enabled,
+                    color: None,
+                    icon: None,
                 },
             )
             .await?
@@ -1128,6 +1138,63 @@ impl AccountRuntime {
                 &UpdateVaultRequest {
                     name: Some(name),
                     session_logging: None,
+                    color: None,
+                    icon: None,
+                },
+            )
+            .await?;
+        self.refresh_vaults().await
+    }
+
+    /// Tile colour and icon of a team (admins). `None` clears.
+    pub async fn set_team_style(
+        self: &Arc<Self>,
+        team_id: String,
+        color: Option<String>,
+        icon: Option<String>,
+    ) -> Result<TeamCard> {
+        let team = self
+            .api()
+            .await?
+            .update_team(
+                parse_id(&team_id)?,
+                &UpdateTeamRequest {
+                    color: Some(color.unwrap_or_default()),
+                    icon: Some(icon.unwrap_or_default()),
+                    ..Default::default()
+                },
+            )
+            .await?;
+        Ok(team.into())
+    }
+
+    /// Tile colour and icon of a vault: on the server next to the name for
+    /// synced vaults (manager), on this device for the local one. `None` clears.
+    pub async fn set_vault_style(
+        self: &Arc<Self>,
+        vault_id: String,
+        color: Option<String>,
+        icon: Option<String>,
+    ) -> Result<()> {
+        let id = parse_id(&vault_id)?;
+        let color = labterm_proto::style::normalize_color(color.as_deref())
+            .map_err(MobileError::invalid)?;
+        let icon =
+            labterm_proto::style::normalize_icon(icon.as_deref()).map_err(MobileError::invalid)?;
+        if self.store().vault(id)?.kind == LocalVaultKind::Local {
+            self.store()
+                .set_vault_style(id, color.as_deref(), icon.as_deref())?;
+            return Ok(());
+        }
+        self.api()
+            .await?
+            .update_vault(
+                id,
+                &UpdateVaultRequest {
+                    name: None,
+                    session_logging: None,
+                    color: Some(color.unwrap_or_default()),
+                    icon: Some(icon.unwrap_or_default()),
                 },
             )
             .await?;

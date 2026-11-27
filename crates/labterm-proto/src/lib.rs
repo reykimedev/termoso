@@ -19,6 +19,7 @@ pub mod error;
 pub mod live;
 pub mod logs;
 pub mod sshid;
+pub mod style;
 pub mod sync;
 pub mod team;
 pub mod timestamp;

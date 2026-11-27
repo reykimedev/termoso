@@ -636,6 +636,7 @@ fn apply_vault_list(
         )?;
         store.set_vault_session_logging(v.id, v.session_logging)?;
         store.set_vault_default(v.id, v.is_default)?;
+        store.set_vault_style(v.id, v.color.as_deref(), v.icon.as_deref())?;
         if let Some(old) = rotated_from {
             store.reencrypt_vault(v.id, &old)?;
         }
@@ -765,6 +766,8 @@ mod tests {
             key_version: kv,
             session_logging: false,
             is_default: false,
+            color: None,
+            icon: None,
         }
     }
 

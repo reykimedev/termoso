@@ -430,40 +430,8 @@ fn ip_version_of(stored: &str) -> String {
     }
 }
 
-const MAX_CUSTOM_ICON_DATA_LENGTH: usize = 32 * 1024;
-
 fn valid_custom_icon(value: &str) -> bool {
-    let Some(data_url) = value.strip_prefix("custom:data:") else {
-        return false;
-    };
-    if data_url.len() > MAX_CUSTOM_ICON_DATA_LENGTH {
-        return false;
-    }
-    let Some((header, payload)) = data_url.split_once(',') else {
-        return false;
-    };
-    let Some(mime) = header
-        .strip_prefix("data:")
-        .and_then(|h| h.strip_suffix(";base64"))
-    else {
-        return false;
-    };
-    if !matches!(
-        mime.to_ascii_lowercase().as_str(),
-        "image/png"
-            | "image/jpeg"
-            | "image/gif"
-            | "image/webp"
-            | "image/svg+xml"
-            | "image/x-icon"
-            | "image/avif"
-    ) {
-        return false;
-    }
-    !payload.is_empty()
-        && payload
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'+' | b'/' | b'='))
+    labterm_proto::style::valid_custom_icon(value)
 }
 
 fn clean_icon(icon: &Option<String>) -> Result<Option<String>> {
@@ -483,15 +451,7 @@ fn clean_icon(icon: &Option<String>) -> Result<Option<String>> {
 /// Host and group colours are stored as `#rrggbb` so every client can parse
 /// them (Android's `Color.parseColor` has no `#rgb`).
 fn clean_color(color: Option<String>) -> Result<Option<String>> {
-    let Some(c) = normalize_tag_color(color)? else {
-        return Ok(None);
-    };
-    let hex = &c[1..];
-    if hex.len() == 3 {
-        let long: String = hex.chars().flat_map(|ch| [ch, ch]).collect();
-        return Ok(Some(format!("#{long}")));
-    }
-    Ok(Some(c))
+    labterm_proto::style::normalize_color(color.as_deref()).map_err(ClientError::invalid)
 }
 
 /// Empty / whitespace scheme ids mean "follow the app setting".
