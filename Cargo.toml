@@ -120,3 +120,24 @@ strip = true
 # Argon2 is unbearably slow unoptimised, even in tests (Labterm Web's lock key and backups).
 [profile.dev.package.argon2]
 opt-level = 3
+
+# Same for our own crypto: the AEAD and OPAQUE code is generic, so it is compiled in
+# labterm-crypto and runs unoptimised there (a 64 MiB session log took ~25 s to seal and
+# open in a debug test, 0.5 s with this). Release builds are unaffected.
+[profile.dev.package.labterm-crypto]
+opt-level = 3
+[profile.dev.package.chacha20]
+opt-level = 3
+[profile.dev.package.poly1305]
+opt-level = 3
+
+# RSA key generation (the mock OpenID provider and the SAML tests make 2048-bit keys) took
+# 3 to 10 s unoptimised; every server test process paid it once.
+[profile.dev.package.rsa]
+opt-level = 3
+[profile.dev.package.num-bigint-dig]
+opt-level = 3
+[profile.dev.package.crypto-bigint]
+opt-level = 3
+[profile.dev.package.crypto-primes]
+opt-level = 3

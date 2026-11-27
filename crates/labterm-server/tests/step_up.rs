@@ -283,16 +283,15 @@ async fn step_up_asks_for_the_second_factor_when_enabled() {
         )
         .await;
     let totp = Totp::from_url(&setup.otpauth_url).expect("otpauth url");
-    let code = || totp.generate_current().to_string();
+    let used = totp.generate_current().to_string();
     let _: BackupCodes = s
         .json(
             Method::POST,
             "/account/mfa/totp/confirm",
             Some(u.token()),
-            Some(&TotpCodeRequest { code: code() }),
+            Some(&TotpCodeRequest { code: used.clone() }),
         )
         .await;
-    let used = code();
     s.age_step_up(u.token()).await;
 
     // Password alone is not enough.
@@ -325,13 +324,7 @@ async fn step_up_asks_for_the_second_factor_when_enabled() {
         StatusCode::UNAUTHORIZED,
     )
     .await;
-    let fresh = loop {
-        let c = code();
-        if c != used {
-            break c;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-    };
+    let fresh = unused_totp_code(&totp, &[&used]).await;
     let resp: AuthResponse = s
         .json(
             Method::POST,
@@ -855,16 +848,15 @@ async fn start_over_keeps_asking_for_the_second_factor() {
         )
         .await;
     let totp = Totp::from_url(&setup.otpauth_url).expect("otpauth url");
-    let code = || totp.generate_current().to_string();
+    let used = totp.generate_current().to_string();
     let _: BackupCodes = s
         .json(
             Method::POST,
             "/account/mfa/totp/confirm",
             Some(u.token()),
-            Some(&TotpCodeRequest { code: code() }),
+            Some(&TotpCodeRequest { code: used.clone() }),
         )
         .await;
-    let used = code();
 
     let r: StartOverRequestResponse = s
         .json(
@@ -906,13 +898,7 @@ async fn start_over_keeps_asking_for_the_second_factor() {
         )
         .await;
     let email_code = s.emailed_code(&u.email, "account reset").await;
-    let fresh = loop {
-        let c = code();
-        if c != used {
-            break c;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-    };
+    let fresh = unused_totp_code(&totp, &[&used]).await;
     let scheduled: StartOverScheduled = s
         .json(
             Method::POST,

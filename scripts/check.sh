@@ -44,7 +44,14 @@ check_rust() {
   run rust . cargo clippy --workspace --all-targets --locked
   # Server tests use PostgreSQL/Redis/RustFS/Mailpit from deploy/docker-compose.dev.yml
   # when reachable and skip otherwise (LABTERM_TEST_REQUIRE_SERVICES=1 to insist).
-  run rust . cargo test --workspace --locked
+  # cargo-nextest runs the test binaries in parallel (cargo test runs them one by one);
+  # it skips doc tests, so those run separately.
+  if cargo nextest --version >/dev/null 2>&1; then
+    run rust . cargo nextest run --workspace --locked
+    run rust . cargo test --workspace --locked --doc
+  else
+    run rust . cargo test --workspace --locked
+  fi
   # Advisories, licence allow-list, banned crates and registry sources: deny.toml.
   if cargo deny --version >/dev/null 2>&1; then
     run rust . cargo deny --locked check advisories bans licenses sources

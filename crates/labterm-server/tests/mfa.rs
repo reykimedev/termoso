@@ -265,7 +265,7 @@ async fn totp_enrolment_and_login() {
 
     // Correct code (not the one already spent on enrolment): a session for
     // the new device.
-    let current = fresh_code(&totp, &confirm_code).await;
+    let current = unused_totp_code(&totp, &[&confirm_code]).await;
     let session = session_token(
         verify(
             s,
@@ -321,8 +321,8 @@ async fn totp_enrolment_and_login() {
         StatusCode::UNAUTHORIZED,
     )
     .await;
-    // Wait for a fresh step so the code used above for login is not replayed.
-    let fresh = fresh_code(&totp, &current).await;
+    // A step not used above, so neither code is replayed.
+    let fresh = unused_totp_code(&totp, &[&confirm_code, &current]).await;
     s.expect_status(
         Method::DELETE,
         "/account/mfa/totp",
@@ -350,17 +350,6 @@ async fn totp_enrolment_and_login() {
         login(s, &u.email, &u.password).await,
         AuthResponse::Authenticated(_)
     ));
-}
-
-/// A TOTP code different from `used` (waits for the next 30 s step if needed).
-async fn fresh_code(totp: &Totp, used: &str) -> String {
-    loop {
-        let c = code(totp);
-        if c != used {
-            return c;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-    }
 }
 
 #[tokio::test]
