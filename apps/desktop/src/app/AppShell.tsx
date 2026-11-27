@@ -22,6 +22,7 @@ import { dropAllTabs, startTerminalEvents, useTerminal } from "@/terminal/store"
 import { startMultiplayerEvents } from "@/terminal/multiplayer";
 import { startWorkspaces } from "@/terminal/workspaces";
 import { RestoreBanner } from "@/terminal/RestoreBanner";
+import { CommandWindow } from "@/terminal/CommandWindow";
 import { dropAllSftp, startSftpEvents } from "@/sftp/store";
 import { startUpdateEvents, useUpdatesEnabled } from "@/update/store";
 import { UpdateBanner } from "@/update/UpdateBanner";
@@ -189,6 +190,7 @@ function UnlockedShell() {
               <TerminalWorkspace tabId={t.id} />
             </Box>
           ))}
+          {tabs.some((t) => t.id === activeTabId) && <CommandWindow />}
           <Box
             sx={{
               flex: 1,

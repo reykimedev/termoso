@@ -101,7 +101,7 @@ import {
   hasWebDav,
   hostProtocols,
 } from "@/ipc/types";
-import { openTerminal, useTerminal } from "@/terminal/store";
+import { ensureTabGroup, openTerminal, useTerminal } from "@/terminal/store";
 import { useOpenQuick } from "./useOpenQuick";
 import { addToWorkspace, useWorkspaces, workspaceChoices } from "@/terminal/workspaces";
 import { openS3ForHost, openSftpForHost, openWebDavForHost } from "@/sftp/store";
@@ -512,12 +512,12 @@ export function HostsPage() {
     setPanel({ mode: "edit", id: h.id });
   };
   /** Terminal for hosts that have one; a WebDAV-only host opens its share in Files. */
-  const connectHosts = (list: HostCard[], background = false) => {
+  const connectHosts = (list: HostCard[], background = false, tabGroupId?: string) => {
     const terminal = list.filter((h) => hostProtocols(h).length > 0);
     terminal.forEach((h, i) =>
       openTerminal(
         { kind: "host", host_id: h.id, vault_id: h.vaultId },
-        { background: background || i > 0 },
+        { background: background || i > 0, tabGroupId },
       ),
     );
     const files = list.filter((h) => hostProtocols(h).length === 0 && (hasWebDav(h) || hasS3(h)));
@@ -534,10 +534,13 @@ export function HostsPage() {
     hostsInGroup(groups.data ?? [], hosts.data ?? [], g.id, comparators[sort]).filter(
       (h) => hostProtocols(h).length > 0,
     );
+  /** Opens the hosts as tabs in a tab group named after the host group (reused if open). */
+  const openGroupTabs = (g: GroupNode, list: HostCard[]) =>
+    connectHosts(list, false, ensureTabGroup(g.label));
   const connectGroup = (g: GroupNode) => {
     const list = groupTargets(g);
     if (list.length > CONNECT_ALL_CONFIRM_ABOVE) setConfirmConnect({ group: g, hosts: list });
-    else connectHosts(list);
+    else openGroupTabs(g, list);
   };
   /** Workspace tabs are terminals, so WebDAV-only hosts are left out. */
   const hostTargets = (list: HostCard[]) =>
@@ -1605,7 +1608,7 @@ export function HostsPage() {
         confirmLabel={tr("Connect all")}
         onCancel={() => setConfirmConnect(null)}
         onConfirm={() => {
-          if (confirmConnect) connectHosts(confirmConnect.hosts);
+          if (confirmConnect) openGroupTabs(confirmConnect.group, confirmConnect.hosts);
           setConfirmConnect(null);
         }}
       >
