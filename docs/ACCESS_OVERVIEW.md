@@ -10,7 +10,8 @@ credentials are merged:
 
 Each value says where it comes from (set on the host, from a group, from a tag or from your own
 credentials) and links to that place. Open it from **Settings → Vaults → a vault → Access
-overview**. Each host has a `⋯` button and a right-click menu with its edit options; Edit opens
+overview** on desktop and Labterm Web, from a team vault's page (**Teams → a team → a vault →
+Access overview**) on Android, and from the **Vaults** tab (**Policies → Access overview**) on iOS. Each host has a `⋯` button and a right-click menu with its edit options; Edit opens
 the same editors as the Hosts page.
 
 ## Who can see each item
@@ -50,5 +51,7 @@ Every flag links to the place to fix it.
 ## Where it is computed
 
 On the device, from the decrypted vault: `labterm_client::policy_view` on desktop and mobile, and
-`apps/web/overlay/src/hatch/backend/policyview.ts` in Labterm Web. Nothing new goes to the server;
+`apps/web/overlay/src/hatch/backend/policyview.ts` in Labterm Web. Who can see each host is worked
+out in `apps/desktop/src/policy/access.ts` (desktop, web) and `labterm_client::policy_view::who`
+(Android, iOS), with the same rule order. Nothing new goes to the server;
 the member list and access rules are read with the calls the Vaults page already makes.

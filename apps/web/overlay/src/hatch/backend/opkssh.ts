@@ -11,6 +11,7 @@ import { execOnHost } from "./snippets";
 import * as st from "./state";
 import type { Ent, Uuid } from "./state";
 import { w } from "./wasm";
+import * as debuglog from "./debuglog";
 
 export const OPKSSH_KEY_TYPE = "opkssh";
 /** A cached certificate is not used in its last minute. */
@@ -234,6 +235,8 @@ export async function signIn(id: Uuid) {
     scopes: s.scopes,
     account: s.account,
   };
+  const t = performance.now();
+  debuglog.info("opkssh", `sign-in with ${s.issuer} started`);
   const { result } = await popupLogin(
     p,
     (login, idToken) =>
@@ -246,6 +249,10 @@ export async function signIn(id: Uuid) {
   const iat = result.iat ?? now();
   const useUntil = s.reuseSecs !== null ? iat + s.reuseSecs : (result.exp ?? iat);
   sessions.set(id, { identity: result.identity, useUntil, made: JSON.stringify(s) });
+  debuglog.info(
+    "opkssh",
+    `signed in with ${s.issuer} in ${Math.round(performance.now() - t)} ms, certificate valid ${useUntil - now()} s`,
+  );
   return { identity: result.identity, useUntil };
 }
 
@@ -254,6 +261,10 @@ export async function preConnect(k: Ent<SshKey>): Promise<Record<string, unknown
   const s = resolve(k);
   const sess = sessions.get(k.id);
   const usable = sess?.made === JSON.stringify(s) && sess.useUntil > now() + SLACK_SECS;
+  debuglog.info(
+    "opkssh",
+    usable ? "using the saved certificate" : `sign-in needed for ${s.issuer}`,
+  );
   if (!usable) await signIn(k.id);
   return { type: "opkssh", slot: k.id };
 }

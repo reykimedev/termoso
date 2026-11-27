@@ -5,7 +5,6 @@ import android.content.Intent
 import android.net.Uri
 import android.os.SystemClock
 import android.provider.Settings
-import android.util.Log
 import androidx.core.content.FileProvider
 import dev.labdex.labterm.BuildConfig
 import dev.labdex.labterm.R
@@ -47,11 +46,12 @@ object DebugUpdater {
     suspend fun check(): DebugUpdate? = withContext(Dispatchers.IO) {
         if (!enabled) return@withContext null
         val base = URL(BuildConfig.DEBUG_UPDATE_URL)
-        Log.i(TAG, "check: $base (installed build ${BuildConfig.DEBUG_BUILD})")
+        val started = SystemClock.elapsedRealtime()
+        AppLog.i(TAG, "check: $base (installed build ${BuildConfig.DEBUG_BUILD})")
         val body = try {
             fetch(base).use { (_, input) -> input.readBytes() }.decodeToString()
         } catch (e: IOException) {
-            Log.w(TAG, "check failed", e)
+            AppLog.w(TAG, "check failed", e)
             throw UpdateException(str(R.string.debug_update_error_network), e)
         }
         val update = try {
@@ -64,10 +64,14 @@ object DebugUpdater {
                 size = json.optLong("size", -1).takeIf { it > 0 },
             )
         } catch (e: Exception) {
-            Log.w(TAG, "check: latest.json is not readable: ${body.take(200)}", e)
+            AppLog.w(TAG, "check: latest.json is not readable: ${body.take(200)}", e)
             throw UpdateException(str(R.string.debug_update_error_feed), e)
         }
-        Log.i(TAG, "check: channel has build ${update.build} (${update.commit.take(7)}), size ${update.size ?: "unknown"}")
+        AppLog.i(
+            TAG,
+            "check: channel has build ${update.build} (${update.commit.take(7)}), size ${update.size ?: "unknown"}, " +
+                "${SystemClock.elapsedRealtime() - started} ms",
+        )
         update.takeIf { it.build > BuildConfig.DEBUG_BUILD && it.apkUrl.startsWith("https://") }
     }
 
@@ -83,7 +87,7 @@ object DebugUpdater {
             val digest = MessageDigest.getInstance("SHA-256")
             val started = SystemClock.elapsedRealtime()
             var bytes = 0L
-            Log.i(TAG, "download: build ${update.build} from ${update.apkUrl}")
+            AppLog.i(TAG, "download: build ${update.build} from ${update.apkUrl}")
             try {
                 fetch(URL(update.apkUrl)).use { (conn, input) ->
                     val total = conn.contentLengthLong.takeIf { it > 0 } ?: update.size
@@ -110,30 +114,30 @@ object DebugUpdater {
                 }
             } catch (e: IOException) {
                 file.delete()
-                Log.w(TAG, "download failed after $bytes bytes", e)
+                AppLog.w(TAG, "download failed after $bytes bytes", e)
                 throw UpdateException(str(R.string.debug_update_error_download), e)
             }
             val ms = SystemClock.elapsedRealtime() - started
-            Log.i(TAG, "download: $bytes bytes in $ms ms (${speed(bytes, ms) / 1024} KiB/s)")
+            AppLog.i(TAG, "download: $bytes bytes in $ms ms (${speed(bytes, ms) / 1024} KiB/s)")
             val got = digest.digest().joinToString("") { "%02x".format(it) }
             if (got != update.sha256) {
                 file.delete()
-                Log.w(TAG, "verify: SHA-256 mismatch, expected ${update.sha256}, got $got")
+                AppLog.w(TAG, "verify: SHA-256 mismatch, expected ${update.sha256}, got $got")
                 throw UpdateException(str(R.string.debug_update_error_checksum))
             }
-            Log.i(TAG, "verify: SHA-256 matches ($got)")
+            AppLog.i(TAG, "verify: SHA-256 matches ($got)")
             file
         }
         if (!context.packageManager.canRequestPackageInstalls()) {
             // First time: the user allows this app to install updates, then taps Update again.
-            Log.i(TAG, "install: asking for permission to install updates")
+            AppLog.i(TAG, "install: asking for permission to install updates")
             context.startActivity(
                 Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}"))
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
             )
             return
         }
-        Log.i(TAG, "install: handing build ${update.build} to the system installer")
+        AppLog.i(TAG, "install: handing build ${update.build} to the system installer")
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", apk)
         context.startActivity(
             Intent(Intent.ACTION_VIEW)
@@ -164,7 +168,7 @@ object DebugUpdater {
         val code = conn.responseCode
         if (code !in 200..299) {
             conn.disconnect()
-            Log.w(TAG, "GET $url answered HTTP $code")
+            AppLog.w(TAG, "GET $url answered HTTP $code")
             throw UpdateException(str(R.string.debug_update_error_http, code))
         }
         return Fetched(conn, conn.inputStream)

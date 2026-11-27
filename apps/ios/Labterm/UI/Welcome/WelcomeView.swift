@@ -17,8 +17,8 @@ struct WelcomeView: View {
                 Spacer(minLength: 24)
                 VStack(spacing: 12) {
                     choice(
-                        title: "Termoso Cloud",
-                        subtitle: "Free end-to-end encrypted sync. The server only ever stores ciphertext.",
+                        title: "labdex cloud",
+                        subtitle: "End-to-end encrypted sync, invite only for now. The server only ever stores ciphertext.",
                         systemImage: "icloud",
                         identifier: "welcome.cloud",
                         prominent: true

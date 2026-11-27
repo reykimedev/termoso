@@ -124,13 +124,23 @@ impl russh::client::Handler for ClientHandler {
     ) -> Result<bool, Self::Error> {
         let key = Self::presented_key(server_public_key);
         let verdict = self.known_hosts.check(&self.host, self.port, &key)?;
+        let fingerprint = key.fingerprint(Default::default()).to_string();
         if verdict == HostKeyVerdict::Known {
+            tracing::debug!(host = %self.host, %fingerprint, "ssh: host key matches known hosts");
             return Ok(true);
         }
         let changed = matches!(verdict, HostKeyVerdict::Changed { .. });
+        tracing::info!(host = %self.host, %fingerprint, changed, "ssh: host key not known, asking");
+        let asked = std::time::Instant::now();
         let _ = self.prompting.send(true);
         let decision = self.prompt.decide(verdict).await;
         let _ = self.prompting.send(false);
+        tracing::info!(
+            host = %self.host,
+            decision = ?decision,
+            ms = asked.elapsed().as_millis(),
+            "ssh: host key decision"
+        );
         match decision {
             HostKeyDecision::Reject => {
                 tracing::warn!(host = %self.host, changed, "host key rejected");

@@ -38,6 +38,20 @@ struct VaultsView: View {
                         }
                     }
 
+                    if let vault = model.selectedVault, !vault.locked {
+                        CardSection("Policies") {
+                            NavigationLink {
+                                AccessOverviewView(model: model, vault: vault)
+                            } label: {
+                                CardRow(title: "Access overview", subtitle: "How each host connects, and who can see it", chevron: true) {
+                                    SymbolTile(systemImage: "checkmark.shield")
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("vaults.accessOverview")
+                        }
+                    }
+
                     CardSection("Coming next") {
                         plannedRow("Keychain", systemImage: "key")
                         RowDivider()

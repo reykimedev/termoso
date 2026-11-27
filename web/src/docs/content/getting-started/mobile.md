@@ -6,7 +6,7 @@ description: Use the same hosts, keys and snippets on your phone by signing in t
 ## Sign in on the phone
 
 1. Install the [Android app](/docs/getting-started/download#android).
-2. Open the vault screen, choose **Sign in** and enter the same server — `app.termoso.dev` for the free cloud or your own URL.
+2. Open the vault screen, choose **Sign in** and enter the same server — `sync.labdex.dev` for the labdex cloud (invite only for now) or your own URL.
 3. Enter your email and password. If the account has two-factor authentication, confirm with your code, security key (USB or NFC) or passkey.
 4. Approve the new device from a device that is already signed in (**Settings → Account → Devices**), or from the e-mail the server sends.
 

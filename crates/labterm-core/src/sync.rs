@@ -18,7 +18,7 @@
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use futures::{SinkExt, StreamExt};
 use labterm_proto::entities::{SyncEntity, is_credential_kind};
@@ -317,6 +317,7 @@ impl SyncEngine {
     /// One full pass: every vault, history and logs. Serialised — concurrent
     /// callers wait for the running pass.
     pub async fn sync_once(&self) -> Result<SyncReport> {
+        let started = Instant::now();
         // Team CA certificates ride along with every pass (cache-only unless
         // a certificate is missing or about to expire).
         if let Err(e) = crate::ca::refresh_all(&self.api, &self.store).await {
@@ -325,14 +326,35 @@ impl SyncEngine {
         if let Err(e) = crate::policy::refresh(&self.api, &self.store).await {
             tracing::debug!("team policy refresh: {e}");
         }
+        let prep_ms = started.elapsed().as_millis();
         let _guard = self.running.lock().await;
+        // Time spent behind another pass, so a slow pass is not blamed twice.
+        let waited_ms = started.elapsed().as_millis() - prep_ms;
         self.emit(SyncEvent::Started);
         match self.sync_all().await {
             Ok(r) => {
+                tracing::info!(
+                    ms = started.elapsed().as_millis(),
+                    prep_ms,
+                    waited_ms,
+                    pushed = r.pushed,
+                    pulled = r.pulled,
+                    conflicts = r.conflicts,
+                    errors = r.errors.len(),
+                    history_up = r.history.0,
+                    history_down = r.history.1,
+                    logs_up = r.logs.0,
+                    logs_down = r.logs.1,
+                    "sync: pass done"
+                );
+                if let Some(e) = r.error_message() {
+                    tracing::warn!("sync: pass had errors: {e}");
+                }
                 self.emit(SyncEvent::Finished(r.clone()));
                 Ok(r)
             }
             Err(e) => {
+                tracing::warn!(ms = started.elapsed().as_millis(), "sync: pass failed: {e}");
                 self.emit(SyncEvent::Failed(e.to_string()));
                 Err(e)
             }
@@ -342,12 +364,35 @@ impl SyncEngine {
     async fn sync_all(&self) -> Result<SyncReport> {
         let mut report = SyncReport::default();
         let vaults = self.synced_vault_ids()?;
+        let t = Instant::now();
         for vault_id in &vaults {
+            let before = report.pushed;
+            let tv = Instant::now();
             self.sync_vault_into(*vault_id, &mut report).await?;
+            tracing::debug!(
+                vault = %vault_id,
+                pushed = report.pushed - before,
+                ms = tv.elapsed().as_millis(),
+                "sync: pushed vault"
+            );
         }
+        let push_ms = t.elapsed().as_millis();
+        let t = Instant::now();
         self.pull_entities_into(&vaults, &mut report).await?;
+        let pull_ms = t.elapsed().as_millis();
+        let t = Instant::now();
         self.sync_history_into(&mut report).await?;
+        let history_ms = t.elapsed().as_millis();
+        let t = Instant::now();
         self.sync_logs_into(&mut report).await?;
+        tracing::debug!(
+            vaults = vaults.len(),
+            push_ms,
+            pull_ms,
+            history_ms,
+            logs_ms = t.elapsed().as_millis(),
+            "sync: phases"
+        );
         Ok(report)
     }
 
@@ -953,23 +998,37 @@ impl SyncEngine {
             if cancel.is_cancelled() {
                 return;
             }
+            let began = Instant::now();
             match self.session(&cancel).await {
                 Ok(Stop::Cancelled) => return,
                 Ok(Stop::Revoked) => {
+                    tracing::info!("sync: realtime session revoked by the server");
                     self.emit(SyncEvent::SessionRevoked);
                     return;
                 }
                 Ok(Stop::Disconnected) => {
+                    tracing::info!(
+                        after_s = began.elapsed().as_secs(),
+                        "sync: realtime connection closed"
+                    );
                     backoff = Duration::from_secs(1);
                 }
                 Err(e) => {
                     if e.is_unauthorized() {
+                        tracing::info!("sync: realtime session no longer authorized");
                         self.emit(SyncEvent::SessionRevoked);
                         return;
                     }
-                    tracing::debug!("realtime session ended: {e}");
+                    tracing::info!(
+                        after_s = began.elapsed().as_secs(),
+                        "sync: realtime session ended: {e}"
+                    );
                 }
             }
+            tracing::debug!(
+                retry_in_s = backoff.as_secs(),
+                "sync: realtime reconnecting"
+            );
             self.emit(SyncEvent::Disconnected);
             tokio::select! {
                 _ = cancel.cancelled() => return,
@@ -982,6 +1041,11 @@ impl SyncEngine {
     async fn session(&self, cancel: &CancellationToken) -> Result<Stop> {
         let token = self.api.token().ok_or(CoreError::NotSignedIn)?;
         let url = self.api.ws_url()?;
+        let started = Instant::now();
+        tracing::debug!(
+            host = url.host_str().unwrap_or(""),
+            "sync: realtime connecting"
+        );
         let (mut ws, _) = tokio::select! {
             _ = cancel.cancelled() => return Ok(Stop::Cancelled),
             r = tokio_tungstenite::connect_async(url.as_str()) => r.map_err(|e| CoreError::Ws(e.to_string()))?,
@@ -999,6 +1063,11 @@ impl SyncEngine {
         };
         match decode(hello)? {
             Some(ServerMessage::Hello { vault_ids, .. }) => {
+                tracing::info!(
+                    ms = started.elapsed().as_millis(),
+                    vaults = vault_ids.len(),
+                    "sync: realtime connected"
+                );
                 self.emit(SyncEvent::Connected);
                 if self.vault_set_differs(&vault_ids)? {
                     account::refresh_vaults(&self.api, &self.store).await?;

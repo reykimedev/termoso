@@ -41,6 +41,16 @@ export interface VaultStatus {
 
 export type VaultEvent = { type: "locked" } | { type: "unlocked" };
 
+/** One debug log file (one per launch), newest first. */
+export interface DebugLogFile {
+  name: string;
+  size: number;
+  /** Last write, Unix seconds. */
+  modified: number;
+  /** The file this launch writes. */
+  current: boolean;
+}
+
 export interface AppInfo {
   version: string;
   /** Full commit hash the binary was built from (desktop only, like the next three). */
@@ -459,7 +469,33 @@ export interface HostCard {
   lastConnected: string | null;
   /** Provider the host was imported from (`Amazon AWS`, `DigitalOcean`, `azure`). */
   cloudProvider: string | null;
+  /** VPN network the host is reached through, own or inherited. */
+  vpn?: HostVpn | null;
+  /** How the host connects, for the small badges on host rows. */
+  badges?: HostBadges;
   dirty: boolean;
+}
+
+export interface HostVpn {
+  id: Uuid;
+  label: string;
+  /** `netbird`, later `tailscale`. */
+  provider: string;
+  /** Comes from a group or tag, not from the host's own settings. */
+  inherited: boolean;
+}
+
+/** Connection facts, computed with the member's personal overlay applied. */
+export interface HostBadges {
+  /** `opkssh` | `ssh_id` | `certificate` | `key` | `password`; null = asked on connect. */
+  auth: string | null;
+  overlay: boolean;
+  overlayPaused: boolean;
+  jump: boolean;
+  gateway: boolean;
+  proxy: boolean;
+  /** SSH hosts only; `false` = the first connect confirms the server key. */
+  hostKeyTrusted: boolean | null;
 }
 
 export interface HostForm {

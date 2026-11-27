@@ -388,8 +388,19 @@ pub fn prepare(store: &Store, key: &Entity<SshKey>) -> Result<PreConnect> {
         return Ok(PreConnect::NotOidc);
     };
     Ok(match find_session(&load_sessions(store)?, key.id, &s) {
-        Some(c) => PreConnect::Cached(auth_method(c.private_key, c.certificate)),
-        None => PreConnect::Login(s),
+        Some(c) => {
+            tracing::info!(
+                key = %key.id,
+                issuer = %s.issuer,
+                valid_for_s = c.use_until.saturating_sub(now()),
+                "opkssh: using the saved certificate"
+            );
+            PreConnect::Cached(auth_method(c.private_key, c.certificate))
+        }
+        None => {
+            tracing::info!(key = %key.id, issuer = %s.issuer, "opkssh: sign-in needed");
+            PreConnect::Login(s)
+        }
     })
 }
 
@@ -425,6 +436,12 @@ pub async fn login(
     settings: &OidcKeySettings,
     browser: &dyn OpenBrowser,
 ) -> Result<FreshCertificate> {
+    let started = std::time::Instant::now();
+    tracing::info!(
+        issuer = %settings.issuer,
+        account = settings.account.is_some(),
+        "opkssh: sign-in started"
+    );
     let key = labterm_oidc_cert::generate_key().map_err(oidc_error)?;
     let private_key = key
         .to_openssh(LineEnding::LF)
@@ -443,13 +460,26 @@ pub async fn login(
         LOGIN_TIMEOUT,
     )
     .await
-    .map_err(oidc_error)?;
+    .map_err(|e| {
+        tracing::warn!(
+            issuer = %settings.issuer,
+            ms = started.elapsed().as_millis(),
+            "opkssh: sign-in failed: {e}"
+        );
+        oidc_error(e)
+    })?;
     let iat = pkt.claims.iat.unwrap_or_else(now);
     let use_until = match (settings.reuse_secs, pkt.claims.exp) {
         (Some(secs), _) => iat.saturating_add(secs),
         (None, Some(exp)) => exp,
         (None, None) => iat,
     };
+    tracing::info!(
+        issuer = %settings.issuer,
+        ms = started.elapsed().as_millis(),
+        valid_for_s = use_until.saturating_sub(now()),
+        "opkssh: signed in, certificate issued"
+    );
     Ok(FreshCertificate {
         private_key: Zeroizing::new(private_key.to_string()),
         certificate: labterm_oidc_cert::sshcert::to_openssh(&cert).map_err(oidc_error)?,
@@ -565,6 +595,12 @@ pub fn host_setup_outcome(exit_code: Option<u32>, stdout: &[u8], stderr: &[u8]) 
     let out = String::from_utf8_lossy(stdout);
     let err = String::from_utf8_lossy(stderr);
     let detail = err.trim();
+    tracing::info!(
+        exit = ?exit_code,
+        ready = out.contains("labterm: opkssh ready"),
+        last_error = detail.lines().last().unwrap_or(""),
+        "opkssh: host setup finished"
+    );
     match exit_code {
         Some(0) if out.contains("labterm: opkssh ready") => Ok(()),
         Some(3) => Err(ClientError::invalid(

@@ -7,7 +7,11 @@ struct LabtermIOSApp: App {
 
     init() {
         let launch = LaunchOptions.current
-        initLogging(verbose: launch.verboseLogging)
+        // One log file per launch (last ten kept, secrets removed) for Settings → Debug log.
+        // Caches: not backed up, and the system may clear it when space runs low.
+        let logDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("debug-logs", isDirectory: true)
+        initLoggingWithFiles(verbose: launch.verboseLogging, logDir: logDir.path)
         _container = State(initialValue: AppContainer(launch: launch))
     }
 

@@ -59,6 +59,18 @@ pub fn app_info<R: Runtime>(app: AppHandle<R>, state: State<'_, AppState>) -> Re
     })
 }
 
+/// Debug log files, newest first (Settings → About → Debug log).
+#[tauri::command]
+pub fn debug_log_files() -> Result<Vec<labterm_core::debuglog::LogFile>> {
+    Ok(labterm_core::debuglog::list()?)
+}
+
+/// The end of one debug log file, redacted, one entry per line.
+#[tauri::command]
+pub fn debug_log_read(name: String) -> Result<Vec<String>> {
+    Ok(labterm_core::debuglog::read(&name)?)
+}
+
 /// Leave for real, bypassing the close-to-tray behaviour of the window.
 #[tauri::command]
 pub fn app_quit<R: Runtime>(app: AppHandle<R>) {

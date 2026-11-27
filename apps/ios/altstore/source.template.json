@@ -1,7 +1,7 @@
 {
   "name": "Labterm",
   "identifier": "dev.labdex.labterm.altstore",
-  "subtitle": "Free, private SSH client — self-hosted or Termoso Cloud",
+  "subtitle": "Free, private SSH client — self-hosted or the labdex cloud",
   "description": "Labterm is a free, open-source SSH/SFTP client with end-to-end encrypted vaults, team sharing and no telemetry. This source publishes the iOS build straight from GitHub Releases; AltStore/SideStore sign it with your own Apple ID and refresh the 7-day profile automatically.",
   "iconURL": "https://raw.githubusercontent.com/{repo}/main/apps/ios/Labterm/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png",
   "website": "https://github.com/{repo}",

@@ -192,7 +192,7 @@ fun SettingsScreen(
                 val card = accountStatus.account
                 if (card == null) {
                     ChevronRow(
-                        title = "Termoso Cloud",
+                        title = "labdex cloud",
                         subtitle = stringResource(R.string.free_forever_e2e_encrypted_sync_or_your_own),
                         leading = { IconTile(Icons.Filled.Cloud) },
                         modifier = Modifier.clickable(onClick = onSignIn),
