@@ -3,6 +3,7 @@
 // group, tag or the whole team vault and brings credentials from that same vault. References only
 // go one way: `model.resolve` never leaves the host's vault, and only `resolveToConnect` reads
 // overlays, starting from this browser's vault and a personal vault whose key we sealed ourselves.
+import * as acl from "./acl";
 import { fail } from "./errors";
 import {
   type Group,
@@ -188,6 +189,7 @@ export function resolveToConnect(hostId: Uuid): ResolvedForConnect {
     overlayId: null,
     pausedOverlayId: null,
   };
+  acl.checkConnect(r.host);
   if (!isTeam(r.host.vaultId)) return r;
   const groups = groupChain(r.host);
   const tags = orderedTags(r.host);

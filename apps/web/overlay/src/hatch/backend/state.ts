@@ -4,6 +4,7 @@
 import * as db from "./db";
 import { fail } from "./errors";
 import { emit } from "@tauri-apps/api/event";
+import type { MyAclRule } from "./acl";
 import type { History } from "./history";
 import type { TeamPolicies } from "./policy";
 import { defaultSettings } from "./settings";
@@ -66,6 +67,8 @@ export interface State {
   workspaces?: unknown;
   /** Team id → the team's client-enforced policies (policy.ts). */
   teamPolicies?: Record<Uuid, TeamPolicies>;
+  /** The member's team access rules (acl.ts), cached so they hold offline. */
+  aclRules?: MyAclRule[];
   /** Connections and commands on this device (history.ts); never synced. */
   history?: History;
 }

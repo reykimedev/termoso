@@ -28,8 +28,10 @@ Only people who manage access (`acl.manage`) can read the rules; others see the 
 Members of IdP groups are known only to the server, so a result an IdP group rule could change says
 so.
 
-Access rules live on the server, which refuses changes below Edit. They are not encryption: every
-member's device can still decrypt every item of the vault. Per-group keys are planned with vault
+Access rules live on the server, which refuses changes below Edit. Every app also applies the
+rules that name you: a Hidden host or group is left out of your host list, group tree and this
+overview, and Connect only lets you connect without opening the settings. They are not encryption:
+every member's device can still decrypt every item of the vault. Per-group keys are planned with vault
 policies (issue #74).
 
 ## Flags

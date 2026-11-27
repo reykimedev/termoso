@@ -144,6 +144,13 @@ export const de: Readonly<Record<string, string>> = {
   "Port forwarding": "Portweiterleitung",
   "Running snippets on several hosts": "Snippets auf mehreren Hosts ausführen",
 
+  // team access rules (acl.ts)
+  "Your access to this host lets you connect, not open its settings.":
+    "Dein Zugriff auf diesen Host erlaubt das Verbinden, aber nicht seine Einstellungen.",
+  "Your access to this group lets you connect to its hosts, not open its settings.":
+    "Dein Zugriff auf diese Gruppe erlaubt das Verbinden mit ihren Hosts, aber nicht ihre Einstellungen.",
+  "Your team's access rules hide this host from you.":
+    "Die Zugriffsregeln deines Teams verbergen diesen Host vor dir.",
   // access overview (policy viewer)
   "OpenID (opkssh)": "OpenID (opkssh)",
   Certificate: "Zertifikat",

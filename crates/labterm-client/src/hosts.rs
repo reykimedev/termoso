@@ -839,8 +839,12 @@ pub fn cards(store: &Store, vault_id: Option<Uuid>) -> Result<Vec<HostCard>> {
         .into_iter()
         .map(|k| k.data.hostname.to_ascii_lowercase())
         .collect();
+    let mut visibility = crate::access::Visibility::default();
     let mut out = Vec::with_capacity(hosts.len());
     for h in hosts {
+        if !visibility.host(store, &h)? {
+            continue;
+        }
         let r = store.resolve_host(h.id)?;
         let telnet_only = is_telnet_only(&h.data);
         let webdav_only = is_webdav_only(&h.data);
@@ -956,7 +960,16 @@ pub fn cards(store: &Store, vault_id: Option<Uuid>) -> Result<Vec<HostCard>> {
 
 pub fn groups(store: &Store, vault_id: Option<Uuid>) -> Result<Vec<GroupNode>> {
     let groups: Vec<Entity<Group>> = store.list(vault_id)?;
-    let hosts: Vec<Entity<Host>> = store.list(vault_id)?;
+    let all_hosts: Vec<Entity<Host>> = store.list(vault_id)?;
+    let mut visibility = crate::access::Visibility::default();
+    let mut hosts = Vec::with_capacity(all_hosts.len());
+    for h in &all_hosts {
+        if visibility.host(store, h)? {
+            hosts.push(h);
+        }
+    }
+    let shown = visibility.groups(store, &groups, &hosts)?;
+    let groups: Vec<&Entity<Group>> = groups.iter().filter(|g| shown.contains(&g.id)).collect();
     let mut out: Vec<GroupNode> = groups
         .iter()
         .map(|g| GroupNode {
