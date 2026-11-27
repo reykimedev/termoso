@@ -122,6 +122,24 @@ touching the device's DNS settings:
   admin console (or Headscale's `dns` settings) work as they are; the
   embedded client resolves through the tailnet.
 
+## Testing a host
+
+On a network's details page, **Test** next to a host that uses the network
+checks the whole path without logging in:
+
+1. the network comes up (or is already up);
+2. the name lookup: which name answered (a short name with its search
+   domain) and how (an address, a nameserver group's server through the
+   network, NetBird's resolver, or the tailnet's DNS);
+3. the path: the peer the connection goes through, the route when it's a
+   LAN address behind a routing peer or an exit node, relayed or direct, and
+   the latency;
+4. the SSH server's banner (`SSH-2.0-…`) and the connect time.
+
+Nothing is sent to the host. While the network is connected, the details
+page also lists NetBird's nameserver groups, and whether Labterm asks each one
+through the network or leaves it to NetBird.
+
 ## Peer names and groups
 
 The device joins as "Labterm", the network's vault and the device name, for

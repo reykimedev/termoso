@@ -157,7 +157,7 @@ fun SftpPickScreen(shell: ShellViewModel, onBack: () -> Unit, onOpened: (String)
                             } else {
                                 listOf(h.username, h.address).filter { it.isNotBlank() }.joinToString("@")
                             },
-                            leading = { HostAvatar(h.osName, icon = h.icon) },
+                            leading = { HostAvatar(h.osName, icon = h.icon, color = h.color) },
                             modifier = Modifier.clickable {
                                 scope.launch { shell.openSftpHost(h.id, protocol)?.let { onOpened(it.id) } }
                             },

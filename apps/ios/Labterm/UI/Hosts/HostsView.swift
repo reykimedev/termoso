@@ -102,7 +102,7 @@ struct HostsView: View {
                 addMenu
             }
         }
-        .sheet(item: $editor) { target in
+        .fullScreenCover(item: $editor) { target in
             HostEditorView(model: model, target: target)
         }
         .alert("New group", isPresented: Binding(
@@ -240,7 +240,7 @@ struct GroupRow: View {
 
     var body: some View {
         CardRow(title: group.label, subtitle: summary, chevron: true) {
-            GroupAvatar()
+            GroupAvatar(icon: group.icon, color: group.color)
         }
     }
 

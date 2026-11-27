@@ -287,6 +287,7 @@ pub fn run() {
             vpn::vpn_running,
             vpn::vpn_states,
             vpn::vpn_details,
+            vpn::vpn_test_host,
             vpn::vpn_disconnect,
             vpn::vpn_sign_out,
             commands_tools::key_create_opkssh,

@@ -1305,6 +1305,7 @@ mod tests {
                 notes: String::new(),
                 os_name: None,
                 icon: None,
+                color: None,
                 ip_version: "auto".into(),
                 agent_forwarding: false,
                 forward_x11: false,

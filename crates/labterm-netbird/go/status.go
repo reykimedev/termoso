@@ -22,6 +22,17 @@ type statusOut struct {
 	ManagementError string    `json:"management_error,omitempty"`
 	Signal          bool      `json:"signal"`
 	Peers           []peerOut `json:"peers"`
+	// NetBird's nameserver groups as this peer applied them.
+	DNS []dnsGroupOut `json:"dns,omitempty"`
+}
+
+type dnsGroupOut struct {
+	// Match domains; empty = primary (all other names).
+	Domains []string `json:"domains,omitempty"`
+	Servers []string `json:"servers"`
+	// Some server is reachable through the network, so Labterm asks it
+	// itself (see dns.go); otherwise NetBird's resolver does.
+	Tunnel bool `json:"tunnel"`
 }
 
 type peerOut struct {
@@ -70,6 +81,23 @@ func nbStatus(c *embed.Client) (statusOut, error) {
 		out.Peers = append(out.Peers, po)
 	}
 	sort.Slice(out.Peers, func(i, j int) bool { return out.Peers[i].FQDN < out.Peers[j].FQDN })
+	var rows [][]string
+	for _, p := range out.Peers {
+		if p.Connected {
+			rows = append(rows, append([]string{p.IP}, p.Routes...))
+		}
+	}
+	tunnel := tunnelPrefixes(st.LocalPeerState.IP, rows)
+	for _, g := range st.NSGroupStates {
+		d := dnsGroupOut{Domains: g.Domains, Servers: make([]string, 0, len(g.Servers))}
+		for _, sv := range g.Servers {
+			d.Servers = append(d.Servers, sv.String())
+			if inTunnel(sv.Addr(), tunnel) {
+				d.Tunnel = true
+			}
+		}
+		out.DNS = append(out.DNS, d)
+	}
 	return out, nil
 }
 

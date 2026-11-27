@@ -221,6 +221,8 @@ function PromptDialog({
       );
     case "agent_sign":
       return <AgentSignPrompt prompt={prompt} inline={inline} onAnswer={onAnswer} />;
+    case "security_key":
+      return <SecurityKeyPrompt prompt={prompt} inline={inline} onAnswer={onAnswer} />;
     case "interactive":
       return <InteractivePrompt prompt={prompt} inline={inline} onAnswer={onAnswer} />;
   }
@@ -299,6 +301,44 @@ function AgentSignPrompt({
           {tr("The private key stays in Labterm; only the signature is handed over.")}
         </Typography>
       </Stack>
+    </PromptFrame>
+  );
+}
+
+function SecurityKeyPrompt({
+  prompt,
+  inline,
+  onAnswer,
+}: {
+  prompt: Extract<PromptEvent, { kind: "security_key" }>;
+  inline?: boolean;
+  onAnswer: (a: PromptAnswer) => void;
+}) {
+  return (
+    <PromptFrame
+      inline={inline}
+      title={tr("Use security key")}
+      onClose={() => onAnswer({ kind: "cancel" })}
+      maxWidth="xs"
+      actions={
+        <>
+          <Button color="inherit" onClick={() => onAnswer({ kind: "cancel" })}>
+            {tr("Cancel")}
+          </Button>
+          <Box sx={{ flex: 1 }} />
+          <Button variant="contained" autoFocus onClick={() => onAnswer({ kind: "confirm" })}>
+            {tr("Use security key")}
+          </Button>
+        </>
+      }
+    >
+      <Typography variant="body2">
+        {prompt.key_label
+          ? trx("Sign in with {key}. Your browser then asks for the security key.", {
+              key: <b>{prompt.key_label}</b>,
+            })
+          : tr("Sign in with your security key. Your browser then asks for it.")}
+      </Typography>
     </PromptFrame>
   );
 }

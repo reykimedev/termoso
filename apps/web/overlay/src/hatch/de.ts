@@ -263,4 +263,30 @@ export const de: Readonly<Record<string, string>> = {
   Refresh: "Aktualisieren",
   Copy: "Kopieren",
   Copied: "Kopiert",
+
+  // security keys in the browser (webauthn.ts)
+  "This browser (security key or passkey)": "Dieser Browser (Sicherheitsschlüssel oder Passkey)",
+  "The browser asks for the PIN and the touch. Keys made here are ECDSA keys for this Labterm Web address; they also work in the desktop and Android apps, but not with ssh on the command line.":
+    "Der Browser fragt nach PIN und Berührung. Hier erstellte Schlüssel sind ECDSA-Schlüssel für diese Labterm-Web-Adresse; sie funktionieren auch in den Desktop- und Android-Apps, aber nicht mit ssh auf der Kommandozeile.",
+  "Use security key": "Sicherheitsschlüssel verwenden",
+  "Sign in with {key}. Your browser then asks for the security key.":
+    "Anmelden mit {key}. Danach fragt dein Browser nach dem Sicherheitsschlüssel.",
+  "Sign in with your security key. Your browser then asks for it.":
+    "Mit deinem Sicherheitsschlüssel anmelden. Danach fragt dein Browser danach.",
+  "Cancelled, or the security key timed out":
+    "Abgebrochen, oder der Sicherheitsschlüssel hat nicht rechtzeitig geantwortet",
+  "This security key already holds a key for this site":
+    "Dieser Sicherheitsschlüssel enthält schon einen Schlüssel für diese Seite",
+  "This address cannot use security keys (it needs HTTPS and a host name)":
+    "Diese Adresse kann keine Sicherheitsschlüssel verwenden (sie braucht HTTPS und einen Hostnamen)",
+  "Security key: {message}": "Sicherheitsschlüssel: {message}",
+  "This browser has no security key support":
+    "Dieser Browser unterstützt keine Sicherheitsschlüssel",
+  "The browser did not return the new key's public key":
+    "Der Browser hat den öffentlichen Schlüssel des neuen Schlüssels nicht zurückgegeben",
+  "This security key belongs to Labterm Web at {site}":
+    "Dieser Sicherheitsschlüssel gehört zu Labterm Web unter {site}",
+  "Loading resident keys from a security key":
+    "Residente Schlüssel von einem Sicherheitsschlüssel laden",
+  "Touch your security key to continue": "Berühre deinen Sicherheitsschlüssel, um fortzufahren",
 };

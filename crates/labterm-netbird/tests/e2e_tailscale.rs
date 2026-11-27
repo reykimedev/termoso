@@ -193,6 +193,22 @@ async fn names_resolve_through_split_dns() {
     let nb = Netbird::with_options(lib, Duration::from_secs(2));
     let net = network(Uuid::new_v4(), Some(env("TS_E2E_AUTH_KEY")));
     echo(&nb, &keys, net.clone(), "peer.home.example.com").await;
+    let t = nb
+        .test_host(
+            &net,
+            "labterm-e2e",
+            keys.as_ref(),
+            "peer.home.example.com",
+            2222,
+        )
+        .await;
+    assert_eq!(t.via, "tailscale", "{t:?}");
+    assert_eq!(t.remote, format!("{}:2222", env("TS_E2E_TARGET")), "{t:?}");
+    assert_eq!(
+        t.peer.as_ref().map(|p| p.ip.clone()),
+        Some(env("TS_E2E_TARGET")),
+        "{t:?}"
+    );
     assert!(
         nb.dialer(net, "labterm-e2e", keys.clone())
             .dial("nope.home.example.com", 2222)
