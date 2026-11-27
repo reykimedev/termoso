@@ -1801,12 +1801,6 @@
     <string name="delete_group_with_contents">Delete the group with all its hosts and sub-groups</string>
     <string name="delete_tag_title">Delete tag “%1$s”?</string>
     <string name="delete_tag_text">Hosts keep working; they lose this tag and the settings it hands down.</string>
-    <string name="vpn_state_off">Not connected</string>
-    <string name="vpn_state_connecting">Connecting</string>
-    <string name="vpn_state_connected">Connected</string>
-    <string name="vpn_state_needs_sign_in">Sign-in needed</string>
-    <string name="vpn_state_error">Error</string>
-    <string name="vpn_state_unavailable">Not available on this device</string>
     <string name="vpn_badge_description">Through %1$s network %2$s, %3$s</string>
     <string name="vpn_badge_inherited_description">Through %1$s network %2$s from its group, %3$s</string>
     <string name="badge_vpn_inherited">from its group</string>

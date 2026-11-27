@@ -127,6 +127,8 @@ fun HostsScreen(
     onS3: (String) -> Unit = {},
     onOpenSftp: (String) -> Unit,
     onOpenTerminal: () -> Unit,
+    /** The VPN network status page, from a host's VPN badge. */
+    onOpenVpn: (String) -> Unit = {},
     onForward: (String) -> Unit,
     /** Opens the Tags page (toolbar button). */
     onOpenTags: () -> Unit = {},
@@ -333,6 +335,7 @@ fun HostsScreen(
                     if (state.selecting) vm.toggle(host.id) else dialog = HostsDialog.HostMenu(host)
                 },
                 onHostMenu = { dialog = HostsDialog.HostMenu(it) },
+                onOpenVpn = onOpenVpn,
             )
         }
     }
@@ -356,6 +359,7 @@ fun HostsScreen(
             onOpksshSetup = { dialog = HostsDialog.OpksshSetup(d.host) },
             onOidcKey = { dialog = HostsDialog.OidcKey(d.host) },
             onTunnel = { dialog = HostsDialog.HostTunnel(d.host) },
+            onOpenVpn = onOpenVpn,
             onDuplicate = { vm.duplicate(listOf(d.host.id)) },
             onMove = { dialog = HostsDialog.Move(listOf(d.host.id)) },
             onMoveVault = { dialog = HostsDialog.MoveVault(listOf(d.host.id)) },
@@ -424,6 +428,7 @@ fun HostsScreen(
             onOpen = { onOpenGroup(d.group.id) },
             onEdit = { dialog = HostsDialog.Settings(DefaultsTarget.Group(d.group.id)) },
             onVpn = { dialog = HostsDialog.GroupTunnel(d.group) },
+            onOpenVpn = onOpenVpn,
             onRename = { dialog = HostsDialog.RenameGroup(d.group) },
             onDuplicate = { vm.duplicateGroup(d.group) },
             onMove = { dialog = HostsDialog.MoveGroup(d.group) },
@@ -512,6 +517,7 @@ private fun HostList(
     onHostTap: (HostItem) -> Unit,
     onHostLongPress: (HostItem) -> Unit,
     onHostMenu: (HostItem) -> Unit,
+    onOpenVpn: (String) -> Unit,
 ) {
     val groups = state.visibleGroups
     val hosts = state.visibleHosts
@@ -567,7 +573,7 @@ private fun HostList(
                                 )
                             }
                             HostFactIcons(badges.facts(h))
-                            h.vpn?.let { VpnBadge(it, badges.vpn(it), onClick = { onHostMenu(h) }) }
+                            h.vpn?.let { VpnBadge(it, badges.vpn(it), onClick = { onOpenVpn(it.id) }) }
                             viewersByHost[h.id]?.let { PresenceStack(repo, it) }
                             openByHost[h.id]?.let { OpenSessionsBadge(it, onClick = { onHostMenu(h) }) }
                             if (!state.selecting) {

@@ -32,6 +32,8 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import dev.labdex.labterm.R
+import dev.labdex.labterm.ui.netbird.VpnStates
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.labdex.labterm.core.GroupItem
 import dev.labdex.labterm.core.HostVpnItem
 import dev.labdex.labterm.core.TagItem
@@ -78,6 +80,7 @@ fun GroupActionsSheet(
     onMove: () -> Unit,
     onDelete: () -> Unit,
     onClose: () -> Unit,
+    onOpenVpn: (String) -> Unit = {},
 ) {
     // The group's own network, with its parents' as a fallback (inherited).
     val vpn by produceState<HostVpnItem?>(null, group.id) {
@@ -96,7 +99,12 @@ fun GroupActionsSheet(
         title = group.label,
         subtitle = groupSubtitle(group),
         leading = { GroupTile(group) },
-        extra = { vpn?.let { HostFactChips(it, null, emptyList(), onVpn = null) } },
+        extra = {
+            vpn?.let { v ->
+                val states by remember(v.id) { VpnStates.observe(repo, setOf(v.id)) }.collectAsStateWithLifecycle(emptyMap())
+                HostFactChips(v, states[v.id], emptyList(), onVpn = { onClose(); onOpenVpn(v.id) })
+            }
+        },
         sections = listOf(
             SheetSection(
                 stringResource(R.string.group),

@@ -112,6 +112,8 @@ fun HostActionsSheet(
     onOpksshSetup: () -> Unit = {},
     onOidcKey: () -> Unit = {},
     onTunnel: () -> Unit = {},
+    /** Opens the VPN network's status page (the badge tap). */
+    onOpenVpn: (String) -> Unit = {},
     onDuplicate: () -> Unit,
     onMove: () -> Unit,
     onMoveVault: () -> Unit,
@@ -143,7 +145,7 @@ fun HostActionsSheet(
         ) {
             ItemSheetHeader(host.label.ifBlank { host.address }, hostSubtitle(host)) { HostAvatar(host.osName, icon = host.icon) }
             val vpn = host.vpn
-            HostFactChips(vpn, vpn?.let { badges.vpn(it) }, badges.facts(host), onVpn = if (ssh) then(onTunnel) else null)
+            HostFactChips(vpn, vpn?.let { badges.vpn(it) }, badges.facts(host), onVpn = vpn?.let { v -> then { onOpenVpn(v.id) } })
 
             if (open > 0) {
                 SectionLabel(if (open == 1) stringResource(R.string.active_connection) else stringResource(R.string.active_connections, open))

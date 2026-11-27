@@ -657,6 +657,7 @@ fun MainShell(
                     onS3 = ::s3Host,
                     onOpenSftp = ::openSftp,
                     onOpenTerminal = ::openTerminal,
+                    onOpenVpn = { nav.navigate(Routes.vpnNetwork(it)) },
                     onForward = { nav.navigate(Routes.pfNew(PfKind.LOCAL, null, it)) },
                 )
             }
