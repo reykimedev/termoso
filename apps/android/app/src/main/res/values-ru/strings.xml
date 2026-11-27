@@ -2020,6 +2020,9 @@
     <string name="netbird_no_networks_add_in_vault">В этом хранилище ещё нет VPN-сетей. Добавьте сеть в разделе Хранилище, VPN-сети.</string>
     <string name="netbird_networks_hint_team">Хосты и группы, настроенные на сеть, доступны через клиент NetBird внутри приложения. Он запускается при подключении к такому хосту и останавливается, когда больше не нужен. Команда делит только эти настройки: каждый участник входит в NetBird со своей учётной записью, и NetBird решает, кому открыт доступ.</string>
     <string name="netbird_team_sign_in_hint">У командных сетей нет ключа настройки: каждый участник входит в NetBird со своей учётной записью и подключается как своё устройство. Доступ определяют пользователи, группы и политики NetBird.</string>
+    <string name="tailscale_control_url">URL сервера управления (пусто = Tailscale; Headscale: ваш сервер)</string>
+    <string name="tailscale_auth_key_optional">Ключ авторизации (необязательно)</string>
+    <string name="tailscale_auth_key_hint">Без ключа вы входите со своей учётной записью Tailscale. С ключом устройство подключается с ним: лучше ключ с тегом, правила доступа которого разрешают только SSH к нужным хостам.</string>
     <string name="netbird_setup_key_optional">Ключ настройки (необязательно)</string>
     <string name="netbird_joins_with_key">Ключ настройки</string>
     <string name="netbird_signed_in">Вход выполнен</string>

@@ -1,4 +1,7 @@
-//! Embedded NetBird client for Labterm.
+//! Embedded VPN clients for Labterm: NetBird and Tailscale (tsnet), in one
+//! Go library. The names below say NetBird; Tailscale networks run the same
+//! way, with the tailnet's control server as "management server", an auth
+//! key as "setup key" and the node's state as "peer key".
 //!
 //! A host whose SSH settings name a NetBird [`Transport`] is dialled inside
 //! that network by a NetBird peer that runs in the app process itself, in
@@ -31,7 +34,7 @@ use std::time::{Duration, Instant};
 use labterm_core::error::{CoreError, Result};
 use labterm_core::model::{Entity, Transport};
 use labterm_core::transport::{BoxStream, TransportDial};
-use labterm_proto::entities::TRANSPORT_NETBIRD;
+use labterm_proto::entities::{TRANSPORT_NETBIRD, TRANSPORT_TAILSCALE};
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use uuid::Uuid;
@@ -41,6 +44,26 @@ pub use ffi::LIBRARY;
 
 /// Management server when a network names none.
 pub const DEFAULT_MANAGEMENT_URL: &str = "https://api.netbird.io";
+
+/// Tailscale's control server when a network names none (Headscale: its
+/// own URL).
+pub const DEFAULT_TAILSCALE_URL: &str = "https://controlplane.tailscale.com";
+
+static DATA_DIR: Mutex<Option<String>> = Mutex::new(None);
+
+/// A writable app directory (cache) for Tailscale's working files. Holds no
+/// keys: the node's state goes through [`PeerKeys`].
+pub fn set_data_dir(dir: &str) {
+    *DATA_DIR.lock().unwrap_or_else(|p| p.into_inner()) = Some(dir.to_owned());
+}
+
+fn data_dir() -> String {
+    DATA_DIR
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .clone()
+        .unwrap_or_default()
+}
 
 /// How long a peer stays up after its last connection closed, so a quick
 /// reconnect does not pay for a new start.
@@ -62,6 +85,8 @@ pub struct NetworkConfig {
     pub id: Uuid,
     /// Its label, for progress and errors.
     pub label: String,
+    /// [`TRANSPORT_NETBIRD`] or [`TRANSPORT_TAILSCALE`].
+    pub provider: String,
     /// Management server.
     pub management_url: String,
     /// Setup key; `None` = only an already registered peer can start.
@@ -73,6 +98,7 @@ impl std::fmt::Debug for NetworkConfig {
         f.debug_struct("NetworkConfig")
             .field("id", &self.id)
             .field("label", &self.label)
+            .field("provider", &self.provider)
             .field("management_url", &self.management_url)
             .field("setup_key", &self.setup_key.as_ref().map(|_| "…"))
             .finish()
@@ -80,23 +106,26 @@ impl std::fmt::Debug for NetworkConfig {
 }
 
 impl NetworkConfig {
-    /// From a NetBird transport entity; `None` for other providers.
+    /// From a NetBird or Tailscale transport entity; `None` for others.
     pub fn from_entity(t: &Entity<Transport>) -> Option<Self> {
-        if t.data.provider != TRANSPORT_NETBIRD {
-            return None;
-        }
+        let default_url = match t.data.provider.as_str() {
+            TRANSPORT_NETBIRD => DEFAULT_MANAGEMENT_URL,
+            TRANSPORT_TAILSCALE => DEFAULT_TAILSCALE_URL,
+            _ => return None,
+        };
         let url = t
             .data
             .management_url
             .as_deref()
             .map(str::trim)
             .filter(|u| !u.is_empty())
-            .unwrap_or(DEFAULT_MANAGEMENT_URL)
+            .unwrap_or(default_url)
             .trim_end_matches('/')
             .to_string();
         Some(Self {
             id: t.id,
             label: t.data.label.clone(),
+            provider: t.data.provider.clone(),
             management_url: url,
             setup_key: t
                 .data
@@ -117,7 +146,8 @@ impl NetworkConfig {
             Ok(())
         } else {
             Err(CoreError::Invalid(format!(
-                "NetBird \"{}\": the management URL must use https://",
+                "{} \"{}\": the server URL must use https://",
+                self.provider_name(),
                 self.label
             )))
         }
@@ -127,7 +157,20 @@ impl NetworkConfig {
     /// to one management server, so moving the network to another server
     /// registers anew.
     pub fn peer_slot(&self) -> String {
-        format!("{}@{}", self.id, self.management_url)
+        if self.provider == TRANSPORT_NETBIRD {
+            format!("{}@{}", self.id, self.management_url)
+        } else {
+            format!("{}@{}:{}", self.id, self.provider, self.management_url)
+        }
+    }
+
+    /// "NetBird" or "Tailscale", for messages.
+    pub fn provider_name(&self) -> &'static str {
+        if self.provider == TRANSPORT_TAILSCALE {
+            "Tailscale"
+        } else {
+            "NetBird"
+        }
     }
 }
 
@@ -165,7 +208,7 @@ fn web_url(url: &str) -> bool {
 /// Start of the error when a network needs its user to sign in (no setup
 /// key and no peer yet, or the server's login expiry ran out). The app looks
 /// for it to offer the sign-in.
-pub const SIGN_IN_NEEDED: &str = "NetBird sign-in needed";
+pub const SIGN_IN_NEEDED: &str = "VPN sign-in needed";
 
 /// An SSO sign-in waiting for the browser.
 pub struct SignIn {
@@ -210,6 +253,9 @@ pub struct SignedIn {
 
 #[derive(Serialize)]
 struct LoginOptions<'a> {
+    provider: &'a str,
+    data_dir: &'a str,
+    network_id: String,
     management_url: &'a str,
     private_key: &'a str,
     device_name: &'a str,
@@ -230,6 +276,9 @@ struct LoginResult {
 
 #[derive(Serialize)]
 struct StartOptions<'a> {
+    provider: &'a str,
+    data_dir: &'a str,
+    network_id: String,
     management_url: &'a str,
     setup_key: &'a str,
     private_key: &'a str,
@@ -490,6 +539,9 @@ impl Netbird {
         }
         let options = Zeroizing::new(
             serde_json::to_string(&StartOptions {
+                provider: &config.provider,
+                data_dir: &data_dir(),
+                network_id: config.id.to_string(),
                 management_url: &config.management_url,
                 setup_key: config
                     .setup_key
@@ -505,6 +557,7 @@ impl Netbird {
         );
         let path = self.library_path.clone();
         let label = config.label.clone();
+        let name = config.provider_name();
         let t_start = Instant::now();
         tracing::info!(
             network = %config.id,
@@ -525,7 +578,7 @@ impl Netbird {
                 if config.setup_key.is_none() && login_refused(&e) {
                     CoreError::Transport(format!("{SIGN_IN_NEEDED} for \"{label}\": {e}"))
                 } else {
-                    CoreError::Transport(format!("NetBird \"{label}\": {e}"))
+                    CoreError::Transport(format!("{name} \"{label}\": {e}"))
                 }
             })
         });
@@ -590,6 +643,9 @@ impl Netbird {
         let saved = keys.load(&config.peer_slot());
         let options = Zeroizing::new(
             serde_json::to_string(&LoginOptions {
+                provider: &config.provider,
+                data_dir: &data_dir(),
+                network_id: config.id.to_string(),
                 management_url: &config.management_url,
                 private_key: saved.as_deref().map(String::as_str).unwrap_or(""),
                 device_name,
@@ -600,6 +656,7 @@ impl Netbird {
         );
         let path = self.library_path.clone();
         let label = config.label.clone();
+        let name = config.provider_name();
         let started = Instant::now();
         tracing::info!(
             network = %config.id,
@@ -620,7 +677,7 @@ impl Netbird {
                 ms = started.elapsed().as_millis(),
                 "netbird: sign-in could not start: {e}"
             );
-            CoreError::Transport(format!("NetBird \"{label}\": {e}"))
+            CoreError::Transport(format!("{name} \"{label}\": {e}"))
         })?;
         #[derive(Deserialize)]
         struct Begin {
@@ -636,7 +693,8 @@ impl Netbird {
                 lib.login_cancel(handle);
             }
             return Err(CoreError::Transport(format!(
-                "NetBird \"{}\": the server's sign-in page is not an https:// address",
+                "{} \"{}\": the server's sign-in page is not an https:// address",
+                config.provider_name(),
                 config.label
             )));
         }
@@ -678,7 +736,11 @@ impl Netbird {
                     ms = started.elapsed().as_millis(),
                     "netbird: sign-in did not finish: {e}"
                 );
-                CoreError::Transport(format!("NetBird \"{}\": {e}", config.label))
+                CoreError::Transport(format!(
+                    "{} \"{}\": {e}",
+                    config.provider_name(),
+                    config.label
+                ))
             })?,
         );
         let result: LoginResult = serde_json::from_str(&out)
@@ -739,7 +801,8 @@ impl Netbird {
                 "netbird: dial failed: {e}"
             );
             CoreError::Transport(format!(
-                "{host}:{port} via NetBird \"{}\": {e}",
+                "{host}:{port} via {} \"{}\": {e}",
+                config.provider_name(),
                 config.label
             ))
         })?;
@@ -799,7 +862,7 @@ struct Dialer {
 
 impl TransportDial for Dialer {
     fn label(&self) -> String {
-        format!("NetBird \"{}\"", self.config.label)
+        format!("{} \"{}\"", self.config.provider_name(), self.config.label)
     }
 
     fn dial<'a>(
@@ -915,7 +978,16 @@ mod tests {
 
     #[test]
     fn config_from_entity() {
-        assert!(NetworkConfig::from_entity(&entity("tailscale", None, None)).is_none());
+        assert!(NetworkConfig::from_entity(&entity("zerotier", None, None)).is_none());
+        let ts = NetworkConfig::from_entity(&entity("tailscale", None, None)).unwrap();
+        assert_eq!(ts.management_url, DEFAULT_TAILSCALE_URL);
+        assert_eq!(ts.provider_name(), "Tailscale");
+        assert_ne!(
+            ts.peer_slot(),
+            NetworkConfig::from_entity(&entity("netbird", None, None))
+                .unwrap()
+                .peer_slot()
+        );
         let c = NetworkConfig::from_entity(&entity("netbird", None, Some(" K "))).unwrap();
         assert_eq!(c.management_url, DEFAULT_MANAGEMENT_URL);
         assert_eq!(c.setup_key.as_deref().map(String::as_str), Some("K"));

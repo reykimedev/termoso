@@ -3102,7 +3102,7 @@ export interface VpnNetwork {
   id: Uuid;
   vaultId: Uuid;
   label: string;
-  /** `netbird`. */
+  /** `netbird` or `tailscale`. */
   provider: string;
   /** null = the provider's cloud. */
   managementUrl: string | null;

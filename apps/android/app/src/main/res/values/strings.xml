@@ -1981,6 +1981,9 @@
     <string name="netbird_networks_hint_team">Hosts and groups set to use a network are reached through a NetBird client inside the app. It starts when such a host connects and stops once it is no longer used. The team shares only these settings: each member signs in to NetBird with their own account, so NetBird decides who gets in.</string>
     <string name="netbird_team_sign_in_hint">Team networks have no setup key: each member signs in to NetBird with their own account and joins as their own device. NetBird\'s users, groups and policies decide who gets in.</string>
     <string name="netbird_setup_key_optional">Setup key (optional)</string>
+    <string name="tailscale_control_url">Control server URL (empty = Tailscale; Headscale: your server)</string>
+    <string name="tailscale_auth_key_optional">Auth key (optional)</string>
+    <string name="tailscale_auth_key_hint">Without a key you sign in with your Tailscale account. With a key, this device joins with it: prefer a tagged key whose access rules only let it reach SSH on the hosts you need.</string>
     <string name="netbird_joins_with_key">Setup key</string>
     <string name="netbird_signed_in">Signed in</string>
     <string name="netbird_not_signed_in">Not signed in</string>

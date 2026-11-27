@@ -9,6 +9,8 @@ import (
 	"encoding/json"
 	"sort"
 	"time"
+
+	"github.com/netbirdio/netbird/client/embed"
 )
 
 // statusOut is what the network's details page shows: this peer's address
@@ -35,8 +37,8 @@ type peerOut struct {
 	Routes []string `json:"routes,omitempty"`
 }
 
-func nodeStatus(n *node) (statusOut, error) {
-	st, err := n.client.Status()
+func nbStatus(c *embed.Client) (statusOut, error) {
+	st, err := c.Status()
 	if err != nil {
 		return statusOut{}, err
 	}
@@ -81,7 +83,7 @@ func tnb_status(h C.uintptr_t, ok *C.int) *C.char {
 	if !found {
 		return cstr("not running")
 	}
-	st, err := nodeStatus(n)
+	st, err := n.client.Status()
 	if err != nil {
 		return cstr(err.Error())
 	}

@@ -51,6 +51,11 @@ pub fn set_library_path(path: impl Into<String>) {
     *LIBRARY_PATH.lock().unwrap_or_else(|p| p.into_inner()) = Some(path.into());
 }
 
+/// A writable app directory for Tailscale's working files (no keys).
+pub fn set_data_dir(dir: &str) {
+    labterm_netbird::set_data_dir(dir);
+}
+
 /// This device's peer name in the networks (the phone model, the
 /// computer's host name).
 static DEVICE_NAME: LazyLock<Mutex<String>> = LazyLock::new(|| Mutex::new("Labterm".to_owned()));
@@ -122,7 +127,7 @@ fn config(store: &Store, entity: &Entity<Transport>) -> Option<NetworkConfig> {
 
 fn network(store: &Store, id: Uuid) -> Result<NetworkConfig> {
     let entity = store.require::<Transport>(id)?;
-    config(store, &entity).ok_or_else(|| ClientError::invalid("not a NetBird network"))
+    config(store, &entity).ok_or_else(|| ClientError::invalid("not a VPN network"))
 }
 
 /// This device's state of a network, for lists.

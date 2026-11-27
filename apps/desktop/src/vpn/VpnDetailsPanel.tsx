@@ -18,8 +18,9 @@ import { useSnackbar } from "@/components/Snackbar";
 import { requestEditHost } from "@/app/navigation";
 import { tr } from "@/i18n";
 import { VpnStateChip } from "./VpnStateChip";
+import { vpnProviderName } from "@/hosts/HostBadges";
+import { providerCloud } from "./providers";
 
-const NETBIRD_CLOUD = "https://api.netbird.io";
 const mono = { fontFamily: "monospace", fontSize: 12 } as const;
 
 /** One network on this device: state, address, peers and the hosts that
@@ -83,7 +84,7 @@ export function VpnDetailsPanel({ network, onEdit }: { network: VpnNetwork; onEd
         <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
           <VpnStateChip state={d.state} />
           <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
-            {n.provider === "netbird" ? "NetBird" : n.provider} · {n.managementUrl ?? NETBIRD_CLOUD}
+            {vpnProviderName(n.provider)} · {n.managementUrl ?? providerCloud(n.provider)}
           </Typography>
         </Stack>
         {d.state.error && (

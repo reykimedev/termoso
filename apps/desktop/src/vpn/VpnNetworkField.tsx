@@ -5,6 +5,7 @@ import type { Uuid } from "@/ipc/types";
 import { Field } from "@/components/ui";
 import { goToSection } from "@/app/navigation";
 import { tr } from "@/i18n";
+import { networkTitle } from "./providers";
 
 /** The VPN network a host (or a group's hosts) is reached through. Only the
  *  vault's own networks: a host never dials through another vault's. */
@@ -46,7 +47,7 @@ export function VpnNetworkField({
         </MenuItem>
         {list.map((n) => (
           <MenuItem key={n.id} value={n.id}>
-            {n.label || "NetBird"}
+            {networkTitle(n)}
           </MenuItem>
         ))}
         <MenuItem value="__manage" sx={{ color: "primary.main" }}>
