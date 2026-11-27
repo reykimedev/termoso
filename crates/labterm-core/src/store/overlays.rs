@@ -156,6 +156,7 @@ impl Store {
         vault_id: Option<Uuid>,
     ) -> Result<ResolvedHost> {
         let mut r = self.resolve_host_in(host_id, vault_id)?;
+        crate::acl::check_connect(self, &r.host)?;
         self.apply_overlays(&mut r)?;
         Ok(r)
     }

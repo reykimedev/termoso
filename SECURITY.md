@@ -118,9 +118,13 @@ Vault contents are not lost: each account's recovery phrase unwraps the
 account key without the server's help and sets a new password — but back the
 key up together with the database.
 
-**ACL is not a vault.** Team ACL rules (group/host → `connect`/`read`/`edit`)
-are enforced by clients and, for directly named entities, by the server's
-write path. They do not change who can *decrypt*: anyone holding the vault
+**ACL is not a vault.** Team ACL rules (group/host → `none`/`connect`/`read`/`edit`)
+are applied by the apps and, for directly named entities, by the server's
+write path. Each app caches the caller's rules (`GET /acl/me`, refreshed with
+the vault list and kept in the encrypted store so they hold offline): `none`
+leaves a host or group out of the host list, the group tree and the access
+overview and refuses to connect; `connect` connects but refuses the host's or
+group's settings. Shared identities, keys and backups are not filtered yet. They do not change who can *decrypt*: anyone holding the vault
 key can read the whole vault with a modified client. Use separate team vaults
 for data that must stay invisible to some members; ACL is for discipline
 inside a vault, not isolation between adversaries.

@@ -367,7 +367,9 @@ stream.
   rotation ages). Entity ACL (`acl.rs`) maps a role, member or IdP group to a
   group or host inside a team vault with `none/connect/read/edit`. Because
   entities are ciphertext to the server, it cannot tell which hosts a group
-  contains: clients resolve inheritance and hide/limit what the rules say,
+  contains: clients fetch the caller's rules (`GET /acl/me`, cached by
+  `labterm-core`'s `acl.rs` and Labterm Web's `acl.ts`), resolve inheritance
+  (a host rule beats the nearest group rule) and hide or limit what the rules say,
   while the server hard-refuses writes and deletes below `edit` for entities a
   rule names directly. **ACL is not a substitute for a separate vault**: a
   member who holds the vault key can decrypt everything in that vault, so data

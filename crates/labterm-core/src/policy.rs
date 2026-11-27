@@ -55,11 +55,18 @@ pub fn remember(store: &Store, teams: &[labterm_proto::team::Team]) -> Result<()
 /// the caller can log them; the previous copy stays in place.
 pub async fn refresh(api: &ApiClient, store: &Store) -> Result<()> {
     let teams = api.teams().await?;
-    remember(store, &teams.teams)
+    remember(store, &teams.teams)?;
+    // The caller's access rules travel with the policies. A server without
+    // `/acl/me` keeps the last copy (none on a fresh device).
+    if let Err(e) = crate::acl::refresh(api, store).await {
+        tracing::debug!("access rules refresh: {e}");
+    }
+    Ok(())
 }
 
 /// Drop the cache (sign-out).
 pub fn clear(store: &Store) -> Result<()> {
+    crate::acl::clear(store)?;
     store.delete_meta(META)
 }
 

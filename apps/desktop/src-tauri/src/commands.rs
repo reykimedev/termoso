@@ -267,7 +267,7 @@ pub async fn hosts_list(
 
 #[tauri::command]
 pub async fn host_form(state: State<'_, AppState>, id: Uuid) -> Result<HostForm> {
-    hosts::form(&*state.store()?, id)
+    labterm_client::access::host_form(&*state.store()?, id)
 }
 
 #[tauri::command]
@@ -402,7 +402,7 @@ pub async fn group_save(
 
 #[tauri::command]
 pub async fn group_form(state: State<'_, AppState>, id: Uuid) -> Result<GroupForm> {
-    hosts::group_form(&*state.store()?, id)
+    labterm_client::access::group_form(&*state.store()?, id)
 }
 
 #[tauri::command]

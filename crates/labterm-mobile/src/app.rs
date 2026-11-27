@@ -317,7 +317,7 @@ impl LabtermApp {
     /// Editor model for an existing host (no password: `has_password` says
     /// whether one is stored).
     pub fn host_draft(&self, id: String) -> Result<HostDraft> {
-        Ok(hosts::form(&self.store, parse_id(&id)?)?.into())
+        Ok(labterm_client::access::host_form(&self.store, parse_id(&id)?)?.into())
     }
 
     /// Empty editor model for a new host.
@@ -675,7 +675,7 @@ impl LabtermApp {
 
     /// Group editor model, with the SSH defaults the group hands down.
     pub fn group_draft(&self, id: String) -> Result<GroupDraft> {
-        Ok(hosts::group_form(&self.store, parse_id(&id)?)?.into())
+        Ok(labterm_client::access::group_form(&self.store, parse_id(&id)?)?.into())
     }
 
     /// Save a group with its SSH defaults. A `None` id creates the group.

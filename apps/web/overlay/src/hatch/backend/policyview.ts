@@ -13,6 +13,7 @@ import {
   type Tag,
 } from "./model";
 import { resolveToConnect, type HostOverlay } from "./overlays";
+import * as acl from "./acl";
 import * as policy from "./policy";
 import { get, list, vault, type Ent, type Uuid } from "./state";
 import type { Transport } from "./vpn";
@@ -234,6 +235,7 @@ export function vaultPolicy(vaultId: Uuid) {
   const byLabel = (a: { label: string; id: Uuid }, b: { label: string; id: Uuid }) =>
     a.label.toLowerCase().localeCompare(b.label.toLowerCase()) || a.id.localeCompare(b.id);
   const hosts = list<Host>("host", vaultId)
+    .filter(acl.hostVisible)
     .sort((a, b) => byLabel({ label: a.data.label, id: a.id }, { label: b.data.label, id: b.id }))
     .map((h) => {
       try {
