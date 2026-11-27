@@ -436,6 +436,28 @@ impl Store {
         self.write_row(vault_id, Some(collection_id), T::KIND, id, data)
     }
 
+    /// [`Store::put_raw`] into a collection, for restoring a backup: the
+    /// same checks, and the row must be new or already in this collection.
+    pub fn put_raw_in_collection(
+        &self,
+        vault_id: Uuid,
+        collection_id: Uuid,
+        kind: &str,
+        id: Uuid,
+        data: &serde_json::Value,
+    ) -> Result<()> {
+        let data = self.checked_raw(vault_id, kind, data.clone())?;
+        if self
+            .row(id)?
+            .is_some_and(|r| r.vault_id != vault_id || r.collection_id != Some(collection_id))
+        {
+            return Err(CoreError::Invalid(
+                "moving an item into a restricted group isn't supported yet".into(),
+            ));
+        }
+        self.write_row(vault_id, Some(collection_id), kind, id, &data)
+    }
+
     /// Pull cursor of a collection (0 when unknown).
     pub fn collection_cursor(&self, id: Uuid) -> Result<i64> {
         Ok(self
