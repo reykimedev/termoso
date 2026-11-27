@@ -245,7 +245,9 @@ so and merges by hand after a second look.
 1. ~~Layer 0 (apply access rules in every app, fix the docs).~~ Done in #130.
 2. ~~Decision record and security review of layer 1.~~ Reviewed on #137; this revision addresses
    the findings. Mike's approval next.
-3. Layer 1 in core and server, then the apps.
+3. Layer 1 in core and server, then the apps. Crypto (envelopes, collection AAD, signed log)
+   landed in #155; the local key store with verified logs and pins is next, then sync with the
+   server, closed resolution and rotation, then the apps.
 4. Layer 2, then #76 to #80, each with its own short design note.
 
 ## Open questions for Mike
