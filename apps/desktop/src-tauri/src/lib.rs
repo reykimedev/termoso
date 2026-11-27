@@ -16,6 +16,7 @@ mod complete;
 mod edits;
 mod error;
 mod forwarding;
+mod hello;
 mod import;
 #[cfg(target_os = "linux")]
 mod linux_graphics;
@@ -29,6 +30,7 @@ mod quick;
 mod rotation;
 mod s3;
 mod security;
+mod security_key;
 mod sessions;
 mod sftp;
 mod smoke;
@@ -155,6 +157,12 @@ pub fn run() {
             commands::settings_set,
             security::vault_status,
             security::vault_unlock,
+            security::vault_unlock_hello,
+            security::unlock_hello_add,
+            security::vault_unlock_security_key,
+            security::unlock_security_key_add,
+            security::unlock_factor_remove,
+            security::unlock_factor_rename,
             security::vault_lock,
             security::vault_activity,
             security::master_password_set,

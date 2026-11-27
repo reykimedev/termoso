@@ -29,10 +29,10 @@ index f313705..7c8ff06 100644
    const [email, setEmail] = useState("");
    const [password, setPassword] = useState("");
 diff --git a/apps/desktop/src/app/LockScreen.tsx b/apps/desktop/src/app/LockScreen.tsx
-index 35c7399..5326383 100644
+index c50f967..bb3db8d 100644
 --- a/apps/desktop/src/app/LockScreen.tsx
 +++ b/apps/desktop/src/app/LockScreen.tsx
-@@ -8,6 +8,8 @@ import { errorMessage, isDesktopError } from "@/ipc/types";
+@@ -10,6 +10,8 @@ import { errorMessage, isDesktopError } from "@/ipc/types";
  import { sizes } from "@/theme/theme";
  import { WindowControls } from "./WindowControls";
  import { tr } from "@/i18n";
@@ -41,9 +41,9 @@ index 35c7399..5326383 100644
  
  export const RECOVERY_DOC_URL =
    "https://github.com/termoso/termoso/blob/main/docs/ARCHITECTURE.md#desktop-master-password-and-app-lock";
-@@ -103,6 +105,9 @@ export function LockScreen() {
-             </Stack>
-           </Box>
+@@ -158,6 +160,9 @@ export function LockScreen() {
+             </Box>
+           )}
  
 +          {IS_WEB ? (
 +            <ResetBrowser />
@@ -51,7 +51,7 @@ index 35c7399..5326383 100644
            <Typography variant="caption" color="text.secondary" sx={{ textAlign: "center" }}>
              {tr(
                "Forgot it? The password cannot be reset — restore an encrypted vault backup instead.",
-@@ -116,6 +121,7 @@ export function LockScreen() {
+@@ -171,6 +176,7 @@ export function LockScreen() {
                {tr("Learn more")}
              </Link>
            </Typography>
