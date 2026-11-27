@@ -55,6 +55,10 @@ object CustomIcon {
     const val MAX_SVG_BYTES = 16 * 1024
     /** Rasters are stored as a transparent square PNG of this side. */
     const val RASTER_SIDE = 64
+    /** A stored raster is shown at no more than about this side. */
+    const val MAX_SHOWN_SIDE = 256
+    /** Stored rasters claiming more pixels a side than this are not decoded at all. */
+    const val MAX_SOURCE_SIDE = 4096
 
     /**
      * Stored value for a picked image: an SVG of at most [MAX_SVG_BYTES] as
@@ -126,11 +130,30 @@ object CustomIcon {
         val parsed = parse(value) ?: return null
         cache.get(value)?.let { return it }
         val bitmap = try {
-            if (parsed.mime == "image/svg+xml") decodeSvg(parsed.bytes) else BitmapFactory.decodeByteArray(parsed.bytes, 0, parsed.bytes.size)
+            if (parsed.mime == "image/svg+xml") decodeSvg(parsed.bytes) else decodeRaster(parsed.bytes)
         } catch (_: Exception) {
+            null
+        } catch (_: OutOfMemoryError) {
             null
         } ?: return null
         return bitmap.asImageBitmap().also { cache.put(value, it) }
+    }
+
+    /**
+     * The value is synced, so anyone who can edit the vault chose it: a few
+     * KiB of PNG can claim tens of thousands of pixels a side, and decoding
+     * that at full size takes the app down wherever the icon shows. Refuse
+     * absurd sizes and decode the rest scaled down to about [MAX_SHOWN_SIDE].
+     */
+    private fun decodeRaster(bytes: ByteArray): Bitmap? {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        val w = bounds.outWidth
+        val h = bounds.outHeight
+        if (w <= 0 || h <= 0 || w > MAX_SOURCE_SIDE || h > MAX_SOURCE_SIDE) return null
+        var sample = 1
+        while (w / (sample * 2) >= MAX_SHOWN_SIDE || h / (sample * 2) >= MAX_SHOWN_SIDE) sample *= 2
+        return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample })
     }
 
     private fun decodeSvg(bytes: ByteArray): Bitmap? {

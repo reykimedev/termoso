@@ -69,6 +69,12 @@ impl FileWriter {
     pub fn open(dir: impl Into<PathBuf>) -> io::Result<Self> {
         let dir = dir.into();
         fs::create_dir_all(&dir)?;
+        // Host names, user names and addresses: not for other local users.
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = fs::set_permissions(&dir, fs::Permissions::from_mode(0o700));
+        }
         let now = OffsetDateTime::now_utc();
         let stem = format!(
             "{PREFIX}{:04}{:02}{:02}-{:02}{:02}{:02}",
@@ -130,11 +136,7 @@ impl Write for FileWriter {
 fn create(dir: &Path, stem: &str, mut part: u32) -> io::Result<(File, u32)> {
     loop {
         let name = file_name(stem, part);
-        match OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(dir.join(&name))
-        {
+        match create_private(&dir.join(&name)) {
             Ok(f) => {
                 *CURRENT.lock().unwrap_or_else(|p| p.into_inner()) = Some(name);
                 return Ok((f, part));
@@ -143,6 +145,18 @@ fn create(dir: &Path, stem: &str, mut part: u32) -> io::Result<(File, u32)> {
             Err(e) => return Err(e),
         }
     }
+}
+
+/// A new file only its owner can read.
+fn create_private(path: &Path) -> io::Result<File> {
+    let mut opts = OpenOptions::new();
+    opts.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        opts.mode(0o600);
+    }
+    opts.open(path)
 }
 
 fn file_name(stem: &str, part: u32) -> String {
@@ -374,6 +388,19 @@ mod tests {
             read_in(dir.path(), "vault.db"),
             Err(CoreError::Invalid(_))
         ));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn log_files_are_private_to_the_user() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("labterm-20260101-000000.log");
+        create_private(&path).unwrap();
+        let mode = fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o600);
+        // An existing file is never reused.
+        assert!(create_private(&path).is_err());
     }
 
     #[test]
