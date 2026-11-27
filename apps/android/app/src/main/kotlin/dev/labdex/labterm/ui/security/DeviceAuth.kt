@@ -40,7 +40,22 @@ fun deviceAuthProblem(context: Context): String? =
  * device credential the user has enrolled; no secret is derived from it — the
  * Keystore key that wraps the vault master key checks the same authentication.
  */
-suspend fun authenticateDevice(activity: FragmentActivity, title: String, subtitle: String? = null): AuthResult =
+suspend fun authenticateDevice(activity: FragmentActivity, title: String, subtitle: String? = null): AuthResult {
+    DeviceAuthPrompt.showing = true
+    try {
+        return showPrompt(activity, title, subtitle)
+    } finally {
+        DeviceAuthPrompt.showing = false
+    }
+}
+
+/** Whether a device-authentication prompt is on screen right now. */
+object DeviceAuthPrompt {
+    @Volatile
+    var showing = false
+}
+
+private suspend fun showPrompt(activity: FragmentActivity, title: String, subtitle: String?): AuthResult =
     suspendCancellableCoroutine { cont ->
         val prompt = BiometricPrompt(
             activity,
