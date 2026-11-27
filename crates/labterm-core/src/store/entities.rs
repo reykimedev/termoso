@@ -225,6 +225,20 @@ impl Store {
                 "a {kind} belongs in your personal or local vault, not a team vault"
             )));
         }
+        // A team vault never holds a NetBird setup key: every member could
+        // read it and join the network without being onboarded there. The
+        // editors refuse one; this also covers a backup restored or an
+        // entity copied into a team vault.
+        if kind == <crate::model::Transport as crate::model::Payload>::KIND
+            && self.vault(vault_id)?.kind == super::LocalVaultKind::Team
+        {
+            let mut v = serde_json::to_value(data)?;
+            if v.as_object_mut()
+                .is_some_and(|o| o.remove("setup_key").is_some())
+            {
+                return self.put_raw(vault_id, kind, id, &v);
+            }
+        }
         let (ct, key_version) = self.encrypt_payload(vault_id, kind, id, data)?;
         let dirty = self.writable_vault(vault_id)?.kind.is_synced();
         self.conn().execute(

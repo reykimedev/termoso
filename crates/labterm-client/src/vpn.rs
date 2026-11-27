@@ -167,10 +167,13 @@ pub fn needs_sign_in(store: &Arc<Store>, resolved: &ResolvedHost) -> Option<Enti
 
 /// Start signing in to a network as `account` (`None` = anyone): returns
 /// the URL to open in a browser. The account is remembered on this device.
+/// `return_url` is where the browser goes once it handed over the code
+/// (`None` shows a "signed in" page).
 pub async fn sign_in_begin(
     store: &Arc<Store>,
     network_id: Uuid,
     account: Option<String>,
+    return_url: Option<&str>,
 ) -> Result<String> {
     let c = network(store, network_id)?;
     let account = account
@@ -182,6 +185,7 @@ pub async fn sign_in_begin(
             &c,
             &device_name(),
             account.as_deref(),
+            return_url,
             &StoreKeys(store.clone()),
         )
         .await

@@ -50,16 +50,38 @@ type loginOptions struct {
 	// The identity provider account to sign in as (mke-adm rather than
 	// mke); empty = whoever signs in.
 	Account string `json:"account"`
+	// Where the browser goes once it handed over the code (an app link
+	// that brings Labterm back to the front); empty shows a page instead.
+	ReturnURL string `json:"return_url,omitempty"`
 }
 
 type loginBegin struct {
 	AuthURL string `json:"auth_url"`
+	// How long each step took, for the log ("probe 120ms, ...").
+	Timings string `json:"timings,omitempty"`
 }
 
 type loginResult struct {
 	PrivateKey string `json:"private_key"`
 	Email      string `json:"email,omitempty"`
+	Timings    string `json:"timings,omitempty"`
 }
+
+// steps records how long each step of a sign-in took.
+type steps struct {
+	last time.Time
+	out  []string
+}
+
+func newSteps() *steps { return &steps{last: time.Now()} }
+
+func (s *steps) done(name string) {
+	now := time.Now()
+	s.out = append(s.out, fmt.Sprintf("%s %s", name, now.Sub(s.last).Round(time.Millisecond)))
+	s.last = now
+}
+
+func (s *steps) String() string { return strings.Join(s.out, ", ") }
 
 type pendingLogin struct {
 	// Extra listener on [::1]: browsers may try that first for "localhost".
@@ -73,7 +95,9 @@ type pendingLogin struct {
 	server    *http.Server
 	codes     chan string
 	errs      chan error
-	once      sync.Once
+	// Step timings of beginLogin, for the log.
+	timings string
+	once    sync.Once
 	// Set while tnb_login_finish waits; otherwise a cancel closes the
 	// listener itself, so an abandoned sign-in never keeps its port.
 	finishing atomic.Bool
@@ -138,7 +162,7 @@ func init() {
 	_ = os.Setenv(netstack.EnvSkipProxy, "true")
 }
 
-func mgmClient(ctx context.Context, o loginOptions, key wgtypes.Key) (*mgm.GrpcClient, error) {
+func mgmClient(ctx context.Context, o loginOptions, key wgtypes.Key, st *steps) (*mgm.GrpcClient, error) {
 	addr, tls, err := mgmAddr(o.ManagementURL)
 	if err != nil {
 		return nil, fmt.Errorf("management URL: %w", err)
@@ -146,7 +170,12 @@ func mgmClient(ctx context.Context, o loginOptions, key wgtypes.Key) (*mgm.GrpcC
 	if err := probe(ctx, addr, tls); err != nil {
 		return nil, err
 	}
-	return mgm.NewClient(ctx, addr, key, tls)
+	st.done("probe")
+	c, err := mgm.NewClient(ctx, addr, key, tls)
+	if err == nil {
+		st.done("grpc connect")
+	}
+	return c, err
 }
 
 // probe checks the management address the way gRPC will use it. NetBird's
@@ -179,6 +208,7 @@ func probe(ctx context.Context, addr string, useTLS bool) error {
 }
 
 func beginLogin(o loginOptions) (*pendingLogin, string, error) {
+	st := newSteps()
 	var key wgtypes.Key
 	var err error
 	if o.PrivateKey != "" {
@@ -191,7 +221,7 @@ func beginLogin(o loginOptions) (*pendingLogin, string, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	client, err := mgmClient(ctx, o, key)
+	client, err := mgmClient(ctx, o, key, st)
 	if err != nil {
 		return nil, "", err
 	}
@@ -200,6 +230,7 @@ func beginLogin(o loginOptions) (*pendingLogin, string, error) {
 	if err != nil {
 		return nil, "", fmt.Errorf("this NetBird server has no SSO sign-in: %w", err)
 	}
+	st.done("sso settings")
 	cfg := flow.GetProviderConfig()
 	if cfg.GetAuthorizationEndpoint() == "" || cfg.GetTokenEndpoint() == "" || cfg.GetClientID() == "" {
 		return nil, "", errors.New("this NetBird server's SSO settings are incomplete")
@@ -291,28 +322,37 @@ func beginLogin(o loginOptions) (*pendingLogin, string, error) {
 		q := r.URL.Query()
 		var err error
 		switch {
-		case q.Get("error") != "":
-			err = fmt.Errorf("sign-in failed: %s %s", q.Get("error"), q.Get("error_description"))
+		// State first: without it, any page open in the browser could end
+		// this sign-in by requesting the redirect URL with an error.
 		case subtle.ConstantTimeCompare([]byte(q.Get("state")), []byte(p.state)) != 1:
 			http.Error(w, "invalid state", http.StatusBadRequest)
 			return
+		case q.Get("error") != "":
+			err = fmt.Errorf("sign-in failed: %s %s", q.Get("error"), q.Get("error_description"))
 		case q.Get("code") == "":
 			err = errors.New("sign-in failed: no code")
 		}
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		back := func(msg string) {
+			if o.ReturnURL != "" {
+				http.Redirect(w, r, o.ReturnURL, http.StatusFound)
+				return
+			}
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			fmt.Fprint(w, page(msg))
+		}
 		if err != nil {
 			select {
 			case p.errs <- err:
 			default:
 			}
-			fmt.Fprint(w, page("Sign-in failed. Go back to Labterm and try again."))
+			back("Sign-in failed. Go back to Labterm and try again.")
 			return
 		}
 		select {
 		case p.codes <- q.Get("code"):
 		default:
 		}
-		fmt.Fprint(w, page("Signed in. You can go back to Labterm."))
+		back("Signed in. You can go back to Labterm.")
 	})
 	p.server = &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 	if l6, err := net.Listen("tcp", net.JoinHostPort("::1", listenerPort(listener))); err == nil {
@@ -320,6 +360,8 @@ func beginLogin(o loginOptions) (*pendingLogin, string, error) {
 		go func() { _ = p.server.Serve(l6) }()
 	}
 	go func() { _ = p.server.Serve(listener) }()
+	st.done("listen")
+	p.timings = st.String()
 	return p, authURL, nil
 }
 
@@ -341,6 +383,7 @@ func page(msg string) string {
 
 func finishLogin(p *pendingLogin, timeout time.Duration) (loginResult, error) {
 	defer p.close()
+	st := newSteps()
 	var code string
 	select {
 	case code = <-p.codes:
@@ -349,12 +392,14 @@ func finishLogin(p *pendingLogin, timeout time.Duration) (loginResult, error) {
 	case <-time.After(timeout):
 		return loginResult{}, errors.New("sign-in timed out")
 	}
+	st.done("browser")
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	tok, err := p.oauth.Exchange(ctx, code, oauth2.SetAuthURLParam("code_verifier", p.verifier))
 	if err != nil {
 		return loginResult{}, fmt.Errorf("sign-in: %w", err)
 	}
+	st.done("token")
 	claims := idClaims(tok)
 	if !isAccount(p.opts.Account, claims) {
 		// Checked before Register so the wrong user never gets this peer.
@@ -377,7 +422,7 @@ func finishLogin(p *pendingLogin, timeout time.Duration) (loginResult, error) {
 		jwt = id
 	}
 
-	client, err := mgmClient(ctx, p.opts, p.key)
+	client, err := mgmClient(ctx, p.opts, p.key, st)
 	if err != nil {
 		return loginResult{}, err
 	}
@@ -389,7 +434,8 @@ func finishLogin(p *pendingLogin, timeout time.Duration) (loginResult, error) {
 	if _, err := client.Register("", jwt, info, nil, nil); err != nil {
 		return loginResult{}, fmt.Errorf("netbird: %w", err)
 	}
-	return loginResult{PrivateKey: p.key.String(), Email: claims.Email}, nil
+	st.done("register")
+	return loginResult{PrivateKey: p.key.String(), Email: claims.Email, Timings: st.String()}, nil
 }
 
 type tokenClaims struct {
@@ -448,7 +494,7 @@ func tnb_login_begin(optsJSON *C.char, handle *C.uintptr_t) *C.char {
 	if err != nil {
 		return cstr(err.Error())
 	}
-	out, _ := json.Marshal(loginBegin{AuthURL: authURL})
+	out, _ := json.Marshal(loginBegin{AuthURL: authURL, Timings: p.timings})
 	loginsMu.Lock()
 	nextLogin++
 	logins[nextLogin] = p

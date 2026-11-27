@@ -10,7 +10,7 @@ plaintext: the browser runs SSH itself, and the relay only carries its encrypted
 | `POST /v1/tickets` | `Authorization: Bearer <Authentik ID token>`, body `{"host": "…", "port": 22}`. Checks the token, resolves the host once, checks the allowlist on the resolved address, and answers `{ticket, ip, port, expiresIn}`. Body at most 4 KiB, unknown fields refused. |
 | `GET /v1/connect?ticket=…` | WebSocket. The ticket is single use, lives 30 s, and is bound to the user, the resolved address, the port and the page's origin. Binary frames only; a text frame closes the pipe. |
 | `GET /healthz` | Liveness. |
-| `GET /metrics` | Prometheus text: tickets, sessions, bytes, refusals by reason. |
+| `GET /metrics` | Prometheus text: tickets, sessions, bytes, refusals by reason. Not authenticated: keep it off the public route (the shipped `IngressRoute` only forwards `/v1/` and `/healthz`). |
 
 Both `/v1` endpoints check the `Origin` header against `HATCH_RELAY_ALLOWED_ORIGINS`.
 

@@ -42,32 +42,44 @@ jobs:
           files=$(git diff --name-only HEAD^1 HEAD)
           printf 'Changed files:\n%s\n' "$files"
           # What the Dockerfiles copy, plus this workflow.
-          if grep -qE '^(crates/|Cargo\.(toml|lock)$|apps/desktop/src-tauri/|web/|deploy/Dockerfile|\.dockerignore$|\.github/workflows/server-images\.yml$)' <<<"$files"; then
+          if grep -qE '^(crates/|Cargo\.(toml|lock)$|apps/desktop/src-tauri/|web/|deploy/Dockerfile|\.dockerignore$|\.github/workflows/server-images\.yml$|\.github/actions/server-prebuilt/)' <<<"$files"; then
             echo "build=true" | tee -a "$GITHUB_OUTPUT"
           else
             echo "build=false" | tee -a "$GITHUB_OUTPUT"
           fi
 
+  # One job per architecture builds the release binaries and the web cabinet once, on the runner
+  # with the Rust cache (.github/actions/server-prebuilt), then packs all three images from them.
+  # Compiling inside Docker started cold on every run (GitHub's runners keep no cargo cache mounts),
+  # six times over.
   build:
-    name: build (${{ matrix.image }}, ${{ matrix.arch }})
+    name: build (${{ matrix.arch }})
     needs: changes
     if: needs.changes.outputs.build == 'true'
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
       packages: write
+    # Same as ci.yml's docker job, whose PR builds then start from this Rust cache.
+    env:
+      CARGO_TERM_COLOR: always
+      RUSTFLAGS: ""
     strategy:
       fail-fast: false
       matrix:
-        image: [server, bridge, backup]
         arch: [amd64, arm64]
         include:
+          # 22.04: glibc 2.35, older than the images' bookworm (2.36).
           - arch: amd64
-            runner: ubuntu-latest
+            runner: ubuntu-22.04
           - arch: arm64
-            runner: ubuntu-24.04-arm
+            runner: ubuntu-22.04-arm
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/server-prebuilt
+        with:
+          packages: labterm-server labterm-bridge
+          web: "true"
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
@@ -75,47 +87,88 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - id: image
-        run: echo "name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/labterm-${{ matrix.image }}" >> "$GITHUB_OUTPUT"
-      - id: build
+        run: echo "prefix=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/labterm" >> "$GITHUB_OUTPUT"
+      - id: server
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
-          file: deploy/Dockerfile${{ matrix.image != 'server' && format('.{0}', matrix.image) || '' }}
+          file: deploy/Dockerfile
           platforms: linux/${{ matrix.arch }}
           # Uploaded untagged, by digest; publish assembles the multi-arch manifest.
-          outputs: type=image,name=${{ steps.image.outputs.name }},push-by-digest=true,name-canonical=true,push=true
-          cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.arch }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.image }}-${{ matrix.arch }}
-      - name: Export digest
+          outputs: type=image,name=${{ steps.image.outputs.prefix }}-server,push-by-digest=true,name-canonical=true,push=true
+          build-args: |
+            SERVER_STAGE=server-prebuilt
+            WEB_STAGE=web-prebuilt
+          cache-from: type=gha,scope=server-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=server-${{ matrix.arch }}
+      - id: backup
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: deploy/Dockerfile.backup
+          platforms: linux/${{ matrix.arch }}
+          # Uploaded untagged, by digest; publish assembles the multi-arch manifest.
+          outputs: type=image,name=${{ steps.image.outputs.prefix }}-backup,push-by-digest=true,name-canonical=true,push=true
+          build-args: |
+            SERVER_STAGE=server-prebuilt
+          cache-from: type=gha,scope=backup-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=backup-${{ matrix.arch }}
+      - id: bridge
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: deploy/Dockerfile.bridge
+          platforms: linux/${{ matrix.arch }}
+          # Uploaded untagged, by digest; publish assembles the multi-arch manifest.
+          outputs: type=image,name=${{ steps.image.outputs.prefix }}-bridge,push-by-digest=true,name-canonical=true,push=true
+          build-args: |
+            BRIDGE_STAGE=bridge-prebuilt
+          cache-from: type=gha,scope=bridge-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=bridge-${{ matrix.arch }}
+      - name: Export digests
         env:
-          DIGEST: ${{ steps.build.outputs.digest }}
+          SERVER: ${{ steps.server.outputs.digest }}
+          BACKUP: ${{ steps.backup.outputs.digest }}
+          BRIDGE: ${{ steps.bridge.outputs.digest }}
         run: |
-          mkdir -p /tmp/digests
-          touch "/tmp/digests/${DIGEST#sha256:}"
+          for pair in "server=$SERVER" "backup=$BACKUP" "bridge=$BRIDGE"; do
+            d="/tmp/digests/${pair%%=*}"
+            mkdir -p "$d"
+            touch "$d/${pair#*=sha256:}"
+          done
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: digests-${{ matrix.image }}-${{ matrix.arch }}
-          path: /tmp/digests/*
+          name: digests-server-${{ matrix.arch }}
+          path: /tmp/digests/server/*
+          if-no-files-found: error
+          retention-days: 1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: digests-backup-${{ matrix.arch }}
+          path: /tmp/digests/backup/*
+          if-no-files-found: error
+          retention-days: 1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: digests-bridge-${{ matrix.arch }}
+          path: /tmp/digests/bridge/*
           if-no-files-found: error
           retention-days: 1
 
+  # One job assembles the multi-arch manifests of all three images; each is a few seconds of work,
+  # not worth a runner of its own.
   publish:
-    name: manifest (${{ matrix.image }})
+    name: manifests
     needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-    strategy:
-      fail-fast: false
-      matrix:
-        image: [server, bridge, backup]
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          pattern: digests-${{ matrix.image }}-*
+          pattern: digests-*
           path: /tmp/digests
-          merge-multiple: true
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
@@ -123,34 +176,36 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
-          images: ghcr.io/${{ github.repository_owner }}/labterm-${{ matrix.image }}
+          images: |
+            ghcr.io/${{ github.repository_owner }}/labterm-server
+            ghcr.io/${{ github.repository_owner }}/labterm-bridge
+            ghcr.io/${{ github.repository_owner }}/labterm-backup
           tags: |
             type=ref,event=branch
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable={{is_default_branch}}
-      - name: Create the multi-arch manifest
-        working-directory: /tmp/digests
+      - name: Create and verify the multi-arch manifests
         env:
-          IMAGE_NAME: labterm-${{ matrix.image }}
-        run: |
-          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/$IMAGE_NAME"
-          ls
-          [ "$(ls | wc -l)" -eq 2 ] || { echo "::error::expected 2 digests (amd64 + arm64)"; exit 1; }
-          docker buildx imagetools create \
-            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf "$image@sha256:%s " *)
-      - name: Verify the manifest
-        env:
-          IMAGE_NAME: labterm-${{ matrix.image }}
           VERSION: ${{ steps.meta.outputs.version }}
         run: |
-          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/$IMAGE_NAME:$VERSION"
-          docker buildx imagetools inspect "$image"
-          for p in linux/amd64 linux/arm64; do
-            docker buildx imagetools inspect "$image" --format '{{json .Manifest}}' \
-              | jq -e --arg p "$p" '.manifests[] | select((.platform.os + "/" + .platform.architecture) == $p)' > /dev/null \
-              || { echo "::error::$image lacks $p"; exit 1; }
+          ls -R /tmp/digests
+          for name in server bridge backup; do
+            image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/labterm-$name"
+            digests=(/tmp/digests/digests-"$name"-*/*)
+            [ "${#digests[@]}" -eq 2 ] || { echo "::error::expected 2 digests (amd64 + arm64) for $name"; exit 1; }
+            # metadata-action lists the tags of all three images; take this one's.
+            tags=$(jq -r --arg n "/labterm-$name:" '.tags[] | select(contains($n)) | "-t " + .' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+            refs=()
+            for d in "${digests[@]}"; do refs+=("$image@sha256:$(basename "$d")"); done
+            # shellcheck disable=SC2086 # one -t per tag
+            docker buildx imagetools create $tags "${refs[@]}"
+            docker buildx imagetools inspect "$image:$VERSION"
+            for p in linux/amd64 linux/arm64; do
+              docker buildx imagetools inspect "$image:$VERSION" --format '{{json .Manifest}}' \
+                | jq -e --arg p "$p" '.manifests[] | select((.platform.os + "/" + .platform.architecture) == $p)' > /dev/null \
+                || { echo "::error::$image lacks $p"; exit 1; }
+            done
           done

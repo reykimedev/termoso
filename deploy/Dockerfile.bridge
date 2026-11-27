@@ -4,6 +4,11 @@
 # the bridge private key and the vault keys, encrypts hosts/groups/credentials
 # locally and pushes only ciphertext to the Labterm server.
 
+# CI builds the binary on the runner, where its Rust cache survives between runs
+# (.github/actions/server-prebuilt), and passes BRIDGE_STAGE=bridge-prebuilt; a plain
+# `docker build` compiles it here.
+ARG BRIDGE_STAGE=build
+
 FROM rust:1-bookworm AS build
 WORKDIR /src
 COPY Cargo.toml Cargo.lock ./
@@ -14,8 +19,12 @@ RUN --mount=type=cache,id=cargo-registry-bridge,target=/usr/local/cargo/registry
     cargo build --release --locked -p labterm-bridge \
     && cp target/release/labterm-bridge /labterm-bridge
 
+FROM scratch AS bridge-prebuilt
+COPY deploy/prebuilt/labterm-bridge /labterm-bridge
+FROM ${BRIDGE_STAGE} AS bridge-out
+
 FROM gcr.io/distroless/cc-debian12:nonroot
-COPY --from=build /labterm-bridge /usr/local/bin/labterm-bridge
+COPY --from=bridge-out /labterm-bridge /usr/local/bin/labterm-bridge
 ENV LABTERM_BRIDGE_CREDENTIALS=/etc/labterm/bridge.json \
     LABTERM_BRIDGE_LISTEN=0.0.0.0:8080
 EXPOSE 8080

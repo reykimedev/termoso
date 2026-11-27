@@ -1,31 +1,31 @@
 # Reviewers requested automatically per area. Later rules win.
-*                                   @rep0rtDev
+*                                   @reykimedev
 
-/crates/labterm-crypto/             @rep0rtDev
-/crates/labterm-proto/              @rep0rtDev
-/crates/labterm-server/             @rep0rtDev
-/crates/labterm-core/               @rep0rtDev
-/crates/labterm-client/             @rep0rtDev
-/crates/labterm-mobile/             @rep0rtDev
-/crates/labterm-bridge/             @rep0rtDev
-/crates/labterm-wasm/               @rep0rtDev
+/crates/labterm-crypto/             @reykimedev
+/crates/labterm-proto/              @reykimedev
+/crates/labterm-server/             @reykimedev
+/crates/labterm-core/               @reykimedev
+/crates/labterm-client/             @reykimedev
+/crates/labterm-mobile/             @reykimedev
+/crates/labterm-bridge/             @reykimedev
+/crates/labterm-wasm/               @reykimedev
 
-/apps/desktop/                      @rep0rtDev
-/apps/android/                      @rep0rtDev
-/apps/ios/                          @rep0rtDev
-/web/                               @rep0rtDev
+/apps/desktop/                      @reykimedev
+/apps/android/                      @reykimedev
+/apps/ios/                          @reykimedev
+/web/                               @reykimedev
 
 # Labterm Web. Trust, signing, sign-in and the relay: merged by hand after a second look.
-/apps/web/                          @rep0rtDev
-/apps/web/overlay/src/loader/       @rep0rtDev
-/apps/web/patches/                  @rep0rtDev
-/apps/web/tools/                    @rep0rtDev
-/crates/labterm-relay/              @rep0rtDev
-/crates/labterm-relay-proto/        @rep0rtDev
-/crates/labterm-web-wasm/           @rep0rtDev
-/docs/web/threat-model.md           @rep0rtDev
+/apps/web/                          @reykimedev
+/apps/web/overlay/src/loader/       @reykimedev
+/apps/web/patches/                  @reykimedev
+/apps/web/tools/                    @reykimedev
+/crates/labterm-relay/              @reykimedev
+/crates/labterm-relay-proto/        @reykimedev
+/crates/labterm-web-wasm/           @reykimedev
+/docs/web/threat-model.md           @reykimedev
 
-/deploy/                            @rep0rtDev
-/.github/                           @rep0rtDev
-/docs/                              @rep0rtDev
-/SECURITY.md                        @rep0rtDev
+/deploy/                            @reykimedev
+/.github/                           @reykimedev
+/docs/                              @reykimedev
+/SECURITY.md                        @reykimedev

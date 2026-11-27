@@ -29,6 +29,8 @@ export interface HostOverlay {
   oidc_key_id?: Uuid | null;
   pinned_address?: string | null;
   pinned_port?: number | null;
+  /** How the connection reached the host when the link was made; absent = dialled directly. */
+  pinned_route?: string | null;
   agent_forwarding?: boolean;
   forward_x11?: boolean;
   [k: string]: unknown;
@@ -118,13 +120,59 @@ function rank(o: HostOverlay, hostId: Uuid, groups: Uuid[], tags: Uuid[]): numbe
   }
 }
 
+/** Trimmed, ASCII letters in lower case: what Rust's `trim().to_ascii_lowercase()` gives. */
+const tidy = (v: string | null | undefined) =>
+  (v ?? "").trim().replace(/[A-Z]/g, (c) => c.toLowerCase());
+
+/**
+ * How a connection reaches the host besides its address and port, as one line: proxy, gateway, VPN
+ * network and jump hosts, each with its id and where it points. Empty when dialled directly. The
+ * team sets all of these and each can lead the same address to another machine, so a host link is
+ * only used on the route it was made for. Same line as labterm-core's `overlay_route`.
+ */
+export function overlayRoute(r: Resolved): string {
+  const vault = r.host.vaultId;
+  const inVault = <T>(id: Uuid, kind: string) => {
+    const e = get<T>(id, kind);
+    return e?.vaultId === vault ? e : null;
+  };
+  const parts: string[] = [];
+  const { proxy_id, gateway_id, transport_id, host_chain_id } = r.ssh;
+  if (proxy_id) {
+    const p = inVault<{ kind: string; host: string; port: number }>(proxy_id, "proxy");
+    parts.push(
+      p
+        ? `proxy:${proxy_id}:${tidy(p.data.kind)}:${tidy(p.data.host)}:${p.data.port}`
+        : `proxy:${proxy_id}`,
+    );
+  }
+  if (gateway_id) parts.push(`gateway:${gateway_id}`);
+  if (transport_id) {
+    const t = inVault<{ management_url?: string | null }>(transport_id, "transport");
+    parts.push(
+      t ? `transport:${transport_id}:${tidy(t.data.management_url)}` : `transport:${transport_id}`,
+    );
+  }
+  if (host_chain_id) {
+    const c = inVault<{ host_ids: Uuid[] }>(host_chain_id, "host_chain");
+    if (!c) parts.push(`chain:${host_chain_id}`);
+    else
+      for (const h of c.data.host_ids) {
+        const j = inVault<Host>(h, "host");
+        parts.push(j ? `jump:${h}:${tidy(j.data.address)}` : `jump:${h}`);
+      }
+  }
+  return parts.join(";");
+}
+
 function hostMatches(o: HostOverlay, r: Resolved): boolean {
   const address = (o.pinned_address ?? "").trim().toLowerCase();
   const port = r.ssh.port ?? 22;
   return (
     !!address &&
     address === r.host.data.address.trim().toLowerCase() &&
-    (o.pinned_port == null || o.pinned_port === port)
+    (o.pinned_port == null || o.pinned_port === port) &&
+    (o.pinned_route ?? "") === overlayRoute(r)
   );
 }
 
@@ -302,10 +350,12 @@ export function overlaySave(f: OverlayForm) {
     );
   let pinned_address: string | null = null;
   let pinned_port: number | null = null;
+  let pinned_route: string | null = null;
   if (hostScope && f.targetId) {
     const r = resolve(f.targetId);
     pinned_address = r.host.data.address;
     pinned_port = r.ssh.port ?? 22;
+    pinned_route = overlayRoute(r) || null;
   }
   const data: HostOverlay = {
     label: "",
@@ -316,6 +366,7 @@ export function overlaySave(f: OverlayForm) {
     oidc_key_id: f.oidcKeyId,
     pinned_address,
     pinned_port,
+    ...(pinned_route ? { pinned_route } : {}),
     agent_forwarding: f.agentForwarding,
     forward_x11: f.forwardX11,
   };

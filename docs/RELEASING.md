@@ -7,6 +7,11 @@ Nothing is built on a developer machine and no private key ever leaves
 GitHub Actions. The keys live in GitHub environments that only a `v*` tag
 (`release`) or `main` (`desktop-dev`) can deploy to.
 
+> **macOS and iOS builds are paused** (since 2026-11-26): releases and devel
+> releases ship Linux, Windows and Android only. The macOS and iOS jobs stay in
+> the workflows with `if: false`; the sections below describe them for when
+> they come back.
+
 ## What a release contains
 
 | Platform | Installers                                                                                                                  | Updater artifact                                                                                                                                                          |
@@ -47,7 +52,8 @@ compromised web server or mirror cannot push code to users.
    and never becomes `releases/latest`, so it is invisible to the default
    updater feed.
 
-3. The workflow builds Linux (x86_64, aarch64), Windows (x86_64, ARM64), macOS (two native builds rather than
+3. The workflow first runs `ci.yml` for the tagged commit (lint, tests; Android
+   is left to the release build itself), then builds Linux (x86_64, aarch64), Windows (x86_64, ARM64), macOS (two native builds rather than
    one universal binary: half the download, and the updater picks the right
    one), Android and iOS in parallel, signs the artifacts (except the iOS
    `.ipa`, which is signed on the user's device), assembles a **draft**
@@ -58,13 +64,10 @@ compromised web server or mirror cannot push code to users.
    that last step `releases/latest/download/latest.json` still points at the
    previous version, so clients never see a half-uploaded release.
 
-Pull requests that touch packaging (the workflow itself, `tauri.conf.json`,
-`tauri.macos.conf.json`, capabilities, icons, the desktop
-`Cargo.toml`/`package.json`, the Android Gradle files, `apps/ios/project.yml`,
-`build-core.sh` and the AltStore template) and
-`workflow_dispatch` (the **Run workflow** button) build the same bundles and
-attach them to the workflow run as artifacts without creating a release —
-that is how packaging changes are smoke-tested.
+`workflow_dispatch` (the **Run workflow** button) builds the same bundles and
+attaches them to the workflow run as artifacts without creating a release —
+that is how packaging changes are smoke-tested. Pull requests do not run
+`release.yml`; `ci.yml` builds the desktop app and Android there.
 
 ## Secrets
 
@@ -149,11 +152,12 @@ scheme, so App Links are an optimisation, not a requirement.
 
 ## Package channels
 
-**Off in Labterm.** The `distribute` job still targets upstream Termoso's
-repositories and winget package, so it is disabled (`if: false`) until Labterm
-has channels of its own. The rest of this section describes the upstream setup.
+**Off in Labterm.** The `distribute` job targeted upstream Termoso's
+repositories and winget package, so it was removed from `release.yml` until
+Labterm has channels of its own (git history has it). The rest of this section
+describes the upstream setup.
 
-The `distribute` job of `release.yml` runs after `publish` for stable tags
+The `distribute` job of `release.yml` ran after `publish` for stable tags
 (no `-` in the tag) and feeds three channels from the assets that were just
 published:
 
@@ -239,8 +243,9 @@ anything:
    as a reusable workflow.
 2. **build**: Labterm Debug for Android (arm64 APK, signed with the debug key
    from the `android-debug` environment), Labterm Dev for Linux x86_64
-   (AppImage, deb), Windows x86_64 (NSIS) and macOS Apple Silicon (dmg), and
-   the server images (`server-images.yml`, when the commit changed them).
+   (AppImage, deb) and Windows x86_64 (NSIS) (macOS Apple Silicon is paused),
+   the server images (`server-images.yml`) and the Labterm Web images
+   (`web-images.yml`), each only when the commit changed them.
 3. **sign + publish**: the only job holding the dev updater key signs the
    desktop updater artifacts and creates the prerelease **`devel-<build>`**
    with the APK, the bundles, their `.sig` files, `SHA256SUMS.txt`, build
@@ -260,9 +265,10 @@ the newest devel release:
 | Labterm Dev (desktop) | `releases/download/desktop-dev/latest.json` | Tauri manifest with URLs into `devel-<build>` |
 
 A feed only moves forward: a run that finishes after a newer one leaves it
-alone. macOS runners are often slow to start, so the release goes out with
-Linux and Windows first; when the macOS build finishes, it is added to the same
-release and, if the feed still points there, to the feed.
+alone. When macOS is on again: macOS runners are often slow to start, so the
+release goes out with Linux and Windows first; when the macOS build finishes,
+it is added to the same release and, if the feed still points there, to the
+feed.
 
 About Labterm Dev:
 

@@ -6,6 +6,7 @@ import dev.labdex.labterm.service.ActiveItem
 import dev.labdex.labterm.service.ActiveItems
 import dev.labdex.labterm.service.SessionControls
 import dev.labdex.labterm.service.SessionService
+import dev.labdex.labterm.service.VpnSignIns
 import dev.labdex.labterm.str
 import dev.labdex.labterm.core.PfKind
 import dev.labdex.labterm.core.PfRuleItem
@@ -77,8 +78,8 @@ class KeepAlive(
             ids.map { id -> tunnelItem(id, rules.firstOrNull { it.id == id }) }
         }
         scope.launch {
-            combine(terminals, fileConnections, tunnels) { t, f, p ->
-                ActiveItems(terminals = t, files = f, tunnels = p)
+            combine(terminals, fileConnections, tunnels, VpnSignIns.active) { t, f, p, s ->
+                ActiveItems(terminals = t, files = f, tunnels = p, signIns = s)
             }.distinctUntilChanged().collect { SessionService.sync(context, it) }
         }
     }

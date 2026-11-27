@@ -79,11 +79,13 @@ What it runs, per area:
 | deploy | `docker compose config` for both stacks, Quadlet `-dryrun` when the binary exists |
 
 CI additionally runs a **supply chain** job (`cargo deny --locked check
-advisories bans licenses sources` against `deny.toml`, plus `npm audit` for
-the web and desktop packages — a new RustSec advisory fails the build until it
-is fixed or given a reasoned `ignore` entry) and a **fuzz** job that checks
+bans licenses sources` against `deny.toml`) and a **fuzz** job that checks
 the `fuzz/` targets on nightly and runs a short smoke of each; see
-[fuzz/README.md](fuzz/README.md). Server integration tests need the backing
+[fuzz/README.md](fuzz/README.md). Advisories (`cargo deny check advisories`
+and `npm audit` for the web and desktop packages) run daily and on PRs that
+change a lockfile, in `.github/workflows/advisories.yml`: a new RustSec
+advisory turns that workflow red until it is fixed or given a reasoned
+`ignore` entry, without blocking other PRs or devel builds. Server integration tests need the backing
 services: `docker compose -f deploy/docker-compose.dev.yml up -d` (or plain
 `postgres`, `redis` and `axllent/mailpit` containers) and
 `LABTERM_TEST_DATABASE_URL` / `LABTERM_TEST_REDIS_URL`; without them they are

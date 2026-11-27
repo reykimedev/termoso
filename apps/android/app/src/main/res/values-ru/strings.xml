@@ -40,6 +40,7 @@
         <item quantity="many">%d файловых соединений</item>
         <item quantity="other">%d файловых соединения</item>
     </plurals>
+    <string name="notif_vpn_sign_in">Вход в %1$s</string>
     <plurals name="notif_tunnels">
         <item quantity="one">%d туннель</item>
         <item quantity="few">%d туннеля</item>

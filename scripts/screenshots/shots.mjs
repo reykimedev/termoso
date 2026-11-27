@@ -9,14 +9,17 @@ import { join } from "node:path";
 import { chromium } from "playwright";
 import { desktopShots } from "./steps/desktop.mjs";
 import { webShots } from "./steps/web.mjs";
+import { cabinetShots, cabinetRoutes } from "./steps/cabinet.mjs";
 
 const [base, out, ...only] = process.argv.slice(2);
 if (!base || !out) {
   console.error("usage: node shots.mjs <base url> <out dir> [name ...]");
   process.exit(2);
 }
-const web = process.env.SHOTS_WEB === "1";
-const all = web ? webShots : desktopShots;
+// Which app the server at <base url> runs: desktop (default), web (Labterm Web) or cabinet.
+const part = process.env.SHOTS_PART ?? "desktop";
+const all = { desktop: desktopShots, web: webShots, cabinet: cabinetShots }[part];
+if (!all) throw new Error(`unknown SHOTS_PART ${part}`);
 const names = only.length ? only : Object.keys(all);
 for (const n of names) if (!all[n]) throw new Error(`unknown shot ${n}`);
 
@@ -44,6 +47,7 @@ for (const name of names) {
   await context.clock.install({ time: new Date("2026-11-24T16:00:00Z") });
   await context.clock.resume();
   if (shot.setup) await context.addInitScript((setup) => (window.__shotsSetup = setup), shot.setup);
+  if (part === "cabinet") await cabinetRoutes(context, shot);
   const page = await context.newPage();
   page.setDefaultTimeout(Number(process.env.SHOTS_TIMEOUT ?? 10_000));
   page.on("pageerror", (e) => console.warn(`  [${name}] page error: ${e.message}`));
