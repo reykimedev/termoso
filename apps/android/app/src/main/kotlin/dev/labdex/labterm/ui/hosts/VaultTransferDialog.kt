@@ -184,6 +184,7 @@ private fun blockerText(reason: String): String = when (reason) {
     "source_read_only" -> str(R.string.transfer_blocked_source_read_only)
     "connect_only" -> str(R.string.transfer_blocked_connect_only)
     "hidden" -> str(R.string.transfer_blocked_hidden)
+    "restricted" -> str(R.string.transfer_blocked_restricted)
     else -> str(R.string.transfer_blocked_nothing)
 }
 

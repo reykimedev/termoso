@@ -78,6 +78,9 @@ pub enum Blocker {
     ConnectOnly,
     /// A host inside the selection is hidden from you.
     Hidden,
+    /// In a restricted group (its own key): it can't change vaults yet, and
+    /// copying it out would leak it.
+    Restricted,
 }
 
 /// One reason the transfer is refused.
@@ -242,6 +245,7 @@ fn blocker_message(b: &Blocked) -> String {
         Blocker::SourceReadOnly => "moving needs edit rights on the source vault",
         Blocker::ConnectOnly => "your access lets you connect, not move or copy it",
         Blocker::Hidden => "the selection holds hosts hidden from you",
+        Blocker::Restricted => "items in a restricted group can't change vaults",
     };
     format!("{what}{why}")
 }
@@ -447,6 +451,21 @@ impl<'a> Transfer<'a> {
         if hidden {
             self.block(None, "", Blocker::Hidden);
         }
+        let mut restricted = Vec::new();
+        for (id, label) in self
+            .groups
+            .iter()
+            .map(|g| (g.id, &g.data.label))
+            .chain(self.hosts.iter().map(|h| (h.id, &h.data.label)))
+            .chain(self.req.group_id.iter().map(|g| (*g, &target.name)))
+        {
+            if store.row(id)?.is_some_and(|r| r.collection_id.is_some()) {
+                restricted.push((id, label.clone()));
+            }
+        }
+        for (id, label) in restricted {
+            self.block(Some(id), &label, Blocker::Restricted);
+        }
         Ok(())
     }
 
@@ -483,7 +502,8 @@ impl<'a> Transfer<'a> {
     }
 
     fn label_of(&self, id: Uuid) -> Result<String> {
-        let Some(e) = self.store.get_any(id)? else {
+        // A row we can't open (another restricted group) shows without a label.
+        let Ok(Some(e)) = self.store.get_any(id) else {
             return Ok(String::new());
         };
         let d = &e.data;
@@ -523,7 +543,11 @@ impl<'a> Transfer<'a> {
             self.done.insert(id, Some(id));
             return Ok(Some(id));
         }
-        if row.vault_id != self.src.unwrap_or_default() {
+        if row.vault_id != self.src.unwrap_or_default() || row.collection_id.is_some() {
+            // A restricted group's item never leaves it.
+            if row.collection_id.is_some() {
+                self.note(kind, id, label, DepAction::Unlink);
+            }
             // Points into a third vault (never resolved there): drop it.
             self.done.insert(id, None);
             return Ok(None);

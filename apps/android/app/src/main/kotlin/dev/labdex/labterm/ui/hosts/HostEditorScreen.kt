@@ -329,8 +329,10 @@ private fun HostForm(
     val identity = state.identities.firstOrNull { it.id == draft.identityId }
 
     Column(modifier) {
-        if (draft.id == null && state.vaults.size > 1) {
-            VaultRow(state.vaults, draft.vaultId, onSelect = vm::setVault)
+        // New hosts go into any vault you can write to; the active one is preselected.
+        val writable = state.vaults.filter { it.access != VaultAccess.VIEW || it.id == draft.vaultId }
+        if (draft.id == null && writable.size > 1) {
+            VaultRow(writable, draft.vaultId, onSelect = vm::setVault)
         } else {
             Spacer(Modifier.height(12.dp))
         }

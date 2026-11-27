@@ -117,6 +117,7 @@ struct VaultTransferSheet: View {
         case "source_read_only": "Moving needs edit rights in this vault. Copy instead."
         case "connect_only": "Your access lets you connect, not move or copy it."
         case "hidden": "The selection holds hosts that are hidden from you."
+        case "restricted": "Items in a restricted group can't change vaults yet."
         default: "Nothing to move."
         }
     }

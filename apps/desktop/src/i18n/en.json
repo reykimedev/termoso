@@ -1335,6 +1335,7 @@
   "Issuing": "Issuing",
   "Issuing is paused; this device has no certificate.": "Issuing is paused; this device has no certificate.",
   "It is recommended to use at least two devices": "It is recommended to use at least two devices",
+  "Items in a restricted group can't change vaults yet.": "Items in a restricted group can't change vaults yet.",
   "Items keep their identity: one already in the target vault is replaced by the backup copy, everything else is added. Nothing is deleted.": "Items keep their identity: one already in the target vault is replaced by the backup copy, everything else is added. Nothing is deleted.",
   "iTerm2 profiles": "iTerm2 profiles",
   "Its run history is deleted too. Hosts and the snippet stay in the vault.": "Its run history is deleted too. Hosts and the snippet stay in the vault.",

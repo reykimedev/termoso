@@ -74,6 +74,7 @@ const blockerText = (b: TransferBlocker): string =>
     source_read_only: tr("Moving needs edit rights in this vault. Copy instead."),
     connect_only: tr("Your access lets you connect, not move or copy it."),
     hidden: tr("The selection holds hosts that are hidden from you."),
+    restricted: tr("Items in a restricted group can't change vaults yet."),
   })[b];
 
 const actionText = (a: TransferAction): string =>

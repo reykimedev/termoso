@@ -27,7 +27,7 @@ pub struct TransferBlockedCard {
     pub label: String,
     /// `nothing`, `same_vault`, `mixed_vaults`, `target_locked`,
     /// `target_read_only`, `target_group`, `source_read_only`,
-    /// `connect_only` or `hidden`.
+    /// `connect_only`, `hidden` or `restricted`.
     pub reason: String,
 }
 

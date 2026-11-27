@@ -32,7 +32,8 @@ export type Blocker =
   | "target_group"
   | "source_read_only"
   | "connect_only"
-  | "hidden";
+  | "hidden"
+  | "restricted";
 
 export type DepAction =
   "reuse" | "copy" | "leave_out" | "unlink" | "move_along" | "rewrite" | "remove" | "breaks";
@@ -74,6 +75,7 @@ const MESSAGES: Record<Blocker, string> = {
   source_read_only: "moving needs edit rights on the source vault",
   connect_only: "your access lets you connect, not move or copy it",
   hidden: "the selection holds hosts hidden from you",
+  restricted: "items in a restricted group can't change vaults",
 };
 
 /** Placeholder id for records the preview would write. */

@@ -117,7 +117,8 @@ struct HostEditorView: View {
                     Text("IPv4").tag("4")
                     Text("IPv6").tag("6")
                 }
-                groupPicker(binding)
+                if current.id == nil { vaultPicker(binding) }
+                if (draft ?? current).vaultId == model.selectedVaultId { groupPicker(binding) }
                 NavigationLink {
                     IconColorPicker(
                         icon: binding.icon,
@@ -404,6 +405,25 @@ struct HostEditorView: View {
             pins = try model.pinHostKey(vaultId: vaultId, host: host, port: port, publicKey: publicKey)
         } catch {
             self.error = userMessage(for: error)
+        }
+    }
+
+    /// New hosts go into any vault you can write to; the active one is preselected.
+    /// Groups and tags belong to a vault, so switching clears them.
+    @ViewBuilder
+    private func vaultPicker(_ binding: Binding<HostDraft>) -> some View {
+        let writable = model.vaults.filter { !$0.locked && ($0.access != .view || $0.id == binding.wrappedValue.vaultId) }
+        if writable.count > 1 {
+            Picker("Vault", selection: Binding(
+                get: { binding.wrappedValue.vaultId },
+                set: { id in
+                    binding.wrappedValue.vaultId = id
+                    binding.wrappedValue.groupId = nil
+                    binding.wrappedValue.tagIds = []
+                }
+            )) {
+                ForEach(writable, id: \.id) { v in Text(v.name).tag(v.id) }
+            }
         }
     }
 

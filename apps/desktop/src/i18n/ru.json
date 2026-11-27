@@ -945,6 +945,7 @@
   "Issuing": "Выдаёт",
   "Issuing is paused; this device has no certificate.": "Выдача приостановлена; у этого устройства нет сертификата.",
   "It is recommended to use at least two devices": "Рекомендуется использовать не менее двух устройств",
+  "Items in a restricted group can't change vaults yet.": "Элементы закрытой группы пока нельзя переносить между хранилищами.",
   "Items keep their identity: one already in the target vault is replaced by the backup copy, everything else is added. Nothing is deleted.": "Элементы сохраняют свою идентичность: уже существующий в целевом хранилище заменяется копией из резервной копии, остальное добавляется. Ничего не удаляется.",
   "Its run history is deleted too. Hosts and the snippet stay in the vault.": "История запусков тоже удалится. Хосты и сниппет останутся в хранилище.",
   "Its vaults disappear from this device and you lose access to everything inside. Managers of those vaults can rotate their keys afterwards.": "Его хранилища исчезнут с этого устройства, и вы потеряете доступ ко всему внутри. Менеджеры этих хранилищ смогут потом перевыпустить ключи.",

@@ -12,6 +12,7 @@
     <string name="transfer_blocked_hidden">Среди выбранного есть скрытые от вас хосты.</string>
     <string name="transfer_blocked_mixed_vaults">Выбранное находится в разных хранилищах.</string>
     <string name="transfer_blocked_nothing">Нечего перемещать.</string>
+    <string name="transfer_blocked_restricted">Элементы закрытой группы пока нельзя переносить между хранилищами.</string>
     <string name="transfer_blocked_same_vault">Уже в этом хранилище.</string>
     <string name="transfer_blocked_source_read_only">Для перемещения нужны права на изменение в этом хранилище. Скопируйте вместо этого.</string>
     <string name="transfer_blocked_target_group">Целевая группа находится в другом хранилище.</string>

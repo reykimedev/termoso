@@ -3230,7 +3230,8 @@ export type TransferBlocker =
   | "target_group"
   | "source_read_only"
   | "connect_only"
-  | "hidden";
+  | "hidden"
+  | "restricted";
 
 export type TransferAction =
   "reuse" | "copy" | "leave_out" | "unlink" | "move_along" | "rewrite" | "remove" | "breaks";
