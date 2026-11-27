@@ -2120,4 +2120,21 @@
         <item quantity="one">Send to %d session</item>
         <item quantity="other">Send to %d sessions</item>
     </plurals>
+    <!-- Vault unlock with security keys -->
+    <string name="security_key_not_set_up_for_labterm">This security key is not set up to open Labterm.</string>
+    <string name="backup_security_key_n">Backup security key %1$d</string>
+    <string name="security_key_added">%1$s can now open Labterm</string>
+    <string name="security_key_removed">Security key removed</string>
+    <string name="remove_security_key_hint">%1$s will no longer open Labterm. Nothing is stored on the key, so it keeps working for SSH and websites.</string>
+    <string name="remove_last_security_key_hint">This is the last security key and app lock is off, so Labterm will open without asking again. Confirm with the key to remove it.</string>
+    <string name="confirm_with_this_security_key">Confirm with this security key</string>
+    <string name="security_keys_unlock_hint">Open Labterm with a FIDO2 security key such as a YubiKey: plug it into USB-C or hold it to the back of the phone. Once a key is added, Labterm only opens with a key, or with your fingerprint or screen lock when app lock is on.</string>
+    <string name="add_a_backup_security_key_hint">Add a backup key and keep it somewhere safe: if this one is lost, only a backup or signing in to sync restores your data.</string>
+    <string name="added_on">Added %1$s</string>
+    <string name="last_used_on">last used %1$s</string>
+    <string name="add_security_key_unlock_hint">Name the key, then plug it in or hold it to the phone. A key with a PIN asks for it once now, never to unlock.</string>
+    <string name="security_key_pin_only_now">Needed only now, never to unlock.</string>
+    <string name="plug_in_or_hold_the_new_key_touch_twice">Plug in or hold the new key; touch it when it blinks (twice)</string>
+    <string name="unlock_with_security_key">Unlock with security key</string>
+    <string name="use_your_security_key_to_open_labterm">Plug in your security key or hold it to the back of the phone.</string>
 </resources>

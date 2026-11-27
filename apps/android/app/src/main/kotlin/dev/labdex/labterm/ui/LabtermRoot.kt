@@ -40,11 +40,16 @@ import dev.labdex.labterm.ui.security.PinLockScreen
 import dev.labdex.labterm.data.AppContainer
 import dev.labdex.labterm.data.VaultState
 import dev.labdex.labterm.data.userMessage
+import dev.labdex.labterm.core.Fido2Listener
+import dev.labdex.labterm.core.unlockWithSecurityKey
 import dev.labdex.labterm.str
 import dev.labdex.labterm.ui.account.AuthMode
 import dev.labdex.labterm.ui.account.SignInScreen
 import dev.labdex.labterm.ui.components.IconTile
 import dev.labdex.labterm.ui.security.AuthResult
+import dev.labdex.labterm.ui.security.SecurityKeyWait
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import dev.labdex.labterm.ui.security.authenticateDevice
 import dev.labdex.labterm.ui.security.findFragmentActivity
 import dev.labdex.labterm.ui.shell.MainShell
@@ -57,7 +62,8 @@ import kotlinx.coroutines.launch
  * master key until the user passes the system prompt; returning from the
  * background after the configured delay covers the shell with the same prompt
  * while sessions keep running. An explicit lock from Settings closes the store
- * until the user taps Unlock.
+ * until the user taps Unlock. With security keys enrolled the lock screen also
+ * waits for a key (USB or NFC); without app lock it is the only way in.
  */
 @Composable
 fun LabtermRoot(container: AppContainer, vault: VaultState) {
@@ -67,6 +73,7 @@ fun LabtermRoot(container: AppContainer, vault: VaultState) {
     var manualLock by remember { mutableStateOf(false) }
     var needAuth by remember { mutableStateOf(false) }
     var welcomeAuth by remember { mutableStateOf<AuthMode?>(null) }
+    val securityKeys by container.securityKeys.collectAsStateWithLifecycle()
     val gated by container.gated.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
@@ -88,6 +95,11 @@ fun LabtermRoot(container: AppContainer, vault: VaultState) {
     LaunchedEffect(attempt, manualLock) {
         if (vault !is VaultState.Locked || manualLock) return@LaunchedEffect
         var result = runCatching { container.unlock() }
+        if (result.exceptionOrNull() is AppContainer.SecurityKeyRequired) {
+            // Only a key opens it: the lock screen waits for one.
+            needAuth = true
+            return@LaunchedEffect
+        }
         if (result.exceptionOrNull() is UserNotAuthenticatedException) {
             needAuth = true
             if (!prompt()) return@LaunchedEffect
@@ -98,7 +110,7 @@ fun LabtermRoot(container: AppContainer, vault: VaultState) {
             .onFailure { error = it.userMessage() }
     }
     LaunchedEffect(gated) {
-        if (gated && !container.appPin.isSet && prompt()) container.ungate()
+        if (gated && !container.appPin.isSet && container.masterKeys.authRequired() && prompt()) container.ungate()
     }
 
     when (vault) {
@@ -106,6 +118,13 @@ fun LabtermRoot(container: AppContainer, vault: VaultState) {
             error = error,
             manual = manualLock || needAuth,
             authRequired = container.masterKeys.authRequired(),
+            securityKey = securityKeys && (manualLock || needAuth),
+            onSecurityKey = { deviceId, listener ->
+                container.unlockWithSecurityKey(deviceId, listener)
+                manualLock = false
+                needAuth = false
+                error = null
+            },
             onRetry = { error = null; manualLock = false; attempt++ },
         )
         is VaultState.Open -> {
@@ -125,7 +144,7 @@ fun LabtermRoot(container: AppContainer, vault: VaultState) {
                 CompositionLocalProvider(LocalViewModelStoreOwner provides session) {
                     when {
                         // A returning user who is still signed in never sees the welcome again.
-                        !settings.welcomeSeen && restoring -> LockedScreen(error = null, manual = false, authRequired = false, onRetry = {})
+                        !settings.welcomeSeen && restoring -> LockedScreen(error = null, manual = false, authRequired = false, securityKey = false, onSecurityKey = { _, _ -> }, onRetry = {})
                         !settings.welcomeSeen && accountStatus.account != null -> LaunchedEffect(Unit) { finishWelcome() }
                         !settings.welcomeSeen && welcomeAuth != null -> SignInScreen(
                             container = container,
@@ -158,10 +177,28 @@ fun LabtermRoot(container: AppContainer, vault: VaultState) {
                 if (gated && container.appPin.isSet) {
                     PinLockScreen(container.appPin, onUnlocked = { container.ungate() })
                 } else if (gated) {
-                    LockedScreen(error = error, manual = true, authRequired = true, onRetry = {
-                        error = null
-                        scope.launch { if (prompt()) container.ungate() }
-                    })
+                    val authRequired = container.masterKeys.authRequired()
+                    LockedScreen(
+                        error = error,
+                        manual = true,
+                        authRequired = authRequired,
+                        securityKey = securityKeys,
+                        onSecurityKey = { deviceId, listener ->
+                            // The vault is open; the key only proves who is here.
+                            withContext(Dispatchers.IO) {
+                                unlockWithSecurityKey(container.profileDir.absolutePath, deviceId, listener).fill(0)
+                            }
+                            container.ungate()
+                        },
+                        onRetry = if (authRequired) {
+                            {
+                                error = null
+                                scope.launch { if (prompt()) container.ungate() }
+                            }
+                        } else {
+                            null
+                        },
+                    )
                 }
             }
         }
@@ -174,7 +211,14 @@ private class SessionStoreOwner : ViewModelStoreOwner {
 }
 
 @Composable
-private fun LockedScreen(error: String?, manual: Boolean, authRequired: Boolean, onRetry: () -> Unit) {
+private fun LockedScreen(
+    error: String?,
+    manual: Boolean,
+    authRequired: Boolean,
+    securityKey: Boolean,
+    onSecurityKey: suspend (deviceId: String, listener: Fido2Listener) -> Unit,
+    onRetry: (() -> Unit)?,
+) {
     Scaffold { padding ->
         Column(
             modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
@@ -187,24 +231,31 @@ private fun LockedScreen(error: String?, manual: Boolean, authRequired: Boolean,
                     Spacer(Modifier.height(16.dp))
                     Text(stringResource(R.string.labterm_is_locked), style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
                     Text(
-                        error ?: if (authRequired) {
-                            stringResource(R.string.unlock_with_your_fingerprint_or_screen_lock_to)
-                        } else {
-                            stringResource(R.string.the_encrypted_vault_is_closed_unlock_to_continue)
+                        error ?: when {
+                            authRequired -> stringResource(R.string.unlock_with_your_fingerprint_or_screen_lock_to)
+                            securityKey -> stringResource(R.string.use_your_security_key_to_open_labterm)
+                            else -> stringResource(R.string.the_encrypted_vault_is_closed_unlock_to_continue)
                         },
                         style = MaterialTheme.typography.bodyMedium,
                         color = if (error != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                     )
                     Spacer(Modifier.height(16.dp))
-                    Button(onClick = onRetry) { Text(stringResource(R.string.unlock)) }
+                    // Without app lock and with keys, Unlock would only fail again.
+                    if (onRetry != null && (authRequired || !securityKey)) {
+                        Button(onClick = onRetry) { Text(stringResource(R.string.unlock)) }
+                    }
+                    if (securityKey) {
+                        Spacer(Modifier.height(24.dp))
+                        SecurityKeyWait(title = stringResource(R.string.unlock_with_security_key), attempt = onSecurityKey)
+                    }
                 }
                 error == null -> CircularProgressIndicator()
                 else -> {
                     Text(stringResource(R.string.could_not_open_the_vault), style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
                     Text(error, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
                     Spacer(Modifier.height(16.dp))
-                    Button(onClick = onRetry) { Text(stringResource(R.string.retry)) }
+                    if (onRetry != null) Button(onClick = onRetry) { Text(stringResource(R.string.retry)) }
                 }
             }
         }
