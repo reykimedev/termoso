@@ -323,8 +323,15 @@ def ai_agent():
     tap_xy(*menu.center)
     scroll_to("Edit")
     tap("Edit")
-    scroll_to("AI coding agent", exact=False)
-    tap("AI coding agent", exact=False)
+    # The agent picker sits under the Mosh row; picker labels are not in the dump.
+    scroll_to("Mosh")
+    w, h = screen_size()
+    y = wait("Mosh")[0].center[1]
+    if y > h * 0.6:
+        swipe(w // 2, int(h * 0.7), w // 2, int(h * 0.45), ms=900)
+        y = wait("Mosh")[0].center[1]
+    below = [n for n in nodes() if n.clickable and n.center[1] > y + 80]
+    tap_xy(*min(below, key=lambda n: n.center[1]).center)
     wait("Claude Code", exact=False)
 
 
@@ -358,9 +365,11 @@ def pf_rule():
         tap("Skip wizard")
     if has("Local forwarding"):
         tap("Local forwarding")
-    wait("Label")
+    # The Host picker sits between Label and "Listen on this device"; its label is not in the dump.
+    w, _ = screen_size()
+    host_y = (wait("Label")[0].center[1] + wait("Listen on this device")[0].center[1]) // 2
     for _ in range(3):
-        text_field(1)  # the Host picker; its label is not in the dump
+        tap_xy(w // 2, host_y)
         time.sleep(1)
         if has("web-02"):
             tap("web-01", index=-1)
@@ -436,7 +445,7 @@ def shade():
     listed = sh("cmd notification list")
     print("notifications:", listed.strip().replace("\n", " ; "), flush=True)
     for line in listed.splitlines():
-        if line.startswith("0|android|") or "|com.android.systemui|" in line:
+        if "|android|" in line or "|com.android.systemui|" in line:
             print("snooze", line.strip(), sh(f"cmd notification snooze --for 3600000 '{line.strip()}'").strip(), flush=True)
     sh("cmd statusbar expand-notifications")
     time.sleep(1.5)
