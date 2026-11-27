@@ -20,7 +20,7 @@ futures = { workspace = true }
 async-trait = "0.1"
 
 # local storage
-rusqlite = { version = "0.39", features = ["bundled"] }
+rusqlite = { version = "0.43", features = ["bundled"] }
 keyring = { version = "4", optional = true }
 
 # ssh / sftp / terminals
