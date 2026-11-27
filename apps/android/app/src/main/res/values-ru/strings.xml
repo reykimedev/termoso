@@ -1872,7 +1872,9 @@
     <string name="settings_for">Настройки %1$s</string>
     <string name="tag_has_settings">есть настройки</string>
     <!-- Item quick menus, group/tag editors and host badges -->
+    <string name="vpn_edit_network">Изменить VPN-сеть</string>
     <string name="vpn_network">VPN-сеть</string>
+    <string name="vpn_new_network">Новая VPN-сеть</string>
     <string name="group_actions">Действия с группой</string>
     <string name="tag_actions">Действия с тегом</string>
     <string name="tag">Тег</string>
@@ -1962,6 +1964,9 @@
     <string name="openid_no_providers">Провайдеров пока нет: добавьте провайдера в это хранилище</string>
     <string name="openid_vault_default">По умолчанию для хранилища</string>
     <string name="openid_default">по умолчанию</string>
+    <string name="openid_delete_provider_text">Ключи с этим провайдером будут входить через провайдер хранилища по умолчанию.</string>
+    <string name="openid_delete_provider_title">Удалить %1$s?</string>
+    <string name="openid_edit_provider">Изменить провайдер</string>
     <string name="openid_new_provider">Новый провайдер</string>
     <string name="openid_overrides_hint">Необязательные переопределения только для этого ключа</string>
     <string name="openid_issuer">URL издателя</string>
