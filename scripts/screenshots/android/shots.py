@@ -197,8 +197,16 @@ def quick_import():
     tap("Add")
     tap("Import hosts")
     time.sleep(1)
-    text_field(0)
-    type_text(IMPORT)
+    for _ in range(3):
+        text_field(0)
+        type_text(IMPORT)
+        typed = next(n.text for n in nodes() if n.cls.endswith("EditText"))
+        if typed.split() == IMPORT.split():
+            break
+        # A key went missing or came out shifted: clear and type again.
+        print(f"retyping import, got {typed!r}", flush=True)
+        sh("input keycombination 113 29")
+        key("DEL")
     hide_keyboard()
     wait("Detected: ssh_config", exact=False)
 
@@ -299,7 +307,8 @@ def ai_agent():
     row_y = wait("web-01")[0].center[1]
     menu = min(find("Host actions"), key=lambda n: abs(n.center[1] - row_y))
     tap_xy(*menu.center)
-    tap("Edit", exact=False)
+    scroll_to("Edit")
+    tap("Edit")
     scroll_to("AI coding agent", exact=False)
     tap("AI coding agent", exact=False)
     wait("Claude Code", exact=False)
@@ -321,7 +330,7 @@ def keys():
         tap("Save")
         wait(label, timeout=30)
         # Saving opens the new key; the picture is the list.
-        if has("Delete key"):
+        if has("Fingerprint"):
             tap("Back")
             wait("Add")
 
@@ -335,11 +344,14 @@ def pf_rule():
         tap("Skip wizard")
     if has("Local forwarding"):
         tap("Local forwarding")
-    fill("Label", "Admin panel via web-01")
-    hide_keyboard()
-    if has("Host"):
+    for _ in range(3):
         tap("Host")
-        tap("web-01", index=-1)
+        time.sleep(1)
+        if has("web-02"):
+            tap("web-01", index=-1)
+            break
+    wait("web-01")
+    fill("Label", "Admin panel via web-01")
     fill("Local port", "8080")
     fill("Destination host", "localhost")
     fill("Destination port", "8000")

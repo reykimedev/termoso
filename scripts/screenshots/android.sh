@@ -27,8 +27,11 @@ adb uninstall "$pkg" >/dev/null 2>&1 || true
 adb install -r "$apk"
 
 mkdir -p "$out/raw"
-status=0
-SHOTS_PACKAGE="$pkg" python3 "$here/android/shots.py" "$out/raw" "$@" || status=$?
+# The log goes next to the pictures, so a failed run can be read from the shots branch.
+set +e
+SHOTS_PACKAGE="$pkg" python3 -u "$here/android/shots.py" "$out/raw" "$@" 2>&1 | tee "$out/shots.log"
+status=${PIPESTATUS[0]}
+set -e
 # Phone captures are 1080x2400; the docs use half size.
 python3 - "$out/raw" "$out" <<'PY'
 import glob, os, sys
