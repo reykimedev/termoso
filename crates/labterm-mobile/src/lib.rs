@@ -16,6 +16,7 @@ mod account;
 mod ai;
 mod app;
 mod autocomplete;
+mod backup;
 mod connect;
 mod dto;
 mod error;
@@ -46,6 +47,10 @@ pub use account::*;
 pub use ai::{AiStatusCard, AiSuggestionCard, AiTarget};
 pub use app::*;
 pub use autocomplete::{SuggestionItem, SuggestionKind};
+pub use backup::{
+    BackupCard, BackupFile, BackupKindCount, BackupRestoreResult, BackupVaultCard,
+    backup_min_password,
+};
 pub use connect::{
     ConnectStage, HostKeyChoice, InteractiveQuestionInfo, PromptAnswer, PromptRequest,
 };

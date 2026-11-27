@@ -19,14 +19,18 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Hub
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.LinkOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
@@ -54,6 +58,11 @@ import dev.labdex.labterm.str
 import dev.labdex.labterm.ui.components.EmptyState
 import dev.labdex.labterm.ui.components.FormField
 import dev.labdex.labterm.ui.components.IconTile
+import dev.labdex.labterm.ui.components.ItemActionsSheet
+import dev.labdex.labterm.ui.components.ItemMoreButton
+import dev.labdex.labterm.ui.components.SheetAction
+import dev.labdex.labterm.ui.components.SheetSection
+import dev.labdex.labterm.ui.components.itemClicks
 import dev.labdex.labterm.ui.components.ListRow
 import dev.labdex.labterm.ui.components.RowDivider
 import dev.labdex.labterm.ui.components.SecretField
@@ -85,6 +94,8 @@ fun NetbirdNetworksScreen(shell: ShellViewModel, onBack: () -> Unit, onOpenNetwo
     var editing by remember { mutableStateOf<TransportItem?>(null) }
     var signInOnly by remember { mutableStateOf(false) }
     var signingIn by remember { mutableStateOf<TransportItem?>(null) }
+    // The quick menu (long-press or ⋯), like hosts and groups.
+    var menu by remember { mutableStateOf<TransportItem?>(null) }
     val ids = networks.orEmpty().mapNotNull { it.id }
     val states by remember(ids) { VpnStates.observe(shell.repo, ids) }.collectAsStateWithLifecycle(emptyMap())
 
@@ -163,12 +174,10 @@ fun NetbirdNetworksScreen(shell: ShellViewModel, onBack: () -> Unit, onOpenNetwo
                                 }
                             },
                             // A tap opens the network's details: state, peers, hosts, join and sign-in.
-                            modifier = Modifier.clickable { n.id?.let(onOpenNetwork) },
+                            modifier = Modifier.itemClicks(onClick = { n.id?.let(onOpenNetwork) }, onMenu = { menu = n }),
                         ) {
                             if (state is TransportState.Connecting) CircularProgressIndicator(Modifier.size(20.dp))
-                            IconButton(onClick = { editing = n }) {
-                                Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.netbird_network_settings))
-                            }
+                            ItemMoreButton(onClick = { menu = n })
                         }
                     }
                 }
@@ -202,6 +211,56 @@ fun NetbirdNetworksScreen(shell: ShellViewModel, onBack: () -> Unit, onOpenNetwo
                     .onFailure { shell.notify(it.userMessage()) }
             }
         }
+    }
+
+    menu?.let { n ->
+        val id = n.id
+        val state = id?.let { states[it] }
+        ItemActionsSheet(
+            title = n.label,
+            subtitle = (n.managementUrl ?: str(R.string.netbird_cloud)) + (state?.let { " · " + it.label() } ?: ""),
+            leading = { IconTile(Icons.Filled.Hub) },
+            onClose = { menu = null },
+            sections = listOf(
+                SheetSection(
+                    null,
+                    listOfNotNull(
+                        id?.let { SheetAction(Icons.Filled.Info, str(R.string.vpn_details)) { onOpenNetwork(it) } },
+                        if (id != null && state is TransportState.Connected) {
+                            SheetAction(Icons.Filled.LinkOff, str(R.string.vpn_disconnect)) {
+                                scope.launch {
+                                    runCatching { shell.repo.read { transportDisconnect(id) } }.onFailure { shell.notify(it.userMessage()) }
+                                }
+                            }
+                        } else if (id != null && state !is TransportState.Unavailable) {
+                            SheetAction(Icons.Filled.Link, str(R.string.vpn_connect), enabled = state !is TransportState.Connecting) {
+                                if (!n.hasSetupKey && !n.signedIn) signingIn = n else connect(n)
+                            }
+                        } else {
+                            null
+                        },
+                        if (id != null && !n.hasSetupKey) {
+                            SheetAction(Icons.AutoMirrored.Filled.Login, str(if (n.signedIn) R.string.netbird_sign_in_again else R.string.netbird_sign_in)) { signingIn = n }
+                        } else {
+                            null
+                        },
+                        SheetAction(Icons.Filled.Edit, str(R.string.edit)) { editing = n },
+                    ),
+                ),
+                SheetSection(
+                    null,
+                    listOfNotNull(
+                        id?.let {
+                            SheetAction(Icons.Filled.Delete, str(R.string.delete), danger = true) {
+                                scope.launch {
+                                    runCatching { shell.repo.write { deleteTransport(it) } }.onFailure { e -> shell.notify(e.userMessage()) }
+                                }
+                            }
+                        },
+                    ),
+                ),
+            ),
+        )
     }
 
     signingIn?.let { n ->

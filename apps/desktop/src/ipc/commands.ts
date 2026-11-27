@@ -715,8 +715,9 @@ export const gatewaysList = () => invoke<GatewayInfo[]>("gateways_list");
 
 export const wakeHost = (mac: string, broadcast: string | null) =>
   invoke<number>("wake_host", { mac, broadcast });
-export const backupExport = (vaultIds: Uuid[], password: string, path: string) =>
-  invoke<BackupSummary>("backup_export", { vaultIds, password, path });
+/** `keepOpen` also keeps the backup open for `backupRestore`, as after `backupInspect`. */
+export const backupExport = (vaultIds: Uuid[], password: string, path: string, keepOpen = false) =>
+  invoke<BackupSummary>("backup_export", { vaultIds, password, path, keepOpen });
 export const backupInspect = (path: string, password: string) =>
   invoke<BackupSummary>("backup_inspect", { path, password });
 export const backupDiscard = (previewId: Uuid) => invoke<null>("backup_discard", { previewId });

@@ -21,6 +21,9 @@ import {
 
 import { LABTERM_VERSION as APP_VERSION } from "../build";
 
+// Matches labterm_proto::sync::SYNC_PROTOCOL; servers refuse older clients.
+const SYNC_PROTOCOL = 1;
+
 interface Session {
   token: string;
   expires_at: string;
@@ -530,7 +533,7 @@ async function pull(changedVaults: Set<Uuid>): Promise<number> {
       entities: SyncEntity[];
       cursors: Record<Uuid, number>;
       has_more: boolean;
-    }>("POST", "sync/pull", { cursors, limit: 500 });
+    }>("POST", "sync/pull", { cursors, limit: 500, protocol: SYNC_PROTOCOL });
     for (const e of r.entities) {
       const v = vaults.find((x) => x.id === e.vault_id);
       if (v && apply(v, e, changedVaults)) n++;
@@ -572,7 +575,11 @@ async function push(changedVaults: Set<Uuid>): Promise<{ pushed: number; conflic
     deletes.push({ id: e.id, base_version: e.version });
     order.push(e);
   }
-  const r = await authed<{ results: PushResult[] }>("POST", "sync/push", { changes, deletes });
+  const r = await authed<{ results: PushResult[] }>("POST", "sync/push", {
+    changes,
+    deletes,
+    protocol: SYNC_PROTOCOL,
+  });
   let pushed = 0;
   let conflicts = 0;
   r.results.forEach((res, i) => {

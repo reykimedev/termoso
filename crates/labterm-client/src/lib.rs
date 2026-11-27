@@ -10,6 +10,7 @@
 #![forbid(unsafe_code)]
 
 pub mod access;
+pub mod backup;
 pub mod error;
 pub mod hosts;
 pub mod keychain;

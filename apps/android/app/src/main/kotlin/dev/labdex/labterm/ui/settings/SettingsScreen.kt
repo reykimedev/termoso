@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Code
@@ -103,6 +104,7 @@ fun SettingsScreen(
     account: AccountManager,
     onAccount: () -> Unit,
     onSignIn: () -> Unit,
+    onBackup: () -> Unit,
     onLock: () -> Unit,
     onTerminalAppearance: () -> Unit,
     onTerminalInput: () -> Unit,
@@ -222,6 +224,13 @@ fun SettingsScreen(
                         modifier = Modifier.clickable(onClick = onAccount),
                     )
                 }
+                RowDivider()
+                ChevronRow(
+                    title = stringResource(R.string.backup),
+                    subtitle = stringResource(R.string.backup_export_hint),
+                    leading = { IconTile(Icons.Filled.Backup) },
+                    modifier = Modifier.clickable(onClick = onBackup),
+                )
             }
 
             SectionLabel(stringResource(R.string.appearance))
