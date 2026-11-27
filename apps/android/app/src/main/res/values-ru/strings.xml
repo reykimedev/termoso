@@ -2017,6 +2017,7 @@
     <string name="vpn_status_sign_in">Нужен вход</string>
     <string name="vpn_status_error">Ошибка</string>
     <string name="vpn_status_unavailable">Здесь недоступно</string>
+    <string name="vpn_details">Подробности</string>
     <string name="vpn_connect">Подключить</string>
     <string name="vpn_disconnect">Отключить</string>
     <string name="vpn_sign_out">Выйти</string>

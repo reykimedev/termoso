@@ -1977,6 +1977,7 @@
     <string name="vpn_status_sign_in">Sign-in needed</string>
     <string name="vpn_status_error">Error</string>
     <string name="vpn_status_unavailable">Not available here</string>
+    <string name="vpn_details">Details</string>
     <string name="vpn_connect">Connect</string>
     <string name="vpn_disconnect">Disconnect</string>
     <string name="vpn_sign_out">Sign out</string>
