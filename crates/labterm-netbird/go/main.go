@@ -62,10 +62,13 @@ type backend interface {
 	Status() (statusOut, error)
 }
 
-type nbNode struct{ c *embed.Client }
+type nbNode struct {
+	c       *embed.Client
+	started time.Time
+}
 
 func (b nbNode) Dial(ctx context.Context, network, addr string) (net.Conn, error) {
-	return b.c.Dial(ctx, network, addr)
+	return nbDial(ctx, b, network, addr)
 }
 
 func (b nbNode) Stop(ctx context.Context) error { return b.c.Stop(ctx) }
@@ -176,7 +179,7 @@ func tnb_start(optsJSON *C.char, handle *C.uintptr_t) *C.char {
 	} else {
 		var nb *embed.Client
 		nb, res, err = start(o)
-		c = nbNode{nb}
+		c = nbNode{c: nb, started: time.Now()}
 	}
 	if err != nil {
 		return cstr(err.Error())

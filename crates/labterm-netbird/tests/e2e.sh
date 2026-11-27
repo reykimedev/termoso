@@ -61,7 +61,9 @@ key="$(curl -sf -X POST "$mgmt/api/setup-keys" -H "Authorization: Token $pat" -H
   -d '{"name":"e2e","type":"reusable","expires_in":86400,"auto_groups":[],"usage_limit":0}' |
   python3 -c 'import json,sys; print(json.load(sys.stdin)["key"])')"
 
-NB_SETUP_KEY="$key" "$work/e2e-peer" -management "$mgmt" > "$work/peer.out" 2> "$work/peer.err" &
+# This machine's own address (see the LAN host below).
+lan_ip="$(python3 -c 'import socket; s=socket.socket(socket.AF_INET,socket.SOCK_DGRAM); s.connect(("192.0.2.1",9)); print(s.getsockname()[0])')"
+NB_SETUP_KEY="$key" "$work/e2e-peer" -management "$mgmt" -dns-lan "$lan_ip" > "$work/peer.out" 2> "$work/peer.err" &
 pids+=($!)
 for _ in $(seq 60); do [ "$(wc -l < "$work/peer.out")" -ge 2 ] && break; sleep 1; done
 
@@ -69,7 +71,6 @@ for _ in $(seq 60); do [ "$(wc -l < "$work/peer.out")" -ge 2 ] && break; sleep 1
 # peer in userspace (netstack) mode. The router runs here too, so the address
 # is its own and it needs local forwarding; what this tests is the app's side
 # (routes and exit nodes become reachable addresses in the embedded client).
-lan_ip="$(python3 -c 'import socket; s=socket.socket(socket.AF_INET,socket.SOCK_DGRAM); s.connect(("192.0.2.1",9)); print(s.getsockname()[0])')"
 lan_port=$((port + 10))
 python3 - "$lan_port" > "$work/lan.log" 2>&1 <<'PY' &
 import socketserver, sys
@@ -102,4 +103,4 @@ NB_E2E_LIB="$work/liblabterm_netbird.so" NB_E2E_MANAGEMENT="$mgmt" NB_E2E_SETUP_
   NB_E2E_TARGET="$(sed -n 1p "$work/peer.out")" NB_E2E_TARGET_NAME="$(sed -n 2p "$work/peer.out")" \
   NB_E2E_LAN="$lan_ip:$lan_port" NB_E2E_PAT="$pat" NB_E2E_ROUTERS="$routers" \
   NB_E2E_SSO_USER="admin@example.com" NB_E2E_SSO_PASSWORD="Example-passw0rd-123" \
-  cargo test -p labterm-netbird --test e2e -- --ignored --test-threads=1
+  cargo test -p labterm-netbird --test e2e -- --ignored --test-threads=1 ${NB_E2E_FILTER:-}

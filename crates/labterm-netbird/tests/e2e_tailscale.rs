@@ -180,3 +180,23 @@ fn tempfile_dir() -> String {
     std::fs::create_dir_all(&d).unwrap();
     d.to_string_lossy().into_owned()
 }
+
+/// Split DNS: Headscale sends home.example.com to the far-end node, which
+/// only the tailnet reaches. tsnet resolves through it on its own; this
+/// keeps it that way.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs Headscale; run tests/e2e-tailscale.sh"]
+async fn names_resolve_through_split_dns() {
+    let lib = Some(env("TS_E2E_LIB"));
+    let keys = Arc::new(MemKeys::default());
+    let nb = Netbird::with_options(lib, Duration::from_secs(2));
+    let net = network(Uuid::new_v4(), Some(env("TS_E2E_AUTH_KEY")));
+    echo(&nb, &keys, net.clone(), "peer.home.example.com").await;
+    assert!(
+        nb.dialer(net, "labterm-e2e", keys.clone())
+            .dial("nope.home.example.com", 2222)
+            .await
+            .is_err()
+    );
+    nb.stop_all().await;
+}

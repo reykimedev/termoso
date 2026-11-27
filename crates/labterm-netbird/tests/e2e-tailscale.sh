@@ -27,6 +27,7 @@ src="$(go env GOMODCACHE)/github.com/juanfont/headscale@$headscale_version"
 rm -rf "$work/src" && cp -r "$src" "$work/src" && chmod -R u+w "$work/src"
 (cd "$work/src" && go build -o "$work/headscale" ./cmd/headscale)
 
+dns_ip=100.64.0.1
 cat > "$work/config.yaml" <<YAML
 server_url: http://127.0.0.1:$port
 listen_addr: 127.0.0.1:$port
@@ -35,6 +36,7 @@ grpc_listen_addr: 127.0.0.1:$((port + 2))
 noise:
   private_key_path: $work/data/noise_private.key
 prefixes:
+  allocation: sequential
   v4: 100.64.0.0/10
   v6: fd7a:115c:a1e0::/48
 # Headscale's own DERP relay, over plain HTTP on loopback (the nodes get
@@ -66,6 +68,10 @@ dns:
   override_local_dns: false
   nameservers:
     global: []
+    # Split DNS to the far-end node, which answers home.example.com on
+    # port 53 of its tailnet address (the first one Headscale hands out).
+    split:
+      home.example.com: ["$dns_ip"]
 unix_socket: $work/headscale.sock
 unix_socket_permission: "0770"
 logtail:
@@ -88,6 +94,7 @@ export TS_DEBUG_USE_DERP_HTTP=1
 NB_SETUP_KEY="$key" "$work/e2e-peer" -provider tailscale -management "$control" > "$work/peer.out" 2> "$work/peer.err" &
 pids+=($!)
 for _ in $(seq 60); do [ "$(wc -l < "$work/peer.out")" -ge 2 ] && break; sleep 1; done
+[ "$(sed -n 1p "$work/peer.out")" = "$dns_ip" ] || { echo "far-end node is not $dns_ip"; cat "$work/peer.out"; exit 1; }
 
 cd "$here"
 # The browser step of a sign-in is Headscale's CLI: it registers the node
@@ -95,4 +102,4 @@ cd "$here"
 TS_E2E_LIB="$work/liblabterm_netbird.so" TS_E2E_CONTROL="$control" TS_E2E_AUTH_KEY="$key" \
   TS_E2E_TARGET="$(sed -n 1p "$work/peer.out")" TS_E2E_TARGET_NAME="$(sed -n 2p "$work/peer.out")" \
   TS_E2E_HEADSCALE="$work/headscale" TS_E2E_HEADSCALE_CONFIG="$work/config.yaml" \
-  cargo test -p labterm-netbird --test e2e_tailscale -- --ignored --test-threads=1
+  cargo test -p labterm-netbird --test e2e_tailscale -- --ignored --test-threads=1 ${TS_E2E_FILTER:-}

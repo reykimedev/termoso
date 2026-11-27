@@ -331,3 +331,58 @@ async fn lan_addresses_through_routes() {
     nb.stop_all().await;
     api("DELETE", &format!("/api/routes/{route}"), None);
 }
+
+/// A nameserver group for home.example.com on the echo peer (port 5353 of
+/// its NetBird IP), which the host network can't reach: names resolve
+/// through the tunnel, and the answer is dialed through the tunnel too.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a NetBird server; run tests/e2e.sh"]
+async fn names_resolve_through_nameserver_groups() {
+    let lib = Some(env("NB_E2E_LIB"));
+    let lan = env("NB_E2E_LAN");
+    let (lan_ip, lan_port) = lan.rsplit_once(':').unwrap();
+    let keys = Arc::new(MemKeys::default());
+    let nb = Netbird::with_options(lib, Duration::from_secs(2));
+    let net = network(Uuid::new_v4(), Some(env("NB_E2E_SETUP_KEY")));
+    let all = api("GET", "/api/groups", None)
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|g| g["name"] == "All")
+        .expect("All group")["id"]
+        .clone();
+    let ns = api(
+        "POST",
+        "/api/dns/nameservers",
+        Some(serde_json::json!({
+            "name": "home", "description": "e2e", "enabled": true,
+            "nameservers": [{"ip": env("NB_E2E_TARGET"), "ns_type": "udp", "port": 5353}],
+            "groups": [all], "primary": false, "domains": ["home.example.com"],
+            "search_domains_enabled": false,
+        })),
+    )["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let route = add_route(&format!("{lan_ip}/32"), true);
+
+    // A peer by a name only the group's server knows.
+    echo_at(&nb, &keys, net.clone(), "peer.home.example.com:2222").await;
+    // A LAN host behind a route, by name.
+    echo_at(
+        &nb,
+        &keys,
+        net.clone(),
+        &format!("lan.home.example.com:{lan_port}"),
+    )
+    .await;
+    // The group's server says no: the dial fails instead of going elsewhere.
+    assert!(
+        dial_at(&nb, &keys, net.clone(), "nope.home.example.com:2222")
+            .await
+            .is_err()
+    );
+    nb.stop_all().await;
+    api("DELETE", &format!("/api/routes/{route}"), None);
+    api("DELETE", &format!("/api/dns/nameservers/{ns}"), None);
+}
