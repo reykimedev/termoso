@@ -188,6 +188,31 @@ keychain / file. Deleting `master.pw` — or both the keychain entry and
 `master.key` while the password is off — makes the database permanently
 unreadable.
 
+### Desktop unlock methods (Windows Hello)
+
+Unlock methods are more wrappers of the same device master key, kept in
+`master.factors` next to `master.pw` (`labterm_core::secrets::factors`). Each
+entry holds a random 32-byte challenge, a backend handle and the key wrapped
+with XChaCha20-Poly1305 under HKDF-SHA256(secret, label `unlock-factor-kek`,
+kind/id/challenge). The AAD names the entry, so a wrapper cannot be moved to
+another one. The secret comes out of hardware only after the user is checked:
+
+* **Windows Hello.** `KeyCredentialManager` creates a TPM-backed RSA key per
+  entry (`Labterm unlock <uuid>`); its PKCS#1 v1.5 signature over the challenge
+  is deterministic and is the secret. Hello accepts face, fingerprint or the
+  Hello PIN, like Android accepts the screen lock.
+* FIDO2 security keys (`hmac-secret`) and macOS Touch ID follow (#158, #159).
+
+Rules: with any method or the password present the profile starts locked and
+no plaintext copy of the key is kept. The master password is an optional
+fallback: turning it off with methods enrolled deletes only `master.pw`, and
+from then on the last method cannot be removed (removing it after a fresh
+confirmation turns protection off and moves the key back to the keychain).
+Adding a method needs the current password, or a fresh Hello confirmation when
+only Hello protects the key. A broken method (Hello reset, TPM cleared) leaves
+the password or another method as the way in; with neither, only an encrypted
+backup or a sync sign-in restores the data.
+
 ### Server storage
 
 PostgreSQL (migrations in `crates/labterm-server/migrations`, applied on start)

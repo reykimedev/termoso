@@ -67,6 +67,7 @@ describe("ru table", () => {
     "URL (https://…)",
     "WebDAV",
     "WinSCP.ini…",
+    "Windows Hello",
     "YubiKey 5C",
     "ZMODEM: {error}",
     "ZOC Terminal",

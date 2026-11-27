@@ -29,12 +29,28 @@ export function errorMessage(e: unknown): string {
   return String(e);
 }
 
-export type MasterKeySource = "keychain" | "file" | "password";
+export type MasterKeySource = "keychain" | "file" | "password" | "factor";
+
+export type UnlockFactorKind = "windows_hello" | "security_key";
+
+/** An enrolled unlock method (Windows Hello, security key); no secrets. */
+export interface UnlockFactor {
+  id: string;
+  kind: UnlockFactorKind;
+  name: string;
+  /** Unix seconds. */
+  createdAt: number;
+  lastUsedAt: number | null;
+}
 
 /** Master password / App Lock state (`vault_status`). */
 export interface VaultStatus {
   locked: boolean;
+  /** Starts locked: a master password or an unlock method holds the key. */
+  protected: boolean;
   passwordProtected: boolean;
+  factors: UnlockFactor[];
+  helloAvailable: boolean;
   masterSource: MasterKeySource;
   minPasswordChars: number;
 }

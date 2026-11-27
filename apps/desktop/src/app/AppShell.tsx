@@ -96,7 +96,7 @@ export function AppShell() {
       void un.then((f) => f());
     };
   }, []);
-  useActivityReporter(status.data?.passwordProtected === true && !status.data.locked);
+  useActivityReporter(status.data?.protected === true && !status.data.locked);
 
   if (status.isPending) return <Box sx={{ height: "100%", bgcolor: "surface.lowest" }} />;
   if (status.error)

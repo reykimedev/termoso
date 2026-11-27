@@ -42,6 +42,7 @@ const SOURCE_LABEL: Record<MasterKeySource, string> = {
   keychain: msg("OS keychain"),
   file: msg("Owner-only file in the profile"),
   password: msg("Your master password"),
+  factor: msg("Windows Hello on this computer"),
 };
 
 type PasswordDialog = "enable" | "change" | "disable";
@@ -83,6 +84,19 @@ export function SecurityPage({
 
   const v = status.data;
   const protectedBy = v?.passwordProtected === true;
+  const locked = v?.protected === true;
+  const hello = v?.factors.find((f) => f.kind === "windows_hello");
+  const [helloDialog, setHelloDialog] = useState(false);
+  const removeHello = useMutation({
+    mutationFn: (id: string) => ipc.unlockFactorRemove(id),
+    onSuccess: (st) => {
+      setStatus(st);
+      snackbar.notify(tr("Windows Hello unlock turned off"));
+    },
+    onError: (e) => {
+      if (!(isDesktopError(e) && e.kind === "cancelled")) snackbar.error(errorMessage(e));
+    },
+  });
 
   return (
     <>
@@ -114,7 +128,11 @@ export function SecurityPage({
                 )
               : v?.masterSource === "password"
                 ? tr("The key exists only wrapped by your password; the OS keychain holds no copy.")
-                : tr("The key is stored in the OS keychain and unlocked with your OS account.")
+                : v?.masterSource === "factor"
+                  ? tr(
+                      "The key exists only wrapped by Windows Hello; the OS keychain holds no copy.",
+                    )
+                  : tr("The key is stored in the OS keychain and unlocked with your OS account.")
           }
           control={
             v?.masterSource === "file" ? (
@@ -150,6 +168,45 @@ export function SecurityPage({
         />
       </SectionCard>
 
+      {(v?.helloAvailable === true || hello) && (
+        <SectionCard
+          title={tr("Windows Hello")}
+          description={tr(
+            "Open the vault with your face, fingerprint or Windows Hello PIN. The secret that unwraps the vault key stays in this computer's security chip (TPM) and is only released after Windows checks you.",
+          )}
+        >
+          <SettingRow
+            label={tr("Unlock with Windows Hello")}
+            hint={
+              hello
+                ? protectedBy
+                  ? tr("On — your master password still works as a fallback.")
+                  : tr(
+                      "On — Windows Hello is the only way in. If it stops working (TPM reset, new computer), only an encrypted backup or signing in to sync restores your data.",
+                    )
+                : tr("Off")
+            }
+            last
+            control={
+              hello ? (
+                <Button
+                  variant="tonal"
+                  color="error"
+                  disabled={removeHello.isPending}
+                  onClick={() => removeHello.mutate(hello.id)}
+                >
+                  {tr("Turn off")}
+                </Button>
+              ) : (
+                <Button variant="contained" disabled={!v} onClick={() => setHelloDialog(true)}>
+                  {tr("Set up…")}
+                </Button>
+              )
+            }
+          />
+        </SectionCard>
+      )}
+
       <SectionCard
         title={tr("App Lock")}
         description={tr(
@@ -158,10 +215,10 @@ export function SecurityPage({
       >
         <SettingRow
           label={tr("Lock on start")}
-          hint={tr("Always on while a master password is set.")}
+          hint={tr("Always on while a master password or Windows Hello is set.")}
           control={
             <Typography variant="body2" color="text.secondary">
-              {protectedBy ? tr("On") : tr("Needs a master password")}
+              {locked ? tr("On") : tr("Needs a master password")}
             </Typography>
           }
         />
@@ -174,7 +231,7 @@ export function SecurityPage({
             <TextField
               select
               value={s.lockAfterMinutes}
-              disabled={!protectedBy}
+              disabled={!locked}
               onChange={(e) => update({ lockAfterMinutes: Number(e.target.value) })}
               sx={{ width: 160 }}
             >
@@ -193,7 +250,7 @@ export function SecurityPage({
           control={
             <Button
               variant="tonal"
-              disabled={!protectedBy || lock.isPending}
+              disabled={!locked || lock.isPending}
               onClick={() => lock.mutate()}
             >
               {tr("Lock now")}
@@ -227,9 +284,20 @@ export function SecurityPage({
         />
       </SectionCard>
 
+      <HelloSetupDialog
+        key={helloDialog ? "open" : "closed"}
+        open={helloDialog}
+        needsPassword={protectedBy}
+        onDone={(st) => {
+          setStatus(st);
+          setHelloDialog(false);
+        }}
+        onClose={() => setHelloDialog(false)}
+      />
       <PasswordDialogView
         key={dialog ?? "closed"}
         kind={dialog}
+        hasHello={hello !== undefined}
         minChars={v?.minPasswordChars ?? 8}
         onDone={(st) => {
           setStatus(st);
@@ -246,13 +314,93 @@ export function SecurityPage({
   );
 }
 
+/** Confirm with the master password (when set), then Windows asks Hello. */
+function HelloSetupDialog({
+  open,
+  needsPassword,
+  onDone,
+  onClose,
+}: {
+  open: boolean;
+  needsPassword: boolean;
+  onDone: (status: VaultStatus) => void;
+  onClose: () => void;
+}) {
+  const snackbar = useSnackbar();
+  const [password, setPassword] = useState("");
+  const [wrong, setWrong] = useState(false);
+  const run = useMutation({
+    mutationFn: () => ipc.unlockHelloAdd(needsPassword ? password : null, ""),
+    onSuccess: (st) => {
+      snackbar.notify(tr("Windows Hello unlock is on"));
+      onDone(st);
+    },
+    onError: (e) => {
+      if (isDesktopError(e) && e.kind === "wrong_password") setWrong(true);
+      else if (!(isDesktopError(e) && e.kind === "cancelled")) snackbar.error(errorMessage(e));
+    },
+  });
+  const ready = !needsPassword || password.length > 0;
+  const submit = (e: SyntheticEvent) => {
+    e.preventDefault();
+    if (!ready || run.isPending) return;
+    setWrong(false);
+    run.mutate();
+  };
+  return (
+    <Dialog open={open} onClose={run.isPending ? undefined : onClose} maxWidth="xs" fullWidth>
+      <form onSubmit={submit}>
+        <DialogTitle>{tr("Unlock with Windows Hello")}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 0.5 }}>
+            <Typography variant="body2" color="text.secondary">
+              {needsPassword
+                ? tr(
+                    "Confirm with your master password, then Windows asks for your face, fingerprint or PIN. The master password keeps working; you can turn it off afterwards.",
+                  )
+                : tr(
+                    "Windows asks for your face, fingerprint or PIN. From then on Labterm starts locked and opens with Windows Hello.",
+                  )}
+            </Typography>
+            {needsPassword && (
+              <TextField
+                autoFocus
+                type="password"
+                label={tr("Current password")}
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setWrong(false);
+                }}
+                error={wrong}
+                helperText={wrong ? tr("Wrong password") : " "}
+                slotProps={{ htmlInput: { autoComplete: "current-password" } }}
+              />
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={onClose} disabled={run.isPending} color="inherit">
+            {tr("Cancel")}
+          </Button>
+          <Button type="submit" variant="contained" disabled={!ready || run.isPending}>
+            {run.isPending ? tr("Waiting for Windows Hello…") : tr("Continue")}
+          </Button>
+        </DialogActions>
+      </form>
+    </Dialog>
+  );
+}
+
 function PasswordDialogView({
   kind,
+  hasHello,
   minChars,
   onDone,
   onClose,
 }: {
   kind: PasswordDialog | null;
+  hasHello: boolean;
   minChars: number;
   onDone: (status: VaultStatus) => void;
   onClose: () => void;
@@ -325,9 +473,13 @@ function PasswordDialogView({
             )}
             {kind === "disable" && (
               <Typography variant="body2" color="text.secondary">
-                {tr(
-                  "The vault key goes back to the OS keychain (or an owner-only file when no keychain is available) and Labterm opens without asking for a password again.",
-                )}
+                {hasHello
+                  ? tr(
+                      "Only Windows Hello will open the vault. If it stops working (TPM reset, new computer), only an encrypted backup or signing in to sync restores your data.",
+                    )
+                  : tr(
+                      "The vault key goes back to the OS keychain (or an owner-only file when no keychain is available) and Labterm opens without asking for a password again.",
+                    )}
               </Typography>
             )}
             {needsCurrent && (

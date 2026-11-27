@@ -201,7 +201,14 @@ export const settingsGet = () => invoke<Settings>("settings_get");
 
 export const vaultStatus = () => invoke<VaultStatus>("vault_status");
 export const vaultUnlock = (password: string) => invoke<VaultStatus>("vault_unlock", { password });
+export const vaultUnlockHello = () => invoke<VaultStatus>("vault_unlock_hello");
 export const vaultLock = () => invoke<VaultStatus>("vault_lock");
+export const unlockHelloAdd = (password: string | null, name: string) =>
+  invoke<VaultStatus>("unlock_hello_add", { password, name });
+export const unlockFactorRemove = (id: string) =>
+  invoke<VaultStatus>("unlock_factor_remove", { id });
+export const unlockFactorRename = (id: string, name: string) =>
+  invoke<VaultStatus>("unlock_factor_rename", { id, name });
 export const vaultActivity = () => invoke<null>("vault_activity");
 export const masterPasswordSet = (current: string | null, password: string) =>
   invoke<VaultStatus>("master_password_set", { current, password });

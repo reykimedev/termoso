@@ -4,8 +4,12 @@
 //! wraps that key on disk (`master.pw`, see `labterm_core::secrets`). While the
 //! vault is locked the `Store` — and with it the key — is gone from memory, so
 //! every vault command fails with `locked` until the password is entered.
+//!
+//! Unlock factors (Windows Hello for now, see `labterm_core::secrets::factors`)
+//! are more wrappers of the same key; the password is then an optional
+//! fallback.
 
-use labterm_core::secrets::{MIN_PASSWORD_CHARS, MasterKeySource};
+use labterm_core::secrets::{MIN_PASSWORD_CHARS, MasterKeySource, factors::FactorInfo};
 use serde::Serialize;
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
@@ -24,7 +28,13 @@ const WATCH_TICK: Duration = Duration::from_secs(10);
 #[serde(rename_all = "camelCase")]
 pub struct VaultStatus {
     pub locked: bool,
+    /// Starts locked: a master password or an unlock factor holds the key.
+    pub protected: bool,
     pub password_protected: bool,
+    /// Enrolled unlock factors (no secrets).
+    pub factors: Vec<FactorInfo>,
+    /// Windows Hello can be enrolled on this machine.
+    pub hello_available: bool,
     pub master_source: MasterKeySource,
     pub min_password_chars: usize,
 }
@@ -39,19 +49,29 @@ pub enum VaultEvent {
 pub fn status(state: &AppState) -> VaultStatus {
     VaultStatus {
         locked: state.is_locked(),
+        protected: state.protected(),
         password_protected: state.password_protected(),
+        factors: state.factors(),
+        hello_available: hello_available(),
         master_source: state.master_source(),
         min_password_chars: MIN_PASSWORD_CHARS,
     }
+}
+
+/// Asking Windows can take a moment; the answer does not change while the
+/// app runs, so ask once.
+fn hello_available() -> bool {
+    static AVAILABLE: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *AVAILABLE.get_or_init(crate::hello::available)
 }
 
 /// Tear down everything that holds vault data or a clone of the store, then
 /// drop the store itself. Idempotent.
 pub async fn lock<R: Runtime>(app: &AppHandle<R>) -> Result<VaultStatus> {
     let state = app.state::<AppState>();
-    if !state.password_protected() {
+    if !state.protected() {
         return Err(DesktopError::invalid(
-            "set a master password before locking the vault",
+            "set a master password or Windows Hello before locking the vault",
         ));
     }
     if state.is_locked() {
@@ -98,10 +118,54 @@ pub async fn unlock(app: &AppHandle, password: Zeroizing<String>) -> Result<Vaul
     }
     state.unlock_with_password(&password)?;
     drop(password);
-    tracing::info!("vault unlocked");
+    unlocked(app)
+}
+
+fn unlocked(app: &AppHandle) -> Result<VaultStatus> {
+    let state = app.state::<AppState>();
+    tracing::info!(source = ?state.master_source(), "vault unlocked");
     let _ = app.emit(VAULT_EVENT, VaultEvent::Unlocked);
     tauri::async_runtime::spawn(crate::startup(app.clone()));
     Ok(status(&state))
+}
+
+/// Open the store with Windows Hello: prompts Hello for each enrolled Hello
+/// factor in turn until one signs (normally the first). A cancel stops.
+pub async fn unlock_hello(app: &AppHandle) -> Result<VaultStatus> {
+    let state = app.state::<AppState>();
+    if state.lock.locking.load(Ordering::SeqCst) {
+        return Err(DesktopError::invalid("the vault is still locking"));
+    }
+    if !state.is_locked() {
+        return Ok(status(&state));
+    }
+    let challenges = state.hello_challenges()?;
+    if challenges.is_empty() {
+        return Err(DesktopError::invalid(
+            "Windows Hello is not set up for Labterm",
+        ));
+    }
+    let mut last = None;
+    for c in challenges {
+        let name = String::from_utf8_lossy(&c.credential).into_owned();
+        let salt = c.salt.clone();
+        let signed = tauri::async_runtime::spawn_blocking(move || crate::hello::sign(&name, &salt))
+            .await
+            .map_err(|e| DesktopError::invalid(e.to_string()))?;
+        match signed {
+            Ok(secret) => {
+                let secret = Zeroizing::new(secret);
+                state.unlock_with_factor(&c.id, &secret)?;
+                return unlocked(app);
+            }
+            Err(e) if e.kind == "cancelled" => return Err(e),
+            Err(e) => {
+                tracing::warn!(factor = %c.id, "Windows Hello unlock failed: {e}");
+                last = Some(e);
+            }
+        }
+    }
+    Err(last.unwrap_or_else(|| DesktopError::invalid("Windows Hello failed")))
 }
 
 /// Relock after `lockAfterMinutes` without user input. One instance per
@@ -110,7 +174,7 @@ pub async fn inactivity_watcher(app: AppHandle) {
     loop {
         tokio::time::sleep(WATCH_TICK).await;
         let state = app.state::<AppState>();
-        if state.is_locked() || !state.password_protected() {
+        if state.is_locked() || !state.protected() {
             continue;
         }
         let Ok(settings) = state.settings() else {
@@ -159,14 +223,70 @@ pub fn vault_activity(state: State<'_, AppState>) {
 /// is untouched.
 #[tauri::command]
 pub async fn master_password_set(
-    state: State<'_, AppState>,
+    app: AppHandle,
     current: Option<String>,
     password: String,
 ) -> Result<VaultStatus> {
     let current = current.map(Zeroizing::new);
     let password = Zeroizing::new(password);
-    state.set_master_password(current.as_deref().map(String::as_str), &password)?;
+    let handle = app.clone();
+    // May wait for a Windows Hello confirmation: keep it off the async runtime.
+    tauri::async_runtime::spawn_blocking(move || {
+        handle
+            .state::<AppState>()
+            .set_master_password(current.as_deref().map(String::as_str), &password)
+    })
+    .await
+    .map_err(|e| DesktopError::invalid(e.to_string()))??;
     tracing::info!("master password set");
+    Ok(status(&app.state::<AppState>()))
+}
+
+#[tauri::command]
+pub async fn vault_unlock_hello(app: AppHandle) -> Result<VaultStatus> {
+    unlock_hello(&app).await
+}
+
+/// Enroll Windows Hello. `password` proves the owner when a master password
+/// is set; otherwise an already enrolled Hello factor is asked first.
+#[tauri::command]
+pub async fn unlock_hello_add(
+    app: AppHandle,
+    password: Option<String>,
+    name: String,
+) -> Result<VaultStatus> {
+    let password = password.map(Zeroizing::new);
+    let handle = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = handle.state::<AppState>();
+        state.add_hello_factor(password.as_deref().map(String::as_str), &name)
+    })
+    .await
+    .map_err(|e| DesktopError::invalid(e.to_string()))??;
+    tracing::info!("Windows Hello unlock enrolled");
+    Ok(status(&app.state::<AppState>()))
+}
+
+/// Remove an unlock factor; the last way in turns protection off instead
+/// (after confirming with it).
+#[tauri::command]
+pub async fn unlock_factor_remove(app: AppHandle, id: String) -> Result<VaultStatus> {
+    let handle = app.clone();
+    let source =
+        tauri::async_runtime::spawn_blocking(move || handle.state::<AppState>().remove_factor(&id))
+            .await
+            .map_err(|e| DesktopError::invalid(e.to_string()))??;
+    tracing::info!(source = ?source, "unlock method removed");
+    Ok(status(&app.state::<AppState>()))
+}
+
+#[tauri::command]
+pub fn unlock_factor_rename(
+    state: State<'_, AppState>,
+    id: String,
+    name: String,
+) -> Result<VaultStatus> {
+    state.rename_factor(&id, &name)?;
     Ok(status(&state))
 }
 
