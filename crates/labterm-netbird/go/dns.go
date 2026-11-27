@@ -236,7 +236,9 @@ func tunnelServers(c *embed.Client, host string) (servers []netip.AddrPort, sett
 }
 
 // nbDial dials addr in the NetBird network, resolving a name through the
-// nameserver group that covers it when NetBird itself cannot reach it.
+// nameserver group that covers it when NetBird itself cannot reach it. A
+// single-label name ("nas") is tried under each of the network's search
+// domains, as NetBird's own client does.
 func nbDial(ctx context.Context, b nbNode, network, addr string) (net.Conn, error) {
 	c := b.c
 	host, port, err := net.SplitHostPort(addr)
@@ -246,6 +248,36 @@ func nbDial(ctx context.Context, b nbNode, network, addr string) (net.Conn, erro
 	if _, err := netip.ParseAddr(host); err == nil {
 		return c.Dial(ctx, network, addr)
 	}
+	name := strings.TrimSuffix(host, ".")
+	if strings.Contains(name, ".") || strings.HasSuffix(host, ".") {
+		return dialName(ctx, b, network, host, port)
+	}
+	var firstErr error
+	for _, d := range b.searchDomains(ctx) {
+		conn, err := dialName(ctx, b, network, name+"."+d, port)
+		if err == nil {
+			return conn, nil
+		}
+		if firstErr == nil {
+			firstErr = err
+		}
+		if ctx.Err() != nil {
+			return nil, firstErr
+		}
+	}
+	// No search domain answered: let NetBird try the bare name.
+	conn, err := c.Dial(ctx, network, addr)
+	if err != nil && firstErr != nil {
+		return nil, firstErr
+	}
+	return conn, err
+}
+
+// dialName resolves one name (through a nameserver group in the tunnel, or
+// NetBird's resolver) and dials it.
+func dialName(ctx context.Context, b nbNode, network, host, port string) (net.Conn, error) {
+	c := b.c
+	addr := net.JoinHostPort(host, port)
 	servers, settling := tunnelServers(c, host)
 	for len(servers) == 0 && settling && time.Since(b.started) < dnsSettle {
 		select {
