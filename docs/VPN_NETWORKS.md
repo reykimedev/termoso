@@ -82,6 +82,25 @@ Only the SSH connections of hosts set to the network go through it, even
 with an exit node; nothing else on the device does. The details page lists
 the routes the device uses and the peer each one goes through.
 
+## Names: the network's DNS
+
+Host names resolve the way the network's own client resolves them, without
+touching the device's DNS settings:
+
+- **NetBird:** peer names (`host.netbird.cloud` or your own domain) come from
+  NetBird. For other names Labterm follows the network's nameserver groups
+  (NetBird dashboard: DNS, Nameservers): a group with match domains answers
+  names in those domains (the longest match wins), and a primary group
+  answers everything else. When a group's server is reachable through the
+  network, a peer or a LAN address behind a route (such as the firewall that
+  forwards to your home DNS servers), Labterm asks it through the tunnel.
+  Servers outside the network, and anything that fails, are left to
+  NetBird's own resolver. Open a host right after the network starts and
+  the lookup waits a few seconds for the first sync.
+- **Tailscale:** MagicDNS names, split DNS and global nameservers from the
+  admin console (or Headscale's `dns` settings) work as they are; the
+  embedded client resolves through the tailnet.
+
 ## Peer names and groups
 
 The device joins as "Labterm", the network's vault and the device name, for
@@ -194,8 +213,11 @@ built-in identity provider (`tests/sso-login.py` plays the browser), signing
 in again with the same peer.
 A NetBird client in userspace mode acts as a
 routing peer, so the tests also reach a "LAN" address (this machine's own)
-through a network route and through an exit node.
+through a network route and through an exit node, and resolve names through
+a nameserver group whose server only the network reaches (the far-end peer
+answers DNS on its NetBird address).
 
 `tests/e2e-tailscale.sh` does the same for Tailscale against a local Headscale
 (joining with an auth key, MagicDNS names, starting again from the saved
-state, signing in through Headscale's login page).
+state, signing in through Headscale's login page, split DNS to a server on
+the tailnet).

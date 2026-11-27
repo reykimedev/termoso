@@ -586,6 +586,7 @@ jobs:
           go-version-file: crates/labterm-netbird/go/go.mod
           cache-dependency-path: crates/labterm-netbird/go/go.sum
       - run: cd crates/labterm-netbird/go && go vet -tags ts_omit_logtail ./...
+      - run: cd crates/labterm-netbird/go && go test -tags ts_omit_logtail ./...
       - run: crates/labterm-netbird/tests/e2e.sh
       # Tailscale (tsnet) in the same library, against a local Headscale.
       - run: crates/labterm-netbird/tests/e2e-tailscale.sh
