@@ -109,6 +109,10 @@ including the server. Collection keys use authenticated, bound envelopes instead
   manager changes and rotations. Clients verify it and pin the manager keys they have seen; a
   changed key shows a loud warning. The server stores and serves the log but cannot write to it.
   `collection_access` changes are entries in this log.
+- **Signing key:** accounts only have an X25519 key today, so log entries are signed with an
+  Ed25519 key derived from the account private key (HKDF, its own label). Every device of the
+  account derives the same key and nothing new is stored. An account's identity is both public
+  keys; members pin the pair and compare a fingerprint over both.
 - **Trust anchor for the manager roster:** the log's first entry is signed by the creator, and a
   manager can only be added by an entry signed by an existing manager, so the server can't name
   its own manager. A member who opens the collection for the first time pins the creator's key and
