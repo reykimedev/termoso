@@ -20,7 +20,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useSnackbar } from "@/components/Snackbar";
 import { EntityCard, IconTile, Mono, SectionCard } from "@/components/ui";
 import * as ipc from "@/ipc/commands";
-import { useVaults } from "@/ipc/hooks";
+import { keys, useTeams, useVaults } from "@/ipc/hooks";
 import {
   errorMessage,
   isDesktopError,
@@ -69,9 +69,18 @@ export function startMove() {
 const update = (patch: Partial<MoveState>) =>
   moveStore.set((s) => (s === null ? s : { ...s, ...patch }));
 
+/** Restore target: a team vault created for this backup vault, named like it. */
+const NEW_TEAM_VAULT = "new-team-vault";
+/** Team choice: create a team for the new team vaults. */
+const NEW_TEAM = "new-team";
+// Labterm Web has no teams (yet), so it cannot create team vaults.
+const CAN_CREATE_TEAMS = !import.meta.env.VITE_LABTERM_WEB;
+
 /** What a backup cannot carry to another server. */
 const STAYS_BEHIND = [
-  msg("Teams, members and access rules (team vaults are restored into your personal vault)"),
+  CAN_CREATE_TEAMS
+    ? msg("Teams, members and access rules (team vaults can go into new team vaults here)")
+    : msg("Teams, members and access rules (team vaults are restored into your personal vault)"),
   msg("Connection history and session recordings"),
   msg("Signed-in devices: sign in on each of them again"),
   msg("SSH ID handle and published keys"),
@@ -100,8 +109,9 @@ function StaysBehind() {
 
 /**
  * Where each vault of the backup goes: a vault that is still here (the local
- * vault) is skipped, everything else goes into the new personal vault, or a
- * vault of the same kind.
+ * vault) is skipped, a team vault into a team vault of the same name or a new
+ * one (teams do not move with a backup), everything else into the new personal
+ * vault, or a vault of the same kind.
  */
 function defaultTargets(b: BackupSummary, writable: LocalVault[]): Record<number, string> {
   const out: Record<number, string> = {};
@@ -109,6 +119,13 @@ function defaultTargets(b: BackupSummary, writable: LocalVault[]): Record<number
     if (writable.some((w) => w.id === v.id)) {
       out[i] = "";
       return;
+    }
+    if (v.kind === "team") {
+      const same = writable.find((w) => w.kind === "team" && w.name === v.name);
+      if (same || CAN_CREATE_TEAMS) {
+        out[i] = same?.id ?? NEW_TEAM_VAULT;
+        return;
+      }
     }
     const target =
       (v.kind !== "team" ? writable.find((w) => w.kind === v.kind) : undefined) ??
@@ -324,12 +341,51 @@ function RestoreStep({ state, status }: { state: MoveState; status: AccountStatu
     [vaults.data],
   );
   const [targets, setTargets] = useState<Record<number, string> | null>(null);
+  const teams = useTeams(CAN_CREATE_TEAMS);
+  const [teamPick, setTeamPick] = useState<string | null>(null);
+  const [teamName, setTeamName] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Vaults and teams of the new account, not what was cached before the sign-in.
+  useEffect(() => {
+    void qc.invalidateQueries({ queryKey: keys.vaults });
+    void qc.invalidateQueries({ queryKey: keys.teams });
+  }, [qc]);
   const [password, setPassword] = useState("");
   // The opened backup is gone when the app was restarted mid-move.
   const [lost, setLost] = useState(state.backup === null);
   const backup = state.backup;
   const chosen = targets ?? (backup && vaults.data ? defaultTargets(backup, writable) : {});
+  const newVaults = (backup?.vaults ?? []).filter((_, i) => chosen[i] === NEW_TEAM_VAULT);
+  const manageable = (teams.data ?? []).filter(
+    (t) => t.my_role === "owner" || t.my_role === "admin",
+  );
+  const team = teamPick ?? manageable[0]?.id ?? NEW_TEAM;
+  const newTeamName = teamName ?? newVaults[0]?.name ?? "";
+  const needsTeamName = newVaults.length > 0 && team === NEW_TEAM;
+
+  /** Create the team (when asked) and one team vault per row that wants one. */
+  const createTargets = async (): Promise<Record<number, string>> => {
+    if (!backup || newVaults.length === 0) return chosen;
+    let teamId = team;
+    const out = { ...chosen };
+    const free: LocalVault[] = [];
+    if (teamId === NEW_TEAM) {
+      const t = await ipc.teamCreate(newTeamName.trim());
+      teamId = t.id;
+      setTeamPick(t.id);
+      void qc.invalidateQueries({ queryKey: keys.teams });
+      // A new team comes with a first vault named after it: use it instead of
+      // leaving an empty one behind.
+      free.push(...(await ipc.vaultsList()).filter((v) => v.team_id === t.id));
+    }
+    for (const [i, v] of backup.vaults.entries()) {
+      if (out[i] !== NEW_TEAM_VAULT) continue;
+      const k = free.findIndex((f) => f.name === v.name);
+      out[i] = k >= 0 ? free.splice(k, 1)[0].id : await ipc.teamVaultCreate(teamId, v.name, []);
+    }
+    setTargets(out);
+    return out;
+  };
   const now = status.account?.serverUrl;
   const sameServer = serverName(now) === serverName(state.fromServer);
 
@@ -355,8 +411,9 @@ function RestoreStep({ state, status }: { state: MoveState; status: AccountStatu
     setBusy(true);
     const total: RestoreReport = { added: 0, replaced: 0, skipped: 0, warnings: [] };
     try {
+      const into = await createTargets();
       for (const [i] of backup.vaults.entries()) {
-        const target = chosen[i];
+        const target = into[i];
         if (!target) continue;
         const r = await ipc.backupRestore(backup.previewId, i, target);
         total.added += r.added;
@@ -450,15 +507,48 @@ function RestoreStep({ state, status }: { state: MoveState; status: AccountStatu
                       {tr("Into")} {w.name}
                     </MenuItem>
                   ))}
+                  {CAN_CREATE_TEAMS && (
+                    <MenuItem value={NEW_TEAM_VAULT}>{tr("Into a new team vault")}</MenuItem>
+                  )}
                 </TextField>
               </Box>
             ))}
           </Stack>
+          {newVaults.length > 0 && (
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+              <TextField
+                select
+                label={tr("Team for the new vaults")}
+                value={team}
+                onChange={(e) => setTeamPick(e.target.value)}
+                sx={{ minWidth: 220 }}
+              >
+                {manageable.map((t) => (
+                  <MenuItem key={t.id} value={t.id}>
+                    {t.name}
+                  </MenuItem>
+                ))}
+                <MenuItem value={NEW_TEAM}>{tr("New team")}</MenuItem>
+              </TextField>
+              {needsTeamName && (
+                <TextField
+                  label={tr("Team name")}
+                  value={newTeamName}
+                  onChange={(e) => setTeamName(e.target.value)}
+                  sx={{ minWidth: 220 }}
+                />
+              )}
+            </Stack>
+          )}
           <Box>
             <Button
               variant="contained"
               startIcon={<SettingsBackupRestoreRoundedIcon />}
-              disabled={busy || !Object.values(chosen).some((t) => t !== "")}
+              disabled={
+                busy ||
+                !Object.values(chosen).some((t) => t !== "") ||
+                (needsTeamName && newTeamName.trim() === "")
+              }
               onClick={() => void restore()}
             >
               {busy ? tr("Restoring…") : tr("Restore")}

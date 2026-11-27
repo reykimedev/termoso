@@ -666,7 +666,7 @@ pub async fn create_vault<R: Runtime>(
     team_id: Uuid,
     name: &str,
     access: Vec<VaultAccess>,
-) -> Result<()> {
+) -> Result<Uuid> {
     let name = clean_name(name)?;
     let api = api(app).await?;
     let state = app.state::<AppState>();
@@ -693,9 +693,11 @@ pub async fn create_vault<R: Runtime>(
             sealed_key: seal_for(pk, &key)?,
         });
     }
-    api.create_team_vault(team_id, &CreateVaultRequest { name, members })
+    let vault = api
+        .create_team_vault(team_id, &CreateVaultRequest { name, members })
         .await?;
-    refresh(app).await
+    refresh(app).await?;
+    Ok(vault.id)
 }
 
 pub async fn rename_vault<R: Runtime>(

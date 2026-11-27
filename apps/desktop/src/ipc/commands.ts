@@ -907,8 +907,9 @@ export const teamPendingKeys = (teamId: Uuid) =>
   invoke<PendingVaultKey[]>("team_pending_keys", { teamId });
 export const teamAudit = (teamId: Uuid, filter: AuditFilter = {}) =>
   invoke<AuditPage>("team_audit", { teamId, filter });
+/** Returns the new vault's id. */
 export const teamVaultCreate = (teamId: Uuid, name: string, access: VaultAccess[]) =>
-  invoke<null>("team_vault_create", { teamId, name, access });
+  invoke<Uuid>("team_vault_create", { teamId, name, access });
 export const teamVaultRename = (vaultId: Uuid, name: string) =>
   invoke<null>("team_vault_rename", { vaultId, name });
 export const teamVaultDelete = (vaultId: Uuid) => invoke<null>("team_vault_delete", { vaultId });
