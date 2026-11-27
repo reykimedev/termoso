@@ -93,6 +93,14 @@ export function tabDigit(ev: KeyboardEvent): number | null {
   return m ? Number(m[1]) : null;
 }
 
+/** Ctrl+Alt+1 … 9 (⌘⌥ on macOS) switch to a pinned vault by position; not rebindable. */
+export function vaultDigit(ev: KeyboardEvent): number | null {
+  if (shortcutsStore.get().recording) return null;
+  if (!primaryKey(ev) || secondaryKey(ev) || ev.shiftKey || !ev.altKey) return null;
+  const m = /^Digit([1-9])$/.exec(ev.code);
+  return m ? Number(m[1]) : null;
+}
+
 /** Other commands (any state) already using `chord`, excluding `exceptId`. */
 export function conflictsFor(
   chord: string,

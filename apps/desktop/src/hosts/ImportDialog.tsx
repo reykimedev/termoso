@@ -49,7 +49,7 @@ import {
   type LocalVault,
   type Uuid,
 } from "@/ipc/types";
-import { vaultHint, vaultIcon } from "@/app/vault";
+import { vaultHint, vaultIcon, vaultName } from "@/app/vault";
 import { tr, trn, msg } from "@/i18n";
 import { requirePerm } from "@/team/perms";
 
@@ -1216,7 +1216,7 @@ export function VaultSelect({
               {vaultIcon(v)}
               <Box sx={{ minWidth: 0 }}>
                 <Typography variant="body2" noWrap>
-                  {v.name}
+                  {vaultName(v)}
                 </Typography>
                 <Typography variant="caption" color="text.secondary" noWrap>
                   {vaultHint(v)}
