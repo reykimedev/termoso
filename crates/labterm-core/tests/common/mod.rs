@@ -316,6 +316,24 @@ impl TestServer {
         req.send().await.expect("request")
     }
 
+    /// Confirm `email` when the server sends mail. Such a server refuses some
+    /// actions (creating a team) until the address is verified.
+    pub async fn verify_email_if_mail(&self, email: &str, token: &str) {
+        if self.mailpit.is_none() {
+            return;
+        }
+        let code = self.emailed_code(email, "email verification").await;
+        let res = self
+            .raw(
+                reqwest::Method::POST,
+                "/account/email/verify/confirm",
+                token,
+                Some(serde_json::json!({ "code": code })),
+            )
+            .await;
+        assert!(res.status().is_success(), "verify email: {}", res.status());
+    }
+
     /// Latest code Mailpit received for `to` in an email whose subject
     /// mentions `purpose`.
     pub async fn emailed_code(&self, to: &str, purpose: &str) -> String {
