@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Same name as the sideloaded debug build: it is the same app (Devel on Google Play). -->
+<resources>
+    <string name="app_name">Labterm Debug</string>
+</resources>

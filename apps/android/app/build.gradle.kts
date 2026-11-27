@@ -98,6 +98,16 @@ android {
             buildConfigField("int", "DEBUG_BUILD", "$debugBuildNumber")
             buildConfigField("String", "DEBUG_UPDATE_URL", "\"$debugUpdateUrl\"")
         }
+        // Devel on Google Play: the debug build (same app id, key, name and Rust profile) made
+        // fit for Play, which refuses debuggable apps and apps that update themselves. So no
+        // `debuggable`, no in-app updater and no REQUEST_INSTALL_PACKAGES (src/debug's manifest
+        // does not apply here). `:app:bundleDevel` makes the AAB.
+        create("devel") {
+            initWith(getByName("debug"))
+            isDebuggable = false
+            matchingFallbacks += "debug"
+            buildConfigField("String", "DEBUG_UPDATE_URL", "\"\"")
+        }
     }
 
     if (abiSplits) {
@@ -142,6 +152,17 @@ android {
     dependenciesInfo {
         includeInApk = false
         includeInBundle = false
+    }
+}
+
+// Devel builds (the sideloaded APK and the Play bundle share app id and key) are ordered by
+// their build number. 1_000_000 keeps them above the MMmmpp codes earlier debug builds had,
+// so an installed one updates instead of refusing a downgrade.
+if (debugBuildNumber > 0) {
+    androidComponents.onVariants { variant ->
+        if (variant.buildType == "debug" || variant.buildType == "devel") {
+            variant.outputs.forEach { it.versionCode.set(1_000_000 + debugBuildNumber) }
+        }
     }
 }
 

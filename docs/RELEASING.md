@@ -306,6 +306,69 @@ gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD --env desktop-dev -R $R
 then put the `labterm-updater-dev.key.pub` contents into
 `plugins.updater.pubkey` in `channels/dev.json`.
 
+## Google Play (Devel)
+
+Labterm Debug (`dev.labdex.labterm.debug`) can also ship through Google Play's
+**internal testing** track. Testers then get each Devel build as a normal Play
+update, with no Play Protect scan per sideloaded APK. The GitHub devel releases
+and their feed stay as they are.
+
+- **Build.** The `devel` build type (`:app:bundleDevel`) is the debug build
+  without `debuggable`, without the in-app updater and without
+  `REQUEST_INSTALL_PACKAGES`, which Play refuses. Same app id, name, Rust
+  profile and key as the sideloaded APK.
+- **Version code.** Devel builds (APK and bundle) use `1000000 + <build>`, so
+  every build is newer than the last and than the `MMmmpp` codes debug builds
+  had before.
+- **Upload.** `devel.yml`'s `play` job uploads the bundle with
+  `scripts/play-upload.py` (standard library and `openssl` only) using
+  `PLAY_SERVICE_ACCOUNT_JSON` from the environment **`google-play`** (main
+  only). The repository variable `PLAY_TRACK` turns it on (`internal`); unset,
+  no bundle is built and the job is skipped. Without the secret the job leaves a
+  notice and passes. `PLAY_RELEASE_STATUS=draft` is only needed while Play
+  still treats the app as a draft.
+- **Signing.** Play App Signing with the existing debug key (alias
+  `termoso-debug`) as the app signing key, uploaded once with Play's PEPK tool.
+  Play then delivers builds signed with the same key as the GitHub APK, so a
+  sideloaded install updates in place from Play, keeps its data, and the App
+  Links fingerprint does not change. The bundle is uploaded signed with the
+  same key.
+
+One-time setup:
+
+1. Check the debug key is RSA 2048 or larger (Play's minimum):
+   `keytool -list -v -keystore labterm-debug.jks -alias termoso-debug | grep -i algorithm`.
+2. Play Console: **Create app** "Labterm Debug" (app, free). Under
+   **Test and release → App integrity → App signing**, choose to use your own
+   key, **Export and upload a key from Java keystore**, and follow the PEPK
+   steps for `labterm-debug.jks`, alias `termoso-debug`. Do this before the
+   first upload: the choice is final once a bundle is in.
+3. GitHub: set the repository variable `PLAY_TRACK=internal`, then run Devel
+   by hand (or merge anything). Its run has the artifact `devel-play-bundle`.
+4. Play Console: **Internal testing → Create new release**, upload that
+   `labterm-devel.aab`, roll it out. Fill in what Play asks for under
+   **App content** first. Add testers (an email list) and share the opt-in link.
+5. Google Cloud: in any project, enable the **Google Play Android Developer
+   API**, create a service account (no project roles) and a JSON key for it.
+6. Play Console: **Users and permissions → Invite new users**, the service
+   account's email, app permission on Labterm Debug: **Release apps to testing
+   tracks**.
+7. GitHub: environment `google-play` limited to `main`, with the secret
+   `PLAY_SERVICE_ACCOUNT_JSON`:
+
+   ```bash
+   R=reykimedev/termoso
+   gh api -X PUT repos/$R/environments/google-play --input - <<<'{"deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true}}'
+   gh api -X POST repos/$R/environments/google-play/deployment-branch-policies -f name=main -f type=branch
+   gh secret set PLAY_SERVICE_ACCOUNT_JSON --env google-play -R $R < service-account.json
+   gh variable set PLAY_TRACK -R $R --body internal
+   ```
+
+From then on every Devel run puts its build on the internal track. Stable
+Labterm (`dev.labdex.labterm`) on Play is a later step; a personal developer
+account needs a closed test with at least 12 testers for 14 days before
+production.
+
 ## Verifying a download
 
 Settings → About shows the commit the app was built from (`labterm --version`
