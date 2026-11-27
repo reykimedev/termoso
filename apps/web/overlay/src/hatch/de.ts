@@ -85,6 +85,11 @@ export const de: Readonly<Record<string, string>> = {
   "Sign-in refused (tried {tried}; the server offers {offered})":
     "Anmeldung abgelehnt (versucht: {tried}; der Server bietet: {offered})",
   "Connection failed": "Verbindung fehlgeschlagen",
+  "Connect all": "Alle verbinden",
+  "Connect all ({n})": "Alle verbinden ({n})",
+  "Connect {n} hosts?": "{n} Hosts verbinden?",
+  "Opens a tab for every host in “{label}” and its sub-groups.":
+    "Öffnet einen Tab für jeden Host in «{label}» und seinen Untergruppen.",
 
   // identity provider (Authentik)
   "This Labterm Web has no sign-in provider configured (config.json).":

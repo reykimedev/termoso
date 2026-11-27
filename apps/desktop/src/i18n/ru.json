@@ -2923,5 +2923,9 @@
   "This device may not reach any peer in this network.": "Этому устройству не доступен ни один узел в этой сети.",
   "Whoever signed in": "Тот, кто вошёл",
   "Sign in again": "Войти снова",
-  "Waiting for the browser…": "Ожидание браузера…"
+  "Waiting for the browser…": "Ожидание браузера…",
+  "Connect {n} hosts?": "Подключить хосты ({n})?",
+  "Connect all": "Подключить все",
+  "Connect all ({n})": "Подключить все ({n})",
+  "Opens a tab for every host in “{label}” and its sub-groups.": "Открывает вкладку для каждого хоста в «{label}» и его подгруппах."
 }
