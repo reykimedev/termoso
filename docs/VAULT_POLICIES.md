@@ -106,9 +106,17 @@ including the server. Collection keys use authenticated, bound envelopes instead
 - **Authenticated:** sealed with `crypto_box` from the granting manager's account key, and
   accepted only from a key on the collection's manager list.
 - **Membership log:** each collection keeps a signed, hash-chained log of grants, removals,
-  manager changes and rotations, rooted in the creator's key. Clients verify it and pin the manager
-  keys they have seen; a changed key shows a loud warning. The server stores and serves the log
-  but cannot write to it. `collection_access` changes are entries in this log.
+  manager changes and rotations. Clients verify it and pin the manager keys they have seen; a
+  changed key shows a loud warning. The server stores and serves the log but cannot write to it.
+  `collection_access` changes are entries in this log.
+- **Trust anchor for the manager roster:** the log's first entry is signed by the creator, and a
+  manager can only be added by an entry signed by an existing manager, so the server can't name
+  its own manager. A member who opens the collection for the first time pins the creator's key and
+  sees its fingerprint (with the creator's name) to compare out of band; every later device of
+  the same account reuses that pin from the member's encrypted store.
+- **Team vault keys too:** the vault key that protects the vault-wide part moves to the same
+  bound, authenticated envelopes and the same rotation rules, so neither key can be installed
+  from an envelope that isn't signed by a manager of that vault.
 - **Explicit grants:** a pending member (including one who joined an IdP group) is granted only
   when a manager approves it, seeing the account and a short fingerprint of its key. Manager
   clients pin members' public keys and refuse to seal after a key change until someone confirms

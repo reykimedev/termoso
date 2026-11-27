@@ -19,7 +19,9 @@ collection stay under the vault key. Revised after the security review on #137.
   CK}` with `crypto_box` from a manager's account key, accepted only from a key on the
   collection's manager list. Anonymous sealed boxes are not used for collection keys.
 - **Signed membership log** per collection (grants, removals, manager changes, rotations),
-  hash-chained and rooted in the creator's key. The server stores it but can't write it.
+  hash-chained and rooted in the creator's key; only an existing manager can add a manager, and
+  members pin the creator's key on first open and can compare its fingerprint. The server stores
+  the log but can't write it. Team vault keys move to the same envelopes and rules.
 - **Explicit grants:** a manager approves each new member and sees their key fingerprint; nothing is
   sealed automatically from server, SCIM or IdP data. IdP groups are bound by stable id. Owners
   and admins don't get `CK` automatically.
