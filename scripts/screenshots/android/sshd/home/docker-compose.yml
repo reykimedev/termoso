@@ -1,0 +1,4 @@
+services:
+  app:
+    image: registry.example.com/site:2026.11.24
+    ports: ["8080:8080"]
