@@ -147,7 +147,7 @@ fun JumpChainsScreen(shell: ShellViewModel, onBack: () -> Unit) {
     var confirmDelete by remember { mutableStateOf<HostChainItem?>(null) }
     LaunchedEffect(vaultId, revision) {
         runCatching { shell.repo.read { hostChains(vaultId) to hosts(vaultId) } }
-            .onSuccess { (c, h) -> items = c; hosts = h.filter { it.ssh } }
+            .onSuccess { (c, h) -> items = c; hosts = h.filter { it.protocol.equals("ssh", true) } }
             .onFailure { shell.notify(it.userMessage()) }
     }
     fun write(block: suspend () -> Unit) {

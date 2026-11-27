@@ -40,19 +40,23 @@ import dev.labdex.labterm.R
 fun IconPickerSheet(selected: String?, automaticLabel: String, onPick: (String?) -> Unit, onDismiss: () -> Unit) {
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val current = selected?.trim()?.lowercase()
+    val title = stringResource(R.string.icon)
+    val generic = stringResource(R.string.icon_section_generic)
+    val apps = stringResource(R.string.icon_section_apps)
+    val systems = stringResource(R.string.icon_section_systems)
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet) {
         LazyVerticalGrid(
             columns = GridCells.Adaptive(76.dp),
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            item(span = { GridItemSpan(maxLineSpan) }) { Header(stringResource(R.string.icon)) }
+            item(span = { GridItemSpan(maxLineSpan) }) { Header(title) }
             item {
                 Choice(automaticLabel, current == null, { onPick(null) }) { IconTile(Icons.Filled.AutoAwesome, selected = current == null) }
             }
-            section(stringResource(R.string.icon_section_generic), IconCatalog.generic, current, onPick)
-            section(stringResource(R.string.icon_section_apps), IconCatalog.brands, current, onPick)
-            section(stringResource(R.string.icon_section_systems), DistroIcons.all, current, onPick)
+            section(generic, IconCatalog.generic, current, onPick)
+            section(apps, IconCatalog.brands, current, onPick)
+            section(systems, DistroIcons.all, current, onPick)
             item(span = { GridItemSpan(maxLineSpan) }) { Spacer(Modifier.height(24.dp)) }
         }
     }
