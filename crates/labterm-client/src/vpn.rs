@@ -307,6 +307,28 @@ fn forget_peer_keys(store: &Store, network: Uuid) {
     }
 }
 
+/// Forget peer keys of networks that no longer exist here: one deleted on
+/// another device goes away by sync, which does not pass through
+/// [`delete`]. Called when the networks are listed.
+pub fn forget_orphans(store: &Store) {
+    let Ok(keys) = store.meta_keys(PEER_META) else {
+        return;
+    };
+    for key in keys {
+        let id = key[PEER_META.len()..]
+            .split('@')
+            .next()
+            .and_then(|id| Uuid::parse_str(id).ok());
+        // Keys we cannot attribute are left alone.
+        let Some(id) = id else { continue };
+        if matches!(store.get::<Transport>(id), Ok(None))
+            && let Err(e) = store.delete_meta(&key)
+        {
+            tracing::warn!("netbird: could not forget a peer key: {e}");
+        }
+    }
+}
+
 /// The network a host connects through when connecting needs a sign-in
 /// first: no setup key and this device has not joined yet.
 pub fn needs_sign_in(store: &Arc<Store>, resolved: &ResolvedHost) -> Option<Entity<Transport>> {
@@ -473,5 +495,38 @@ mod tests {
         );
         assert!(account(&store, gone.id).is_none());
         assert!(store.get::<Transport>(gone.id).ok().flatten().is_none());
+    }
+
+    #[test]
+    fn peer_keys_of_networks_deleted_elsewhere_are_forgotten() {
+        let store = Arc::new(Store::open_in_memory(SymmetricKey::generate()).unwrap());
+        let vault = store.local_vault().unwrap().id;
+        let kept = transports::save(
+            &store,
+            vault,
+            None,
+            Transport {
+                label: "kept".into(),
+                provider: String::new(),
+                management_url: Some("https://netbird.example.com".into()),
+                setup_key: None,
+            },
+        )
+        .unwrap();
+        let keys = StoreKeys(store.clone());
+        let kept_slot = format!("{}@https://netbird.example.com", kept.id);
+        keys.save(&kept_slot, "k1");
+        // As sync leaves it: the network is gone, its key is not.
+        keys.save(
+            &format!("{}@https://netbird.example.com", Uuid::new_v4()),
+            "k2",
+        );
+
+        forget_orphans(&store);
+
+        assert_eq!(
+            store.meta_keys(PEER_META).unwrap(),
+            vec![format!("{PEER_META}{kept_slot}")]
+        );
     }
 }
