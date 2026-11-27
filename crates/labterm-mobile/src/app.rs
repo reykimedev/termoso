@@ -909,7 +909,7 @@ impl LabtermApp {
 
     /// Delete a network; its hosts and groups connect directly again.
     pub fn delete_transport(&self, id: String) -> Result<()> {
-        crate::netbird::delete(&self.store, &id)
+        RUNTIME.block_on(crate::netbird::delete(&self.store, &id))
     }
 
     /// Network a host's own SSH settings name (not the group's).

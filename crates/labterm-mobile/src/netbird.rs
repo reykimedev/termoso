@@ -97,8 +97,8 @@ pub(crate) fn save(store: &Arc<Store>, item: TransportItem) -> Result<TransportI
     Ok(to_item(store, saved))
 }
 
-pub(crate) fn delete(store: &Store, id: &str) -> Result<()> {
-    Ok(vpn::delete(store, parse_id(id)?)?)
+pub(crate) async fn delete(store: &Store, id: &str) -> Result<()> {
+    Ok(vpn::delete(store, parse_id(id)?).await?)
 }
 
 pub(crate) fn set_device_name(name: &str) {
