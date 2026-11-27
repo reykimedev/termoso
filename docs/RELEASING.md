@@ -252,7 +252,9 @@ anything:
    provenance attestations and the desktop `latest.json`. The newest 10 devel
    releases are kept.
 
-Nothing is cancelled, so every commit gets its release. `<build>` is 100 plus
+Devel runs one at a time. A running build always finishes; while it runs, only
+the newest push waits and older queued pushes are dropped, so a burst of merges
+builds and releases the newest commit. `<build>` is 100 plus
 the workflow's run number, which keeps it above the builds the old
 per-channel workflows published.
 
