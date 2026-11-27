@@ -1,0 +1,28 @@
+screen 1080x2400
+Broadcasting: Intent { act=com.android.systemui.demo flg=0x400000 (has extras) }
+Broadcast completed: result=0
+
+ok   android-quick-import
+ok   android-hosts
+ok   android-vault
+ok   android-terminal
+ok   android-session-menu
+ok   android-key-panel
+ok   android-hidden-input
+ok   android-compose
+ok   android-gesture-overlay
+ok   android-connections
+ok   android-sftp
+ok   android-ai-agent
+ok   android-keys
+ok   android-pf-rule
+ok   android-settings
+ok   android-gestures-settings
+ok   android-linux-env
+ok   android-linux-shell
+ok   android-pin
+notifications: 0|dev.labdex.labterm|-2047936565|null|10209 ; 0|dev.labdex.labterm|-2133804879|null|10209 ; -1|android|55|null|1000 ; -1|android|2147483647|ranker_group|1000|ranker_group ; 0|dev.labdex.labterm|1|null|10209 ; 0|dev.labdex.labterm|1469580539|null|10209 ; -1|android|19|null|1000
+snooze -1|android|55|null|1000 snoozing <-1|android|55|null|1000> until time: Fri Nov 27 07:27:44 UTC 2026
+snooze -1|android|2147483647|ranker_group|1000|ranker_group snoozing <-1|android|2147483647|ranker_group|1000|ranker_group> until time: Fri Nov 27 07:27:45 UTC 2026
+snooze -1|android|19|null|1000 snoozing <-1|android|19|null|1000> until time: Fri Nov 27 07:27:48 UTC 2026
+ok   android-shade
