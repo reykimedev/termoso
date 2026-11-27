@@ -30,6 +30,9 @@ type peerOut struct {
 	LatencyMs int64  `json:"latency_ms,omitempty"`
 	// Unix seconds of the last WireGuard handshake; 0 = never.
 	Handshake int64 `json:"handshake,omitempty"`
+	// Networks this device reaches through the peer (a routing peer or an
+	// exit node), e.g. "192.0.2.0/24" or "0.0.0.0/0".
+	Routes []string `json:"routes,omitempty"`
 }
 
 func nodeStatus(n *node) (statusOut, error) {
@@ -58,6 +61,10 @@ func nodeStatus(n *node) (statusOut, error) {
 		if !p.LastWireguardHandshake.IsZero() && p.LastWireguardHandshake.After(time.Unix(0, 0)) {
 			po.Handshake = p.LastWireguardHandshake.Unix()
 		}
+		for r := range p.GetRoutes() {
+			po.Routes = append(po.Routes, r)
+		}
+		sort.Strings(po.Routes)
 		out.Peers = append(out.Peers, po)
 	}
 	sort.Slice(out.Peers, func(i, j int) bool { return out.Peers[i].FQDN < out.Peers[j].FQDN })

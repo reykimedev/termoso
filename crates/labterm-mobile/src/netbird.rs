@@ -209,6 +209,8 @@ pub struct TransportPeer {
     pub latency_ms: u64,
     /// Unix seconds of the last handshake; 0 = none yet.
     pub handshake: i64,
+    /// Networks reached through this peer ("0.0.0.0/0" = exit node).
+    pub routes: Vec<String>,
 }
 
 /// A host that connects through a network.
@@ -263,6 +265,7 @@ pub(crate) async fn details(store: &Arc<Store>, network_id: &str) -> Result<Tran
                 relayed: p.relayed,
                 latency_ms: p.latency_ms,
                 handshake: p.handshake,
+                routes: p.routes,
             })
             .collect(),
         hosts: d

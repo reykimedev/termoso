@@ -63,6 +63,7 @@ export function VpnDetailsPanel({ network, onEdit }: { network: VpnNetwork; onEd
   const n = d.network;
   const state = d.state.state;
   const joined = state === "connected";
+  const routes = routesOf(d.peers);
   const canJoin = state !== "unavailable" && state !== "connecting" && !joined;
   const signedIn = n.signedIn;
 
@@ -191,6 +192,31 @@ export function VpnDetailsPanel({ network, onEdit }: { network: VpnNetwork; onEd
       </SectionCard>
 
       {joined && (
+        <SectionCard title={tr("Routes ({count})", { count: String(routes.length) })}>
+          {routes.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              {tr("No routes: only the peers' own addresses are reachable.")}
+            </Typography>
+          ) : (
+            <List dense disablePadding>
+              {routes.map((r) => (
+                <ListItemText
+                  key={`${r.network} ${r.via}`}
+                  primary={
+                    isDefaultRoute(r.network)
+                      ? tr("Exit node ({network})", { network: r.network })
+                      : r.network
+                  }
+                  secondary={tr("through {peer}", { peer: r.via })}
+                  slotProps={{ primary: { sx: mono }, secondary: { sx: mono } }}
+                />
+              ))}
+            </List>
+          )}
+        </SectionCard>
+      )}
+
+      {joined && (
         <SectionCard title={tr("Peers ({count})", { count: String(d.peers.length) })}>
           {d.peers.length === 0 ? (
             <Typography variant="body2" color="text.secondary">
@@ -207,6 +233,15 @@ export function VpnDetailsPanel({ network, onEdit }: { network: VpnNetwork; onEd
       )}
     </Stack>
   );
+}
+
+/** Networks reached through a routing peer or an exit node, by peer. */
+function routesOf(peers: VpnPeer[]): { network: string; via: string }[] {
+  return peers.flatMap((p) => p.routes.map((network) => ({ network, via: p.fqdn || p.ip })));
+}
+
+function isDefaultRoute(network: string): boolean {
+  return network === "0.0.0.0/0" || network === "::/0";
 }
 
 function Row({ label, value, mono: m }: { label: string; value: string; mono?: boolean }) {
