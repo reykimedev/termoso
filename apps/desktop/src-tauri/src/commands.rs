@@ -361,6 +361,24 @@ pub async fn hosts_copy_to_vault(
     }
 }
 
+/// Preview a move or copy of hosts and groups into another vault.
+#[tauri::command]
+pub async fn vault_transfer_plan(
+    state: State<'_, AppState>,
+    request: labterm_client::vaultmove::TransferRequest,
+) -> Result<labterm_client::vaultmove::TransferPlan> {
+    labterm_client::vaultmove::plan(&*state.store()?, &request)
+}
+
+/// Move or copy hosts and groups into another vault.
+#[tauri::command]
+pub async fn vault_transfer(
+    state: State<'_, AppState>,
+    request: labterm_client::vaultmove::TransferRequest,
+) -> Result<labterm_client::vaultmove::TransferResult> {
+    labterm_client::vaultmove::apply(&*state.store()?, &request)
+}
+
 /// Serial devices on this machine; enumeration is local only.
 #[tauri::command]
 pub async fn serial_ports() -> Result<Vec<labterm_core::serial::PortInfo>> {

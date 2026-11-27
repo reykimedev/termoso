@@ -29,6 +29,7 @@ import * as st from "./backend/state";
 import * as sftp from "./backend/sftp";
 import * as term from "./backend/terminal";
 import * as copy from "./backend/vaultcopy";
+import * as vaultmove from "./backend/vaultmove";
 import { LABTERM_VERSION } from "./build";
 import { integrity } from "./integrity";
 import { tr } from "@/i18n";
@@ -229,7 +230,16 @@ const commands: Record<string, Handler> = {
   host_duplicate: (a) => m.hostDuplicate(a.id),
   hosts_move: (a) => m.hostsMove(a.ids, a.groupId ?? null),
   hosts_copy_to_vault: (a) =>
-    copy.hostsCopyToVault(a.ids, a.vaultId, !!a.moveHosts, a.withCredentials),
+    vaultmove
+      .transfer({
+        hostIds: a.ids as string[],
+        vaultId: a.vaultId as string,
+        mode: a.moveHosts ? "move" : "copy",
+        withCredentials: (a.withCredentials as boolean | null | undefined) ?? true,
+      })
+      .hosts.map((p) => p.to),
+  vault_transfer_plan: (a) => vaultmove.transferPlan(a.request),
+  vault_transfer: (a) => vaultmove.transfer(a.request),
   host_inherited: (a) => m.inherited(a.groupId ?? null, a.vaultId ?? null, a.tagIds ?? []),
   groups_list: (a) => m.groupNodes(a.vaultId ?? null),
   group_save: (a) => m.groupSave(a as Parameters<typeof m.groupSave>[0]),

@@ -42,6 +42,7 @@ mod sshid;
 mod team;
 mod terminal;
 mod themes;
+mod transfer;
 mod webdav;
 
 pub use account::*;

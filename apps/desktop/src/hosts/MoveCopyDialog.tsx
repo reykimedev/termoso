@@ -290,7 +290,7 @@ function Body({
   );
 }
 
-function CredentialsChoice({
+export function CredentialsChoice({
   selected,
   onSelect,
   icon,

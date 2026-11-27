@@ -178,6 +178,8 @@ pub fn run() {
             commands::serial_ports,
             commands::local_shells,
             commands::hosts_copy_to_vault,
+            commands::vault_transfer,
+            commands::vault_transfer_plan,
             commands::host_inherited,
             commands::groups_list,
             commands::group_save,
