@@ -13,7 +13,7 @@ repository.workspace = true
 ssh-key = { version = "=0.7.0-rc.11", default-features = false, features = ["alloc", "std", "ecdsa", "p256", "rand_core"] }
 p256 = { version = "0.14", default-features = false, features = ["ecdsa", "std"] }
 sha2 = "0.11"
-sha3 = "0.11"
+sha3 = "0.12"
 base64 = { workspace = true }
 rand = "0.10"
 serde = { workspace = true }
