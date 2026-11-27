@@ -1,0 +1,5 @@
+Server listening on 0.0.0.0 port 22.
+Server listening on :: port 22.
+Connection closed by authenticating user deploy 172.17.0.1 port 57760 [preauth]
+Accepted password for deploy from 172.17.0.1 port 45116 ssh2
+Accepted password for deploy from 172.17.0.1 port 44282 ssh2
