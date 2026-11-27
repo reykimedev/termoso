@@ -14,6 +14,7 @@ pub mod auth;
 pub mod automation;
 pub mod bridge;
 pub mod ca;
+pub mod collection;
 pub mod entities;
 pub mod error;
 pub mod live;

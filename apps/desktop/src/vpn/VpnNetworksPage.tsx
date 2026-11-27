@@ -31,12 +31,19 @@ import {
 } from "@/components/ui";
 import { useActiveVault, ViewOnlyChip } from "@/app/vault";
 import { useVpnNetworkRequests } from "@/app/navigation";
-import { useVpnStates } from "@/ipc/hooks";
+import { useVaults, useVpnStates } from "@/ipc/hooks";
+import { NewItemVaultField } from "@/hosts/NewItemVaultField";
 import { VpnDetailsPanel } from "./VpnDetailsPanel";
 import { VpnStateChip } from "./VpnStateChip";
 import { tr } from "@/i18n";
 import { vpnProviderName } from "@/hosts/HostBadges";
-import { networkTitle, providerCloud, VPN_PROVIDERS } from "./providers";
+import {
+  IDLE_CHOICES,
+  idleChoiceLabel,
+  networkTitle,
+  providerCloud,
+  VPN_PROVIDERS,
+} from "./providers";
 
 const mono = { spellCheck: false, style: { fontFamily: "monospace", fontSize: 12 } } as const;
 
@@ -71,6 +78,9 @@ function NetworksBody({ vault }: { vault: ReturnType<typeof useActiveVault> }) {
     enabled: vaultId !== null,
   });
   const [editing, setEditing] = useState<Editing | null>(null);
+  /** New networks may go into another vault; the active one is preselected. */
+  const [newVault, setNewVault] = useState<Uuid | null>(null);
+  const vaults = useVaults();
   const [showing, setShowing] = useState<Uuid | null>(null);
   // A host badge or picker asked for one network's details.
   useVpnNetworkRequests((id) => {
@@ -85,6 +95,7 @@ function NetworksBody({ vault }: { vault: ReturnType<typeof useActiveVault> }) {
 
   const add = () => {
     setShowing(null);
+    setNewVault(vaultId);
     setEditing({ network: null });
   };
   const shown = list.find((n) => n.id === showing) ?? null;
@@ -199,11 +210,21 @@ function NetworksBody({ vault }: { vault: ReturnType<typeof useActiveVault> }) {
           subtitle={vaultName}
           onClose={() => setEditing(null)}
         >
+          {!editing.network && newVault && (
+            <NewItemVaultField value={newVault} onChange={setNewVault} />
+          )}
           <NetworkForm
-            key={editing.network?.id ?? "new"}
-            vaultId={vaultId}
+            key={editing.network?.id ?? `new-${newVault ?? ""}`}
+            vaultId={editing.network ? vaultId : (newVault ?? vaultId)}
             network={editing.network}
-            signInOnly={signInOnly.data ?? true}
+            signInOnly={
+              // A team vault never holds setup keys.
+              !editing.network &&
+              newVault !== vaultId &&
+              vaults.data?.find((v) => v.id === newVault)?.kind === "team"
+                ? true
+                : (signInOnly.data ?? true)
+            }
             readOnly={readOnly}
             onDone={() => {
               setEditing(null);
@@ -241,6 +262,7 @@ function NetworkForm({
   const [url, setUrl] = useState(network?.managementUrl ?? "");
   const [setupKey, setSetupKey] = useState("");
   const [directFirst, setDirectFirst] = useState(network?.directFirst ?? false);
+  const [idleSecs, setIdleSecs] = useState<number | null>(network?.idleSecs ?? null);
   const [account, setAccount] = useState(network?.account ?? "");
   const [busy, setBusy] = useState<"save" | "delete" | "signIn" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -265,6 +287,7 @@ function NetworkForm({
     managementUrl: url.trim() || null,
     setupKey: !signInOnly && setupKey.trim() ? setupKey.trim() : null,
     directFirst,
+    idleSecs,
   });
   const save = async () => {
     if (await run("save", () => ipc.vpnNetworkSave(vaultId, network?.id ?? null, form()))) onDone();
@@ -353,6 +376,26 @@ function NetworkForm({
             )}
           </FormHelperText>
         </Box>
+        <TextField
+          select
+          value={idleSecs === null ? "default" : String(idleSecs)}
+          onChange={(e) =>
+            setIdleSecs(e.target.value === "default" ? null : Number(e.target.value))
+          }
+          label={tr("Stay connected when unused")}
+          helperText={tr(
+            "After the last connection closes. Longer keeps reconnects instant; shorter saves battery.",
+          )}
+          slotProps={{ htmlInput: { readOnly } }}
+        >
+          {(IDLE_CHOICES.includes(idleSecs) ? IDLE_CHOICES : [...IDLE_CHOICES, idleSecs]).map(
+            (c) => (
+              <MenuItem key={c ?? "default"} value={c === null ? "default" : String(c)}>
+                {idleChoiceLabel(c)}
+              </MenuItem>
+            ),
+          )}
+        </TextField>
         {error && (
           <Alert severity="error" variant="outlined">
             {error}

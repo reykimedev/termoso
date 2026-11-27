@@ -56,6 +56,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.labdex.labterm.R
 import dev.labdex.labterm.core.TransportItem
 import dev.labdex.labterm.core.TransportState
+import dev.labdex.labterm.core.VaultInfo
+import dev.labdex.labterm.core.VaultKind
 import dev.labdex.labterm.data.VaultRepository
 import dev.labdex.labterm.data.userMessage
 import dev.labdex.labterm.service.VpnSignIns
@@ -66,9 +68,13 @@ import dev.labdex.labterm.ui.components.IconTile
 import dev.labdex.labterm.ui.components.ItemActionsSheet
 import dev.labdex.labterm.ui.components.ItemMoreButton
 import dev.labdex.labterm.ui.components.ListRow
+import dev.labdex.labterm.ui.components.NewItemVaultPicker
+import dev.labdex.labterm.ui.components.PickerRow
 import dev.labdex.labterm.ui.components.RowDivider
 import dev.labdex.labterm.ui.components.SecretField
 import dev.labdex.labterm.ui.components.SectionCard
+import dev.labdex.labterm.ui.components.rememberWritableVaults
+import dev.labdex.labterm.ui.hosts.FullScreenEditor
 import dev.labdex.labterm.ui.components.SheetAction
 import dev.labdex.labterm.ui.components.SheetSection
 import dev.labdex.labterm.ui.components.SubScreen
@@ -138,6 +144,7 @@ fun NetbirdNetworksScreen(shell: ShellViewModel, onBack: () -> Unit, onOpenNetwo
             signedIn = false,
             account = null,
             directFirst = false,
+            idleSecs = null,
         )
     }
 
@@ -202,10 +209,12 @@ fun NetbirdNetworksScreen(shell: ShellViewModel, onBack: () -> Unit, onOpenNetwo
         }
     }
 
+    val newItemVaults = rememberWritableVaults(shell.repo)
     editing?.let { n ->
         val id = n.id
-        NetworkEditDialog(
+        NetworkEditorPage(
             n,
+            vaults = newItemVaults,
             onDismiss = { editing = null },
             onSignIn = if (id == null || n.hasSetupKey) null else ({ editing = null; signingIn = n }),
             onDelete = if (id == null) null else ({
@@ -282,28 +291,53 @@ fun NetbirdNetworksScreen(shell: ShellViewModel, onBack: () -> Unit, onOpenNetwo
     }
 }
 
+/** Full-screen editor of a VPN network, in the shared edit page layout. */
 @Composable
-internal fun NetworkEditDialog(
+internal fun NetworkEditorPage(
     current: TransportItem,
+    /** New networks: vaults to pick from (empty = keep [current]'s vault). */
+    vaults: List<VaultInfo> = emptyList(),
     onDismiss: () -> Unit,
     onSignIn: (() -> Unit)?,
     onDelete: (() -> Unit)?,
     onSave: (TransportItem) -> Unit,
 ) {
+    var vaultId by remember { mutableStateOf(current.vaultId) }
+    // A team vault never holds a setup key: everyone signs in.
+    val team = vaults.firstOrNull { it.id == vaultId }?.let { it.kind == VaultKind.TEAM } ?: current.team
     var label by remember { mutableStateOf(current.label) }
     var provider by remember { mutableStateOf(current.provider.ifEmpty { NETBIRD }) }
     val tailscale = provider == TAILSCALE
     var url by remember { mutableStateOf(current.managementUrl.orEmpty()) }
     var setupKey by remember { mutableStateOf("") }
     var directFirst by remember { mutableStateOf(current.directFirst) }
+    var idleSecs by remember { mutableStateOf(current.idleSecs) }
     // A stored key is never shown again: leaving the field empty keeps it. Without
     // a key, each user joins by signing in.
     val valid = label.isNotBlank()
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(if (current.id == null) stringResource(R.string.netbird_new_network) else current.label) },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    FullScreenEditor(
+        title = stringResource(if (current.id == null) R.string.vpn_new_network else R.string.vpn_edit_network),
+        canSave = valid,
+        onSave = {
+            onSave(
+                current.copy(
+                    vaultId = vaultId,
+                    team = team,
+                    label = label.trim(),
+                    provider = provider,
+                    managementUrl = url.trim().ifEmpty { null },
+                    setupKey = if (team) null else setupKey.trim().ifEmpty { null },
+                    directFirst = directFirst,
+                    idleSecs = idleSecs,
+                ),
+            )
+        },
+        onDismiss = onDismiss,
+        onDelete = onDelete,
+    ) {
+        SectionCard {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (current.id == null) NewItemVaultPicker(vaults, vaultId) { vaultId = it }
                 FormField(label, { label = it }, stringResource(R.string.label))
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     listOf(NETBIRD, TAILSCALE).forEachIndexed { i, p ->
@@ -320,7 +354,11 @@ internal fun NetworkEditDialog(
                     stringResource(if (tailscale) R.string.tailscale_control_url else R.string.netbird_management_url),
                     placeholder = if (tailscale) "https://headscale.example.com" else "https://netbird.example.com",
                 )
-                if (current.team) {
+            }
+        }
+        SectionCard {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (team) {
                     // A key here would let every vault member in without a NetBird account.
                     Text(
                         stringResource(R.string.netbird_team_sign_in_hint),
@@ -340,37 +378,56 @@ internal fun NetworkEditDialog(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                SwitchRow(
-                    title = stringResource(R.string.vpn_direct_first),
-                    subtitle = stringResource(R.string.vpn_direct_first_hint),
-                    checked = directFirst,
-                    onCheckedChange = { directFirst = it },
-                )
                 if (onSignIn != null) {
                     TextButton(onClick = onSignIn) {
                         Text(stringResource(if (current.signedIn) R.string.netbird_sign_in_again else R.string.netbird_sign_in))
                     }
                 }
-                if (onDelete != null) {
-                    TextButton(onClick = onDelete) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
-                }
             }
-        },
-        confirmButton = {
-            TextButton(enabled = valid, onClick = {
-                onSave(
-                    current.copy(
-                        label = label.trim(),
-                        provider = provider,
-                        managementUrl = url.trim().ifEmpty { null },
-                        setupKey = if (current.team) null else setupKey.trim().ifEmpty { null },
-                        directFirst = directFirst,
-                    ),
+        }
+        SectionCard {
+            SwitchRow(
+                title = stringResource(R.string.vpn_direct_first),
+                subtitle = stringResource(R.string.vpn_direct_first_hint),
+                checked = directFirst,
+                onCheckedChange = { directFirst = it },
+            )
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                val choices = IDLE_CHOICES.let { if (idleSecs in it) it else it + idleSecs }
+                PickerRow(
+                    label = stringResource(R.string.vpn_idle),
+                    value = idleChoiceLabel(idleSecs),
+                    options = choices.map { it?.toString() to idleChoiceLabel(it) },
+                    selected = idleSecs?.toString(),
+                    onPick = { idleSecs = it?.toUIntOrNull() },
+                    empty = null,
                 )
-            }) { Text(stringResource(R.string.save)) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
-    )
+                Text(
+                    stringResource(R.string.vpn_idle_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+/** How long a network may stay up without a connection, in seconds; null = the default
+ *  (2 minutes), 0 = until disconnected. The desktop editor offers the same. */
+internal val IDLE_CHOICES: List<UInt?> = listOf(30u, null, 600u, 3600u, 0u)
+
+@Composable
+internal fun idleChoiceLabel(secs: UInt?): String = when (secs) {
+    null -> stringResource(R.string.vpn_idle_default)
+    0u -> stringResource(R.string.vpn_idle_forever)
+    30u -> stringResource(R.string.vpn_idle_30s)
+    600u -> stringResource(R.string.vpn_idle_10min)
+    3600u -> stringResource(R.string.vpn_idle_1h)
+    else -> if (secs < 120u) {
+        stringResource(R.string.vpn_idle_seconds, secs.toInt())
+    } else {
+        stringResource(R.string.vpn_idle_minutes, (secs / 60u).toInt())
+    }
 }
 
 /** Opens [url] in a Custom Tab (falls back to the default browser); false when no browser exists. */

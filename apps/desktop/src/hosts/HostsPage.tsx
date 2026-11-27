@@ -84,7 +84,6 @@ import {
   useGroups,
   useHosts,
   useKnownHosts,
-  useCopyHostsToVault,
   useMoveHosts,
   useSaveSettings,
   useSettings,
@@ -122,6 +121,7 @@ import { useVaultPresence } from "./PresenceViews";
 import { HostEditPanel } from "./HostEditPanel";
 import { DeleteGroupDialog, GroupPanel } from "./GroupPanel";
 import { MoveCopyDialog, type MoveCopyRequest } from "./MoveCopyDialog";
+import { VaultTransferDialog, type VaultTransferRequest } from "./VaultTransferDialog";
 import { AddKeyToHostDialog, SetupOpksshDialog } from "@/keychain/KeyDialogs";
 import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
 import { ImportDialog } from "./ImportDialog";
@@ -280,7 +280,6 @@ export function HostsPage() {
   const duplicateHost = useDuplicateHost();
   const duplicateGroup = useDuplicateGroup();
   const moveHosts = useMoveHosts();
-  const copyToVault = useCopyHostsToVault();
 
   const [groupId, setGroupId] = useState<Uuid | null>(null);
   const [search, setSearch] = useState("");
@@ -297,6 +296,7 @@ export function HostsPage() {
   const [checked, setChecked] = useState<ReadonlySet<Uuid>>(() => new Set());
   const [anchorId, setAnchorId] = useState<Uuid | null>(null);
   const [moveCopy, setMoveCopy] = useState<MoveCopyRequest | null>(null);
+  const [transfer, setTransfer] = useState<VaultTransferRequest | null>(null);
   const [addKeyHost, setAddKeyHost] = useState<HostCard | null>(null);
   const [opksshHost, setOpksshHost] = useState<HostCard | null>(null);
   const [opksshBusy, setOpksshBusy] = useState(false);
@@ -777,6 +777,12 @@ export function HostsPage() {
         onClick: () => setMoveCopy({ kind: "group", hosts: targets }),
       },
       {
+        label: tr("Move to vault…"),
+        icon: <DriveFileMoveOutlinedIcon fontSize="small" />,
+        disabled: readOnly,
+        onClick: () => setTransfer({ hosts: targets, groups: [], mode: "move" }),
+      },
+      {
         label: tr("Copy to"),
         icon: <LibraryAddOutlinedIcon fontSize="small" />,
         items: copyToItems(targets),
@@ -841,14 +847,14 @@ export function HostsPage() {
   };
 
   /** `Copy to ▸` — every other vault plus “Add vault”, like Termius. */
-  const copyToItems = (targets: HostCard[]): MenuAction[] => [
+  const copyToItems = (targets: HostCard[], groups: GroupNode[] = []): MenuAction[] => [
     ...vault.vaults
       .filter((v) => v.id !== vaultId)
       .map((v) => ({
         label: v.name,
         icon: vaultIcon(v),
         disabled: !v.unlocked || v.role === "viewer",
-        onClick: () => copyHostsTo(targets, v.id),
+        onClick: () => setTransfer({ hosts: targets, groups, mode: "copy", target: v.id }),
       })),
     {
       label: tr("Add vault"),
@@ -857,26 +863,6 @@ export function HostsPage() {
       onClick: () => goToSettingsWith({ kind: "newVault" }),
     },
   ];
-
-  const copyHostsTo = (targets: HostCard[], to: Uuid) => {
-    const dest = vault.vaults.find((v) => v.id === to);
-    if (!dest || !vaultId) return;
-    if (dest.kind === "team") {
-      setMoveCopy({ kind: "vault", hosts: targets, move: false, target: to });
-      return;
-    }
-    const what =
-      targets.length === 1
-        ? `“${targets[0]?.label ?? ""}”`
-        : trn(targets.length, "{count} host", "{count} hosts");
-    copyToVault.mutate(
-      { ids: targets.map((t) => t.id), vaultId: to, move: false, withCredentials: true },
-      {
-        onSuccess: () => snackbar.notify(tr("Copied {what} to {name}", { what, name: dest.name })),
-        onError: (e) => snackbar.error(errorMessage(e)),
-      },
-    );
-  };
 
   const groupMenu = (g: GroupNode): MenuAction[] => {
     const n = groupTargets(g).length;
@@ -916,6 +902,17 @@ export function HostsPage() {
         icon: <ContentCopyRoundedIcon fontSize="small" />,
         disabled: readOnly,
         onClick: () => onDuplicateGroup(g),
+      },
+      {
+        label: tr("Move to vault…"),
+        icon: <DriveFileMoveOutlinedIcon fontSize="small" />,
+        disabled: readOnly,
+        onClick: () => setTransfer({ hosts: [], groups: [g], mode: "move" }),
+      },
+      {
+        label: tr("Copy to"),
+        icon: <LibraryAddOutlinedIcon fontSize="small" />,
+        items: copyToItems([], [g]),
         divider: true,
       },
       {
@@ -1174,6 +1171,12 @@ export function HostsPage() {
                     icon: <DriveFileMoveOutlinedIcon fontSize="small" />,
                     disabled: readOnly,
                     onClick: () => setMoveCopy({ kind: "group", hosts: selectedHosts }),
+                  },
+                  {
+                    label: tr("Move to vault…"),
+                    icon: <DriveFileMoveOutlinedIcon fontSize="small" />,
+                    disabled: readOnly,
+                    onClick: () => setTransfer({ hosts: selectedHosts, groups: [], mode: "move" }),
                   },
                   {
                     label: tr("Copy to"),
@@ -1507,6 +1510,14 @@ export function HostsPage() {
           request={moveCopy}
           vaultId={vaultId}
           onClose={() => setMoveCopy(null)}
+          onDone={clearSelection}
+        />
+      )}
+      {vaultId && (
+        <VaultTransferDialog
+          request={transfer}
+          vaultId={vaultId}
+          onClose={() => setTransfer(null)}
           onDone={clearSelection}
         />
       )}

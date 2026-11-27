@@ -81,6 +81,7 @@ import type {
   KeyCard,
   OidcKeyOptions,
   OidcProvider,
+  VpnActivity,
   VpnDetails,
   VpnHostTest,
   VpnNetwork,
@@ -172,6 +173,9 @@ import type {
   WebhookDelivery,
   WebhookKind,
   WorkspacesState,
+  TransferPlan,
+  TransferRequest,
+  TransferResult,
 } from "./types";
 import type {
   AccessRequest,
@@ -515,6 +519,7 @@ export const vpnRunning = (ids: Uuid[]) => invoke<Uuid[]>("vpn_running", { ids }
 export const vpnStates = (ids: Uuid[]) => invoke<Record<Uuid, VpnState>>("vpn_states", { ids });
 export const vpnDetails = (id: Uuid) => invoke<VpnDetails>("vpn_details", { id });
 /** Connection test for a host that uses a VPN network: join, look up, dial, read the SSH banner. */
+export const vpnActivity = (since: number | null) => invoke<VpnActivity>("vpn_activity", { since });
 export const vpnTestHost = (hostId: Uuid) => invoke<VpnHostTest>("vpn_test_host", { hostId });
 /** Leave a network now; the next connection joins again. */
 export const vpnDisconnect = (id: Uuid) => invoke<null>("vpn_disconnect", { id });
@@ -534,6 +539,10 @@ export const keySetupOpksshOnHost = (args: {
   principal: string | null;
   identity: string | null;
 }) => invoke<OpksshHostSetup>("key_setup_opkssh_on_host", args);
+export const vaultTransferPlan = (request: TransferRequest) =>
+  invoke<TransferPlan>("vault_transfer_plan", { request });
+export const vaultTransfer = (request: TransferRequest) =>
+  invoke<TransferResult>("vault_transfer", { request });
 export const keyCopyToVault = (id: Uuid, vaultId: Uuid, moveKey: boolean) =>
   invoke<KeyCard>("key_copy_to_vault", { id, vaultId, moveKey });
 export const keyRename = (id: Uuid, label: string) => invoke<KeyCard>("key_rename", { id, label });
@@ -571,6 +580,10 @@ export const identitiesList = (vaultId?: Uuid | null) =>
   invoke<IdentityCard[]>("identities_list", { vaultId: vaultId ?? null });
 export const identitySave = (form: IdentityForm) => invoke<IdentityCard>("identity_save", { form });
 export const identityDelete = (id: Uuid) => invoke<null>("identity_delete", { id });
+export const vaultPins = () => invoke<Uuid[]>("vault_pins");
+export const vaultPinToggle = (vaultId: Uuid) => invoke<boolean>("vault_pin_toggle", { vaultId });
+export const vaultPinsReorder = (vaultIds: Uuid[]) =>
+  invoke<null>("vault_pins_reorder", { vaultIds });
 export const overlaysList = () => invoke<OverlayCard[]>("overlays_list");
 export const overlayForTarget = (targetVaultId: Uuid, scope: OverlayScope, targetId: Uuid | null) =>
   invoke<OverlayCard | null>("overlay_for_target", { targetVaultId, scope, targetId });
@@ -916,8 +929,9 @@ export const teamPendingKeys = (teamId: Uuid) =>
   invoke<PendingVaultKey[]>("team_pending_keys", { teamId });
 export const teamAudit = (teamId: Uuid, filter: AuditFilter = {}) =>
   invoke<AuditPage>("team_audit", { teamId, filter });
+/** Returns the new vault's id. */
 export const teamVaultCreate = (teamId: Uuid, name: string, access: VaultAccess[]) =>
-  invoke<null>("team_vault_create", { teamId, name, access });
+  invoke<Uuid>("team_vault_create", { teamId, name, access });
 export const teamVaultRename = (vaultId: Uuid, name: string) =>
   invoke<null>("team_vault_rename", { vaultId, name });
 export const teamVaultDelete = (vaultId: Uuid) => invoke<null>("team_vault_delete", { vaultId });

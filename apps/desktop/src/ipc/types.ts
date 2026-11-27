@@ -2389,7 +2389,9 @@ export type PromptRequest =
   | { kind: "passphrase"; key_label: string }
   | { kind: "pin"; key_label: string; retry: boolean; retries: number | null }
   | { kind: "interactive"; name: string; instructions: string; questions: Question[] }
-  | { kind: "agent_sign"; key_label: string; fingerprint: string; process: string | null };
+  | { kind: "agent_sign"; key_label: string; fingerprint: string; process: string | null }
+  /** Labterm Web: the browser needs a click before it asks for the security key. */
+  | { kind: "security_key"; key_label: string };
 
 export type PromptEvent = { id: Uuid; session_id: Uuid; target: string } & PromptRequest;
 
@@ -3133,6 +3135,9 @@ export interface VpnNetwork {
   account: string | null;
   /** Try a host's LAN address directly first ("direct at home"). */
   directFirst: boolean;
+  /** Seconds it stays up without a connection; null = the default
+   *  (2 minutes), 0 = until disconnected. */
+  idleSecs: number | null;
 }
 
 /** What the network editor saves; `setupKey: null` keeps the stored key. */
@@ -3212,4 +3217,83 @@ export interface VpnNetworkForm {
   managementUrl: string | null;
   setupKey: string | null;
   directFirst?: boolean;
+  idleSecs?: number | null;
+}
+
+/** A network in use on this device, for the status strip. */
+export interface VpnActiveNetwork extends VpnState {
+  id: Uuid;
+  label: string;
+  provider: string;
+  /** Seconds until it stops by itself; null while a connection uses it or
+   *  when it stays up until disconnected. */
+  stopsInSecs: number | null;
+}
+
+/** A network that stopped by itself after its idle time. */
+export interface VpnIdleStop {
+  id: Uuid;
+  label: string;
+  provider: string;
+}
+
+/** What the status strip polls (`vpn_activity`). */
+export interface VpnActivity {
+  networks: VpnActiveNetwork[];
+  /** Stops after `since`, oldest first; empty on the first call. */
+  stops: VpnIdleStop[];
+  /** Pass back as `since` next time. */
+  seq: number;
+}
+
+// ── vault transfer (labterm_client::vaultmove) ──
+
+export type TransferMode = "copy" | "move";
+
+export interface TransferRequest {
+  hostIds: Uuid[];
+  groupIds: Uuid[];
+  /** Target vault. */
+  vaultId: Uuid;
+  /** Group in the target vault; null = top level. */
+  groupId: Uuid | null;
+  mode: TransferMode;
+  withCredentials: boolean;
+}
+
+export type TransferBlocker =
+  | "nothing"
+  | "same_vault"
+  | "mixed_vaults"
+  | "target_locked"
+  | "target_read_only"
+  | "target_group"
+  | "source_read_only"
+  | "connect_only"
+  | "hidden"
+  | "restricted";
+
+export type TransferAction =
+  "reuse" | "copy" | "leave_out" | "unlink" | "move_along" | "rewrite" | "remove" | "breaks";
+
+export interface TransferDependency {
+  kind: string;
+  id: Uuid;
+  label: string;
+  action: TransferAction;
+}
+
+export interface TransferPlan {
+  sourceVaultId: Uuid | null;
+  targetVaultId: Uuid;
+  hosts: number;
+  groups: number;
+  blocked: { id: Uuid | null; label: string; reason: TransferBlocker }[];
+  dependencies: TransferDependency[];
+}
+
+export interface TransferResult {
+  hosts: { from: Uuid; to: Uuid }[];
+  groups: { from: Uuid; to: Uuid }[];
+  plan: TransferPlan;
 }

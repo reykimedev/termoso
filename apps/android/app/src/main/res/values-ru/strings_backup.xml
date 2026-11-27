@@ -34,7 +34,7 @@
     <string name="move_carries_over">Переносится</string>
     <string name="move_carries_items">Хосты, группы, учётные записи, ключи, сертификаты, сниппеты, правила проброса, известные хосты, провайдеры OpenID и настройки в хранилищах, включая командные</string>
     <string name="move_stays_behind">Настроить заново на новом сервере</string>
-    <string name="move_stays_teams">Команды, участники и правила доступа (командные хранилища восстанавливаются в личное)</string>
+    <string name="move_stays_teams">Команды, участники и правила доступа (командные хранилища можно восстановить в новые командные хранилища)</string>
     <string name="move_stays_history">История подключений и записи сеансов</string>
     <string name="move_stays_devices">Устройства: войдите заново на каждом</string>
     <string name="move_stays_sshid">Имя SSH ID и опубликованные ключи</string>
@@ -117,4 +117,8 @@
         <item quantity="many">%d элементов</item>
         <item quantity="other">%d элемента</item>
     </plurals>
+    <string name="backup_into_new_team_vault">В новое командное хранилище</string>
+    <string name="move_team_for_new_vaults">Команда для новых хранилищ</string>
+    <string name="move_new_team">Новая команда</string>
+    <string name="move_team_name">Название команды</string>
 </resources>

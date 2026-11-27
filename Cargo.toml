@@ -8,6 +8,7 @@ members = [
     "crates/labterm-mobile",
     "crates/labterm-mobile/uniffi-bindgen",
     "crates/labterm-awslc-rsa",
+    "crates/labterm-winhello",
     "crates/labterm-server",
     "crates/labterm-bridge",
     "crates/labterm-oidc-cert",
@@ -37,6 +38,7 @@ labterm-core = { path = "crates/labterm-core", default-features = false }
 labterm-client = { path = "crates/labterm-client", default-features = false }
 labterm-bridge = { path = "crates/labterm-bridge" }
 labterm-awslc-rsa = { path = "crates/labterm-awslc-rsa" }
+labterm-winhello = { path = "crates/labterm-winhello" }
 labterm-oidc-cert = { path = "crates/labterm-oidc-cert", default-features = false }
 labterm-netbird = { path = "crates/labterm-netbird" }
 labterm-relay-proto = { path = "crates/labterm-relay-proto" }

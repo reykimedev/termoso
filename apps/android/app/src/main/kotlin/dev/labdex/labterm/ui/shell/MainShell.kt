@@ -2,14 +2,17 @@ package dev.labdex.labterm.ui.shell
 
 import android.net.Uri
 import androidx.annotation.StringRes
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cable
-import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.Handyman
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Cable
-import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Dns
+import androidx.compose.material.icons.outlined.Handyman
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -102,6 +105,8 @@ import dev.labdex.labterm.ui.team.TeamsScreen
 import dev.labdex.labterm.ui.terminal.TerminalScreen
 import dev.labdex.labterm.ui.vault.HistoryScreen
 import dev.labdex.labterm.ui.hosts.TagsScreen
+import dev.labdex.labterm.ui.netbird.VpnIdleStopNotices
+import dev.labdex.labterm.ui.netbird.VpnStatusStrip
 import dev.labdex.labterm.ui.vault.KnownHostsScreen
 import dev.labdex.labterm.ui.vault.SessionLogScreen
 import dev.labdex.labterm.ui.vault.SessionLogsScreen
@@ -204,15 +209,23 @@ object Routes {
     fun snippetEdit(id: String) = "snippetEdit/$id"
 }
 
-private class Tab(val route: String, @StringRes val label: Int, val icon: ImageVector, val selectedIcon: ImageVector)
+/** `route` is the destination pattern (for "is this tab showing"), `target` the route to open. */
+private class Tab(
+    val route: String,
+    @StringRes val label: Int,
+    val icon: ImageVector,
+    val selectedIcon: ImageVector,
+    val target: String = route,
+)
 
 private val tabs = listOf(
-    Tab(Routes.VAULT, R.string.vaults, Icons.Outlined.Lock, Icons.Filled.Lock),
+    Tab(Routes.HOSTS, R.string.hosts, Icons.Outlined.Dns, Icons.Filled.Dns, target = Routes.hosts(null)),
     Tab(Routes.CONNECTIONS, R.string.connections, Icons.Outlined.Cable, Icons.Filled.Cable),
+    Tab(Routes.VAULT, R.string.tools, Icons.Outlined.Handyman, Icons.Filled.Handyman),
     Tab(Routes.SETTINGS, R.string.settings, Icons.Outlined.Settings, Icons.Filled.Settings),
 )
 
-/** Bottom-navigation shell: Vaults · Connections · Settings, with nested host screens. */
+/** Bottom-navigation shell: Hosts · Connections · Tools · Settings, with nested screens. */
 @Composable
 fun MainShell(
     container: AppContainer,
@@ -236,9 +249,8 @@ fun MainShell(
     val scope = rememberCoroutineScope()
     val backStack by nav.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
-    // The host list is the Vaults tab's landing page, so the bar stays while browsing hosts.
-    val vaultsTabRoute = currentRoute == Routes.VAULT || currentRoute == Routes.HOSTS
-    val showBar = vaultsTabRoute || tabs.any { it.route == currentRoute }
+    // Browsing into a group keeps the Hosts tab (same destination), so the bar stays.
+    val showBar = tabs.any { it.route == currentRoute }
     val snackbar = remember { SnackbarHostState() }
 
     val context = LocalContext.current
@@ -252,6 +264,7 @@ fun MainShell(
         account.notices.collect { snackbar.showSnackbar(it) }
     }
     LaunchedEffect(forwards) { forwards.autoStartOnce() }
+    VpnIdleStopNotices(shell.repo, snackbar)
     TunnelPromptHost(forwards)
     ReauthHost(account)
     // A host behind a NetBird network this user has not signed in to yet: sign in, then connect.
@@ -479,31 +492,35 @@ fun MainShell(
         snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = {
             if (showBar) {
-                NavigationBar {
-                    tabs.forEach { tab ->
-                        val selected = if (tab.route == Routes.VAULT) vaultsTabRoute else currentRoute == tab.route
-                        NavigationBarItem(
-                            selected = selected,
-                            onClick = {
-                                if (tab.route == Routes.VAULT && currentRoute == Routes.HOSTS) {
-                                    nav.popBackStack(Routes.VAULT, inclusive = false)
-                                } else {
-                                    nav.navigate(tab.route) {
-                                        popUpTo(nav.graph.findStartDestination().id) { saveState = true }
-                                        launchSingleTop = true
-                                        restoreState = true
+                Column {
+                    VpnStatusStrip(shell.repo, onOpen = { nav.navigate(Routes.vpnNetwork(it)) })
+                    NavigationBar {
+                        tabs.forEach { tab ->
+                            val selected = currentRoute == tab.route
+                            NavigationBarItem(
+                                selected = selected,
+                                onClick = {
+                                    if (selected && tab.route == Routes.HOSTS) {
+                                        // Back to the vault's top level from inside a group.
+                                        nav.popBackStack(nav.graph.findStartDestination().id, inclusive = false)
+                                    } else {
+                                        nav.navigate(tab.target) {
+                                            popUpTo(nav.graph.findStartDestination().id) { saveState = true }
+                                            launchSingleTop = true
+                                            restoreState = true
+                                        }
                                     }
-                                }
-                            },
-                            icon = {
-                                if (tab.route == Routes.CONNECTIONS) {
-                                    ConnectionsTabIcon(openSessions, openSftp, selected)
-                                } else {
-                                    Icon(if (selected) tab.selectedIcon else tab.icon, contentDescription = stringResource(tab.label))
-                                }
-                            },
-                            label = { Text(stringResource(tab.label)) },
-                        )
+                                },
+                                icon = {
+                                    if (tab.route == Routes.CONNECTIONS) {
+                                        ConnectionsTabIcon(openSessions, openSftp, selected)
+                                    } else {
+                                        Icon(if (selected) tab.selectedIcon else tab.icon, contentDescription = stringResource(tab.label))
+                                    }
+                                },
+                                label = { Text(stringResource(tab.label)) },
+                            )
+                        }
                     }
                 }
             }
@@ -515,7 +532,7 @@ fun MainShell(
         val idArg = navArgument("id") { type = NavType.StringType }
         NavHost(
             navController = nav,
-            startDestination = Routes.VAULT,
+            startDestination = Routes.HOSTS,
             modifier = Modifier.padding(bottom = if (showBar) padding.calculateBottomPadding() else 0.dp),
         ) {
             composable(Routes.VAULT) {
@@ -524,7 +541,13 @@ fun MainShell(
                     account = account,
                     onOpenAccount = { nav.navigate(Routes.ACCOUNT) },
                     onSignIn = { nav.navigate(Routes.signIn(AuthMode.SignIn)) },
-                    onOpenHosts = { nav.navigate(Routes.hosts(null)) },
+                    onOpenHosts = {
+                        nav.navigate(Routes.hosts(null)) {
+                            popUpTo(nav.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
                     onOpenKeychain = { nav.navigate(Routes.KEYCHAIN) },
                     onOpenForwarding = { nav.navigate(Routes.FORWARDING) },
                     onOpenSnippets = { nav.navigate(Routes.snippets(null)) },

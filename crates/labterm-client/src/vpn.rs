@@ -234,6 +234,55 @@ pub fn state(store: &Arc<Store>, network_id: Uuid) -> VpnState {
     }
 }
 
+/// A network this device is using right now, for the status strip.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ActiveNetwork {
+    pub id: Uuid,
+    pub label: String,
+    pub provider: String,
+    /// Connecting, connected, needs sign-in or error; never off.
+    pub state: VpnState,
+    /// Seconds until it stops by itself; `None` while a connection uses it
+    /// or when it stays up until disconnected.
+    pub stops_in_secs: Option<u64>,
+}
+
+/// The networks with a client starting, running or failed on this device,
+/// sorted by label. Cheap and synchronous, for a strip that refreshes often.
+pub fn active(store: &Arc<Store>) -> Vec<ActiveNetwork> {
+    let mut out: Vec<ActiveNetwork> = NETBIRD
+        .active()
+        .into_iter()
+        .filter_map(|(id, _, left)| {
+            // A network deleted (or locked away) meanwhile has no row.
+            let e = store.get::<Transport>(id).ok().flatten()?;
+            let state = state(store, id);
+            (state != VpnState::Off).then(|| ActiveNetwork {
+                id,
+                label: e.data.label.clone(),
+                provider: e.data.provider.clone(),
+                state,
+                stops_in_secs: left,
+            })
+        })
+        .collect();
+    out.sort_by_key(|a| a.label.to_lowercase());
+    out
+}
+
+pub use labterm_netbird::IdleStop;
+
+/// Networks that stopped by themselves after `seq`; see
+/// [`Netbird::idle_stops_since`](labterm_netbird::Netbird::idle_stops_since).
+pub fn idle_stops_since(seq: u64) -> Vec<IdleStop> {
+    NETBIRD.idle_stops_since(seq)
+}
+
+/// The newest idle stop's sequence number, where a shell starts counting.
+pub fn idle_stop_seq() -> u64 {
+    NETBIRD.idle_stop_seq()
+}
+
 /// Everything the details page shows about one network.
 #[derive(Debug, Clone)]
 pub struct NetworkDetails {
@@ -304,6 +353,28 @@ fn forget_peer_keys(store: &Store, network: Uuid) {
             }
         }
         Err(e) => tracing::warn!("netbird: could not list peer keys: {e}"),
+    }
+}
+
+/// Forget peer keys of networks that no longer exist here: one deleted on
+/// another device goes away by sync, which does not pass through
+/// [`delete`]. Called when the networks are listed.
+pub fn forget_orphans(store: &Store) {
+    let Ok(keys) = store.meta_keys(PEER_META) else {
+        return;
+    };
+    for key in keys {
+        let id = key[PEER_META.len()..]
+            .split('@')
+            .next()
+            .and_then(|id| Uuid::parse_str(id).ok());
+        // Keys we cannot attribute are left alone.
+        let Some(id) = id else { continue };
+        if matches!(store.get::<Transport>(id), Ok(None))
+            && let Err(e) = store.delete_meta(&key)
+        {
+            tracing::warn!("netbird: could not forget a peer key: {e}");
+        }
     }
 }
 
@@ -479,6 +550,7 @@ mod tests {
             management_url: Some("https://netbird.example.com".into()),
             setup_key: None,
             direct_first: false,
+            idle_secs: None,
         };
         let gone = transports::save(&store, vault, None, net("gone")).unwrap();
         let kept = transports::save(&store, vault, None, net("kept")).unwrap();
@@ -500,5 +572,40 @@ mod tests {
         );
         assert!(account(&store, gone.id).is_none());
         assert!(store.get::<Transport>(gone.id).ok().flatten().is_none());
+    }
+
+    #[test]
+    fn peer_keys_of_networks_deleted_elsewhere_are_forgotten() {
+        let store = Arc::new(Store::open_in_memory(SymmetricKey::generate()).unwrap());
+        let vault = store.local_vault().unwrap().id;
+        let kept = transports::save(
+            &store,
+            vault,
+            None,
+            Transport {
+                label: "kept".into(),
+                provider: String::new(),
+                management_url: Some("https://netbird.example.com".into()),
+                setup_key: None,
+                direct_first: false,
+                idle_secs: None,
+            },
+        )
+        .unwrap();
+        let keys = StoreKeys(store.clone());
+        let kept_slot = format!("{}@https://netbird.example.com", kept.id);
+        keys.save(&kept_slot, "k1");
+        // As sync leaves it: the network is gone, its key is not.
+        keys.save(
+            &format!("{}@https://netbird.example.com", Uuid::new_v4()),
+            "k2",
+        );
+
+        forget_orphans(&store);
+
+        assert_eq!(
+            store.meta_keys(PEER_META).unwrap(),
+            vec![format!("{PEER_META}{kept_slot}")]
+        );
     }
 }

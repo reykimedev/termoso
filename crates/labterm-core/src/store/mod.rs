@@ -15,6 +15,7 @@
 //! [`crate::secrets`]. Losing it means losing the local database, which is why
 //! the keychain fallback file is kept next to the database.
 
+mod collections;
 mod entities;
 mod file_cache;
 mod history;
@@ -35,6 +36,7 @@ use uuid::Uuid;
 
 use crate::error::{CoreError, Result};
 
+pub use collections::{CollectionInfo, NewCollection, row_key};
 pub use entities::EntityFilter;
 pub use entities::EntityRow;
 pub use entities::{DefaultsLayers, LayerSource, ResolvedDefaults};
@@ -44,7 +46,7 @@ pub use logs::{LogItem, LogMeta, LogRow, MAX_CAPTURE_BYTES, Recorder};
 
 const SCHEMA: &str = include_str!("schema.sql");
 const ACCOUNT_AVATAR: &str = "account_avatar";
-const SCHEMA_VERSION: i64 = 5;
+const SCHEMA_VERSION: i64 = 6;
 
 /// Schema 1 → 2: team session logs (per-vault logging flag and cursor,
 /// author / pin / note on log rows).
@@ -68,9 +70,16 @@ COMMIT;";
 /// v4 only adds tables; the `CREATE TABLE IF NOT EXISTS` schema covers it.
 const MIGRATE_V4: &str = SCHEMA;
 
-/// Schema 4 → 5: vault tile colour and icon (mirrored from the server; the
-/// local vault keeps its own).
+/// Schema 4 → 5: collections (restricted groups); their tables come from the
+/// `CREATE TABLE IF NOT EXISTS` schema.
 const MIGRATE_V5: &str = "
+BEGIN;
+ALTER TABLE entities ADD COLUMN collection_id TEXT;
+COMMIT;";
+
+/// Schema 5 → 6: vault tile colour and icon (mirrored from the server; the
+/// local vault keeps its own).
+const MIGRATE_V6: &str = "
 BEGIN;
 ALTER TABLE vaults ADD COLUMN color TEXT;
 ALTER TABLE vaults ADD COLUMN icon TEXT;
@@ -214,6 +223,7 @@ pub struct Store {
     conn: Mutex<Connection>,
     master: SymmetricKey,
     keys: Mutex<HashMap<Uuid, SymmetricKey>>,
+    collection_keys: Mutex<HashMap<Uuid, collections::CollectionKeys>>,
 }
 
 impl std::fmt::Debug for Store {
@@ -260,6 +270,7 @@ impl Store {
             conn: Mutex::new(conn),
             master,
             keys: Mutex::new(HashMap::new()),
+            collection_keys: Mutex::new(HashMap::new()),
         };
         let version = store.meta("schema_version")?;
         match version.as_deref().map(|v| v.parse::<i64>().ok()) {
@@ -277,6 +288,9 @@ impl Store {
                 }
                 if from < 5 {
                     store.conn().execute_batch(MIGRATE_V5)?;
+                }
+                if from < 6 {
+                    store.conn().execute_batch(MIGRATE_V6)?;
                 }
                 store.set_meta("schema_version", &SCHEMA_VERSION.to_string())?;
             }
@@ -401,7 +415,8 @@ impl Store {
                 keys.insert(id, key);
             }
         }
-        Ok(())
+        drop(keys);
+        self.load_collection_keys()
     }
 
     /// Vault key, if unlocked.
@@ -838,6 +853,7 @@ impl Store {
                 params![key, ct],
             )?;
         }
+        self.rewrap_collections(&conn, &old)?;
         Ok(())
     }
 }
@@ -974,13 +990,14 @@ mod tests {
                     },
                 )
                 .unwrap();
-            // Strip everything schema 2 added, as a client from before it
-            // would have left the file.
+            // Strip every column later schemas added, as a client from
+            // before them would have left the file.
             store
                 .conn()
                 .execute_batch(
                     "ALTER TABLE vaults DROP COLUMN color;
                      ALTER TABLE vaults DROP COLUMN icon;
+                     ALTER TABLE entities DROP COLUMN collection_id;
                      ALTER TABLE vaults DROP COLUMN is_default;
                      ALTER TABLE vaults DROP COLUMN session_logging;
                      ALTER TABLE vaults DROP COLUMN logs_cursor;

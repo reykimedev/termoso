@@ -168,6 +168,9 @@ export async function reset(): Promise<void> {
 
 // ── entity helpers ──────────────────────────────────────────────────────
 
+/** labterm-proto's PERSONAL_ONLY_KINDS: kinds a team vault never holds. */
+const PERSONAL_ONLY_KINDS = new Set(["host_overlay", "vault_pin"]);
+
 export function list<T>(kind: string, vaultId?: Uuid | null): Ent<T>[] {
   const unlockedVaults = new Set(
     s()
@@ -206,8 +209,8 @@ export function put<T>(kind: string, vaultId: Uuid, id: Uuid | null, data: T): E
   const v = vault(vaultId);
   if (v.role === "viewer") fail("forbidden", "This vault is view-only");
   // labterm-proto's PERSONAL_ONLY_KINDS: a member's own credential links never go in a team vault.
-  if (kind === "host_overlay" && v.kind === "team")
-    fail("invalid", "a host_overlay belongs in your personal or local vault, not a team vault");
+  if (PERSONAL_ONLY_KINDS.has(kind) && v.kind === "team")
+    fail("invalid", "a {kind} belongs in your personal or local vault, not a team vault", { kind });
   // A team vault never holds a NetBird setup key (labterm-core's `put_raw`): every member could
   // read it. This also covers a restored backup and a copy into a team vault.
   if (kind === "transport" && v.kind === "team" && data && typeof data === "object") {

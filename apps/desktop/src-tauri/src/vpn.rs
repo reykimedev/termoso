@@ -42,6 +42,9 @@ pub struct VpnNetwork {
     pub account: Option<String>,
     /// Try a host's LAN address directly first.
     pub direct_first: bool,
+    /// Seconds the network stays up without a connection; `None` = the
+    /// default (2 minutes), `0` = until disconnected.
+    pub idle_secs: Option<u32>,
 }
 
 /// A network's state on this device, for the details page and host badges:
@@ -145,6 +148,8 @@ pub struct VpnNetworkForm {
     pub setup_key: Option<String>,
     #[serde(default)]
     pub direct_first: bool,
+    #[serde(default)]
+    pub idle_secs: Option<u32>,
 }
 
 #[cfg(unix)]
@@ -243,8 +248,9 @@ pub fn init<R: Runtime>(app: &AppHandle<R>) {
 
 #[cfg(unix)]
 fn library_path<R: Runtime>(app: &AppHandle<R>) -> Option<std::path::PathBuf> {
-    // A development build may point elsewhere (vpn/build.sh
-    // prints the path).
+    // A development build may point elsewhere (vpn/build.sh prints the
+    // path). Release builds only load the library shipped with the app.
+    #[cfg(debug_assertions)]
     if let Some(p) = std::env::var_os("LABTERM_VPN_LIBRARY") {
         return Some(p.into());
     }
@@ -277,6 +283,7 @@ fn to_network(store: &Arc<Store>, e: Entity<Transport>) -> VpnNetwork {
         signed_in: s.signed_in,
         account: s.account,
         direct_first: e.data.direct_first,
+        idle_secs: e.data.idle_secs,
     }
 }
 
@@ -416,6 +423,8 @@ pub async fn vpn_networks(
     vault_id: Option<Uuid>,
 ) -> Result<Vec<VpnNetwork>> {
     let store = state.store()?;
+    #[cfg(unix)]
+    labterm_client::vpn::forget_orphans(&store);
     Ok(transports::list(&store, vault_id)?
         .into_iter()
         .map(|e| to_network(&store, e))
@@ -450,6 +459,7 @@ pub async fn vpn_network_save(
             management_url: network.management_url,
             setup_key: network.setup_key,
             direct_first: network.direct_first,
+            idle_secs: network.idle_secs,
         },
     )?;
     Ok(to_network(&store, saved))
@@ -497,6 +507,88 @@ pub async fn vpn_running(ids: Vec<Uuid>) -> Vec<Uuid> {
         }
     }
     on
+}
+
+/// A network in use on this device, for the status strip.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VpnActiveNetwork {
+    pub id: Uuid,
+    pub label: String,
+    pub provider: String,
+    #[serde(flatten)]
+    pub state: VpnStateDto,
+    /// Seconds until it stops by itself; `None` while a connection uses it
+    /// or when it stays up until disconnected.
+    pub stops_in_secs: Option<u64>,
+}
+
+/// A network that stopped by itself after its idle time.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VpnIdleStop {
+    pub id: Uuid,
+    pub label: String,
+    pub provider: String,
+}
+
+/// What the status strip polls: the networks in use and the idle stops
+/// since the caller's `seq`.
+#[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VpnActivity {
+    pub networks: Vec<VpnActiveNetwork>,
+    /// Stops after `since`, oldest first; empty on the first call.
+    pub stops: Vec<VpnIdleStop>,
+    /// Pass this back as `since` next time.
+    pub seq: u64,
+}
+
+/// The networks in use and the idle stops after `since` (`None` on the
+/// first call: no old notices). Cheap; the strip polls it.
+#[tauri::command]
+pub async fn vpn_activity(state: State<'_, AppState>, since: Option<u64>) -> Result<VpnActivity> {
+    let store = state.store()?;
+    #[cfg(unix)]
+    {
+        let mut seq = client::idle_stop_seq();
+        let stops = match since {
+            Some(s) => client::idle_stops_since(s)
+                .into_iter()
+                // A stop after reading `seq` must not show twice.
+                .inspect(|s| seq = seq.max(s.seq))
+                .map(|s| VpnIdleStop {
+                    id: s.network,
+                    label: s.label,
+                    provider: s.provider,
+                })
+                .collect(),
+            None => Vec::new(),
+        };
+        let networks = client::active(&store)
+            .into_iter()
+            .map(|a| VpnActiveNetwork {
+                id: a.id,
+                label: a.label,
+                provider: a.provider,
+                state: VpnStateDto {
+                    state: a.state.name(),
+                    error: a.state.error().map(str::to_owned),
+                },
+                stops_in_secs: a.stops_in_secs,
+            })
+            .collect();
+        Ok(VpnActivity {
+            networks,
+            stops,
+            seq,
+        })
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (store, since);
+        Ok(VpnActivity::default())
+    }
 }
 
 /// Each network's state on this device, for badges and the networks page.

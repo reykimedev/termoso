@@ -38,6 +38,9 @@ pub struct TransportItem {
     /// Try a host's LAN address directly first, the network only when
     /// that doesn't answer.
     pub direct_first: bool,
+    /// Seconds the network stays up after its last connection; `None` =
+    /// the default (2 minutes), `0` = until disconnected.
+    pub idle_secs: Option<u32>,
 }
 
 fn to_item(store: &Arc<Store>, e: Entity<Transport>) -> TransportItem {
@@ -66,12 +69,14 @@ impl From<Entity<Transport>> for TransportItem {
             signed_in: false,
             account: None,
             direct_first: e.data.direct_first,
+            idle_secs: e.data.idle_secs,
         }
     }
 }
 
 pub(crate) fn list(store: &Arc<Store>, vault_id: Option<String>) -> Result<Vec<TransportItem>> {
     let vault = parse_opt_id(&vault_id)?;
+    vpn::forget_orphans(store);
     Ok(transports::list(store, vault)?
         .into_iter()
         .map(|e| to_item(store, e))
@@ -97,6 +102,7 @@ pub(crate) fn save(store: &Arc<Store>, item: TransportItem) -> Result<TransportI
             management_url: item.management_url,
             setup_key: item.setup_key,
             direct_first: item.direct_first,
+            idle_secs: item.idle_secs,
         },
     )?;
     Ok(to_item(store, saved))
@@ -313,6 +319,52 @@ pub(crate) async fn test_host(store: &Arc<Store>, host_id: &str) -> Result<Trans
         peer: t.peer.map(peer_item),
         route: t.route,
     })
+}
+
+/// A network in use on this device, for the status strip.
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct TransportActive {
+    pub id: String,
+    pub label: String,
+    pub provider: String,
+    pub state: TransportState,
+    /// Seconds until it stops by itself; `None` while a connection uses it
+    /// or when it stays up until disconnected.
+    pub stops_in_secs: Option<u64>,
+}
+
+/// A network that stopped by itself after its idle time.
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct TransportIdleStop {
+    pub seq: u64,
+    pub id: String,
+    pub label: String,
+    pub provider: String,
+}
+
+pub(crate) fn active(store: &Arc<Store>) -> Vec<TransportActive> {
+    vpn::active(store)
+        .into_iter()
+        .map(|a| TransportActive {
+            id: a.id.to_string(),
+            label: a.label,
+            provider: a.provider,
+            state: a.state.into(),
+            stops_in_secs: a.stops_in_secs,
+        })
+        .collect()
+}
+
+pub(crate) fn idle_stops_since(seq: u64) -> Vec<TransportIdleStop> {
+    vpn::idle_stops_since(seq)
+        .into_iter()
+        .map(|s| TransportIdleStop {
+            seq: s.seq,
+            id: s.network.to_string(),
+            label: s.label,
+            provider: s.provider,
+        })
+        .collect()
 }
 
 pub(crate) fn state(store: &Arc<Store>, network_id: &str) -> Result<TransportState> {

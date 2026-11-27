@@ -22,8 +22,11 @@ The guide takes six steps:
 3. **Sign out** of the old server. Synced vaults leave this device; the account and its data stay
    on the old server until you delete them there.
 4. **Sign in or create an account** on the new server (choose "Own server" and enter its address).
-5. **Restore.** Pick a target for each vault in the file. Personal and team vaults go into the new
-   personal vault by default; the local vault never left the device and is skipped. If the app was
+5. **Restore.** Pick a target for each vault in the file. The personal vault goes into the new
+   personal vault. A team vault goes into a team vault of the same name or, on desktop and Android,
+   **into a new team vault**: pick a team you manage or let the guide create one (its first vault
+   is used for the vault of the same name). Labterm Web has no teams yet and restores team vaults
+   into the personal vault. The local vault never left the device and is skipped. If the app was
    restarted in between, the guide asks for the file and its password again.
 6. **Done.** Shows what was restored and what to set up again.
 
@@ -38,8 +41,8 @@ deleted.
 
 These live on the server, not in a vault, and are set up again on the new server:
 
-- teams, members and access rules (team vaults are restored into your personal vault; create the
-  team on the new server and move them there)
+- teams, members and access rules (the guide can create the team and its vaults; invite the
+  members and set the access rules again)
 - connection history and session recordings
 - signed-in devices (sign in on each of them again)
 - the SSH ID handle and its published keys

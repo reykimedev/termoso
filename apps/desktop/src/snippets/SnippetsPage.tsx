@@ -66,6 +66,7 @@ import {
 } from "@/ipc/types";
 import { useCreateRequests } from "@/app/navigation";
 import { NameDialog } from "@/sftp/dialogs";
+import { EditDrawer } from "@/components/EditDrawer";
 import { ShellHistoryPanel } from "@/history/ShellHistory";
 import { monoFontFamily, sizes } from "@/theme/theme";
 import { terminalStore, type Pane } from "@/terminal/store";
@@ -75,6 +76,7 @@ import { TargetsDialog } from "./TargetsDialog";
 import { QuietRunDialog } from "./QuietRunDialog";
 import { tr, trn, trx, msg } from "@/i18n";
 import { requirePerm } from "@/team/perms";
+import { NewItemVaultField } from "@/hosts/NewItemVaultField";
 
 const VAR_HINT = msg("Use {{name}} placeholders; you will be asked for values on run.");
 
@@ -107,14 +109,29 @@ function SnippetDialog({
   const set = <K extends keyof SnippetForm>(k: K, v: SnippetForm[K]) => setF({ ...f, [k]: v });
   const valid = f.label.trim().length > 0 && f.script.trim().length > 0;
   return (
-    <Dialog open onClose={busy ? undefined : onCancel} maxWidth="sm" fullWidth>
-      <DialogTitle>{initial ? tr("Edit snippet") : tr("New snippet")}</DialogTitle>
-      <DialogContent>
-        <Stack spacing={2} sx={{ mt: 0.5 }}>
-          <Stack direction="row" spacing={2}>
-            <Field label={tr("Label")} sx={{ flex: 1 }}>
-              <TextField autoFocus value={f.label} onChange={(e) => set("label", e.target.value)} />
-            </Field>
+    <EditDrawer
+      open
+      title={initial ? tr("Edit snippet") : tr("New snippet")}
+      canSave={valid}
+      saving={busy}
+      onSave={() => onConfirm(f)}
+      onClose={onCancel}
+    >
+      <Stack spacing={2}>
+        {!initial && (
+          <NewItemVaultField
+            value={f.vaultId}
+            onChange={(v) =>
+              setF({ ...f, vaultId: v, packageId: v === vaultId ? defaultPackage : null })
+            }
+          />
+        )}
+        <Stack direction="row" spacing={2}>
+          <Field label={tr("Label")} sx={{ flex: 1 }}>
+            <TextField autoFocus value={f.label} onChange={(e) => set("label", e.target.value)} />
+          </Field>
+          {/* Packages belong to the vault shown in the list. */}
+          {f.vaultId === vaultId && (
             <Field label={tr("Package")} sx={{ width: 200 }}>
               <TextField
                 select
@@ -131,38 +148,30 @@ function SnippetDialog({
                 ))}
               </TextField>
             </Field>
-          </Stack>
-          <Field label={tr("Script")}>
-            <TextField
-              value={f.script}
-              onChange={(e) => set("script", e.target.value)}
-              multiline
-              minRows={6}
-              maxRows={16}
-              helperText={tr(VAR_HINT)}
-              slotProps={{ htmlInput: { spellCheck: false, style: { fontFamily: "monospace" } } }}
-            />
-          </Field>
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={f.closeAfterRun}
-                onChange={(e) => set("closeAfterRun", e.target.checked)}
-              />
-            }
-            label={tr("Close the terminal after running")}
-          />
+          )}
         </Stack>
-      </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onCancel} disabled={busy} color="inherit">
-          {tr("Cancel")}
-        </Button>
-        <Button variant="contained" disabled={!valid || busy} onClick={() => onConfirm(f)}>
-          {tr("Save")}
-        </Button>
-      </DialogActions>
-    </Dialog>
+        <Field label={tr("Script")}>
+          <TextField
+            value={f.script}
+            onChange={(e) => set("script", e.target.value)}
+            multiline
+            minRows={6}
+            maxRows={16}
+            helperText={tr(VAR_HINT)}
+            slotProps={{ htmlInput: { spellCheck: false, style: { fontFamily: "monospace" } } }}
+          />
+        </Field>
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={f.closeAfterRun}
+              onChange={(e) => set("closeAfterRun", e.target.checked)}
+            />
+          }
+          label={tr("Close the terminal after running")}
+        />
+      </Stack>
+    </EditDrawer>
   );
 }
 

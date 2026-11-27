@@ -27,7 +27,7 @@ function KindGlyph({ kind, ...props }: { kind: LocalVault["kind"] } & SvgIconPro
 }
 
 /** The picked icon (built-in or custom image), or `fallback`. */
-function StyleGlyph({
+export function StyleGlyph({
   icon,
   fallback,
   ...props

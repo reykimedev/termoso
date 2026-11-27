@@ -1129,6 +1129,23 @@ impl LabtermApp {
         crate::netbird::state(&self.store, &transport_id)
     }
 
+    /// The networks in use on this device (connecting, connected, failed),
+    /// for the status strip. Cheap: fine to call every second.
+    pub fn transport_active(&self) -> Vec<crate::TransportActive> {
+        crate::netbird::active(&self.store)
+    }
+
+    /// Networks that stopped by themselves after `seq`, for a notice. Keep
+    /// the last `seq` shown; start from [`Self::transport_idle_stop_seq`].
+    pub fn transport_idle_stops_since(&self, seq: u64) -> Vec<crate::TransportIdleStop> {
+        crate::netbird::idle_stops_since(seq)
+    }
+
+    /// The newest idle stop's sequence number (0 = none yet).
+    pub fn transport_idle_stop_seq(&self) -> u64 {
+        labterm_client::vpn::idle_stop_seq()
+    }
+
     /// Everything the network details page shows: state, this device's
     /// address, the peers it sees and the hosts that use the network.
     pub fn transport_details(&self, transport_id: String) -> Result<crate::TransportDetails> {
@@ -1272,6 +1289,33 @@ impl LabtermApp {
 
     pub fn delete_identity(&self, id: String) -> Result<()> {
         Ok(keychain::delete_identity(&self.store, parse_id(&id)?)?)
+    }
+
+    // ---- pinned vaults (synced per user, never per team) ----------------
+
+    /// Pinned vault ids, first pin first.
+    pub fn vault_pins(&self) -> Result<Vec<String>> {
+        Ok(labterm_client::pins::pinned(&self.store)?
+            .into_iter()
+            .map(|id| id.to_string())
+            .collect())
+    }
+
+    /// Pin or unpin a vault; returns whether it is pinned now.
+    pub fn toggle_vault_pin(&self, vault_id: String) -> Result<bool> {
+        Ok(labterm_client::pins::toggle(
+            &self.store,
+            parse_id(&vault_id)?,
+        )?)
+    }
+
+    /// Reorder the pins to follow `vault_ids`.
+    pub fn reorder_vault_pins(&self, vault_ids: Vec<String>) -> Result<()> {
+        let ids = vault_ids
+            .iter()
+            .map(|id| parse_id(id))
+            .collect::<Result<Vec<_>>>()?;
+        Ok(labterm_client::pins::reorder(&self.store, &ids)?)
     }
 
     // ---- own credentials on team hosts (personal overlays) -------------
@@ -2079,12 +2123,13 @@ impl LabtermApp {
         RUNTIME.block_on(self.account.pending_keys(team_id))
     }
 
+    /// Returns the new vault's id.
     pub fn create_team_vault(
         &self,
         team_id: String,
         name: String,
         access: Vec<VaultAccessDraft>,
-    ) -> Result<()> {
+    ) -> Result<String> {
         RUNTIME.block_on(self.account.create_team_vault(team_id, name, access))
     }
 

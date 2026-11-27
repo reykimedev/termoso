@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="transfer_action_breaks">Остаётся здесь и указывает на перемещённые хосты</string>
+    <string name="transfer_action_copy">Копируется вместе</string>
+    <string name="transfer_action_leave_out">Не переносится</string>
+    <string name="transfer_action_move_along">Переносится вместе</string>
+    <string name="transfer_action_remove">Ваша личная надстройка удаляется</string>
+    <string name="transfer_action_reuse">Уже есть там, используется повторно</string>
+    <string name="transfer_action_rewrite">Ваша личная надстройка следует за ним</string>
+    <string name="transfer_action_unlink">Связь удалена: настройте это в целевом хранилище</string>
+    <string name="transfer_blocked_connect_only">Ваш доступ позволяет подключаться, но не перемещать или копировать.</string>
+    <string name="transfer_blocked_hidden">Среди выбранного есть скрытые от вас хосты.</string>
+    <string name="transfer_blocked_mixed_vaults">Выбранное находится в разных хранилищах.</string>
+    <string name="transfer_blocked_nothing">Нечего перемещать.</string>
+    <string name="transfer_blocked_restricted">Элементы закрытой группы пока нельзя переносить между хранилищами.</string>
+    <string name="transfer_blocked_same_vault">Уже в этом хранилище.</string>
+    <string name="transfer_blocked_source_read_only">Для перемещения нужны права на изменение в этом хранилище. Скопируйте вместо этого.</string>
+    <string name="transfer_blocked_target_group">Целевая группа находится в другом хранилище.</string>
+    <string name="transfer_blocked_target_locked">Целевое хранилище заблокировано.</string>
+    <string name="transfer_blocked_target_read_only">Целевое хранилище доступно вам только для просмотра.</string>
+    <string name="transfer_copied_to">Скопировано в %1$s</string>
+    <string name="transfer_copy_title">Копировать в хранилище</string>
+    <string name="transfer_kind_color_scheme">Цветовая схема</string>
+    <string name="transfer_kind_identity">Учётная запись</string>
+    <string name="transfer_kind_jump_hosts">Промежуточные хосты</string>
+    <string name="transfer_kind_key">Ключ</string>
+    <string name="transfer_kind_overlay">Личная надстройка</string>
+    <string name="transfer_kind_port_forwarding">Проброс портов</string>
+    <string name="transfer_kind_port_knocking">Простукивание портов</string>
+    <string name="transfer_kind_proxy">Прокси</string>
+    <string name="transfer_kind_snippet">Сниппет</string>
+    <string name="transfer_kind_tag">Тег</string>
+    <string name="transfer_kind_vpn">VPN-сеть</string>
+    <string name="transfer_leave_logins_out">Без учётных данных (каждый использует свои)</string>
+    <string name="transfer_logins_go_along">Учётные данные переносятся (пароли, учётные записи, ключи)</string>
+    <string name="transfer_move_title">Переместить в хранилище</string>
+    <string name="transfer_moved_to">Перемещено в %1$s</string>
+    <string name="transfer_next">Далее</string>
+    <string name="transfer_no_other_vaults">Нет другого хранилища с правом записи.</string>
+    <string name="transfer_originals_removed">оригиналы здесь удаляются</string>
+    <string name="transfer_summary">Групп: %1$d · хостов: %2$d</string>
+</resources>
