@@ -969,6 +969,11 @@ interface KeyInfo {
   fingerprint: string;
   bits: number | null;
   encrypted: boolean;
+  securityKey?: {
+    application: string;
+    flags: { resident: boolean; userPresence: boolean; userVerification: boolean } | null;
+    credentialId: string | null;
+  };
 }
 
 const infoCache = new Map<string, KeyInfo | null>();
@@ -1043,7 +1048,7 @@ export function keyCard(id: Uuid) {
     usedBy: list<Identity>("identity", k.vaultId).filter((i) => i.data.ssh_key_id === k.id).length,
     certificate,
     certificateUnreadable,
-    securityKey: null,
+    securityKey: info?.securityKey ?? null,
     updatedAt: k.updatedAt,
     dirty: k.dirty,
   };

@@ -122,7 +122,19 @@ export function identitySubtitle(i: IdentityCard): string {
 /** Pseudo-device for the Windows Security dialog (webauthn.dll): Windows
  *  picks the key and asks for the PIN itself, and cannot list resident keys. */
 export const WINDOWS_DIALOG_DEVICE = "windows://hello";
+/** Pseudo-device for the browser's WebAuthn dialog in Labterm Web. */
+export const BROWSER_DEVICE = "webauthn://browser";
 
 export function isWindowsDialog(d: { path: string } | null | undefined): boolean {
   return d?.path === WINDOWS_DIALOG_DEVICE;
+}
+
+export function isBrowserDevice(d: { path: string } | null | undefined): boolean {
+  return d?.path === BROWSER_DEVICE;
+}
+
+/** The operating system or browser shows its own dialog: it asks for the PIN, and there is no
+ *  way to list resident keys. */
+export function isSystemDialog(d: { path: string } | null | undefined): boolean {
+  return isWindowsDialog(d) || isBrowserDevice(d);
 }

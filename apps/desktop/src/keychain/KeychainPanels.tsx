@@ -81,7 +81,9 @@ import {
   certificateState,
   certificateSummary,
   droppedKind,
+  isBrowserDevice,
   isHardwareKey,
+  isSystemDialog,
   isWindowsDialog,
   keyTypeLabel,
   labelFromPath,
@@ -2038,9 +2040,9 @@ export function Fido2Panel({
       ? algorithmPref
       : (supported[0] ?? algorithmPref);
   const canResident = device?.residentKeys ?? false;
-  const windowsDialog = isWindowsDialog(device);
+  const systemDialog = isSystemDialog(device);
   const pinNeeded =
-    !windowsDialog && (device?.pinSet === true || resident || userVerification || mode === "load");
+    !systemDialog && (device?.pinSet === true || resident || userVerification || mode === "load");
   const mismatch = passphrase.length > 0 && passphrase !== confirm;
   const valid =
     device !== null &&
@@ -2243,14 +2245,21 @@ export function Fido2Panel({
                 <Chip size="small" variant="outlined" label={tr("Resident keys")} />
               )}
             </Stack>
-            {windowsDialog && (
+            {isWindowsDialog(device) && (
               <Typography variant="body2" color="text.secondary">
                 {tr(
                   "Windows asks for the PIN and the touch in its own dialog. Loading resident keys needs Labterm started as administrator.",
                 )}
               </Typography>
             )}
-            {mode === "generate" && canResident && !windowsDialog && (
+            {isBrowserDevice(device) && (
+              <Typography variant="body2" color="text.secondary">
+                {tr(
+                  "The browser asks for the PIN and the touch. Keys made here are ECDSA keys for this Labterm Web address; they also work in the desktop and Android apps, but not with ssh on the command line.",
+                )}
+              </Typography>
+            )}
+            {mode === "generate" && canResident && !systemDialog && (
               <Button
                 variant="text"
                 size="small"
